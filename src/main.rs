@@ -6,6 +6,7 @@ mod nextenergy;
 mod optimizer;
 mod prelude;
 mod units;
+mod weerlive;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
@@ -19,6 +20,8 @@ use crate::{
     nextenergy::NextEnergy,
     optimizer::{WorkingModeHourlySchedule, optimise},
     prelude::*,
+    units::power::Kilowatts,
+    weerlive::{Location, Weerlive},
 };
 
 #[allow(clippy::too_many_lines)]
@@ -36,9 +39,10 @@ async fn main() -> Result {
     match args.command {
         Command::Hunt(hunt_args) => {
             let now = Local::now().naive_local();
-            let starting_hour = now.hour();
+            let start_hour = now.hour();
+
             let next_energy = NextEnergy::try_new()?;
-            let mut hourly_rates = next_energy.get_hourly_rates(now.date(), starting_hour).await?;
+            let mut hourly_rates = next_energy.get_hourly_rates(now.date(), start_hour).await?;
             hourly_rates
                 .extend(next_energy.get_hourly_rates(now.date() + TimeDelta::days(1), 0).await?);
             info!("Fetched energy rates");
@@ -60,12 +64,29 @@ async fn main() -> Result {
                 residual_energy = residual_energy.to_string(),
                 total_capacity = total_capacity.to_string(),
             );
-            let (profit, working_mode_sequence) =
-                optimise(&hourly_rates, residual_energy, total_capacity, &hunt_args)?;
+
+            let pv_generation: Vec<_> = Weerlive::new(
+                &hunt_args.pv.weerlive_api_key,
+                &Location::coordinates(hunt_args.pv.latitude, hunt_args.pv.longitude),
+            )
+            .get(start_hour)
+            .await?
+            .into_iter()
+            .map(|power| Kilowatts(power.0 * hunt_args.pv.pv_surface_square_meters))
+            .collect();
+
+            let (profit, working_mode_sequence) = optimise(
+                &hourly_rates,
+                &pv_generation,
+                residual_energy,
+                total_capacity,
+                &hunt_args.battery,
+                &hunt_args.consumption,
+            )?;
             info!("Optimized", profit = profit.to_string());
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
-                starting_hour,
+                start_hour,
                 working_mode_sequence,
             );
 

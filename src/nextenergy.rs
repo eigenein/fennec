@@ -6,7 +6,7 @@ use chrono::NaiveDate;
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{prelude::*, units::EuroPerKilowattHour};
+use crate::{prelude::*, units::rate::EuroPerKilowattHour};
 
 pub struct NextEnergy(Client);
 

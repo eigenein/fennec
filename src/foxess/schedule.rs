@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryArgs, optimizer::WorkingModeHourlySchedule, prelude::*, units::Watts};
+use crate::{cli::BatteryArgs, optimizer::WorkingModeHourlySchedule, prelude::*};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -140,7 +140,7 @@ impl TimeSlotSequence {
                     max_soc: 100,
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,
-                    feed_power_watts: Watts::from(feed_power).try_into()?,
+                    feed_power_watts: feed_power.into_watts_u32(),
                     working_mode: working_mode.into(),
                 };
                 info!(
@@ -193,7 +193,6 @@ impl From<crate::optimizer::WorkingMode> for WorkingMode {
 
 #[cfg(test)]
 mod tests {
-    use rust_decimal::{Decimal, dec};
 
     use crate::{
         cli::BatteryArgs,
@@ -203,7 +202,7 @@ mod tests {
         },
         optimizer::WorkingMode,
         prelude::*,
-        units::Kilowatts,
+        units::power::Kilowatts,
     };
 
     #[test]
@@ -236,10 +235,11 @@ mod tests {
         let time_slot_sequence = TimeSlotSequence::from_schedule(
             daily_schedule,
             &BatteryArgs {
-                charging_power: Kilowatts(dec!(1.2)),
-                discharging_power: Kilowatts(dec!(0.8)),
-                round_trip_efficiency: Decimal::ONE,
-                self_discharging_rate: Decimal::ZERO,
+                charging_power: Kilowatts(1.2),
+                discharging_power: Kilowatts(0.8),
+                charging_efficiency: 1.0,
+                discharging_efficiency: 1.0,
+                self_discharging_rate: 0.0,
                 min_soc_percent: 10,
             },
         )?;

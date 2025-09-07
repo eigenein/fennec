@@ -1,13 +1,13 @@
 use std::collections::BTreeSet;
 
+use chrono::TimeDelta;
 use itertools::Itertools;
-use rust_decimal::Decimal;
 
 pub use self::working_mode::{WorkingMode, WorkingModeHourlySchedule};
 use crate::{
-    cli::HuntArgs,
+    cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    units::{Euro, EuroPerKilowattHour, KilowattHours},
+    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
 };
 
 mod working_mode;
@@ -19,10 +19,12 @@ mod working_mode;
 )]
 pub fn optimise(
     hourly_rates: &[EuroPerKilowattHour],
+    pv_generation: &[Kilowatts],
     residual_energy: KilowattHours,
     capacity: KilowattHours,
-    hunt_args: &HuntArgs,
-) -> Result<(Euro, Vec<WorkingMode>)> {
+    battery_args: &BatteryArgs,
+    consumption_args: &ConsumptionArgs,
+) -> Result<(Cost, Vec<WorkingMode>)> {
     // Find all possible thresholds:
     let unique_rates: Vec<_> = hourly_rates.iter().collect::<BTreeSet<_>>().into_iter().collect();
 
@@ -48,10 +50,12 @@ pub fn optimise(
                 .collect();
             let test_profit = simulate(
                 hourly_rates,
+                pv_generation,
                 &working_mode_sequence,
                 residual_energy,
                 capacity,
-                hunt_args,
+                battery_args,
+                consumption_args,
             );
             trace!(
                 "Simulated",
@@ -68,67 +72,82 @@ pub fn optimise(
 
 fn simulate(
     hourly_rates: &[EuroPerKilowattHour],
+    pv_generation: &[Kilowatts],
     working_mode_sequence: &[WorkingMode],
     residual_energy: KilowattHours,
     capacity: KilowattHours,
-    hunt_args: &HuntArgs,
-) -> Euro {
-    let min_residual_energy = KilowattHours(
-        capacity.0 * Decimal::from(hunt_args.battery.min_soc_percent) / Decimal::ONE_HUNDRED,
-    );
+    battery_args: &BatteryArgs,
+    consumption_args: &ConsumptionArgs,
+) -> Cost {
+    const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
+    let min_residual_energy = capacity * f64::from(battery_args.min_soc_percent) / 100.0;
+
     let mut current_residual_energy = residual_energy;
-    let mut profit = Euro(Decimal::ZERO);
+    let mut profit = Cost::ZERO;
 
-    for (rate, working_mode) in hourly_rates.iter().zip(working_mode_sequence.as_ref()) {
-        let (power, rate) = match working_mode {
-            WorkingMode::Balancing => (-hunt_args.stand_by_power, *rate), // TODO: add solar forecast.
-            WorkingMode::Charging => (hunt_args.battery.charging_power, *rate),
-            WorkingMode::Discharging => {
-                // We don't get the purchase fees back when feeding out:
-                (-hunt_args.battery.discharging_power, *rate - hunt_args.purchase_fees)
-            }
+    for ((rate, working_mode), pv_power) in
+        hourly_rates.iter().zip(working_mode_sequence.as_ref()).zip(pv_generation)
+    {
+        // Here's what's happening at the battery connection point:
+        let power_balance = match working_mode {
+            WorkingMode::Charging => battery_args.charging_power,
+            WorkingMode::Discharging => battery_args.discharging_power,
+            WorkingMode::Balancing => *pv_power + consumption_args.stand_by_power,
         };
 
-        // Run the mode for 1 hour and cap it within the battery residual energy bounds:
-        let (new_residual_energy, billable_energy) = if power.0.is_sign_negative() {
-            // Discharging: we lose the residual energy faster.
-            let new_residual_energy = KilowattHours(
-                (current_residual_energy.0 + power.0 / hunt_args.battery.round_trip_efficiency)
-                    .max(min_residual_energy.0),
+        // Charging:
+        if power_balance.0.is_sign_positive() {
+            // Let's see how much energy is spent charging it taking the power balance and capacity into account:
+            let energy_differential = (capacity - current_residual_energy)
+                .min(battery_args.charging_power.min(power_balance) * ONE_HOUR);
+            assert!(energy_differential.is_non_negative());
+
+            // Calculate the distribution between the available grid and PV energy:
+            let pv_energy_used = (*pv_power * ONE_HOUR).min(energy_differential);
+            let grid_energy_used = energy_differential - pv_energy_used;
+            assert!(pv_energy_used.is_non_negative());
+            assert!(grid_energy_used.is_non_negative());
+
+            // Calculate the associated costs:
+            profit -=
+                // For PV energy, we estimate the lost profit, but we would not get the purchase fees back:
+                pv_energy_used * (*rate - consumption_args.purchase_fees)
+                // For grid energy, we are buying it at the full rate:
+                + grid_energy_used * *rate;
+
+            // Update current residual energy taking the efficiency into account:
+            current_residual_energy += energy_differential * battery_args.charging_efficiency;
+        }
+        // Discharging:
+        else if power_balance.0.is_sign_negative() {
+            // Let's see how much energy we can obtain taking the minimum SoC and power balance into account:
+            let energy_differential = (min_residual_energy - current_residual_energy)
+                .max(battery_args.discharging_power.max(power_balance) * ONE_HOUR);
+            assert!(
+                energy_differential.is_non_positive(),
+                "energy differential: {energy_differential}",
             );
-            (
-                new_residual_energy,
-                KilowattHours(
-                    // But our actual billable output is lower:
-                    (new_residual_energy - current_residual_energy).0
-                        * hunt_args.battery.round_trip_efficiency,
-                ),
-            )
-        } else {
-            // Charging: we charge slower.
-            let new_residual_energy = KilowattHours(
-                (current_residual_energy.0 + power.0 * hunt_args.battery.round_trip_efficiency)
-                    .min(capacity.0),
-            );
-            (
-                new_residual_energy,
-                KilowattHours(
-                    // But we get billed for the full power:
-                    (new_residual_energy - current_residual_energy).0
-                        / hunt_args.battery.round_trip_efficiency,
-                ),
-            )
-        };
 
-        // Update the simulated residual energy and correct for the self-discharge loss:
-        current_residual_energy = new_residual_energy
-            - KilowattHours(current_residual_energy.0 * hunt_args.battery.self_discharging_rate);
+            // But, we actually get less from it due to the efficiency losses:
+            let effective_energy_differential =
+                energy_differential * battery_args.discharging_efficiency;
+            assert!(effective_energy_differential.is_non_positive());
 
-        // Calculate the associated cost:
-        let cost = Euro(rate.0 * billable_energy.0);
+            // Calculate the payback:
+            let stand_by_differential =
+                effective_energy_differential.max(consumption_args.stand_by_power * ONE_HOUR);
+            let grid_differential = effective_energy_differential - stand_by_differential;
+            assert!(stand_by_differential.is_non_positive());
+            assert!(grid_differential.is_non_positive(), "grid differential: {grid_differential}",);
+            profit -=
+                // Equivalent consumption from the grid:
+                stand_by_differential * *rate
+                // The rest we sell a little cheaper:
+                + grid_differential * (*rate - consumption_args.purchase_fees);
 
-        // Pay for charging, earn from discharging:
-        profit.0 -= cost.0;
+            // Update current residual energy:
+            current_residual_energy += energy_differential;
+        }
     }
 
     profit
@@ -139,10 +158,7 @@ mod tests {
     use rust_decimal::dec;
 
     use super::*;
-    use crate::{
-        cli::BatteryArgs,
-        units::{EuroPerKilowattHour, Kilowatts},
-    };
+    use crate::cli::BatteryArgs;
 
     #[test]
     fn test_simulate() {
@@ -160,24 +176,26 @@ mod tests {
             WorkingMode::Discharging, //-2 kWh, +8 euro
             WorkingMode::Discharging, // battery is capped at 1 kWh
         ];
+        let pv_generation = [Kilowatts(0.0); 5];
         let profit = simulate(
             &rates,
+            &pv_generation,
             &working_mode_sequence,
-            KilowattHours(dec!(1.0)), // starting at 1 kWh
-            KilowattHours(dec!(4.0)), // capacity is 4 kWh
-            &HuntArgs {
-                scout: true,
-                battery: BatteryArgs {
-                    charging_power: Kilowatts(dec!(3.0)),
-                    discharging_power: Kilowatts(dec!(2.0)),
-                    round_trip_efficiency: Decimal::ONE,
-                    self_discharging_rate: Decimal::ZERO,
-                    min_soc_percent: 25, // 1 kWh
-                },
-                stand_by_power: Kilowatts(Decimal::ONE),
-                purchase_fees: EuroPerKilowattHour(Decimal::ZERO),
+            KilowattHours(1.0), // starting at 1 kWh
+            KilowattHours(4.0), // capacity is 4 kWh
+            &BatteryArgs {
+                charging_power: Kilowatts(3.0),
+                discharging_power: Kilowatts(-2.0),
+                charging_efficiency: 1.0,
+                discharging_efficiency: 1.0,
+                self_discharging_rate: 0.0,
+                min_soc_percent: 25, // 1 kWh
+            },
+            &ConsumptionArgs {
+                stand_by_power: -Kilowatts(1.0),
+                purchase_fees: EuroPerKilowattHour(dec!(0.0)),
             },
         );
-        assert_eq!(profit.0, dec!(8.0));
+        assert_eq!(profit.0, 8.0);
     }
 }

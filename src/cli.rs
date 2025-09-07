@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use rust_decimal::Decimal;
 
-use crate::units::{EuroPerKilowattHour, Kilowatts};
+use crate::units::{power::Kilowatts, rate::EuroPerKilowattHour};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]
@@ -42,20 +42,29 @@ pub struct BatteryArgs {
     /// Maximum discharging power in kilowatts.
     #[clap(
         long = "discharging-power-kilowatts",
-        default_value = "0.8",
+        default_value = "-0.8",
         env = "DISCHARGING_POWER_KILOWATTS"
     )]
     pub discharging_power: Kilowatts,
 
-    /// Round-trip efficiency (look for «Battery Details» in FoxCloud app).
-    #[clap(long = "round-trip-efficiency", default_value = "0.948", env = "ROUND_TRIP_EFFICIENCY")]
+    /// Charging efficiency (look for «Battery Details» in FoxCloud app).
+    #[clap(long = "charging-efficiency", default_value = "0.948", env = "CHARGING_EFFICIENCY")]
     #[allow(clippy::doc_markdown)]
-    pub round_trip_efficiency: Decimal,
+    pub charging_efficiency: f64,
+
+    /// Discharging efficiency (look for «Battery Details» in FoxCloud app).
+    #[clap(
+        long = "discharging-efficiency",
+        default_value = "0.948",
+        env = "DISCHARGING_EFFICIENCY"
+    )]
+    #[allow(clippy::doc_markdown)]
+    pub discharging_efficiency: f64,
 
     /// Round-trip efficiency (look for «Battery Details» in FoxCloud app).
     #[clap(long = "self-discharging-rate", default_value = "0.046", env = "SELF_DISCHARGING_RATE")]
     #[allow(clippy::doc_markdown)]
-    pub self_discharging_rate: Decimal,
+    pub self_discharging_rate: f64,
 
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
@@ -72,10 +81,19 @@ pub struct HuntArgs {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
+    #[clap(flatten)]
+    pub pv: PvArgs,
+
+    #[clap(flatten)]
+    pub consumption: ConsumptionArgs,
+}
+
+#[derive(Parser)]
+pub struct ConsumptionArgs {
     /// Average stand-by household usage in watts.
     #[clap(
         long = "stand-by-power-kilowatts",
-        default_value = "0.4",
+        default_value = "-0.4",
         env = "STAND_BY_POWER_KILOWATTS"
     )]
     pub stand_by_power: Kilowatts,
@@ -84,6 +102,21 @@ pub struct HuntArgs {
     #[clap(long = "purchase-fees", default_value = "0.021", env = "PURCHASE_FEES")]
     #[allow(clippy::doc_markdown)]
     pub purchase_fees: EuroPerKilowattHour,
+}
+
+#[derive(Parser)]
+pub struct PvArgs {
+    #[clap(long = "latitude", default_value = "52.349605", env = "LATITUDE")]
+    pub latitude: Decimal,
+
+    #[clap(long = "longitude", default_value = "4.677388", env = "LONGITUDE")]
+    pub longitude: Decimal,
+
+    #[clap(long = "pv-surface-m2", default_value = "2", env = "PV_SURFACE_M2")]
+    pub pv_surface_square_meters: f64,
+
+    #[clap(long = "weerlive-api-key", env = "WEERLIVE_API_KEY")]
+    pub weerlive_api_key: String,
 }
 
 #[derive(Parser)]

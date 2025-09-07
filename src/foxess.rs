@@ -1,4 +1,3 @@
-use rust_decimal::{Decimal, dec};
 use serde::Deserialize;
 
 pub use self::{
@@ -9,7 +8,7 @@ pub use self::{
         TimeSlotSequence as FoxEseTimeSlotSequence,
     },
 };
-use crate::units::KilowattHours;
+use crate::units::energy::KilowattHours;
 
 mod api;
 mod response;
@@ -54,7 +53,7 @@ impl DeviceDetails {
         self.batteries
             .iter()
             .filter_map(|battery| {
-                battery.capacity_watts.map(|watts| KilowattHours(watts / dec!(1000)))
+                battery.capacity_watt_hours.map(|watt_hours| KilowattHours(watt_hours / 1000.0))
             })
             .sum()
     }
@@ -63,5 +62,5 @@ impl DeviceDetails {
 #[derive(Deserialize)]
 pub struct BatteryDetails {
     #[serde(rename = "capacity")]
-    pub capacity_watts: Option<Decimal>,
+    pub capacity_watt_hours: Option<f64>,
 }

@@ -14,7 +14,7 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    cli::{Args, Command, FoxEssCommand},
+    cli::{Args, BurrowCommand, Command},
     foxess::{FoxEseTimeSlotSequence, FoxEssApi},
     nextenergy::NextEnergy,
     optimizer::{optimise, working_mode::WorkingModeHourlySchedule},
@@ -92,21 +92,21 @@ async fn main() -> Result {
         }
 
         Command::Burrow(burrow_args) => match burrow_args.command {
-            FoxEssCommand::DeviceDetails => {
+            BurrowCommand::DeviceDetails => {
                 let details =
                     fox_ess_api.get_device_details(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", total_capacity = details.total_capacity().to_string());
                 Ok(())
             }
 
-            FoxEssCommand::DeviceVariables => {
+            BurrowCommand::DeviceVariables => {
                 let variables =
                     fox_ess_api.get_device_variables(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", residual_energy = variables.residual_energy.to_string());
                 Ok(())
             }
 
-            FoxEssCommand::RawDeviceVariables => {
+            BurrowCommand::RawDeviceVariables => {
                 let response = fox_ess_api
                     .get_devices_variables_raw(&[args.fox_ess_api.serial_number.as_str()])
                     .await?;
@@ -126,7 +126,7 @@ async fn main() -> Result {
                 Ok(())
             }
 
-            FoxEssCommand::Schedule => {
+            BurrowCommand::Schedule => {
                 let schedule = fox_ess_api.get_schedule(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", enabled = schedule.is_enabled);
                 schedule.groups.trace();

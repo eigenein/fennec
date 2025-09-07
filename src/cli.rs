@@ -84,11 +84,11 @@ pub struct FoxEssApiArgs {
 #[derive(Parser)]
 pub struct BurrowArgs {
     #[command(subcommand)]
-    pub command: FoxEssCommand,
+    pub command: BurrowCommand,
 }
 
 #[derive(Subcommand)]
-pub enum FoxEssCommand {
+pub enum BurrowCommand {
     /// Get parsed device variables.
     DeviceVariables,
 

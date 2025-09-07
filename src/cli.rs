@@ -61,7 +61,7 @@ pub struct BatteryArgs {
     #[allow(clippy::doc_markdown)]
     pub discharging_efficiency: f64,
 
-    /// Round-trip efficiency (look for «Battery Details» in FoxCloud app).
+    /// Self-discharging rate (look for «Battery Details» in FoxCloud app).
     #[clap(long = "self-discharging-rate", default_value = "0.046", env = "SELF_DISCHARGING_RATE")]
     #[allow(clippy::doc_markdown)]
     pub self_discharging_rate: f64,

@@ -17,7 +17,7 @@ use crate::{
     cli::{Args, BurrowCommand, Command},
     foxess::{FoxEseTimeSlotSequence, FoxEssApi},
     nextenergy::NextEnergy,
-    optimizer::{optimise, working_mode::WorkingModeHourlySchedule},
+    optimizer::{WorkingModeHourlySchedule, optimise},
     prelude::*,
     units::Kilowatts,
 };
@@ -68,6 +68,7 @@ async fn main() -> Result {
                 hunt_args.battery.min_soc_percent,
                 total_capacity,
                 hunt_args.battery.power,
+                hunt_args.purchase_fees,
             )?;
             info!("Optimized", profit = profit.to_string());
 
@@ -82,7 +83,7 @@ async fn main() -> Result {
                 hunt_args.battery.min_soc_percent,
             )?;
 
-            if !hunt_args.stalk {
+            if !hunt_args.scout {
                 fox_ess_api
                     .set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence)
                     .await?;

@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
+use rust_decimal::Decimal;
 
-use crate::units::Kilowatts;
+use crate::units::{EuroPerKilowattHour, Kilowatts};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]
@@ -31,7 +32,7 @@ pub enum Command {
 #[derive(Parser)]
 pub struct BatteryArgs {
     #[clap(flatten)]
-    pub power: BatteryPower,
+    pub power: BatteryParameters,
 
     /// Average stand-by household usage in watts.
     #[clap(long = "stand-by-power-watts", default_value = "400", env = "STAND_BY_POWER_WATTS")]
@@ -43,14 +44,14 @@ pub struct BatteryArgs {
 }
 
 #[derive(Copy, Clone, Parser)]
-pub struct BatteryPower {
+pub struct BatteryParameters {
     /// Maximum charging power in kilowatts.
     #[clap(
         long = "charging-power-kilowatts",
         default_value = "1.2",
         env = "CHARGING_POWER_KILOWATTS"
     )]
-    pub charging: Kilowatts,
+    pub charging_power: Kilowatts,
 
     /// Maximum discharging power in kilowatts.
     #[clap(
@@ -58,18 +59,33 @@ pub struct BatteryPower {
         default_value = "0.8",
         env = "DISCHARGING_POWER_KILOWATTS"
     )]
-    pub discharging: Kilowatts,
+    pub discharging_power: Kilowatts,
+
+    /// Round-trip efficiency (look for «Battery Details» in FoxCloud app).
+    #[clap(long = "round-trip-efficiency", default_value = "0.948", env = "ROUND_TRIP_EFFICIENCY")]
+    #[allow(clippy::doc_markdown)]
+    pub round_trip_efficiency: Decimal,
+
+    /// Round-trip efficiency (look for «Battery Details» in FoxCloud app).
+    #[clap(long = "self-discharging-rate", default_value = "0.046", env = "SELF_DISCHARGING_RATE")]
+    #[allow(clippy::doc_markdown)]
+    pub self_discharging_rate: Decimal,
 }
 
 #[derive(Parser)]
 pub struct HuntArgs {
     /// Do not push the final schedule to FoxESS Cloud (dry run).
     #[allow(clippy::doc_markdown)]
-    #[clap(long, env = "STALK")]
-    pub stalk: bool,
+    #[clap(long)]
+    pub scout: bool,
 
     #[clap(flatten)]
     pub battery: BatteryArgs,
+
+    /// Energy purchase fees («inkoopvergoeding»).
+    #[clap(long = "purchase-fees", default_value = "0.021", env = "PURCHASE_FEES")]
+    #[allow(clippy::doc_markdown)]
+    pub purchase_fees: EuroPerKilowattHour,
 }
 
 #[derive(Parser)]

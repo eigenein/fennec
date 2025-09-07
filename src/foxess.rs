@@ -9,7 +9,7 @@ pub use self::{
         TimeSlotSequence as FoxEseTimeSlotSequence,
     },
 };
-use crate::units::KilowattHour;
+use crate::units::KilowattHours;
 
 mod api;
 mod response;
@@ -40,7 +40,7 @@ pub struct DeviceRealTimeData {
 #[derive(Deserialize)]
 pub struct DeviceVariables {
     #[serde(rename = "ResidualEnergy")]
-    pub residual_energy: KilowattHour,
+    pub residual_energy: KilowattHours,
 }
 
 #[derive(Deserialize)]
@@ -50,11 +50,11 @@ pub struct DeviceDetails {
 }
 
 impl DeviceDetails {
-    pub fn total_capacity(&self) -> KilowattHour {
+    pub fn total_capacity(&self) -> KilowattHours {
         self.batteries
             .iter()
             .filter_map(|battery| {
-                battery.capacity_watts.map(|watts| KilowattHour(watts / dec!(1000)))
+                battery.capacity_watts.map(|watts| KilowattHours(watts / dec!(1000)))
             })
             .sum()
     }

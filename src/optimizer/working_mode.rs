@@ -2,13 +2,15 @@ use crate::prelude::*;
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub enum WorkingMode {
+    /// Forced charging on any power.
     Charging,
 
+    /// Forced discharging, no matter the actual consumption.
     Discharging,
 
     /// Charge on excess PV power, discharge on insufficient PV power.
     #[default]
-    SelfUse,
+    Balancing,
 }
 
 /// Working mode schedule for 24 hours.
@@ -58,7 +60,7 @@ mod tests {
             WorkingMode::Charging,    // index 1
             WorkingMode::Discharging, // index 2
             WorkingMode::Discharging, // index 0
-            WorkingMode::SelfUse,     // overflow and must be ignored
+            WorkingMode::Balancing,   // overflow and must be ignored
         ];
         let schedule = WorkingModeHourlySchedule::<3>::from_working_modes(1, working_modes);
         assert_eq!(

@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
-    cli::BatteryPower,
-    optimizer::working_mode::WorkingModeHourlySchedule,
+    cli::BatteryParameters,
+    optimizer::WorkingModeHourlySchedule,
     prelude::*,
     units::Watts,
 };
@@ -122,7 +122,7 @@ impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building time slots from the schedule…")]
     pub fn from_schedule<const N: usize>(
         schedule: WorkingModeHourlySchedule<N>,
-        battery_power: BatteryPower,
+        battery_power: BatteryParameters,
         minimum_soc: u32,
     ) -> Result<Self> {
         let chunks = schedule.into_iter().enumerate().chunk_by(|(_, working_mode)| *working_mode);
@@ -135,13 +135,9 @@ impl TimeSlotSequence {
             .into_iter()
             .map(|(working_mode, time_slots)| {
                 let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
-                let working_mode = working_mode.into();
-                let feed_power = {
-                    if working_mode == WorkingMode::ForceDischarge {
-                        battery_power.discharging
-                    } else {
-                        battery_power.charging
-                    }
+                let feed_power = match working_mode {
+                    crate::optimizer::WorkingMode::Discharging => battery_power.discharging_power,
+                    _ => battery_power.charging_power,
                 };
                 let time_slot = TimeSlot {
                     is_enabled: true,
@@ -151,7 +147,7 @@ impl TimeSlotSequence {
                     min_soc_on_grid: minimum_soc,
                     feed_soc: minimum_soc,
                     feed_power_watts: Watts::from(feed_power).try_into()?,
-                    working_mode,
+                    working_mode: working_mode.into(),
                 };
                 info!(
                     "Time slot",
@@ -191,27 +187,27 @@ pub enum WorkingMode {
     Backup,
 }
 
-impl From<crate::optimizer::working_mode::WorkingMode> for WorkingMode {
-    fn from(working_mode: crate::optimizer::working_mode::WorkingMode) -> Self {
+impl From<crate::optimizer::WorkingMode> for WorkingMode {
+    fn from(working_mode: crate::optimizer::WorkingMode) -> Self {
         match working_mode {
-            crate::optimizer::working_mode::WorkingMode::Charging => Self::ForceCharge,
-            crate::optimizer::working_mode::WorkingMode::Discharging => Self::ForceDischarge,
-            crate::optimizer::working_mode::WorkingMode::SelfUse => Self::SelfUse,
+            crate::optimizer::WorkingMode::Charging => Self::ForceCharge,
+            crate::optimizer::WorkingMode::Discharging => Self::ForceDischarge,
+            crate::optimizer::WorkingMode::Balancing => Self::SelfUse,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_decimal::dec;
+    use rust_decimal::{Decimal, dec};
 
     use crate::{
-        cli::BatteryPower,
+        cli::BatteryParameters,
         foxess::{
             FoxEssTimeSlot,
             schedule::{EndTime, StartTime, TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
         },
-        optimizer::working_mode::WorkingMode,
+        optimizer::WorkingMode,
         prelude::*,
         units::Kilowatts,
     };
@@ -240,12 +236,17 @@ mod tests {
             WorkingMode::Charging,
             WorkingMode::Charging,
             WorkingMode::Discharging,
-            WorkingMode::SelfUse,
+            WorkingMode::Balancing,
         ]
         .into();
         let time_slot_sequence = TimeSlotSequence::from_schedule(
             daily_schedule,
-            BatteryPower { charging: Kilowatts(dec!(1.2)), discharging: Kilowatts(dec!(0.8)) },
+            BatteryParameters {
+                charging_power: Kilowatts(dec!(1.2)),
+                discharging_power: Kilowatts(dec!(0.8)),
+                round_trip_efficiency: Decimal::ONE,
+                self_discharging_rate: Decimal::ZERO,
+            },
             10,
         )?;
         assert_eq!(

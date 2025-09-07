@@ -5,7 +5,15 @@ use serde_with::{DisplayFromStr, serde_as};
 
 use crate::prelude::*;
 
-#[derive(Copy, Clone, derive_more::Display, derive_more::FromStr, derive_more::Neg)]
+#[derive(
+    Copy,
+    Clone,
+    derive_more::Display,
+    derive_more::From,
+    derive_more::FromStr,
+    derive_more::Neg,
+    derive_more::Sub,
+)]
 pub struct Kilowatts(pub Decimal);
 
 impl Kilowatts {
@@ -39,8 +47,9 @@ impl TryFrom<Watts> for u32 {
     derive_more::FromStr,
     derive_more::Sum,
     derive_more::Add,
+    derive_more::Sub,
 )]
-pub struct KilowattHour(pub Decimal);
+pub struct KilowattHours(pub Decimal);
 
 #[derive(
     Copy, Clone, PartialOrd, Ord, PartialEq, Eq, derive_more::Display, derive_more::FromStr,
@@ -57,6 +66,7 @@ pub struct Euro(pub Decimal);
     Ord,
     derive_more::Display,
     derive_more::FromStr,
+    derive_more::Sub,
     Serialize,
     Deserialize,
 )]

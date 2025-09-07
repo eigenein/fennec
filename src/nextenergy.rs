@@ -64,7 +64,7 @@ impl NextEnergy {
 pub struct HourlyRate {
     pub start_at: NaiveDateTime,
     // TODO: add `end_before`.
-    pub energy_rate: EuroPerKilowattHour,
+    pub value: EuroPerKilowattHour,
 }
 
 impl HourlyRate {
@@ -76,7 +76,7 @@ impl HourlyRate {
             start_at: date
                 .and_hms_opt(data_point.hour, 0, 0)
                 .context("incorrect data point label")?,
-            energy_rate: data_point.value,
+            value: data_point.value,
         })
     }
 }

@@ -11,7 +11,6 @@ pub use self::schedule::{
     Schedule as FoxEssSchedule,
     TimeSlot as FoxEssTimeSlot,
     TimeSlotSequence as FoxEseTimeSlotSequence,
-    WorkingMode as FoxEssWorkingMode,
 };
 use crate::{foxess::response::Response, prelude::*, units::KilowattHour};
 

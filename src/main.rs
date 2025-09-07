@@ -55,7 +55,7 @@ async fn main() -> Result {
                 residual_energy = residual_energy.to_string(),
                 total_capacity = total_capacity.to_string(),
             );
-            let (profit, battery_plan) = optimise(
+            let (profit, working_mode_sequence) = optimise(
                 &hourly_rates,
                 residual_energy,
                 Kilowatts::from_watts_u32(args.battery.stand_by_power_watts),
@@ -64,19 +64,19 @@ async fn main() -> Result {
                 args.battery.power,
             )?;
             info!("Optimized", profit = profit.to_string());
-            battery_plan.trace();
 
-            let schedule_groups = FoxEseTimeSlotSequence::from_battery_plan(
+            let time_slot_sequence = FoxEseTimeSlotSequence::from_battery_plan(
                 now,
-                battery_plan,
+                &hourly_rates,
+                &working_mode_sequence,
                 args.battery.power,
                 args.battery.min_soc_percent,
             );
-            info!("Compiled schedule", n_groups = schedule_groups.0.len().to_string());
-            schedule_groups.trace();
+            info!("Compiled schedule", n_groups = time_slot_sequence.0.len().to_string());
+            time_slot_sequence.trace();
 
             if !args.stalk {
-                fox_ess.set_schedule(&args.fox_ess_api.serial_number, &schedule_groups).await?;
+                fox_ess.set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence).await?;
             }
 
             Ok(())
@@ -90,11 +90,11 @@ async fn main() -> Result {
                 info!(
                     "Rate",
                     start_time = rate.start_at.to_string(),
-                    value = rate.energy_rate.to_string(),
+                    value = rate.value.to_string(),
                 );
             }
 
-            let (profit, schedule) = optimise(
+            let (profit, working_mode_sequence) = optimise(
                 &hourly_rates,
                 args.residual_energy,
                 Kilowatts::from_watts_u32(args.battery.stand_by_power_watts),
@@ -102,7 +102,7 @@ async fn main() -> Result {
                 args.capacity,
                 args.battery.power,
             )?;
-            schedule.trace();
+            // TODO
             info!("Final", profit = profit.to_string());
 
             Ok(())

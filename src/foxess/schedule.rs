@@ -3,7 +3,13 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryPower, optimizer::BatteryPlan, prelude::*, units::Watts};
+use crate::{
+    cli::BatteryPower,
+    nextenergy::HourlyRate,
+    optimizer::working_mode::WorkingModeSequence,
+    prelude::*,
+    units::Watts,
+};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -74,23 +80,24 @@ pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 impl TimeSlotSequence {
     pub fn from_battery_plan(
         now: NaiveDateTime,
-        battery_plan: BatteryPlan,
+        rates: &[HourlyRate],
+        working_mode_sequence: &WorkingModeSequence,
         battery_power: BatteryPower,
         minimum_soc: u32,
     ) -> Self {
-        let chunks = battery_plan
-            .0
-            .into_iter()
-            .chunk_by(|entry| (entry.mode, entry.hourly_rate.start_at.date()));
+        let chunks = rates
+            .iter()
+            .zip(working_mode_sequence.as_ref())
+            .chunk_by(|(rate, mode)| (**mode, rate.start_at.date()));
         let groups = chunks
             .into_iter()
             .filter_map(|((working_mode, _), entries)| {
                 // TODO: damn unit-test this…
                 let entries: Vec<_> = entries.collect();
-                let start_time = entries.first().unwrap().hourly_rate.start_at;
+                let start_time = entries.first().unwrap().0.start_at;
                 let end_time =
                     // FIXME: could use `TimeDelta::hours(1)`, except for when end time is `00:00`.
-                    entries.last().unwrap().hourly_rate.start_at + TimeDelta::minutes(59);
+                    entries.last().unwrap().0.start_at + TimeDelta::minutes(59);
                 if (end_time > now) && (end_time <= now + TimeDelta::days(1)) {
                     Some(TimeSlot {
                         is_enabled: true,
@@ -102,7 +109,7 @@ impl TimeSlotSequence {
                         min_soc_on_grid: minimum_soc,
                         feed_soc: minimum_soc,
                         feed_power_watts: Watts::from(battery_power.max()).try_into().unwrap(), // FIXME
-                        working_mode,
+                        working_mode: working_mode.into(),
                     })
                 } else {
                     None
@@ -127,12 +134,23 @@ pub enum WorkingMode {
     #[serde(rename = "Feedin")]
     FeedIn,
 
-    #[serde(rename = "Backup")]
-    Backup,
-
     #[serde(rename = "ForceCharge")]
     ForceCharge,
 
     #[serde(rename = "ForceDischarge")]
     ForceDischarge,
+
+    /// Anyhow, the API does not accept this one for my battery.
+    #[serde(rename = "Backup")]
+    Backup,
+}
+
+impl From<crate::optimizer::working_mode::WorkingMode> for WorkingMode {
+    fn from(working_mode: crate::optimizer::working_mode::WorkingMode) -> Self {
+        match working_mode {
+            crate::optimizer::working_mode::WorkingMode::Charging => Self::ForceCharge,
+            crate::optimizer::working_mode::WorkingMode::Discharging => Self::ForceDischarge,
+            crate::optimizer::working_mode::WorkingMode::SelfUse => Self::SelfUse,
+        }
+    }
 }

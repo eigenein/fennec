@@ -16,16 +16,23 @@ use crate::units::{currency::Cost, rate::EuroPerKilowattHour};
     derive_more::Add,
     derive_more::Sub,
     derive_more::AddAssign,
+    derive_more::SubAssign,
 )]
 pub struct KilowattHours(pub f64);
 
 impl KilowattHours {
+    pub const ZERO: Self = Self(0.0);
+
     pub const fn max(self, rhs: Self) -> Self {
         Self(self.0.max(rhs.0))
     }
 
     pub const fn min(self, rhs: Self) -> Self {
         Self(self.0.min(rhs.0))
+    }
+
+    pub const fn clamp(self, min: Self, max: Self) -> Self {
+        Self(self.0.clamp(min.0, max.0))
     }
 
     pub fn is_non_positive(self) -> bool {

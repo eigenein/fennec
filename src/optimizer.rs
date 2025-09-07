@@ -88,6 +88,10 @@ fn simulate(
     for ((rate, working_mode), pv_power) in
         hourly_rates.iter().zip(working_mode_sequence.as_ref()).zip(pv_generation)
     {
+        // Apply self-discharging:
+        current_residual_energy -= current_residual_energy * battery_args.self_discharging_rate;
+        assert!(current_residual_energy.is_non_negative());
+
         // Here's what's happening at the battery connection point:
         let power_balance = match working_mode {
             WorkingMode::Charging => battery_args.charging_power,
@@ -120,9 +124,12 @@ fn simulate(
         }
         // Discharging:
         else if power_balance.0.is_sign_negative() {
-            // Let's see how much energy we can obtain taking the minimum SoC and power balance into account:
-            let energy_differential = (min_residual_energy - current_residual_energy)
-                .max(battery_args.discharging_power.max(power_balance) * ONE_HOUR);
+            // Let's see how much energy we can obtain taking the minimum SoC and power balance into account.
+            // I'm clamping to zero because the self-discharging could drop the residual energy below the reserve:
+            let energy_differential = (min_residual_energy - current_residual_energy).clamp(
+                battery_args.discharging_power.max(power_balance) * ONE_HOUR,
+                KilowattHours::ZERO,
+            );
             assert!(
                 energy_differential.is_non_positive(),
                 "energy differential: {energy_differential}",

@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -26,17 +28,11 @@ pub struct TimeSlot {
     #[serde(rename = "enable")]
     pub is_enabled: bool,
 
-    #[serde(rename = "startHour")]
-    pub start_hour: u32,
+    #[serde(flatten)]
+    pub start_time: StartTime,
 
-    #[serde(rename = "startMinute")]
-    pub start_minute: u32,
-
-    #[serde(rename = "endHour")]
-    pub end_hour: u32,
-
-    #[serde(rename = "endMinute")]
-    pub end_minute: u32,
+    #[serde(flatten)]
+    pub end_time: EndTime,
 
     #[serde(rename = "maxSoc")]
     pub max_soc: u32,
@@ -59,13 +55,60 @@ pub struct TimeSlot {
     pub working_mode: WorkingMode,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct StartTime {
+    #[serde(rename = "startHour")]
+    pub hour: u32,
+
+    #[serde(rename = "startMinute")]
+    pub minute: u32,
+}
+
+impl Display for StartTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02}:{:02}", self.hour, self.minute)
+    }
+}
+
+impl TryFrom<usize> for StartTime {
+    type Error = Error;
+
+    fn try_from(hour: usize) -> Result<Self> {
+        Ok(Self { hour: u32::try_from(hour)?, minute: 0 })
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct EndTime {
+    #[serde(rename = "endHour")]
+    pub hour: u32,
+
+    #[serde(rename = "endMinute")]
+    pub minute: u32,
+}
+
+impl Display for EndTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02}:{:02}", self.hour, self.minute)
+    }
+}
+
+impl EndTime {
+    pub fn try_from<const N: usize>(hour_inclusive: usize) -> Result<Self> {
+        // End time is exclusive, but FoxESS Cloud won't accept `00:00`…
+        let (hour, minute) =
+            if hour_inclusive == (N - 1) { (N - 1, 59) } else { (hour_inclusive + 1, 0) };
+        Ok(Self { hour: u32::try_from(hour)?, minute })
+    }
+}
+
 impl TimeSlot {
     pub fn trace(&self) {
         info!(
             "Schedule group",
             is_enabled = self.is_enabled.to_string(),
-            start_time = format!("{:02}:{:02}", self.start_hour, self.start_minute),
-            end_time = format!("{:02}:{:02}", self.end_hour, self.end_minute),
+            start_time = self.start_time.to_string(),
+            end_time = self.end_time.to_string(),
             work_mode = format!("{:?}", self.working_mode),
             feed_power_watts = self.feed_power_watts.to_string(),
         );
@@ -92,11 +135,6 @@ impl TimeSlotSequence {
             .into_iter()
             .map(|(working_mode, time_slots)| {
                 let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
-                let (end_hour, end_minute) = {
-                    // End time is exclusive, but FoxESS Cloud won't accept `00:00`…
-                    let last_hour = *hours.last().unwrap();
-                    if last_hour == (N - 1) { (N - 1, 59) } else { (last_hour + 1, 0) }
-                };
                 let working_mode = working_mode.into();
                 let feed_power = {
                     if working_mode == WorkingMode::ForceDischarge {
@@ -107,10 +145,8 @@ impl TimeSlotSequence {
                 };
                 let time_slot = TimeSlot {
                     is_enabled: true,
-                    start_hour: u32::try_from(*hours.first().unwrap())?,
-                    start_minute: 0,
-                    end_hour: u32::try_from(end_hour)?,
-                    end_minute,
+                    start_time: StartTime::try_from(*hours.first().unwrap())?,
+                    end_time: EndTime::try_from::<N>(*hours.last().unwrap())?,
                     max_soc: 100,
                     min_soc_on_grid: minimum_soc,
                     feed_soc: minimum_soc,
@@ -119,9 +155,8 @@ impl TimeSlotSequence {
                 };
                 info!(
                     "Time slot",
-                    start_time =
-                        format!("{:02}:{:02}", time_slot.start_hour, time_slot.start_minute),
-                    end_time = format!("{:02}:{:02}", time_slot.end_hour, time_slot.end_minute),
+                    start_time = time_slot.start_time.to_string(),
+                    end_time = time_slot.end_time.to_string(),
                     working_mode = format!("{working_mode:?}"),
                 );
                 Ok(time_slot)
@@ -174,12 +209,30 @@ mod tests {
         cli::BatteryPower,
         foxess::{
             FoxEssTimeSlot,
-            schedule::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
+            schedule::{EndTime, StartTime, TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
         },
         optimizer::working_mode::WorkingMode,
         prelude::*,
         units::Kilowatts,
     };
+
+    #[test]
+    fn test_start_time_try_from_ok() -> Result {
+        assert_eq!(StartTime::try_from(2)?, StartTime { hour: 2, minute: 0 });
+        Ok(())
+    }
+
+    #[test]
+    fn test_end_time_try_from_non_last_hour_ok() -> Result {
+        assert_eq!(EndTime::try_from::<24>(1)?, EndTime { hour: 2, minute: 0 });
+        Ok(())
+    }
+
+    #[test]
+    fn test_end_time_try_from_last_hour_ok() -> Result {
+        assert_eq!(EndTime::try_from::<24>(23)?, EndTime { hour: 23, minute: 59 });
+        Ok(())
+    }
 
     #[test]
     fn test_from_daily_schedule_ok() -> Result {
@@ -200,10 +253,8 @@ mod tests {
             [
                 FoxEssTimeSlot {
                     is_enabled: true,
-                    start_hour: 0,
-                    start_minute: 0,
-                    end_hour: 2,
-                    end_minute: 0,
+                    start_time: StartTime { hour: 0, minute: 0 },
+                    end_time: EndTime { hour: 2, minute: 0 },
                     max_soc: 100,
                     min_soc_on_grid: 10,
                     feed_soc: 10,
@@ -212,10 +263,8 @@ mod tests {
                 },
                 FoxEssTimeSlot {
                     is_enabled: true,
-                    start_hour: 2,
-                    start_minute: 0,
-                    end_hour: 3,
-                    end_minute: 0,
+                    start_time: StartTime { hour: 2, minute: 0 },
+                    end_time: EndTime { hour: 3, minute: 0 },
                     max_soc: 100,
                     min_soc_on_grid: 10,
                     feed_soc: 10,
@@ -224,10 +273,8 @@ mod tests {
                 },
                 FoxEssTimeSlot {
                     is_enabled: true,
-                    start_hour: 3,
-                    start_minute: 0,
-                    end_hour: 3,
-                    end_minute: 59,
+                    start_time: StartTime { hour: 3, minute: 0 },
+                    end_time: EndTime { hour: 3, minute: 59 },
                     max_soc: 100,
                     min_soc_on_grid: 10,
                     feed_soc: 10,

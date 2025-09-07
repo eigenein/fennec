@@ -31,8 +31,9 @@ async fn main() -> Result {
         .finish()?
         .shutdown_guard();
 
-    match Args::parse().command {
-        Command::Hunt(args) => {
+    let args = Args::parse();
+    match args.command {
+        Command::Hunt(hunt_args) => {
             let now = Local::now().naive_local();
             let starting_hour = now.hour();
             let next_energy = NextEnergy::try_new()?;
@@ -62,10 +63,10 @@ async fn main() -> Result {
             let (profit, working_mode_sequence) = optimise(
                 &hourly_rates,
                 residual_energy,
-                Kilowatts::from_watts_u32(args.battery.stand_by_power_watts),
-                args.battery.min_soc_percent,
+                Kilowatts::from_watts_u32(hunt_args.battery.stand_by_power_watts),
+                hunt_args.battery.min_soc_percent,
                 total_capacity,
-                args.battery.power,
+                hunt_args.battery.power,
             )?;
             info!("Optimized", profit = profit.to_string());
 
@@ -76,18 +77,18 @@ async fn main() -> Result {
 
             let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(
                 daily_schedule,
-                args.battery.power,
-                args.battery.min_soc_percent,
+                hunt_args.battery.power,
+                hunt_args.battery.min_soc_percent,
             )?;
 
-            if !args.stalk {
+            if !hunt_args.stalk {
                 fox_ess.set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence).await?;
             }
 
             Ok(())
         }
 
-        Command::DebugFoxEss(args) => match args.command {
+        Command::Burrow(burrow_args) => match burrow_args.command {
             FoxEssCommand::DeviceDetails => {
                 let details = FoxEss::try_new(args.fox_ess_api.api_key)?
                     .get_device_details(&args.fox_ess_api.serial_number)

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use crate::units::{KilowattHour, Kilowatts};
+use crate::units::Kilowatts;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]
@@ -8,6 +8,9 @@ pub struct Args {
     /// Pydantic Logfire token: <https://logfire.pydantic.dev/docs/how-to-guides/create-write-tokens/>.
     #[clap(long, env = "LOGFIRE_TOKEN", hide_env_values = true)]
     _logfire_token: Option<String>,
+
+    #[clap(flatten)]
+    pub fox_ess_api: FoxEssApiArgs,
 
     #[command(subcommand)]
     pub command: Command,
@@ -22,7 +25,7 @@ pub enum Command {
     /// Test FoxESS Cloud API connectivity.
     #[allow(clippy::doc_markdown)]
     #[clap(name = "burrow")]
-    DebugFoxEss(DebugFoxEssArgs),
+    Burrow(BurrowArgs),
 }
 
 #[derive(Parser)]
@@ -66,21 +69,7 @@ pub struct HuntArgs {
     pub stalk: bool,
 
     #[clap(flatten)]
-    pub fox_ess_api: FoxEssApiArgs,
-
-    #[clap(flatten)]
     pub battery: BatteryArgs,
-}
-
-#[derive(Parser)]
-pub struct ScoutArgs {
-    #[clap(flatten)]
-    pub battery: BatteryArgs,
-
-    pub residual_energy: KilowattHour,
-
-    #[clap(long, default_value = "8.4")]
-    pub capacity: KilowattHour,
 }
 
 #[derive(Parser)]
@@ -93,10 +82,7 @@ pub struct FoxEssApiArgs {
 }
 
 #[derive(Parser)]
-pub struct DebugFoxEssArgs {
-    #[clap(flatten)]
-    pub fox_ess_api: FoxEssApiArgs,
-
+pub struct BurrowArgs {
     #[command(subcommand)]
     pub command: FoxEssCommand,
 }

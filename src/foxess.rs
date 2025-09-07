@@ -91,7 +91,7 @@ impl FoxEss {
         .context("failed to get the devices variables")
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number))]
+    #[instrument(skip_all, fields(serial_number = serial_number), name = "Fetching the device schedule…")]
     pub async fn get_schedule(&self, serial_number: &str) -> Result<FoxEssSchedule> {
         #[derive(Serialize)]
         struct GetScheduleRequest<'a> {
@@ -109,7 +109,7 @@ impl FoxEss {
         .context("failed to get the schedule")
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number))]
+    #[instrument(skip_all, fields(serial_number = serial_number), name = "Setting the device schedule…")]
     pub async fn set_schedule(&self, serial_number: &str, groups: &[FoxEssTimeSlot]) -> Result {
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {
@@ -130,7 +130,7 @@ impl FoxEss {
         .await
     }
 
-    #[instrument(skip_all, level = Level::DEBUG, fields(path = path))]
+    #[instrument(skip_all, level = Level::DEBUG, fields(path = path), name = "Calling…")]
     async fn call<Q: Serialize, B: Serialize, R: DeserializeOwned>(
         &self,
         method: Method,

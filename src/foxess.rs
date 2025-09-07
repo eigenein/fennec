@@ -34,7 +34,7 @@ impl FoxEss {
         })
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number))]
+    #[instrument(skip_all, name = "Fetching device details…", fields(serial_number = serial_number))]
     pub async fn get_device_details(&self, serial_number: &str) -> Result<DeviceDetails> {
         #[derive(Serialize)]
         struct GetDeviceDetailsRequest<'a> {
@@ -47,7 +47,11 @@ impl FoxEss {
             .context("failed to request the device details")
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number))]
+    #[instrument(
+        skip_all,
+        fields(serial_number = serial_number),
+        name = "Fetching parsed device variables…"
+    )]
     pub async fn get_device_variables(&self, serial_number: &str) -> Result<DeviceVariables> {
         let variables = self
             .get_devices_variables_raw(&[serial_number])
@@ -62,7 +66,11 @@ impl FoxEss {
             .context("failed to deserialize the device variables")
     }
 
-    #[instrument(skip_all)]
+    #[instrument(
+        name = "Fetching all device variables…",
+        skip_all,
+        fields(serial_numbers = ?serial_numbers),
+    )]
     pub async fn get_devices_variables_raw(
         &self,
         serial_numbers: &[&str],

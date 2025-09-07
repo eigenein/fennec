@@ -7,10 +7,9 @@ use rust_decimal::{Decimal, dec};
 
 use crate::{
     cli::BatteryPower,
-    nextenergy::HourlyRate,
     optimizer::working_mode::WorkingMode,
     prelude::*,
-    units::{Euro, KilowattHour, Kilowatts},
+    units::{Euro, EuroPerKilowattHour, KilowattHour, Kilowatts},
 };
 
 #[instrument(
@@ -19,7 +18,7 @@ use crate::{
     skip_all,
 )]
 pub fn optimise(
-    hourly_rates: &[HourlyRate],
+    hourly_rates: &[EuroPerKilowattHour],
     starting_energy: KilowattHour,
     stand_by_power: Kilowatts,
     min_soc_percent: u32,
@@ -30,8 +29,7 @@ pub fn optimise(
         KilowattHour(capacity.0 * Decimal::from(min_soc_percent) * dec!(0.01));
 
     // Find all possible thresholds:
-    let unique_rates: Vec<_> =
-        hourly_rates.iter().map(|rate| rate.value).collect::<BTreeSet<_>>().into_iter().collect();
+    let unique_rates: Vec<_> = hourly_rates.iter().collect::<BTreeSet<_>>().into_iter().collect();
 
     // Iterate all possible pairs of charging-discharging thresholds:
     let (profit, working_mode_sequence) = unique_rates
@@ -44,9 +42,9 @@ pub fn optimise(
             let working_mode_sequence: Vec<WorkingMode> = hourly_rates
                 .iter()
                 .map(|hourly_rate| {
-                    if hourly_rate.value <= max_charge_rate {
+                    if hourly_rate <= max_charge_rate {
                         WorkingMode::Charging
-                    } else if hourly_rate.value <= min_discharge_rate {
+                    } else if hourly_rate <= min_discharge_rate {
                         WorkingMode::SelfUse
                     } else {
                         WorkingMode::Discharging
@@ -76,7 +74,7 @@ pub fn optimise(
 }
 
 fn simulate(
-    hourly_rates: &[HourlyRate],
+    hourly_rates: &[EuroPerKilowattHour],
     working_mode_sequence: &[WorkingMode],
     starting_energy: KilowattHour,
     stand_by_power: Kilowatts,
@@ -103,7 +101,7 @@ fn simulate(
         current_energy = new_energy;
 
         // Calculate the associated cost:
-        let cost = Euro(rate.value.0 * energy_change.0);
+        let cost = Euro(rate.0 * energy_change.0);
 
         // Pay for charging, earn from discharging:
         profit.0 -= cost.0;
@@ -114,7 +112,6 @@ fn simulate(
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
     use rust_decimal::dec;
 
     use super::*;
@@ -122,28 +119,12 @@ mod tests {
 
     #[test]
     fn test_simulate() {
-        let test_date = NaiveDate::from_ymd_opt(2025, 9, 10).unwrap();
         let rates = [
-            HourlyRate {
-                start_at: test_date.and_hms_opt(11, 0, 0).unwrap(),
-                value: EuroPerKilowattHour(dec!(1.0)),
-            },
-            HourlyRate {
-                value: EuroPerKilowattHour(dec!(2.0)),
-                start_at: test_date.and_hms_opt(12, 0, 0).unwrap(),
-            },
-            HourlyRate {
-                value: EuroPerKilowattHour(dec!(3.0)),
-                start_at: test_date.and_hms_opt(13, 0, 0).unwrap(),
-            },
-            HourlyRate {
-                value: EuroPerKilowattHour(dec!(4.0)),
-                start_at: test_date.and_hms_opt(14, 0, 0).unwrap(),
-            },
-            HourlyRate {
-                value: EuroPerKilowattHour(dec!(5.0)),
-                start_at: test_date.and_hms_opt(15, 0, 0).unwrap(),
-            },
+            EuroPerKilowattHour(dec!(1.0)),
+            EuroPerKilowattHour(dec!(2.0)),
+            EuroPerKilowattHour(dec!(3.0)),
+            EuroPerKilowattHour(dec!(4.0)),
+            EuroPerKilowattHour(dec!(5.0)),
         ];
         let working_mode_sequence = [
             WorkingMode::Charging,    // +2 kWh, -2 euro

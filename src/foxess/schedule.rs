@@ -4,7 +4,7 @@ use serde_with::serde_as;
 
 use crate::{
     cli::BatteryPower,
-    optimizer::working_mode::WorkingModeDailySchedule,
+    optimizer::working_mode::WorkingModeHourlySchedule,
     prelude::*,
     units::Watts,
 };
@@ -76,16 +76,15 @@ impl TimeSlot {
 pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 
 impl TimeSlotSequence {
-    #[instrument(skip_all)]
-    pub fn from_daily_schedule(
-        daily_schedule: WorkingModeDailySchedule,
+    #[instrument(skip_all, name = "Building time slots from the schedule…")]
+    pub fn from_schedule<const N: usize>(
+        schedule: WorkingModeHourlySchedule<N>,
         battery_power: BatteryPower,
         minimum_soc: u32,
     ) -> Result<Self> {
-        let chunks =
-            daily_schedule.into_iter().enumerate().chunk_by(|(_, working_mode)| *working_mode);
+        let chunks = schedule.into_iter().enumerate().chunk_by(|(_, working_mode)| *working_mode);
         let chunks: Vec<_> = chunks.into_iter().collect();
-        info!("Grouped", n_chunks = chunks.len().to_string());
+        info!("Grouped schedule into chunks", n_chunks = chunks.len().to_string());
         if chunks.len() > 8 {
             bail!("FoxESS Cloud allows maximum of 8 schedule groups, got {}", chunks.len());
         }
@@ -94,9 +93,9 @@ impl TimeSlotSequence {
             .map(|(working_mode, time_slots)| {
                 let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
                 let (end_hour, end_minute) = {
-                    // End time is exclusive, but FoxESS Cloud doesn't accept `00:00`…
-                    let last_hour = u32::try_from(*hours.last().unwrap())?;
-                    if last_hour == 23 { (23, 59) } else { (last_hour + 1, 0) }
+                    // End time is exclusive, but FoxESS Cloud won't accept `00:00`…
+                    let last_hour = *hours.last().unwrap();
+                    if last_hour == (N - 1) { (N - 1, 59) } else { (last_hour + 1, 0) }
                 };
                 let working_mode = working_mode.into();
                 let feed_power = {
@@ -110,7 +109,7 @@ impl TimeSlotSequence {
                     is_enabled: true,
                     start_hour: u32::try_from(*hours.first().unwrap())?,
                     start_minute: 0,
-                    end_hour,
+                    end_hour: u32::try_from(end_hour)?,
                     end_minute,
                     max_soc: 100,
                     min_soc_on_grid: minimum_soc,
@@ -186,32 +185,12 @@ mod tests {
     fn test_from_daily_schedule_ok() -> Result {
         let daily_schedule = [
             WorkingMode::Charging,
+            WorkingMode::Charging,
             WorkingMode::Discharging,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
-            WorkingMode::SelfUse,
             WorkingMode::SelfUse,
         ]
         .into();
-        let time_slot_sequence = TimeSlotSequence::from_daily_schedule(
+        let time_slot_sequence = TimeSlotSequence::from_schedule(
             daily_schedule,
             BatteryPower { charging: Kilowatts(dec!(1.2)), discharging: Kilowatts(dec!(0.8)) },
             10,
@@ -223,7 +202,7 @@ mod tests {
                     is_enabled: true,
                     start_hour: 0,
                     start_minute: 0,
-                    end_hour: 1,
+                    end_hour: 2,
                     end_minute: 0,
                     max_soc: 100,
                     min_soc_on_grid: 10,
@@ -233,9 +212,9 @@ mod tests {
                 },
                 FoxEssTimeSlot {
                     is_enabled: true,
-                    start_hour: 1,
+                    start_hour: 2,
                     start_minute: 0,
-                    end_hour: 2,
+                    end_hour: 3,
                     end_minute: 0,
                     max_soc: 100,
                     min_soc_on_grid: 10,
@@ -245,9 +224,9 @@ mod tests {
                 },
                 FoxEssTimeSlot {
                     is_enabled: true,
-                    start_hour: 2,
+                    start_hour: 3,
                     start_minute: 0,
-                    end_hour: 23,
+                    end_hour: 3,
                     end_minute: 59,
                     max_soc: 100,
                     min_soc_on_grid: 10,

@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use chrono::{NaiveDate, NaiveDateTime, TimeDelta, Timelike};
+use chrono::NaiveDate;
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 
@@ -15,24 +15,12 @@ impl NextEnergy {
         Ok(Self(Client::builder().build()?))
     }
 
-    /// Fetch the next rates for up to 48 hours and sort them by the respective time slots.
-    #[instrument(name = "Fetching energy prices…", fields(since = since.to_string()), skip_all)]
-    pub async fn get_upcoming_hourly_rates(&self, since: NaiveDateTime) -> Result<Vec<HourlyRate>> {
-        let mut rates: Vec<_> = self
-            .get_hourly_rates(since.date())
-            .await
-            .context("failed to fetch rates for today")?
-            .into_iter()
-            .filter(|rate| rate.start_at.hour() >= since.hour())
-            .collect();
-        rates.extend(self.get_hourly_rates(since.date() + TimeDelta::days(1)).await?);
-        rates.sort_by_key(|point| point.start_at);
-        info!("Fetched", n_rates = rates.len().to_string(), since = since.to_string());
-        Ok(rates)
-    }
-
     #[instrument(name = "Fetching energy prices…", fields(date = date.to_string()), skip_all)]
-    async fn get_hourly_rates(&self, date: NaiveDate) -> Result<Vec<HourlyRate>> {
+    pub async fn get_hourly_rates(
+        &self,
+        date: NaiveDate,
+        starting_hour: u32,
+    ) -> Result<Vec<EuroPerKilowattHour>> {
         let response: GetDataPointsResponse = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(date))
@@ -44,39 +32,17 @@ impl NextEnergy {
             .json()
             .await
             .context("failed to deserialize the response")?;
-
-        info!(
-            "Fetched",
-            len = response.data.points.list.len().to_string(),
-            date = date.to_string(),
-        );
-        response
+        Ok(response
             .data
             .points
             .list
             .into_iter()
-            .map(|point| HourlyRate::try_from_data_point(date, &point))
-            .collect()
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct HourlyRate {
-    pub start_at: NaiveDateTime,
-    pub value: EuroPerKilowattHour,
-}
-
-impl HourlyRate {
-    fn try_from_data_point(
-        date: NaiveDate,
-        data_point: &GetDataPointsResponseDataPoint,
-    ) -> Result<Self> {
-        Ok(Self {
-            start_at: date
-                .and_hms_opt(data_point.hour, 0, 0)
-                .context("incorrect data point label")?,
-            value: data_point.value,
-        })
+            .filter(|point| point.hour >= starting_hour)
+            .inspect(|point| {
+                info!("Rate", hour = point.hour.to_string(), value = point.value.to_string());
+            })
+            .map(|point| point.value)
+            .collect())
     }
 }
 
@@ -178,7 +144,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "makes the API request"]
     async fn test_get_hourly_rates_ok() -> Result {
-        let points = NextEnergy::try_new()?.get_hourly_rates(Local::now().date_naive()).await?;
+        let points = NextEnergy::try_new()?.get_hourly_rates(Local::now().date_naive(), 0).await?;
         assert_eq!(points.len(), 24);
         Ok(())
     }

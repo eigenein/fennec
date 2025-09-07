@@ -7,7 +7,7 @@ mod optimizer;
 mod prelude;
 mod units;
 
-use chrono::Local;
+use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 #[cfg(test)]
@@ -17,7 +17,7 @@ use crate::{
     cli::{Args, Command, FoxEssCommand},
     foxess::{FoxEseTimeSlotSequence, FoxEss},
     nextenergy::NextEnergy,
-    optimizer::{optimise, working_mode::WorkingModeDailySchedule},
+    optimizer::{optimise, working_mode::WorkingModeHourlySchedule},
     prelude::*,
     units::Kilowatts,
 };
@@ -34,8 +34,12 @@ async fn main() -> Result {
     match Args::parse().command {
         Command::Hunt(args) => {
             let now = Local::now().naive_local();
-            let hourly_rates = NextEnergy::try_new()?.get_upcoming_hourly_rates(now).await?;
-            info!("Fetched energy rates", n_rates = hourly_rates.len().to_string());
+            let starting_hour = now.hour();
+            let next_energy = NextEnergy::try_new()?;
+            let mut hourly_rates = next_energy.get_hourly_rates(now.date(), starting_hour).await?;
+            hourly_rates
+                .extend(next_energy.get_hourly_rates(now.date() + TimeDelta::days(1), 0).await?);
+            info!("Fetched energy rates");
 
             let fox_ess = FoxEss::try_new(args.fox_ess_api.api_key)?;
             let (residual_energy, total_capacity) = {
@@ -65,12 +69,12 @@ async fn main() -> Result {
             )?;
             info!("Optimized", profit = profit.to_string());
 
-            let daily_schedule = WorkingModeDailySchedule::zip(
-                hourly_rates.iter().map(|rate| rate.start_at),
+            let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
+                starting_hour,
                 working_mode_sequence,
             );
 
-            let time_slot_sequence = FoxEseTimeSlotSequence::from_daily_schedule(
+            let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(
                 daily_schedule,
                 args.battery.power,
                 args.battery.min_soc_percent,

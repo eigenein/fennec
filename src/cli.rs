@@ -39,7 +39,7 @@ pub struct BatteryArgs {
     )]
     pub charging_power: Kilowatts,
 
-    /// Maximum discharging power in kilowatts.
+    /// Maximum discharging power in kilowatts, negative.
     #[clap(
         long = "discharging-power-kilowatts",
         default_value = "-0.8",
@@ -90,7 +90,7 @@ pub struct HuntArgs {
 
 #[derive(Parser)]
 pub struct ConsumptionArgs {
-    /// Average stand-by household usage in watts.
+    /// Average stand-by household usage in watts, typically negative.
     #[clap(
         long = "stand-by-power-kilowatts",
         default_value = "-0.4",

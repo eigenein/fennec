@@ -130,7 +130,7 @@ impl TimeSlotSequence {
             .map(|(working_mode, time_slots)| {
                 let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
                 let feed_power = match working_mode {
-                    crate::optimizer::WorkingMode::Discharging => battery_args.discharging_power,
+                    crate::optimizer::WorkingMode::Discharging => -battery_args.discharging_power,
                     _ => battery_args.charging_power,
                 };
                 let time_slot = TimeSlot {
@@ -148,6 +148,7 @@ impl TimeSlotSequence {
                     start_time = time_slot.start_time.to_string(),
                     end_time = time_slot.end_time.to_string(),
                     working_mode = format!("{working_mode:?}"),
+                    feed_power_watts = time_slot.feed_power_watts.to_string(),
                 );
                 Ok(time_slot)
             })

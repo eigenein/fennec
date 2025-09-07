@@ -1,4 +1,4 @@
-use chrono::{Local, NaiveDateTime, Timelike};
+use chrono::{NaiveDateTime, Timelike};
 use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Deserializer, de::Unexpected};
@@ -11,8 +11,13 @@ pub struct Weerlive {
 }
 
 pub enum Location {
+    #[allow(dead_code)]
     Name(&'static str),
-    Coordinates { latitude: Decimal, longitude: Decimal },
+
+    Coordinates {
+        latitude: Decimal,
+        longitude: Decimal,
+    },
 }
 
 impl Location {
@@ -95,7 +100,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use chrono::Timelike;
+    use chrono::{Local, Timelike};
 
     use super::*;
 

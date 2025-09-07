@@ -31,20 +31,6 @@ pub enum Command {
 
 #[derive(Parser)]
 pub struct BatteryArgs {
-    #[clap(flatten)]
-    pub power: BatteryParameters,
-
-    /// Average stand-by household usage in watts.
-    #[clap(long = "stand-by-power-watts", default_value = "400", env = "STAND_BY_POWER_WATTS")]
-    pub stand_by_power_watts: u32, // FIXME: use `Watts`.
-
-    /// Minimal state-of-charge percent.
-    #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
-    pub min_soc_percent: u32,
-}
-
-#[derive(Copy, Clone, Parser)]
-pub struct BatteryParameters {
     /// Maximum charging power in kilowatts.
     #[clap(
         long = "charging-power-kilowatts",
@@ -70,6 +56,10 @@ pub struct BatteryParameters {
     #[clap(long = "self-discharging-rate", default_value = "0.046", env = "SELF_DISCHARGING_RATE")]
     #[allow(clippy::doc_markdown)]
     pub self_discharging_rate: Decimal,
+
+    /// Minimal state-of-charge percent.
+    #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
+    pub min_soc_percent: u32,
 }
 
 #[derive(Parser)]
@@ -81,6 +71,14 @@ pub struct HuntArgs {
 
     #[clap(flatten)]
     pub battery: BatteryArgs,
+
+    /// Average stand-by household usage in watts.
+    #[clap(
+        long = "stand-by-power-kilowatts",
+        default_value = "0.4",
+        env = "STAND_BY_POWER_KILOWATTS"
+    )]
+    pub stand_by_power: Kilowatts,
 
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fees", default_value = "0.021", env = "PURCHASE_FEES")]

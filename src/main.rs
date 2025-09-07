@@ -19,7 +19,6 @@ use crate::{
     nextenergy::NextEnergy,
     optimizer::{WorkingModeHourlySchedule, optimise},
     prelude::*,
-    units::Kilowatts,
 };
 
 #[allow(clippy::too_many_lines)]
@@ -61,15 +60,8 @@ async fn main() -> Result {
                 residual_energy = residual_energy.to_string(),
                 total_capacity = total_capacity.to_string(),
             );
-            let (profit, working_mode_sequence) = optimise(
-                &hourly_rates,
-                residual_energy,
-                Kilowatts::from_watts_u32(hunt_args.battery.stand_by_power_watts),
-                hunt_args.battery.min_soc_percent,
-                total_capacity,
-                hunt_args.battery.power,
-                hunt_args.purchase_fees,
-            )?;
+            let (profit, working_mode_sequence) =
+                optimise(&hourly_rates, residual_energy, total_capacity, &hunt_args)?;
             info!("Optimized", profit = profit.to_string());
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
@@ -77,11 +69,8 @@ async fn main() -> Result {
                 working_mode_sequence,
             );
 
-            let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(
-                daily_schedule,
-                hunt_args.battery.power,
-                hunt_args.battery.min_soc_percent,
-            )?;
+            let time_slot_sequence =
+                FoxEseTimeSlotSequence::from_schedule(daily_schedule, &hunt_args.battery)?;
 
             if !hunt_args.scout {
                 fox_ess_api

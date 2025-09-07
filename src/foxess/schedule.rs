@@ -237,7 +237,7 @@ mod tests {
             daily_schedule,
             &BatteryArgs {
                 charging_power: Kilowatts(1.2),
-                discharging_power: Kilowatts(0.8),
+                discharging_power: Kilowatts(-0.8),
                 charging_efficiency: 1.0,
                 discharging_efficiency: 1.0,
                 self_discharging_rate: 0.0,

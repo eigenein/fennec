@@ -11,7 +11,6 @@ mod weerlive;
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
-#[cfg(test)]
 use tracing::level_filters::LevelFilter;
 
 use crate::{
@@ -34,6 +33,7 @@ async fn main() -> Result {
                 .with_include_timestamps(false),
         ))
         .send_to_logfire(SendToLogfire::IfTokenPresent)
+        .with_default_level_filter(LevelFilter::DEBUG)
         .finish()?
         .shutdown_guard();
 

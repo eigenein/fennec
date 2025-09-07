@@ -46,7 +46,7 @@ impl Weerlive {
                 let actual_start_hour = forecast.start_time.hour();
                 if actual_start_hour != start_hour {
                     // At some point, Weerlive stops returning any forecast for the current hour:
-                    ensure!(actual_start_hour == start_hour + 1);
+                    ensure!(actual_start_hour == (start_hour + 1) % 24);
                     // Use the next hour as a predictor for the current hour:
                     hourly_forecast.insert(0, *forecast);
                 }

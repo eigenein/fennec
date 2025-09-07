@@ -1,0 +1,65 @@
+[package]
+name = "fennec"
+authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
+categories = ["command-line-utilities"]
+description = "FoxESS home battery steering based on NextEnergy real-time prices"
+edition = "2024"
+keywords = ["foxess", "nextenergy", "home-battery"]
+license = "MIT"
+publish = true
+readme = "README.md"
+repository = "https://github.com/eigenein/fennec"
+version = "0.1.0"
+rust-version = "1.89"
+
+[badges]
+is-it-maintained-issue-resolution = { repository = "eigenein/fennec" }
+is-it-maintained-open-issues = { repository = "eigenein/fennec" }
+
+[profile.release]
+codegen-units = 1
+debug = "full"
+lto = "thin"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+[dependencies]
+anyhow = "1.0.99"
+bon = "3.7.2"
+derive_more = { version = "2.0.1", features = ["full"] }
+itertools = "0.14.0"
+logfire = "0.8.1"
+md5 = "0.8.0"
+serde = "1.0.219"
+serde_json = "1.0.143"
+serde_with = "3.14.0"
+tracing = "0.1.41"
+
+[dependencies.clap]
+version = "4.5.47"
+features = ["cargo", "derive", "env", "unicode"]
+
+[dependencies.rust_decimal]
+version = "1.37.2"
+features = ["macros"]
+
+[dependencies.chrono]
+version = "0.4.41"
+default-features = false
+features = ["clock", "serde"]
+
+[dependencies.tokio]
+version = "1.47.1"
+default-features = false
+features = ["macros", "rt"]
+
+[dependencies.reqwest]
+version = "0.12.23"
+default-features = false
+features = ["http2", "rustls-tls", "gzip", "brotli", "zstd", "deflate", "json"]
+
+[dev-dependencies]
+ctor = "0.5.0"

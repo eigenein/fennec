@@ -1,0 +1,58 @@
+name: 🧪 Test and lint
+
+on:
+  push:
+    branches:
+      - master
+    tags-ignore:
+      - '**'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch: { }
+
+env:
+  CARGO_TERM_COLOR: "always"
+  RUSTC_WRAPPER: "sccache"
+  SCCACHE_GHA_ENABLED: "true"
+
+jobs:
+  check:
+    name: 🧪 Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬆️ Update Rust
+        run: rustup update --no-self-update
+
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡️ Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: ⚡️ Shared Compilation Cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: 🧪 Install coverage tools
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: 🧪 Test
+        run: cargo llvm-cov --all-features --workspace --codecov --output-path=codecov.json
+
+      - name: 📤 Upload coverage
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: codecov.json
+
+      - name: 💬 Clippy
+        uses: giraffate/clippy-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          clippy_flags: -- -Dwarnings
+          reporter: github-check
+        continue-on-error: true

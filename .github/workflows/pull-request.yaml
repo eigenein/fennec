@@ -1,4 +1,4 @@
-name: 🧪 Build
+name: 📥 Pull request
 
 on:
   pull_request:

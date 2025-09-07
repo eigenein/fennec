@@ -154,30 +154,30 @@ mod tests {
             EuroPerKilowattHour(dec!(5.0)),
         ];
         let working_mode_sequence = [
-            WorkingMode::Charging,    // +2 kWh, -2 euro
-            WorkingMode::Charging,    // battery is capped at 3 kWh
+            WorkingMode::Charging,    // +3 kWh, -3 euro
+            WorkingMode::Charging,    // battery is capped at 4 kWh
             WorkingMode::Balancing,   // -1 kWh, +3 euro
-            WorkingMode::Discharging, //-1 kWh, +4 euro
+            WorkingMode::Discharging, //-2 kWh, +8 euro
             WorkingMode::Discharging, // battery is capped at 1 kWh
         ];
         let profit = simulate(
             &rates,
             &working_mode_sequence,
             KilowattHours(dec!(1.0)), // starting at 1 kWh
-            KilowattHours(dec!(3.0)), // capacity is 3 kWh
+            KilowattHours(dec!(4.0)), // capacity is 4 kWh
             &HuntArgs {
                 scout: true,
                 battery: BatteryArgs {
-                    charging_power: Kilowatts(dec!(2.0)),
-                    discharging_power: Kilowatts(dec!(1.0)),
+                    charging_power: Kilowatts(dec!(3.0)),
+                    discharging_power: Kilowatts(dec!(2.0)),
                     round_trip_efficiency: Decimal::ONE,
                     self_discharging_rate: Decimal::ZERO,
-                    min_soc_percent: 10,
+                    min_soc_percent: 25, // 1 kWh
                 },
-                stand_by_power: Kilowatts(Decimal::ZERO),
+                stand_by_power: Kilowatts(Decimal::ONE),
                 purchase_fees: EuroPerKilowattHour(Decimal::ZERO),
             },
         );
-        assert_eq!(profit.0, dec!(5.0));
+        assert_eq!(profit.0, dec!(8.0));
     }
 }

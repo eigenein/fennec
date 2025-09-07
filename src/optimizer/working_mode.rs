@@ -33,7 +33,7 @@ impl<const N: usize> Default for WorkingModeHourlySchedule<N> {
 
 impl<const N: usize> WorkingModeHourlySchedule<N> {
     /// Build a daily schedule by zipping together the timings and working modes.
-    #[instrument(skip_all, fields(starting_hour = starting_hour))]
+    #[instrument(skip_all, fields(starting_hour = starting_hour), name = "Building the hourly schedule…")]
     pub fn from_working_modes(
         starting_hour: u32,
         working_modes: impl IntoIterator<Item = WorkingMode>,

@@ -114,7 +114,7 @@ impl TimeSlot {
 pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 
 impl TimeSlotSequence {
-    #[instrument(skip_all, name = "Building time slots from the schedule…")]
+    #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule<const N: usize>(
         schedule: WorkingModeHourlySchedule<N>,
         battery_args: &BatteryArgs,

@@ -22,11 +22,11 @@ impl Kilowatts {
         (self.0 * 1000.0).round() as u32
     }
 
-    pub fn min(self, rhs: Self) -> Self {
+    pub const fn min(self, rhs: Self) -> Self {
         Self(self.0.min(rhs.0))
     }
 
-    pub fn max(self, rhs: Self) -> Self {
+    pub const fn max(self, rhs: Self) -> Self {
         Self(self.0.max(rhs.0))
     }
 }

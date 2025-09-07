@@ -19,10 +19,6 @@ pub enum Command {
     #[clap(name = "hunt")]
     Hunt(HuntArgs),
 
-    /// Fetch current energy prices and run optimization based on manually provided battery parameters.
-    #[clap(name = "scout")]
-    Scout(ScoutArgs),
-
     /// Test FoxESS Cloud API connectivity.
     #[allow(clippy::doc_markdown)]
     #[clap(name = "burrow")]
@@ -60,12 +56,6 @@ pub struct BatteryPower {
         env = "DISCHARGING_POWER_KILOWATTS"
     )]
     pub discharging: Kilowatts,
-}
-
-impl BatteryPower {
-    pub fn max(&self) -> Kilowatts {
-        Kilowatts(self.charging.0.max(self.discharging.0))
-    }
 }
 
 #[derive(Parser)]

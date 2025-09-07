@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use chrono::{NaiveDate, NaiveDateTime, TimeDelta};
+use chrono::{NaiveDate, NaiveDateTime, TimeDelta, Timelike};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 
@@ -23,7 +23,7 @@ impl NextEnergy {
             .await
             .context("failed to fetch rates for today")?
             .into_iter()
-            .filter(|rate| rate.start_at + TimeDelta::hours(1) > since)
+            .filter(|rate| rate.start_at.hour() >= since.hour())
             .collect();
         rates.extend(self.get_hourly_rates(since.date() + TimeDelta::days(1)).await?);
         rates.sort_by_key(|point| point.start_at);
@@ -63,7 +63,6 @@ impl NextEnergy {
 #[derive(Copy, Clone)]
 pub struct HourlyRate {
     pub start_at: NaiveDateTime,
-    // TODO: add `end_before`.
     pub value: EuroPerKilowattHour,
 }
 

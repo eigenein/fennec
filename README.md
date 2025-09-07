@@ -4,3 +4,7 @@
 
 [FoxESS plug-in home battery](https://www.nextenergy.nl/artikelen/voor-batterij-fanaten) steering based
 on [NextEnergy real-time prices](https://www.nextenergy.nl/actuele-energieprijzen).
+
+## Energy costs cheatsheet
+
+![Price build-up](energy-costs.png)

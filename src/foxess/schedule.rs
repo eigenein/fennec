@@ -1,12 +1,10 @@
-use chrono::{NaiveDateTime, TimeDelta, Timelike};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
     cli::BatteryPower,
-    nextenergy::HourlyRate,
-    optimizer::working_mode::WorkingModeSequence,
+    optimizer::working_mode::WorkingModeDailySchedule,
     prelude::*,
     units::Watts,
 };
@@ -78,50 +76,62 @@ impl TimeSlot {
 pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 
 impl TimeSlotSequence {
-    pub fn from_battery_plan(
-        now: NaiveDateTime,
-        rates: &[HourlyRate],
-        working_mode_sequence: &WorkingModeSequence,
+    pub fn from_daily_schedule(
+        daily_schedule: WorkingModeDailySchedule,
         battery_power: BatteryPower,
         minimum_soc: u32,
-    ) -> Self {
-        let chunks = rates
-            .iter()
-            .zip(working_mode_sequence.as_ref())
-            .chunk_by(|(rate, mode)| (**mode, rate.start_at.date()));
-        let groups = chunks
+    ) -> Result<Self> {
+        let chunks =
+            daily_schedule.into_iter().enumerate().chunk_by(|(_, working_mode)| *working_mode);
+        let chunks: Vec<_> = chunks.into_iter().collect();
+        if chunks.len() > 8 {
+            bail!("FoxESS Cloud allows maximum of 8 schedule groups, got {}", chunks.len());
+        }
+        chunks
             .into_iter()
-            .filter_map(|((working_mode, _), entries)| {
-                // TODO: damn unit-test this…
-                let entries: Vec<_> = entries.collect();
-                let start_time = entries.first().unwrap().0.start_at;
-                let end_time =
-                    // FIXME: could use `TimeDelta::hours(1)`, except for when end time is `00:00`.
-                    entries.last().unwrap().0.start_at + TimeDelta::minutes(59);
-                if (end_time > now) && (end_time <= now + TimeDelta::days(1)) {
-                    Some(TimeSlot {
-                        is_enabled: true,
-                        start_hour: start_time.hour(),
-                        start_minute: start_time.minute(),
-                        end_hour: end_time.hour(),
-                        end_minute: 59,
-                        max_soc: 100,
-                        min_soc_on_grid: minimum_soc,
-                        feed_soc: minimum_soc,
-                        feed_power_watts: Watts::from(battery_power.max()).try_into().unwrap(), // FIXME
-                        working_mode: working_mode.into(),
-                    })
-                } else {
-                    None
-                }
+            .map(|(working_mode, time_slots)| {
+                let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
+                let (end_hour, end_minute) = {
+                    // End time is exclusive, but FoxESS Cloud doesn't accept `00:00`…
+                    let last_hour = u32::try_from(*hours.last().unwrap())?;
+                    if last_hour == 23 { (23, 59) } else { (last_hour + 1, 0) }
+                };
+                let working_mode = working_mode.into();
+                let feed_power = {
+                    if working_mode == WorkingMode::ForceDischarge {
+                        battery_power.discharging
+                    } else {
+                        battery_power.charging
+                    }
+                };
+                let time_slot = TimeSlot {
+                    is_enabled: true,
+                    start_hour: u32::try_from(*hours.first().unwrap())?,
+                    start_minute: 0,
+                    end_hour,
+                    end_minute,
+                    max_soc: 100,
+                    min_soc_on_grid: minimum_soc,
+                    feed_soc: minimum_soc,
+                    feed_power_watts: Watts::from(feed_power).try_into()?,
+                    working_mode,
+                };
+                info!(
+                    "Time slot",
+                    start_time =
+                        format!("{:02}:{:02}", time_slot.start_hour, time_slot.start_minute),
+                    end_time = format!("{:02}:{:02}", time_slot.end_hour, time_slot.end_minute),
+                    working_mode = format!("{working_mode:?}"),
+                );
+                Ok(time_slot)
             })
-            .collect();
-        Self(groups)
+            .collect::<Result<_>>()
+            .map(Self)
     }
 
     pub fn trace(&self) {
-        for group in &self.0 {
-            group.trace();
+        for time_slot in &self.0 {
+            time_slot.trace();
         }
     }
 }
@@ -152,5 +162,15 @@ impl From<crate::optimizer::working_mode::WorkingMode> for WorkingMode {
             crate::optimizer::working_mode::WorkingMode::Discharging => Self::ForceDischarge,
             crate::optimizer::working_mode::WorkingMode::SelfUse => Self::SelfUse,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_daily_schedule() {
+        todo!()
     }
 }

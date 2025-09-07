@@ -17,7 +17,7 @@ use crate::{
     cli::{Args, Command, FoxEssCommand},
     foxess::{FoxEseTimeSlotSequence, FoxEss},
     nextenergy::NextEnergy,
-    optimizer::optimise,
+    optimizer::{optimise, working_mode::WorkingModeDailySchedule},
     prelude::*,
     units::Kilowatts,
 };
@@ -65,45 +65,20 @@ async fn main() -> Result {
             )?;
             info!("Optimized", profit = profit.to_string());
 
-            let time_slot_sequence = FoxEseTimeSlotSequence::from_battery_plan(
-                now,
-                &hourly_rates,
-                &working_mode_sequence,
+            let daily_schedule = WorkingModeDailySchedule::zip(
+                hourly_rates.iter().map(|rate| rate.start_at),
+                working_mode_sequence,
+            );
+
+            let time_slot_sequence = FoxEseTimeSlotSequence::from_daily_schedule(
+                daily_schedule,
                 args.battery.power,
                 args.battery.min_soc_percent,
-            );
-            info!("Compiled schedule", n_groups = time_slot_sequence.0.len().to_string());
-            time_slot_sequence.trace();
+            )?;
 
             if !args.stalk {
                 fox_ess.set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence).await?;
             }
-
-            Ok(())
-        }
-
-        Command::Scout(args) => {
-            let hourly_rates = NextEnergy::try_new()?
-                .get_upcoming_hourly_rates(Local::now().naive_local())
-                .await?;
-            for rate in &hourly_rates {
-                info!(
-                    "Rate",
-                    start_time = rate.start_at.to_string(),
-                    value = rate.value.to_string(),
-                );
-            }
-
-            let (profit, working_mode_sequence) = optimise(
-                &hourly_rates,
-                args.residual_energy,
-                Kilowatts::from_watts_u32(args.battery.stand_by_power_watts),
-                args.battery.min_soc_percent,
-                args.capacity,
-                args.battery.power,
-            )?;
-            // TODO
-            info!("Final", profit = profit.to_string());
 
             Ok(())
         }

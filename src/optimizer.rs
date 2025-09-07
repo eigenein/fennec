@@ -8,7 +8,7 @@ use rust_decimal::{Decimal, dec};
 use crate::{
     cli::BatteryPower,
     nextenergy::HourlyRate,
-    optimizer::working_mode::{WorkingMode, WorkingModeSequence},
+    optimizer::working_mode::WorkingMode,
     prelude::*,
     units::{Euro, KilowattHour, Kilowatts},
 };
@@ -25,7 +25,7 @@ pub fn optimise(
     min_soc_percent: u32,
     capacity: KilowattHour,
     battery_power: BatteryPower,
-) -> Result<(Euro, WorkingModeSequence)> {
+) -> Result<(Euro, Vec<WorkingMode>)> {
     let min_residual_energy =
         KilowattHour(capacity.0 * Decimal::from(min_soc_percent) * dec!(0.01));
 
@@ -41,7 +41,7 @@ pub fn optimise(
             let max_charge_rate = rates[0];
             let min_discharge_rate = rates[1];
 
-            let working_mode_sequence: WorkingModeSequence = hourly_rates
+            let working_mode_sequence: Vec<WorkingMode> = hourly_rates
                 .iter()
                 .map(|hourly_rate| {
                     if hourly_rate.value <= max_charge_rate {
@@ -52,8 +52,7 @@ pub fn optimise(
                         WorkingMode::Discharging
                     }
                 })
-                .collect::<Vec<_>>()
-                .into();
+                .collect();
             let test_profit = simulate(
                 hourly_rates,
                 &working_mode_sequence,
@@ -78,7 +77,7 @@ pub fn optimise(
 
 fn simulate(
     hourly_rates: &[HourlyRate],
-    working_mode_sequence: &WorkingModeSequence,
+    working_mode_sequence: &[WorkingMode],
     starting_energy: KilowattHour,
     stand_by_power: Kilowatts,
     min_residual_energy: KilowattHour,
@@ -146,7 +145,7 @@ mod tests {
                 start_at: test_date.and_hms_opt(15, 0, 0).unwrap(),
             },
         ];
-        let working_mode_sequence = vec![
+        let working_mode_sequence = [
             WorkingMode::Charging,    // +2 kWh, -2 euro
             WorkingMode::Charging,    // battery is capped at 3 kWh
             WorkingMode::SelfUse,     // -1 kWh, +3 euro
@@ -155,7 +154,7 @@ mod tests {
         ];
         let profit = simulate(
             &rates,
-            &working_mode_sequence.into(),
+            &working_mode_sequence,
             KilowattHour(dec!(1.0)), // starting at 1 kWh
             Kilowatts(dec!(1.0)),    // normally discharging at 1 kW
             KilowattHour(dec!(1.0)), // minimum at 1 kWh

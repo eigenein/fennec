@@ -3,12 +3,12 @@ name: 🧪 Check
 on:
   push:
     branches:
-      - master
+      - main
     tags-ignore:
       - '**'
   pull_request:
     branches:
-      - master
+      - main
 
 env:
   CARGO_TERM_COLOR: "always"

@@ -26,6 +26,45 @@ It optimizes two parameters: maximum charging rate and minimum discharge thresho
 
 Fennec is designed to run as a cron job, continuously refining and updating the schedule.
 
+## Example Kubernetes job
+
+```yaml
+apiVersion: "batch/v1"
+kind: "CronJob"
+metadata:
+  name: "fennec"
+spec:
+  timeZone: "Europe/Amsterdam"
+  schedule: "*/30 * * * *"
+  startingDeadlineSeconds: 600
+  concurrencyPolicy: "Replace"
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: "OnFailure"
+          containers:
+            - name: "fennec-job"
+              image: "ghcr.io/eigenein/fennec:0.1.5"
+              env:
+              - name: "TZ"
+                value: "Europe/Amsterdam"
+              - name: "WEERLIVE_API_KEY"
+                value: "..."
+              - name: "FOX_ESS_SERIAL_NUMBER"
+                value: "..."
+              - name: "FOX_ESS_API_KEY"
+                value: "..."
+              - name: "LOGFIRE_TOKEN"
+                value: "..."
+              command:
+                - "/fennec"
+                - "hunt"
+```
+
 ## Energy costs cheatsheet
 
 ![Price build-up](energy-costs.png)

@@ -20,7 +20,7 @@ pub struct Schedule {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TimeSlot {
     #[serde_as(as = "serde_with::BoolFromInt")]
     #[serde(rename = "enable")]
@@ -76,6 +76,7 @@ impl TimeSlot {
 pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 
 impl TimeSlotSequence {
+    #[instrument(skip_all)]
     pub fn from_daily_schedule(
         daily_schedule: WorkingModeDailySchedule,
         battery_power: BatteryPower,
@@ -84,6 +85,7 @@ impl TimeSlotSequence {
         let chunks =
             daily_schedule.into_iter().enumerate().chunk_by(|(_, working_mode)| *working_mode);
         let chunks: Vec<_> = chunks.into_iter().collect();
+        info!("Grouped", n_chunks = chunks.len().to_string());
         if chunks.len() > 8 {
             bail!("FoxESS Cloud allows maximum of 8 schedule groups, got {}", chunks.len());
         }
@@ -167,10 +169,94 @@ impl From<crate::optimizer::working_mode::WorkingMode> for WorkingMode {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use rust_decimal::dec;
+
+    use crate::{
+        cli::BatteryPower,
+        foxess::{
+            FoxEssTimeSlot,
+            schedule::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
+        },
+        optimizer::working_mode::WorkingMode,
+        prelude::*,
+        units::Kilowatts,
+    };
 
     #[test]
-    fn test_from_daily_schedule() {
-        todo!()
+    fn test_from_daily_schedule_ok() -> Result {
+        let daily_schedule = [
+            WorkingMode::Charging,
+            WorkingMode::Discharging,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+            WorkingMode::SelfUse,
+        ]
+        .into();
+        let time_slot_sequence = TimeSlotSequence::from_daily_schedule(
+            daily_schedule,
+            BatteryPower { charging: Kilowatts(dec!(1.2)), discharging: Kilowatts(dec!(0.8)) },
+            10,
+        )?;
+        assert_eq!(
+            time_slot_sequence.0,
+            [
+                FoxEssTimeSlot {
+                    is_enabled: true,
+                    start_hour: 0,
+                    start_minute: 0,
+                    end_hour: 1,
+                    end_minute: 0,
+                    max_soc: 100,
+                    min_soc_on_grid: 10,
+                    feed_soc: 10,
+                    feed_power_watts: 1200,
+                    working_mode: FoxEssWorkingMode::ForceCharge,
+                },
+                FoxEssTimeSlot {
+                    is_enabled: true,
+                    start_hour: 1,
+                    start_minute: 0,
+                    end_hour: 2,
+                    end_minute: 0,
+                    max_soc: 100,
+                    min_soc_on_grid: 10,
+                    feed_soc: 10,
+                    feed_power_watts: 800,
+                    working_mode: FoxEssWorkingMode::ForceDischarge,
+                },
+                FoxEssTimeSlot {
+                    is_enabled: true,
+                    start_hour: 2,
+                    start_minute: 0,
+                    end_hour: 23,
+                    end_minute: 59,
+                    max_soc: 100,
+                    min_soc_on_grid: 10,
+                    feed_soc: 10,
+                    feed_power_watts: 1200,
+                    working_mode: FoxEssWorkingMode::SelfUse,
+                },
+            ]
+        );
+        Ok(())
     }
 }

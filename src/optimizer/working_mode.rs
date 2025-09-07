@@ -16,7 +16,14 @@ pub enum WorkingMode {
 /// Working mode schedule for 24 hours.
 ///
 /// N-th element defines the working mode for the time slot of N:00:00-N:59:59.
-#[derive(Debug, Default, derive_more::IntoIterator, derive_more::AsRef, derive_more::Deref)]
+#[derive(
+    Debug,
+    Default,
+    derive_more::From,
+    derive_more::IntoIterator,
+    derive_more::AsRef,
+    derive_more::Deref,
+)]
 pub struct WorkingModeDailySchedule([WorkingMode; 24]);
 
 impl WorkingModeDailySchedule {

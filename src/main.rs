@@ -27,13 +27,9 @@ use crate::{
 #[tokio::main]
 async fn main() -> Result {
     let _logfire_guard = logfire::configure()
-        .with_console(Some(
-            ConsoleOptions::default()
-                .with_min_log_level(Level::INFO)
-                .with_include_timestamps(false),
-        ))
+        .with_console(Some(ConsoleOptions::default().with_include_timestamps(false)))
         .send_to_logfire(SendToLogfire::IfTokenPresent)
-        .with_default_level_filter(LevelFilter::DEBUG)
+        .with_default_level_filter(LevelFilter::INFO)
         .finish()?
         .shutdown_guard();
 

@@ -15,7 +15,7 @@ use tracing::level_filters::LevelFilter;
 
 use crate::{
     cli::{Args, Command, FoxEssCommand},
-    foxess::{FoxEseTimeSlotSequence, FoxEss},
+    foxess::{FoxEseTimeSlotSequence, FoxEssApi},
     nextenergy::NextEnergy,
     optimizer::{optimise, working_mode::WorkingModeHourlySchedule},
     prelude::*,
@@ -32,6 +32,8 @@ async fn main() -> Result {
         .shutdown_guard();
 
     let args = Args::parse();
+    let fox_ess_api = FoxEssApi::try_new(args.fox_ess_api.api_key)?;
+
     match args.command {
         Command::Hunt(hunt_args) => {
             let now = Local::now().naive_local();
@@ -42,14 +44,13 @@ async fn main() -> Result {
                 .extend(next_energy.get_hourly_rates(now.date() + TimeDelta::days(1), 0).await?);
             info!("Fetched energy rates");
 
-            let fox_ess = FoxEss::try_new(args.fox_ess_api.api_key)?;
             let (residual_energy, total_capacity) = {
                 (
-                    fox_ess
+                    fox_ess_api
                         .get_device_variables(&args.fox_ess_api.serial_number)
                         .await?
                         .residual_energy,
-                    fox_ess
+                    fox_ess_api
                         .get_device_details(&args.fox_ess_api.serial_number)
                         .await?
                         .total_capacity(),
@@ -82,7 +83,9 @@ async fn main() -> Result {
             )?;
 
             if !hunt_args.stalk {
-                fox_ess.set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence).await?;
+                fox_ess_api
+                    .set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence)
+                    .await?;
             }
 
             Ok(())
@@ -90,23 +93,21 @@ async fn main() -> Result {
 
         Command::Burrow(burrow_args) => match burrow_args.command {
             FoxEssCommand::DeviceDetails => {
-                let details = FoxEss::try_new(args.fox_ess_api.api_key)?
-                    .get_device_details(&args.fox_ess_api.serial_number)
-                    .await?;
+                let details =
+                    fox_ess_api.get_device_details(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", total_capacity = details.total_capacity().to_string());
                 Ok(())
             }
 
             FoxEssCommand::DeviceVariables => {
-                let variables = FoxEss::try_new(args.fox_ess_api.api_key)?
-                    .get_device_variables(&args.fox_ess_api.serial_number)
-                    .await?;
+                let variables =
+                    fox_ess_api.get_device_variables(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", residual_energy = variables.residual_energy.to_string());
                 Ok(())
             }
 
             FoxEssCommand::RawDeviceVariables => {
-                let response = FoxEss::try_new(args.fox_ess_api.api_key)?
+                let response = fox_ess_api
                     .get_devices_variables_raw(&[args.fox_ess_api.serial_number.as_str()])
                     .await?;
                 info!("Gotcha!");
@@ -126,9 +127,7 @@ async fn main() -> Result {
             }
 
             FoxEssCommand::Schedule => {
-                let schedule = FoxEss::try_new(args.fox_ess_api.api_key)?
-                    .get_schedule(&args.fox_ess_api.serial_number)
-                    .await?;
+                let schedule = fox_ess_api.get_schedule(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", enabled = schedule.is_enabled);
                 schedule.groups.trace();
                 Ok(())

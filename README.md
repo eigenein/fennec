@@ -36,7 +36,7 @@ metadata:
   name: "fennec"
 spec:
   timeZone: "Europe/Amsterdam"
-  schedule: "*/30 * * * *"
+  schedule: "5 * * * *"
   startingDeadlineSeconds: 600
   concurrencyPolicy: "Replace"
   successfulJobsHistoryLimit: 1

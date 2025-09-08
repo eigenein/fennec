@@ -75,7 +75,7 @@ async fn main() -> Result {
             .map(|power| Kilowatts(power.0 * hunt_args.pv.pv_surface_square_meters))
             .collect();
 
-            let (profit, working_mode_sequence) = optimise(
+            let (profit, working_mode_sequence, residual_energy_plan) = optimise(
                 &hourly_rates,
                 &pv_generation,
                 residual_energy,
@@ -83,7 +83,11 @@ async fn main() -> Result {
                 &hunt_args.battery,
                 &hunt_args.consumption,
             )?;
-            info!("Optimized", profit = profit.to_string());
+            info!(
+                "Optimized",
+                profit = profit.to_string(),
+                residual_energy_plan = format!("{residual_energy_plan:?}"),
+            );
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
                 start_hour,

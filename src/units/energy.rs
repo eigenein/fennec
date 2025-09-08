@@ -10,6 +10,7 @@ use crate::units::{currency::Cost, rate::EuroPerKilowattHour};
     Copy,
     Clone,
     Deserialize,
+    Debug,
     derive_more::Display,
     derive_more::FromStr,
     derive_more::Sum,

@@ -24,12 +24,12 @@ pub fn optimise(
     capacity: KilowattHours,
     battery_args: &BatteryArgs,
     consumption_args: &ConsumptionArgs,
-) -> Result<(Cost, Vec<WorkingMode>)> {
+) -> Result<(Cost, Vec<WorkingMode>, Vec<KilowattHours>)> {
     // Find all possible thresholds:
     let unique_rates: Vec<_> = hourly_rates.iter().collect::<BTreeSet<_>>().into_iter().collect();
 
     // Iterate all possible pairs of charging-discharging thresholds:
-    let (profit, working_mode_sequence) = unique_rates
+    let (profit, working_mode_sequence, residual_energy_plan) = unique_rates
         .into_iter()
         .combinations_with_replacement(2)
         .map(|rates| {
@@ -48,7 +48,7 @@ pub fn optimise(
                     }
                 })
                 .collect();
-            let test_profit = simulate(
+            let (test_profit, residual_energy_plan) = simulate(
                 hourly_rates,
                 pv_generation,
                 &working_mode_sequence,
@@ -63,11 +63,13 @@ pub fn optimise(
                 min_discharge_rate = min_discharge_rate.to_string(),
                 profit = test_profit.to_string(),
             );
-            (test_profit, working_mode_sequence)
+            (test_profit, working_mode_sequence, residual_energy_plan)
         })
-        .max_by_key(|(profit, _)| *profit)
+        .max_by_key(|(profit, _, _)| *profit)
         .context("there is no solution")?;
-    Ok((profit, working_mode_sequence))
+
+    // TODO: extract into a `struct`.
+    Ok((profit, working_mode_sequence, residual_energy_plan))
 }
 
 fn simulate(
@@ -78,12 +80,13 @@ fn simulate(
     capacity: KilowattHours,
     battery_args: &BatteryArgs,
     consumption_args: &ConsumptionArgs,
-) -> Cost {
+) -> (Cost, Vec<KilowattHours>) {
     const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
     let min_residual_energy = capacity * f64::from(battery_args.min_soc_percent) / 100.0;
 
     let mut current_residual_energy = residual_energy;
     let mut profit = Cost::ZERO;
+    let mut residual_energy_plan = Vec::with_capacity(hourly_rates.len());
 
     for ((rate, working_mode), pv_power) in
         hourly_rates.iter().zip(working_mode_sequence.as_ref()).zip(pv_generation)
@@ -155,9 +158,11 @@ fn simulate(
             // Update current residual energy:
             current_residual_energy += energy_differential;
         }
+
+        residual_energy_plan.push(current_residual_energy);
     }
 
-    profit
+    (profit, residual_energy_plan)
 }
 
 #[cfg(test)]
@@ -184,7 +189,7 @@ mod tests {
             WorkingMode::Discharging, // battery is capped at 1 kWh
         ];
         let pv_generation = [Kilowatts(0.0); 5];
-        let profit = simulate(
+        let (profit, _) = simulate(
             &rates,
             &pv_generation,
             &working_mode_sequence,

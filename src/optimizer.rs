@@ -35,10 +35,12 @@ pub fn optimise(
         .map(|rates| {
             let max_charge_rate = rates[0];
             let min_discharge_rate = rates[1];
+            assert!(max_charge_rate <= min_discharge_rate);
 
             let working_mode_sequence: Vec<WorkingMode> = hourly_rates
                 .iter()
                 .map(|hourly_rate| {
+                    // TODO: introduce the «keeping» mode (force discharge with zero power)?
                     if hourly_rate <= max_charge_rate {
                         WorkingMode::Charging
                     } else if hourly_rate <= min_discharge_rate {
@@ -68,7 +70,7 @@ pub fn optimise(
         .max_by_key(|(profit, _, _)| *profit)
         .context("there is no solution")?;
 
-    // TODO: extract into a `struct`.
+    // TODO: extract into a `struct` and add the thresholds there.
     Ok((profit, working_mode_sequence, residual_energy_plan))
 }
 
@@ -120,7 +122,9 @@ fn simulate(
                 // For PV energy, we estimate the lost profit, but we would not get the purchase fees back:
                 pv_energy_used * (*rate - consumption_args.purchase_fees)
                 // For grid energy, we are buying it at the full rate:
-                + grid_energy_used * *rate;
+                + grid_energy_used * *rate
+                // Amortization given the battery one-time price and its limited number of cycles:
+                + energy_differential * battery_args.amortization;
 
             // Update current residual energy taking the efficiency into account:
             current_residual_energy += energy_differential * battery_args.charging_efficiency;
@@ -153,7 +157,9 @@ fn simulate(
                 // Equivalent consumption from the grid:
                 stand_by_differential * *rate
                 // The rest we sell a little cheaper:
-                + grid_differential * (*rate - consumption_args.purchase_fees);
+                + grid_differential * (*rate - consumption_args.purchase_fees)
+                // Amortization:
+                - energy_differential * battery_args.amortization;
 
             // Update current residual energy:
             current_residual_energy += energy_differential;
@@ -202,6 +208,7 @@ mod tests {
                 discharging_efficiency: 1.0,
                 self_discharging_rate: 0.0,
                 min_soc_percent: 25, // 1 kWh
+                amortization: EuroPerKilowattHour(dec!(0.0)),
             },
             &ConsumptionArgs {
                 stand_by_power: -Kilowatts(1.0),

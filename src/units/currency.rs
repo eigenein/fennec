@@ -11,6 +11,7 @@ use ordered_float::OrderedFloat;
     Clone,
     derive_more::AddAssign,
     derive_more::SubAssign,
+    derive_more::Sub,
 )]
 pub struct Cost(pub OrderedFloat<f64>);
 

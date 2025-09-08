@@ -69,6 +69,14 @@ pub struct BatteryArgs {
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
+
+    /// Amortization costs per charged or discharged kilowatt-hour.
+    #[clap(
+        long = "amortization-per-kwh",
+        default_value = "0.03",
+        env = "BATTERY_AMORTIZATION_PER_KWH"
+    )]
+    pub amortization: EuroPerKilowattHour,
 }
 
 #[derive(Parser)]
@@ -99,7 +107,7 @@ pub struct ConsumptionArgs {
     pub stand_by_power: Kilowatts,
 
     /// Energy purchase fees («inkoopvergoeding»).
-    #[clap(long = "purchase-fees", default_value = "0.021", env = "PURCHASE_FEES")]
+    #[clap(long = "purchase-fees-per-kwh", default_value = "0.021", env = "PURCHASE_FEES_PER_KWH")]
     #[allow(clippy::doc_markdown)]
     pub purchase_fees: EuroPerKilowattHour,
 }

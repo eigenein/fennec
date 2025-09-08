@@ -7,18 +7,15 @@ use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
     strategy::{WorkingMode, simulator::Simulation},
-    units::{energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
+    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
 };
 
 pub struct Optimization {
-    /// Simulation result of the best solution.
     pub simulation: Simulation,
-
     pub max_charge_rate: EuroPerKilowattHour,
-
     pub min_discharge_rate: EuroPerKilowattHour,
-
     pub working_mode_sequence: Vec<WorkingMode>,
+    pub minimal_residual_energy_value: Cost,
 }
 
 impl Optimization {
@@ -37,9 +34,14 @@ impl Optimization {
     ) -> Result<Self> {
         // Find all possible thresholds:
         let mut unique_rates = hourly_rates.iter().copied().collect::<BTreeSet<_>>();
+        let minimal_buying_rate = *unique_rates.iter().next().unwrap();
+
+        // I'll use the minimal rate to estimate the residual energy value.
+        let minimal_selling_rate = minimal_buying_rate - consumption_args.purchase_fees;
+        let min_residual_energy = capacity * f64::from(battery_args.min_soc_percent) / 100.0;
 
         // Allow the thresholds to settle below or above the actual rates:
-        unique_rates.insert(*unique_rates.iter().next().unwrap() - EuroPerKilowattHour(dec!(0.01)));
+        unique_rates.insert(minimal_buying_rate - EuroPerKilowattHour(dec!(0.01)));
         unique_rates
             .insert(*unique_rates.iter().next_back().unwrap() + EuroPerKilowattHour(dec!(0.01)));
 
@@ -75,15 +77,34 @@ impl Optimization {
                     battery_args,
                     consumption_args,
                 );
+                let usable_residual_energy =
+                    simulation.forecast.last().unwrap().residual_energy_after - min_residual_energy;
+                let minimal_residual_energy_value = if usable_residual_energy.is_non_negative() {
+                    // Theoretical money we can make from selling it all at once:
+                    usable_residual_energy
+                        * battery_args.discharging_efficiency
+                        * minimal_selling_rate
+                } else {
+                    // Uh-oh, we need to spend money at least this much money to compensate the self-discharge:
+                    usable_residual_energy / battery_args.charging_efficiency * minimal_buying_rate
+                };
                 trace!(
                     "Simulated",
                     max_charge_rate = max_charge_rate.to_string(),
                     min_discharge_rate = min_discharge_rate.to_string(),
                     profit = simulation.net_profit.to_string(),
                 );
-                Self { simulation, max_charge_rate, min_discharge_rate, working_mode_sequence }
+                Self {
+                    simulation,
+                    max_charge_rate,
+                    min_discharge_rate,
+                    working_mode_sequence,
+                    minimal_residual_energy_value,
+                }
             })
-            .max_by_key(|optimization| optimization.simulation.net_profit)
+            .max_by_key(|optimization| {
+                optimization.simulation.net_profit + optimization.minimal_residual_energy_value
+            })
             .context("there is no solution")
     }
 }

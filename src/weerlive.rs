@@ -2,6 +2,7 @@ use chrono::{NaiveDateTime, Timelike};
 use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Deserializer, de::Unexpected};
+use serde_with::serde_as;
 
 use crate::{prelude::*, units::power::KilowattsPerMeterSquared};
 
@@ -95,22 +96,15 @@ struct Forecast {
     hourly_forecast: Vec<HourlyForecast>,
 }
 
+#[serde_as]
 #[derive(Copy, Clone, Deserialize)]
 struct HourlyForecast {
-    #[serde(rename = "uur", deserialize_with = "deserialize_start_time")]
+    #[serde_as(as = "serde_with::TimestampSeconds<i64>")]
+    #[serde(rename = "timestamp")]
     start_time: NaiveDateTime,
 
     #[serde(rename = "gr")]
     solar_power_watts_per_m2: f64,
-}
-
-fn deserialize_start_time<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let string = String::deserialize(deserializer)?;
-    NaiveDateTime::parse_from_str(&string, "%d-%m-%Y %H:%M")
-        .map_err(|_| serde::de::Error::invalid_value(Unexpected::Str(&string), &"valid date/time"))
 }
 
 #[cfg(test)]

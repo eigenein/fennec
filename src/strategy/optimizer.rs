@@ -76,7 +76,7 @@ impl Optimization {
                     min_discharge_rate = min_discharge_rate.to_string(),
                     profit = simulation.net_profit.to_string(),
                 );
-                Self { simulation, working_mode_sequence, max_charge_rate, min_discharge_rate }
+                Self { simulation, max_charge_rate, min_discharge_rate, working_mode_sequence }
             })
             .max_by_key(|optimization| optimization.simulation.net_profit)
             .context("there is no solution")

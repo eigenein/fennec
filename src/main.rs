@@ -128,8 +128,6 @@ async fn main() -> Result {
                     .set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence)
                     .await?;
             }
-
-            Ok(())
         }
 
         Command::Burrow(burrow_args) => match burrow_args.command {
@@ -137,14 +135,12 @@ async fn main() -> Result {
                 let details =
                     fox_ess_api.get_device_details(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", total_capacity = details.total_capacity().to_string());
-                Ok(())
             }
 
             BurrowCommand::DeviceVariables => {
                 let variables =
                     fox_ess_api.get_device_variables(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", residual_energy = variables.residual_energy.to_string());
-                Ok(())
             }
 
             BurrowCommand::RawDeviceVariables => {
@@ -164,17 +160,18 @@ async fn main() -> Result {
                         );
                     }
                 }
-                Ok(())
             }
 
             BurrowCommand::Schedule => {
                 let schedule = fox_ess_api.get_schedule(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", enabled = schedule.is_enabled);
                 schedule.groups.trace();
-                Ok(())
             }
         },
     }
+
+    info!("Done!");
+    Ok(())
 }
 
 /// Configure Logfire for unit tests.

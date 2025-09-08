@@ -1,7 +1,7 @@
 use chrono::{NaiveDateTime, Timelike};
 use reqwest::Client;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Deserializer, de::Unexpected};
+use serde::Deserialize;
 use serde_with::serde_as;
 
 use crate::{prelude::*, units::power::KilowattsPerMeterSquared};
@@ -109,7 +109,7 @@ struct HourlyForecast {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Local, Timelike};
+    use chrono::Local;
 
     use super::*;
 

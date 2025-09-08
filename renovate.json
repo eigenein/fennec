@@ -4,7 +4,7 @@
     "group:allNonMajor",
     "schedule:monthly"
   ],
-  "commitMessagePrefix": "⬆️",
+  "commitMessagePrefix": "",
   "timezone": "Europe/Amsterdam",
   "rangeStrategy": "pin"
 }

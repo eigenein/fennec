@@ -41,19 +41,19 @@ impl Weerlive {
         Self { client: Client::new(), url }
     }
 
-    #[instrument(skip_all, name = "Fetching the local weather…")]
-    pub async fn get(&self, start_hour: u32) -> Result<Vec<KilowattsPerMeterSquared>> {
+    #[instrument(skip_all, name = "Fetching the local weather…", fields(starting_hour = starting_hour))]
+    pub async fn get(&self, starting_hour: u32) -> Result<Vec<KilowattsPerMeterSquared>> {
         let mut hourly_forecast =
             self.client.get(&self.url).send().await?.json::<Forecast>().await?.hourly_forecast;
         hourly_forecast.sort_by_key(|entry| entry.start_time);
         match hourly_forecast.first() {
-            Some(forecast) => {
-                let actual_start_hour = forecast.start_time.hour();
-                if actual_start_hour != start_hour {
-                    // At some point, Weerlive stops returning any forecast for the current hour:
-                    ensure!(actual_start_hour == (start_hour + 1) % 24);
+            Some(next_hour_forecast) => {
+                // At some point, Weerlive stops returning any forecast for the current hour:
+                let next_hour = next_hour_forecast.start_time.hour();
+                if next_hour != starting_hour {
                     // Use the next hour as a predictor for the current hour:
-                    hourly_forecast.insert(0, *forecast);
+                    ensure!(next_hour == (starting_hour + 1) % 24);
+                    hourly_forecast.insert(0, *next_hour_forecast);
                 }
             }
             None => {
@@ -63,7 +63,7 @@ impl Weerlive {
         Ok(hourly_forecast
             .into_iter()
             .inspect(|forecast| {
-                info!(
+                debug!(
                     "Forecast",
                     hour = forecast.start_time.hour().to_string(),
                     solar_power_watts_per_m2 = forecast.solar_power_watts_per_m2.to_string(),

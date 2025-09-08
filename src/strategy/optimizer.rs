@@ -13,6 +13,10 @@ pub struct Optimization {
     /// Simulation result of the best solution.
     pub simulation: Simulation,
 
+    pub max_charge_rate: EuroPerKilowattHour,
+
+    pub min_discharge_rate: EuroPerKilowattHour,
+
     pub working_mode_sequence: Vec<WorkingMode>,
 }
 
@@ -24,7 +28,7 @@ impl Optimization {
 )]
     pub fn run(
         hourly_rates: &[EuroPerKilowattHour],
-        pv_generation: &[Kilowatts],
+        solar_energy: &[Kilowatts],
         residual_energy: KilowattHours,
         capacity: KilowattHours,
         battery_args: &BatteryArgs,
@@ -33,6 +37,7 @@ impl Optimization {
         hourly_rates
             // Find all possible thresholds:
             .iter()
+            .copied()
             .collect::<BTreeSet<_>>()
             // Iterate all possible pairs of charging-discharging thresholds:
             .into_iter()
@@ -44,6 +49,7 @@ impl Optimization {
 
                 let working_mode_sequence: Vec<WorkingMode> = hourly_rates
                     .iter()
+                    .copied()
                     .map(|hourly_rate| {
                         // TODO: introduce the «keeping» mode (force discharge with zero power)?
                         if hourly_rate <= max_charge_rate {
@@ -57,7 +63,7 @@ impl Optimization {
                     .collect();
                 let simulation = Simulation::run(
                     hourly_rates,
-                    pv_generation,
+                    solar_energy,
                     &working_mode_sequence,
                     residual_energy,
                     capacity,
@@ -68,11 +74,11 @@ impl Optimization {
                     "Simulated",
                     max_charge_rate = max_charge_rate.to_string(),
                     min_discharge_rate = min_discharge_rate.to_string(),
-                    profit = simulation.profit.to_string(),
+                    profit = simulation.net_profit.to_string(),
                 );
-                Self { simulation, working_mode_sequence }
+                Self { simulation, working_mode_sequence, max_charge_rate, min_discharge_rate }
             })
-            .max_by_key(|optimization| optimization.simulation.profit)
+            .max_by_key(|optimization| optimization.simulation.net_profit)
             .context("there is no solution")
     }
 }

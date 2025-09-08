@@ -31,7 +31,7 @@ pub enum Command {
 
 #[derive(Parser)]
 pub struct BatteryArgs {
-    /// Maximum charging power in kilowatts.
+    /// Maximum external charging power in kilowatts.
     #[clap(
         long = "charging-power-kilowatts",
         default_value = "1.2",
@@ -39,7 +39,7 @@ pub struct BatteryArgs {
     )]
     pub charging_power: Kilowatts,
 
-    /// Maximum discharging power in kilowatts, negative.
+    /// Maximum external discharging power in kilowatts, negative.
     #[clap(
         long = "discharging-power-kilowatts",
         default_value = "-0.8",

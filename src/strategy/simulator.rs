@@ -8,15 +8,23 @@ use crate::{
 
 pub struct Simulation {
     /// Calculated profit.
-    pub profit: Cost,
+    pub net_profit: Cost,
 
-    pub residual_energy_forecast: Vec<KilowattHours>,
+    /// Hourly forecast.
+    pub forecast: Vec<Forecast>,
+}
+
+pub struct Forecast {
+    pub residual_energy_before: KilowattHours,
+    pub residual_energy_after: KilowattHours,
+    pub grid_energy_used: KilowattHours,
+    pub net_profit: Cost,
 }
 
 impl Simulation {
     pub fn run(
         hourly_rates: &[EuroPerKilowattHour],
-        pv_generation: &[Kilowatts],
+        solar_energy: &[Kilowatts],
         working_mode_sequence: &[WorkingMode],
         residual_energy: KilowattHours,
         capacity: KilowattHours,
@@ -27,17 +35,19 @@ impl Simulation {
         let min_residual_energy = capacity * f64::from(battery_args.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = residual_energy;
-        let mut profit = Cost::ZERO;
-        let mut residual_energy_forecast = Vec::with_capacity(hourly_rates.len());
+        let mut net_profit = Cost::ZERO;
+        let mut forecast = Vec::with_capacity(hourly_rates.len());
 
-        for ((rate, working_mode), pv_power) in
-            hourly_rates.iter().zip(working_mode_sequence.as_ref()).zip(pv_generation)
+        for ((rate, working_mode), solar_power) in
+            hourly_rates.iter().zip(working_mode_sequence.as_ref()).zip(solar_energy)
         {
+            let residual_energy_before = current_residual_energy;
+
             // Here's what's happening at the battery connection point:
             let power_balance = match working_mode {
                 WorkingMode::Charging => battery_args.charging_power,
                 WorkingMode::Discharging => battery_args.discharging_power,
-                WorkingMode::Balancing => *pv_power + consumption_args.stand_by_power,
+                WorkingMode::Balancing => *solar_power + consumption_args.stand_by_power,
             };
 
             // Charging:
@@ -48,21 +58,29 @@ impl Simulation {
                 assert!(billable_energy_differential.is_non_negative());
 
                 // Calculate the distribution between the available grid and PV energy:
-                let pv_energy_used = (*pv_power * ONE_HOUR).min(billable_energy_differential);
+                let pv_energy_used = (*solar_power * ONE_HOUR).min(billable_energy_differential);
                 let grid_energy_used = billable_energy_differential - pv_energy_used;
                 assert!(pv_energy_used.is_non_negative());
                 assert!(grid_energy_used.is_non_negative());
 
                 // Calculate the associated costs:
-                profit -=
-                // For PV energy, we estimate the lost profit without the purchase fees:
-                pv_energy_used * (*rate - consumption_args.purchase_fees)
-                // For grid energy, we are buying it at the full rate:
-                + grid_energy_used * *rate;
+                let hour_net_profit =
+                    // For PV energy, we estimate the lost profit without the purchase fees:
+                    -pv_energy_used * (*rate - consumption_args.purchase_fees)
+                    // For grid energy, we are buying it at the full rate:
+                    - grid_energy_used * *rate;
+                net_profit += hour_net_profit;
 
                 // Update current residual energy taking the efficiency into account:
                 current_residual_energy +=
                     billable_energy_differential * battery_args.charging_efficiency;
+
+                forecast.push(Forecast {
+                    residual_energy_after: current_residual_energy,
+                    grid_energy_used,
+                    residual_energy_before,
+                    net_profit: hour_net_profit,
+                });
             }
             // Discharging:
             else if power_balance.0.is_sign_negative() {
@@ -72,19 +90,20 @@ impl Simulation {
                 assert!(current_residual_energy.is_non_negative());
 
                 // Let's see how much energy we can obtain taking the minimum SoC and power balance into account.
-                // I'm clamping to zero because the self-discharging could drop the residual energy below the reserve:
-                let energy_differential = (min_residual_energy - current_residual_energy).clamp(
-                    battery_args.discharging_power.max(power_balance) * ONE_HOUR,
-                    KilowattHours::ZERO,
-                );
-                assert!(
-                    energy_differential.is_non_positive(),
-                    "energy differential: {energy_differential}",
-                );
+                let internal_energy_differential =
+                    // Usable residual energy:
+                    (min_residual_energy - current_residual_energy)
+                    .clamp(
+                        // Limited by actual discharging power corrected by the efficiency:
+                    battery_args.discharging_power.max(power_balance) / battery_args.discharging_efficiency * ONE_HOUR,
+                        // The self-discharging could already drop the residual energy below the reserve:
+                        KilowattHours::ZERO,
+                    );
+                assert!(internal_energy_differential.is_non_positive());
 
                 // But, we actually get less from it due to the efficiency losses:
                 let billable_energy_differential =
-                    energy_differential * battery_args.discharging_efficiency;
+                    internal_energy_differential * battery_args.discharging_efficiency;
                 assert!(billable_energy_differential.is_non_positive());
 
                 // Calculate the payback (`max` is because the differential is negative):
@@ -96,25 +115,31 @@ impl Simulation {
                     grid_differential.is_non_positive(),
                     "grid differential: {grid_differential}",
                 );
-                profit -=
-                // Equivalent stand-by consumption from the grid would be billed with the full rate:
-                stand_by_differential * *rate
-                // The rest we sell a little cheaper, without the purchase fees:
-                + grid_differential * (*rate - consumption_args.purchase_fees);
+                let hour_net_profit =
+                    // Equivalent stand-by consumption from the grid would be billed with the full rate:
+                    -stand_by_differential * *rate
+                    // The rest we sell a little cheaper, without the purchase fees:
+                    - grid_differential * (*rate - consumption_args.purchase_fees);
+                net_profit += hour_net_profit;
 
                 // Update current residual energy:
-                current_residual_energy += energy_differential;
+                current_residual_energy += internal_energy_differential;
 
                 // Post-apply self-discharging:
                 current_residual_energy -=
                     current_residual_energy * battery_args.self_discharging_rate * 0.5;
                 assert!(current_residual_energy.is_non_negative());
-            }
 
-            residual_energy_forecast.push(current_residual_energy);
+                forecast.push(Forecast {
+                    residual_energy_after: current_residual_energy,
+                    grid_energy_used: grid_differential,
+                    residual_energy_before,
+                    net_profit: hour_net_profit,
+                });
+            }
         }
 
-        Self { profit, residual_energy_forecast }
+        Self { net_profit, forecast }
     }
 }
 
@@ -141,10 +166,10 @@ mod tests {
             WorkingMode::Discharging, //-2 kWh, +8 euro
             WorkingMode::Discharging, // battery is capped at 1 kWh
         ];
-        let pv_generation = [Kilowatts(0.0); 5];
+        let solar_energy = [Kilowatts(0.0); 5];
         let simulation = Simulation::run(
             &rates,
-            &pv_generation,
+            &solar_energy,
             &working_mode_sequence,
             KilowattHours(1.0), // starting at 1 kWh
             KilowattHours(4.0), // capacity is 4 kWh
@@ -161,6 +186,6 @@ mod tests {
                 purchase_fees: EuroPerKilowattHour(dec!(0.0)),
             },
         );
-        assert_eq!(simulation.profit.0, 8.0);
+        assert_eq!(simulation.net_profit.0, 8.0);
     }
 }

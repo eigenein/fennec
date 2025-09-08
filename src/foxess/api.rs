@@ -1,6 +1,4 @@
-use anyhow::Context;
 use chrono::Utc;
-use logfire::{debug, info};
 use reqwest::{
     Client,
     Method,
@@ -72,6 +70,7 @@ impl Api {
     #[instrument(
         name = "Fetching all device variables…",
         skip_all,
+        level = Level::DEBUG,
         fields(serial_numbers = ?serial_numbers),
     )]
     pub async fn get_devices_variables_raw(
@@ -123,7 +122,6 @@ impl Api {
             groups: &'a [FoxEssTimeSlot],
         }
 
-        info!("Setting schedule…");
         self.call(
             Method::POST,
             "op/v1/device/scheduler/enable",

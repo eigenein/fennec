@@ -39,7 +39,7 @@ impl NextEnergy {
             .into_iter()
             .filter(|point| point.hour >= starting_hour)
             .inspect(|point| {
-                info!("Rate", hour = point.hour.to_string(), value = point.value.to_string());
+                debug!("Rate", hour = point.hour.to_string(), value = point.value.to_string());
             })
             .map(|point| point.value)
             .collect())

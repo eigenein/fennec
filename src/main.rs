@@ -9,6 +9,7 @@ mod weerlive;
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
+use rust_decimal::Decimal;
 use tracing::level_filters::LevelFilter;
 
 use crate::{
@@ -48,7 +49,7 @@ async fn main() -> Result {
             let mut hourly_rates = next_energy.get_hourly_rates(now.date(), start_hour).await?;
             hourly_rates
                 .extend(next_energy.get_hourly_rates(now.date() + TimeDelta::days(1), 0).await?);
-            info!("Fetched energy rates");
+            info!("Fetched energy rates", len = hourly_rates.len().to_string());
 
             let (residual_energy, total_capacity) = {
                 (
@@ -68,7 +69,7 @@ async fn main() -> Result {
                 total_capacity = total_capacity.to_string(),
             );
 
-            let pv_generation: Vec<_> = Weerlive::new(
+            let solar_power: Vec<_> = Weerlive::new(
                 &hunt_args.pv.weerlive_api_key,
                 &Location::coordinates(hunt_args.pv.latitude, hunt_args.pv.longitude),
             )
@@ -80,17 +81,38 @@ async fn main() -> Result {
 
             let optimization = Optimization::run(
                 &hourly_rates,
-                &pv_generation,
+                &solar_power,
                 residual_energy,
                 total_capacity,
                 &hunt_args.battery,
                 &hunt_args.consumption,
             )?;
+
+            for ((((hour, rate), working_mode), forecast), solar_power) in (start_hour..)
+                .zip(hourly_rates)
+                .zip(&optimization.working_mode_sequence)
+                .zip(&optimization.simulation.forecast)
+                .zip(solar_power)
+            {
+                info!(
+                    "Plan",
+                    hour = (hour % 24).to_string(),
+                    rate = format!("¢{:.0}", rate * Decimal::ONE_HUNDRED),
+                    solar = format!("{:.2}㎾", solar_power),
+                    before = format!("{:.2}", forecast.residual_energy_before),
+                    mode = format!("{working_mode:?}"),
+                    grid = format!("{:.2}", forecast.grid_energy_used),
+                    after = format!("{:.2}", forecast.residual_energy_after),
+                    profit = format!("¢{:.0}", forecast.net_profit * 100.0),
+                );
+            }
             info!(
                 "Optimized",
-                profit = optimization.simulation.profit.to_string(),
-                residual_energy_forecast =
-                    format!("{:?}", optimization.simulation.residual_energy_forecast),
+                max_charge_rate =
+                    format!("¢{:.0}", optimization.max_charge_rate * Decimal::ONE_HUNDRED),
+                min_discharge_rate =
+                    format!("¢{:.0}", optimization.min_discharge_rate * Decimal::ONE_HUNDRED),
+                profit = format!("€{:.2}", optimization.simulation.net_profit),
             );
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(

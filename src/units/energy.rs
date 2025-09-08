@@ -16,6 +16,7 @@ use crate::units::{currency::Cost, rate::EuroPerKilowattHour};
     derive_more::Sum,
     derive_more::Add,
     derive_more::Sub,
+    derive_more::Neg,
     derive_more::AddAssign,
     derive_more::SubAssign,
 )]

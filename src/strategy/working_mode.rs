@@ -43,7 +43,7 @@ impl<const N: usize> WorkingModeHourlySchedule<N> {
             (starting_hour as usize..).zip(working_modes.into_iter().take(N))
         {
             let hour = hour % N;
-            info!("Set", hour = hour.to_string(), working_mode = format!("{working_mode:?}"));
+            debug!("Set", hour = hour.to_string(), working_mode = format!("{working_mode:?}"));
             this.0[hour] = working_mode;
         }
         this

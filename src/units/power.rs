@@ -1,4 +1,4 @@
-use std::ops::Mul;
+use std::ops::{Div, Mul};
 
 use chrono::TimeDelta;
 
@@ -40,6 +40,14 @@ impl Mul<f64> for Kilowatts {
 
     fn mul(self, rhs: f64) -> Self::Output {
         Self(self.0 * rhs)
+    }
+}
+
+impl Div<f64> for Kilowatts {
+    type Output = Self;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Self(self.0 / rhs)
     }
 }
 

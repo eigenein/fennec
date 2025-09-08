@@ -93,10 +93,6 @@ fn simulate(
     for ((rate, working_mode), pv_power) in
         hourly_rates.iter().zip(working_mode_sequence.as_ref()).zip(pv_generation)
     {
-        // Apply self-discharging:
-        current_residual_energy -= current_residual_energy * battery_args.self_discharging_rate;
-        assert!(current_residual_energy.is_non_negative());
-
         // Here's what's happening at the battery connection point:
         let power_balance = match working_mode {
             WorkingMode::Charging => battery_args.charging_power,
@@ -107,28 +103,34 @@ fn simulate(
         // Charging:
         if power_balance.0.is_sign_positive() {
             // Let's see how much energy is spent charging it taking the power balance and capacity into account:
-            let energy_differential = (capacity - current_residual_energy)
+            let billable_energy_differential = (capacity - current_residual_energy)
                 .min(battery_args.charging_power.min(power_balance) * ONE_HOUR);
-            assert!(energy_differential.is_non_negative());
+            assert!(billable_energy_differential.is_non_negative());
 
             // Calculate the distribution between the available grid and PV energy:
-            let pv_energy_used = (*pv_power * ONE_HOUR).min(energy_differential);
-            let grid_energy_used = energy_differential - pv_energy_used;
+            let pv_energy_used = (*pv_power * ONE_HOUR).min(billable_energy_differential);
+            let grid_energy_used = billable_energy_differential - pv_energy_used;
             assert!(pv_energy_used.is_non_negative());
             assert!(grid_energy_used.is_non_negative());
 
             // Calculate the associated costs:
             profit -=
-                // For PV energy, we estimate the lost profit, but we would not get the purchase fees back:
+                // For PV energy, we estimate the lost profit without the purchase fees:
                 pv_energy_used * (*rate - consumption_args.purchase_fees)
                 // For grid energy, we are buying it at the full rate:
                 + grid_energy_used * *rate;
 
             // Update current residual energy taking the efficiency into account:
-            current_residual_energy += energy_differential * battery_args.charging_efficiency;
+            current_residual_energy +=
+                billable_energy_differential * battery_args.charging_efficiency;
         }
         // Discharging:
         else if power_balance.0.is_sign_negative() {
+            // Pre-apply self-discharging (to get the average between the initial and resulting residual energy):
+            current_residual_energy -=
+                current_residual_energy * battery_args.self_discharging_rate * 0.5;
+            assert!(current_residual_energy.is_non_negative());
+
             // Let's see how much energy we can obtain taking the minimum SoC and power balance into account.
             // I'm clamping to zero because the self-discharging could drop the residual energy below the reserve:
             let energy_differential = (min_residual_energy - current_residual_energy).clamp(
@@ -141,24 +143,29 @@ fn simulate(
             );
 
             // But, we actually get less from it due to the efficiency losses:
-            let effective_energy_differential =
+            let billable_energy_differential =
                 energy_differential * battery_args.discharging_efficiency;
-            assert!(effective_energy_differential.is_non_positive());
+            assert!(billable_energy_differential.is_non_positive());
 
-            // Calculate the payback:
+            // Calculate the payback (`max` is because the differential is negative):
             let stand_by_differential =
-                effective_energy_differential.max(consumption_args.stand_by_power * ONE_HOUR);
-            let grid_differential = effective_energy_differential - stand_by_differential;
+                billable_energy_differential.max(consumption_args.stand_by_power * ONE_HOUR);
+            let grid_differential = billable_energy_differential - stand_by_differential;
             assert!(stand_by_differential.is_non_positive());
             assert!(grid_differential.is_non_positive(), "grid differential: {grid_differential}",);
             profit -=
-                // Equivalent consumption from the grid:
+                // Equivalent stand-by consumption from the grid would be billed with the full rate:
                 stand_by_differential * *rate
-                // The rest we sell a little cheaper:
+                // The rest we sell a little cheaper, without the purchase fees:
                 + grid_differential * (*rate - consumption_args.purchase_fees);
 
             // Update current residual energy:
             current_residual_energy += energy_differential;
+
+            // Post-apply self-discharging:
+            current_residual_energy -=
+                current_residual_energy * battery_args.self_discharging_rate * 0.5;
+            assert!(current_residual_energy.is_non_negative());
         }
 
         residual_energy_plan.push(current_residual_energy);

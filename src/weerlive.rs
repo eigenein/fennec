@@ -41,18 +41,33 @@ impl Weerlive {
         Self { client: Client::new(), url }
     }
 
-    #[instrument(skip_all, name = "Fetching the local weather…", fields(starting_hour = starting_hour))]
-    pub async fn get(&self, starting_hour: u32) -> Result<Vec<KilowattsPerMeterSquared>> {
-        let mut hourly_forecast =
-            self.client.get(&self.url).send().await?.json::<Forecast>().await?.hourly_forecast;
+    #[instrument(skip_all, name = "Fetching the local weather…", fields(now = ?now))]
+    pub async fn get(&self, now: NaiveDateTime) -> Result<Vec<KilowattsPerMeterSquared>> {
+        let mut hourly_forecast: Vec<_> = self
+            .client
+            .get(&self.url)
+            .send()
+            .await?
+            .json::<Forecast>()
+            .await?
+            .hourly_forecast
+            .into_iter()
+            .filter(|forecast| {
+                let start_time = forecast.start_time;
+                // Keep the future forecasts:
+                start_time > now
+                // And the current hour forecast:
+                || (start_time.date() == now.date() && start_time.hour() == now.hour())
+            })
+            .collect();
         hourly_forecast.sort_by_key(|entry| entry.start_time);
         match hourly_forecast.first() {
             Some(next_hour_forecast) => {
                 // At some point, Weerlive stops returning any forecast for the current hour:
                 let next_hour = next_hour_forecast.start_time.hour();
-                if next_hour != starting_hour {
+                if next_hour != now.hour() {
                     // Use the next hour as a predictor for the current hour:
-                    ensure!(next_hour == (starting_hour + 1) % 24);
+                    ensure!(next_hour == (now.hour() + 1) % 24);
                     hourly_forecast.insert(0, *next_hour_forecast);
                 }
             }
@@ -107,8 +122,9 @@ mod tests {
     #[tokio::test]
     #[ignore = "online test"]
     async fn test_get_ok() -> Result {
-        let start_hour = Local::now().naive_local().hour();
-        Weerlive::new("demo", &Location::Name("Amsterdam")).get(start_hour).await?;
+        let now = Local::now().naive_local();
+        Weerlive::new("demo", &Location::Name("Amsterdam")).get(now).await?;
+        // TODO: add assertions.
         Ok(())
     }
 }

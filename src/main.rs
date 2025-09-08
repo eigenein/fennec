@@ -73,7 +73,7 @@ async fn main() -> Result {
                 &hunt_args.solar.weerlive_api_key,
                 &Location::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
             )
-            .get(start_hour)
+            .get(now)
             .await?
             .into_iter()
             .map(|power| Kilowatts(power.0 * hunt_args.solar.pv_surface_square_meters))

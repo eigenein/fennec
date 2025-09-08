@@ -12,6 +12,7 @@ use serde_with::serde_as;
     Eq,
     PartialOrd,
     Ord,
+    Debug,
     derive_more::Display,
     derive_more::FromStr,
     derive_more::Sub,

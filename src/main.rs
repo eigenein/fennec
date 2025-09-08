@@ -70,13 +70,13 @@ async fn main() -> Result {
             );
 
             let solar_power: Vec<_> = Weerlive::new(
-                &hunt_args.pv.weerlive_api_key,
-                &Location::coordinates(hunt_args.pv.latitude, hunt_args.pv.longitude),
+                &hunt_args.solar.weerlive_api_key,
+                &Location::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
             )
             .get(start_hour)
             .await?
             .into_iter()
-            .map(|power| Kilowatts(power.0 * hunt_args.pv.pv_surface_square_meters))
+            .map(|power| Kilowatts(power.0 * hunt_args.solar.pv_surface_square_meters))
             .collect();
 
             let optimization = Optimization::run(

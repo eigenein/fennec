@@ -82,7 +82,7 @@ pub struct HuntArgs {
     pub battery: BatteryArgs,
 
     #[clap(flatten)]
-    pub pv: PvArgs,
+    pub solar: SolarArgs,
 
     #[clap(flatten)]
     pub consumption: ConsumptionArgs,
@@ -105,7 +105,7 @@ pub struct ConsumptionArgs {
 }
 
 #[derive(Parser)]
-pub struct PvArgs {
+pub struct SolarArgs {
     #[clap(long = "latitude", default_value = "52.349605", env = "LATITUDE")]
     pub latitude: Decimal,
 

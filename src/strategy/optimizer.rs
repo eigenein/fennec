@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use itertools::Itertools;
+use rust_decimal::dec;
 
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
@@ -34,11 +35,15 @@ impl Optimization {
         battery_args: &BatteryArgs,
         consumption_args: &ConsumptionArgs,
     ) -> Result<Self> {
-        hourly_rates
-            // Find all possible thresholds:
-            .iter()
-            .copied()
-            .collect::<BTreeSet<_>>()
+        // Find all possible thresholds:
+        let mut unique_rates = hourly_rates.iter().copied().collect::<BTreeSet<_>>();
+
+        // Allow the thresholds to settle below or above the actual rates:
+        unique_rates.insert(*unique_rates.iter().next().unwrap() - EuroPerKilowattHour(dec!(0.01)));
+        unique_rates
+            .insert(*unique_rates.iter().next_back().unwrap() + EuroPerKilowattHour(dec!(0.01)));
+
+        unique_rates
             // Iterate all possible pairs of charging-discharging thresholds:
             .into_iter()
             .combinations_with_replacement(2)

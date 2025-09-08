@@ -21,7 +21,6 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 - Solar power forecast for upcoming hours
 - Household standby power consumption
 - Battery self-discharge rate
-- Battery amortization cost
 - Energy feed-in tariff («inkoopvergoeding»)
 
 It optimizes two parameters: maximum charging rate and minimum discharge threshold to maximize profit.

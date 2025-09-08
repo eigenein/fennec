@@ -122,9 +122,7 @@ fn simulate(
                 // For PV energy, we estimate the lost profit, but we would not get the purchase fees back:
                 pv_energy_used * (*rate - consumption_args.purchase_fees)
                 // For grid energy, we are buying it at the full rate:
-                + grid_energy_used * *rate
-                // Amortization given the battery one-time price and its limited number of cycles:
-                + energy_differential * battery_args.amortization;
+                + grid_energy_used * *rate;
 
             // Update current residual energy taking the efficiency into account:
             current_residual_energy += energy_differential * battery_args.charging_efficiency;
@@ -157,9 +155,7 @@ fn simulate(
                 // Equivalent consumption from the grid:
                 stand_by_differential * *rate
                 // The rest we sell a little cheaper:
-                + grid_differential * (*rate - consumption_args.purchase_fees)
-                // Amortization:
-                - energy_differential * battery_args.amortization;
+                + grid_differential * (*rate - consumption_args.purchase_fees);
 
             // Update current residual energy:
             current_residual_energy += energy_differential;
@@ -208,7 +204,6 @@ mod tests {
                 discharging_efficiency: 1.0,
                 self_discharging_rate: 0.0,
                 min_soc_percent: 25, // 1 kWh
-                amortization: EuroPerKilowattHour(dec!(0.0)),
             },
             &ConsumptionArgs {
                 stand_by_power: -Kilowatts(1.0),

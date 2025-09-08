@@ -194,6 +194,7 @@ impl From<crate::optimizer::WorkingMode> for WorkingMode {
 
 #[cfg(test)]
 mod tests {
+    use rust_decimal::Decimal;
 
     use crate::{
         cli::BatteryArgs,
@@ -203,7 +204,7 @@ mod tests {
         },
         optimizer::WorkingMode,
         prelude::*,
-        units::power::Kilowatts,
+        units::{power::Kilowatts, rate::EuroPerKilowattHour},
     };
 
     #[test]
@@ -242,6 +243,7 @@ mod tests {
                 discharging_efficiency: 1.0,
                 self_discharging_rate: 0.0,
                 min_soc_percent: 10,
+                amortization: EuroPerKilowattHour(Decimal::ZERO),
             },
         )?;
         assert_eq!(

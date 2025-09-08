@@ -38,6 +38,11 @@ async fn main() -> Result {
 
     match args.command {
         Command::Hunt(hunt_args) => {
+            ensure!(
+                hunt_args.consumption.stand_by_power <= Kilowatts::ZERO,
+                "stand-by consumption must be non-positive",
+            );
+
             let now = Local::now().naive_local();
             let start_hour = now.hour();
 

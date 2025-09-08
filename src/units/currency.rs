@@ -18,3 +18,9 @@ pub struct Cost(pub OrderedFloat<f64>);
 impl Cost {
     pub const ZERO: Self = Self(OrderedFloat(0.0));
 }
+
+impl From<Cost> for f64 {
+    fn from(cost: Cost) -> Self {
+        cost.0.0
+    }
+}

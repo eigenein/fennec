@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryArgs, optimizer::WorkingModeHourlySchedule, prelude::*};
+use crate::{cli::BatteryArgs, prelude::*, strategy::WorkingModeHourlySchedule};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -130,7 +130,7 @@ impl TimeSlotSequence {
             .map(|(working_mode, time_slots)| {
                 let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
                 let feed_power = match working_mode {
-                    crate::optimizer::WorkingMode::Discharging => -battery_args.discharging_power,
+                    crate::strategy::WorkingMode::Discharging => -battery_args.discharging_power,
                     _ => battery_args.charging_power,
                 };
                 let time_slot = TimeSlot {
@@ -182,12 +182,12 @@ pub enum WorkingMode {
     Backup,
 }
 
-impl From<crate::optimizer::WorkingMode> for WorkingMode {
-    fn from(working_mode: crate::optimizer::WorkingMode) -> Self {
+impl From<crate::strategy::WorkingMode> for WorkingMode {
+    fn from(working_mode: crate::strategy::WorkingMode) -> Self {
         match working_mode {
-            crate::optimizer::WorkingMode::Charging => Self::ForceCharge,
-            crate::optimizer::WorkingMode::Discharging => Self::ForceDischarge,
-            crate::optimizer::WorkingMode::Balancing => Self::SelfUse,
+            crate::strategy::WorkingMode::Charging => Self::ForceCharge,
+            crate::strategy::WorkingMode::Discharging => Self::ForceDischarge,
+            crate::strategy::WorkingMode::Balancing => Self::SelfUse,
         }
     }
 }
@@ -200,8 +200,8 @@ mod tests {
             FoxEssTimeSlot,
             schedule::{EndTime, StartTime, TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
         },
-        optimizer::WorkingMode,
         prelude::*,
+        strategy::WorkingMode,
         units::power::Kilowatts,
     };
 

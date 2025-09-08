@@ -1,10 +1,8 @@
-extern crate core;
-
 mod cli;
 mod foxess;
 mod nextenergy;
-mod optimizer;
 mod prelude;
+mod strategy;
 mod units;
 mod weerlive;
 
@@ -17,8 +15,8 @@ use crate::{
     cli::{Args, BurrowCommand, Command},
     foxess::{FoxEseTimeSlotSequence, FoxEssApi},
     nextenergy::NextEnergy,
-    optimizer::{WorkingModeHourlySchedule, optimise},
     prelude::*,
+    strategy::{Optimization, WorkingModeHourlySchedule},
     units::power::Kilowatts,
     weerlive::{Location, Weerlive},
 };
@@ -80,7 +78,7 @@ async fn main() -> Result {
             .map(|power| Kilowatts(power.0 * hunt_args.pv.pv_surface_square_meters))
             .collect();
 
-            let (profit, working_mode_sequence, residual_energy_plan) = optimise(
+            let (profit, working_mode_sequence, residual_energy_plan) = Optimization::run(
                 &hourly_rates,
                 &pv_generation,
                 residual_energy,

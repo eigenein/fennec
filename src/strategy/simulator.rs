@@ -6,7 +6,12 @@ use crate::{
     units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
 };
 
-pub struct Simulation {}
+pub struct Simulation {
+    /// Calculated profit.
+    pub profit: Cost,
+
+    pub residual_energy_forecast: Vec<KilowattHours>,
+}
 
 impl Simulation {
     pub fn run(
@@ -17,13 +22,13 @@ impl Simulation {
         capacity: KilowattHours,
         battery_args: &BatteryArgs,
         consumption_args: &ConsumptionArgs,
-    ) -> (Cost, Vec<KilowattHours>) {
+    ) -> Self {
         const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
         let min_residual_energy = capacity * f64::from(battery_args.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = residual_energy;
         let mut profit = Cost::ZERO;
-        let mut residual_energy_plan = Vec::with_capacity(hourly_rates.len());
+        let mut residual_energy_forecast = Vec::with_capacity(hourly_rates.len());
 
         for ((rate, working_mode), pv_power) in
             hourly_rates.iter().zip(working_mode_sequence.as_ref()).zip(pv_generation)
@@ -106,10 +111,10 @@ impl Simulation {
                 assert!(current_residual_energy.is_non_negative());
             }
 
-            residual_energy_plan.push(current_residual_energy);
+            residual_energy_forecast.push(current_residual_energy);
         }
 
-        (profit, residual_energy_plan)
+        Self { profit, residual_energy_forecast }
     }
 }
 
@@ -137,7 +142,7 @@ mod tests {
             WorkingMode::Discharging, // battery is capped at 1 kWh
         ];
         let pv_generation = [Kilowatts(0.0); 5];
-        let (profit, _) = Simulation::run(
+        let simulation = Simulation::run(
             &rates,
             &pv_generation,
             &working_mode_sequence,
@@ -156,6 +161,6 @@ mod tests {
                 purchase_fees: EuroPerKilowattHour(dec!(0.0)),
             },
         );
-        assert_eq!(profit.0, 8.0);
+        assert_eq!(simulation.profit.0, 8.0);
     }
 }

@@ -6,10 +6,15 @@ use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
     strategy::{WorkingMode, simulator::Simulation},
-    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
+    units::{energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
 };
 
-pub struct Optimization {}
+pub struct Optimization {
+    /// Simulation result of the best solution.
+    pub simulation: Simulation,
+
+    pub working_mode_sequence: Vec<WorkingMode>,
+}
 
 impl Optimization {
     #[instrument(
@@ -24,13 +29,12 @@ impl Optimization {
         capacity: KilowattHours,
         battery_args: &BatteryArgs,
         consumption_args: &ConsumptionArgs,
-    ) -> Result<(Cost, Vec<WorkingMode>, Vec<KilowattHours>)> {
-        // Find all possible thresholds:
-        let unique_rates: Vec<_> =
-            hourly_rates.iter().collect::<BTreeSet<_>>().into_iter().collect();
-
-        // Iterate all possible pairs of charging-discharging thresholds:
-        let (profit, working_mode_sequence, residual_energy_plan) = unique_rates
+    ) -> Result<Self> {
+        hourly_rates
+            // Find all possible thresholds:
+            .iter()
+            .collect::<BTreeSet<_>>()
+            // Iterate all possible pairs of charging-discharging thresholds:
             .into_iter()
             .combinations_with_replacement(2)
             .map(|rates| {
@@ -51,7 +55,7 @@ impl Optimization {
                         }
                     })
                     .collect();
-                let (test_profit, residual_energy_plan) = Simulation::run(
+                let simulation = Simulation::run(
                     hourly_rates,
                     pv_generation,
                     &working_mode_sequence,
@@ -64,14 +68,11 @@ impl Optimization {
                     "Simulated",
                     max_charge_rate = max_charge_rate.to_string(),
                     min_discharge_rate = min_discharge_rate.to_string(),
-                    profit = test_profit.to_string(),
+                    profit = simulation.profit.to_string(),
                 );
-                (test_profit, working_mode_sequence, residual_energy_plan)
+                Self { simulation, working_mode_sequence }
             })
-            .max_by_key(|(profit, _, _)| *profit)
-            .context("there is no solution")?;
-
-        // TODO: extract into a `struct` and add the thresholds there.
-        Ok((profit, working_mode_sequence, residual_energy_plan))
+            .max_by_key(|optimization| optimization.simulation.profit)
+            .context("there is no solution")
     }
 }

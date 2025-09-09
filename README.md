@@ -27,6 +27,10 @@ It optimizes two parameters: maximum charging rate and minimum discharge thresho
 
 Fennec is designed to run as a cron job, continuously refining and updating the schedule.
 
+## Caveats
+
+- [FoxESS Cloud](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20time20segment20information0a3ca20id3dset20the20time20segment20information7193e203ca3e) only allows up to 8 schedule slots. It might happen that Fennec would build a schedule with more slots. In that case, only the upcoming 8 slots will be pushed. So, make sure to run Fennec periodically.
+
 ## Example Kubernetes job
 
 ```yaml

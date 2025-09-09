@@ -42,20 +42,23 @@ impl Optimizer<'_> {
         unique_rates
             .insert(*unique_rates.iter().next_back().unwrap() + KilowattHourRate(dec!(0.01)));
 
-        Strategy::iter_from_rates(unique_rates)
+        Strategy::iter_from_rates(&unique_rates)
             .map(|strategy| {
                 let working_mode_sequence: Vec<WorkingMode> = self
                     .hourly_rates
                     .iter()
                     .copied()
                     .map(|hourly_rate| {
-                        // TODO: introduce the «keeping» mode (force discharge with zero power)?
-                        if hourly_rate <= strategy.max_charging_rate {
+                        if let Some(max_charging_rate) = strategy.max_charging_rate
+                            && hourly_rate <= max_charging_rate
+                        {
                             WorkingMode::Charging
-                        } else if hourly_rate <= strategy.min_discharging_rate {
-                            WorkingMode::Balancing
-                        } else {
+                        } else if let Some(min_discharging_rate) = strategy.min_discharging_rate
+                            && hourly_rate >= min_discharging_rate
+                        {
                             WorkingMode::Discharging
+                        } else {
+                            WorkingMode::Balancing
                         }
                     })
                     .collect();
@@ -71,8 +74,8 @@ impl Optimizer<'_> {
                     .run();
                 trace!(
                     "Simulated",
-                    max_charging_rate = strategy.max_charging_rate.to_string(),
-                    min_discharging_rate = strategy.min_discharging_rate.to_string(),
+                    max_charging_rate = format!("{:?}", strategy.max_charging_rate),
+                    min_discharging_rate = format!("{:?}", strategy.min_discharging_rate),
                     profit = outcome.net_profit.to_string(),
                 );
                 Solution { outcome, strategy, working_mode_sequence }

@@ -12,8 +12,13 @@ pub struct Weerlive {
 }
 
 pub enum Location {
+    Coordinates {
+        latitude: Decimal,
+        longitude: Decimal,
+    },
+
+    #[allow(dead_code)]
     Name(&'static str),
-    Coordinates { latitude: Decimal, longitude: Decimal },
 }
 
 impl Location {

@@ -109,12 +109,14 @@ async fn main() -> Result {
             }
             info!(
                 "Optimized",
-                max_charge_rate =
-                    format!("¢{:.0}", solution.strategy.max_charging_rate * Decimal::ONE_HUNDRED),
-                min_discharge_rate = format!(
-                    "¢{:.0}",
-                    solution.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
+                max_charge_rate = solution.strategy.max_charging_rate.map(
+                    |max_charging_rate| format!("¢{:.0}", max_charging_rate * Decimal::ONE_HUNDRED)
                 ),
+                min_discharge_rate =
+                    solution.strategy.min_discharging_rate.map(|min_discharging_rate| format!(
+                        "¢{:.0}",
+                        min_discharging_rate * Decimal::ONE_HUNDRED
+                    )),
                 profit = format!("€{:.2}", solution.outcome.net_profit),
                 minimal_residual_energy_value =
                     format!("€{:.2}", solution.outcome.minimal_residual_energy_value),

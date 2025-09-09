@@ -22,7 +22,7 @@ use crate::{
     weerlive::{Location, Weerlive},
 };
 
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 #[tokio::main]
 async fn main() -> Result {
     let _logfire_guard = logfire::configure()
@@ -117,7 +117,7 @@ async fn main() -> Result {
                 ),
                 profit = format!("€{:.2}", solution.outcome.net_profit),
                 minimal_residual_energy_value =
-                    format!("€{:.2}", solution.minimal_residual_energy_value),
+                    format!("€{:.2}", solution.outcome.minimal_residual_energy_value),
             );
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(

@@ -24,7 +24,7 @@ pub enum Command {
     Hunt(HuntArgs),
 
     /// Test FoxESS Cloud API connectivity.
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown)]
     #[clap(name = "burrow")]
     Burrow(BurrowArgs),
 }
@@ -49,7 +49,7 @@ pub struct BatteryArgs {
 
     /// Charging efficiency (look for «Battery Details» in FoxCloud app).
     #[clap(long = "charging-efficiency", default_value = "0.948", env = "CHARGING_EFFICIENCY")]
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown)]
     pub charging_efficiency: f64,
 
     /// Discharging efficiency (look for «Battery Details» in FoxCloud app).
@@ -58,12 +58,12 @@ pub struct BatteryArgs {
         default_value = "0.948",
         env = "DISCHARGING_EFFICIENCY"
     )]
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown)]
     pub discharging_efficiency: f64,
 
     /// Self-discharging rate (look for «Battery Details» in FoxCloud app).
     #[clap(long = "self-discharging-rate", default_value = "0.046", env = "SELF_DISCHARGING_RATE")]
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown)]
     pub self_discharging_rate: f64,
 
     /// Minimal state-of-charge percent.
@@ -74,7 +74,7 @@ pub struct BatteryArgs {
 #[derive(Parser)]
 pub struct HuntArgs {
     /// Do not push the final schedule to FoxESS Cloud (dry run).
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown)]
     #[clap(long)]
     pub scout: bool,
 
@@ -100,7 +100,6 @@ pub struct ConsumptionArgs {
 
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fees-per-kwh", default_value = "0.021", env = "PURCHASE_FEES_PER_KWH")]
-    #[allow(clippy::doc_markdown)]
     pub purchase_fees: KilowattHourRate,
 }
 

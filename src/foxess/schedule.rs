@@ -33,12 +33,12 @@ pub struct TimeSlot {
     pub max_soc: u32,
 
     /// The minimum SoC value of the offline battery (minimal safe SoC value?).
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown)]
     #[serde(rename = "minSocOnGrid")]
     pub min_soc_on_grid: u32,
 
     /// Discharge SoC value (minimal safe SoC value?).
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown)]
     #[serde(rename = "fdSoc")]
     pub feed_soc: u32,
 

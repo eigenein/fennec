@@ -21,7 +21,7 @@ pub struct Kilowatts(pub f64);
 impl Kilowatts {
     pub const ZERO: Self = Self(0.0);
 
-    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     pub fn into_watts_u32(self) -> u32 {
         (self.0 * 1000.0).round() as u32
     }

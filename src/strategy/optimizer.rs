@@ -11,16 +11,13 @@ use crate::{
         WorkingMode,
         simulator::{Outcome, Simulator},
     },
-    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    units::{energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
 pub struct Solution {
     pub outcome: Outcome,
     pub strategy: Strategy,
     pub working_mode_sequence: Vec<WorkingMode>,
-
-    #[deprecated = "this should go to `Solution`"]
-    pub minimal_residual_energy_value: Cost,
 }
 
 #[derive(Builder)]
@@ -39,10 +36,6 @@ impl Optimizer<'_> {
         // Find all possible thresholds:
         let mut unique_rates = self.hourly_rates.iter().copied().collect::<BTreeSet<_>>();
         let minimal_buying_rate = *unique_rates.iter().next().unwrap();
-
-        // I'll use the minimal rate to estimate the residual energy value.
-        let minimal_selling_rate = minimal_buying_rate - self.consumption.purchase_fees;
-        let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         // Allow the thresholds to settle below or above the actual rates:
         unique_rates.insert(minimal_buying_rate - KilowattHourRate(dec!(0.01)));
@@ -76,27 +69,16 @@ impl Optimizer<'_> {
                     .consumption(self.consumption)
                     .build()
                     .run();
-                let usable_residual_energy =
-                    outcome.forecast.last().unwrap().residual_energy_after - min_residual_energy;
-                let minimal_residual_energy_value = if usable_residual_energy.is_non_negative() {
-                    // Theoretical money we can make from selling it all at once:
-                    usable_residual_energy
-                        * self.battery.discharging_efficiency
-                        * minimal_selling_rate
-                } else {
-                    // Uh-oh, we need to spend money at least this much money to compensate the self-discharge:
-                    usable_residual_energy / self.battery.charging_efficiency * minimal_buying_rate
-                };
                 trace!(
                     "Simulated",
                     max_charging_rate = strategy.max_charging_rate.to_string(),
                     min_discharging_rate = strategy.min_discharging_rate.to_string(),
                     profit = outcome.net_profit.to_string(),
                 );
-                Solution { outcome, strategy, working_mode_sequence, minimal_residual_energy_value }
+                Solution { outcome, strategy, working_mode_sequence }
             })
-            .max_by_key(|optimization| {
-                optimization.outcome.net_profit + optimization.minimal_residual_energy_value
+            .max_by_key(|solution| {
+                solution.outcome.net_profit + solution.outcome.minimal_residual_energy_value
             })
             .context("there is no solution")
     }

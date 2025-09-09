@@ -1,19 +1,17 @@
 use std::collections::BTreeSet;
 
-use itertools::Itertools;
 use rust_decimal::dec;
 
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    strategy::{WorkingMode, simulator::Simulation},
-    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
+    strategy::{Strategy, WorkingMode, simulator::Simulation},
+    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
 pub struct Optimization {
     pub simulation: Simulation,
-    pub max_charge_rate: EuroPerKilowattHour,
-    pub min_discharge_rate: EuroPerKilowattHour,
+    pub strategy: Strategy,
     pub working_mode_sequence: Vec<WorkingMode>,
     pub minimal_residual_energy_value: Cost,
 }
@@ -25,7 +23,7 @@ impl Optimization {
     skip_all,
 )]
     pub fn run(
-        hourly_rates: &[EuroPerKilowattHour],
+        hourly_rates: &[KilowattHourRate],
         solar_energy: &[Kilowatts],
         residual_energy: KilowattHours,
         capacity: KilowattHours,
@@ -41,27 +39,20 @@ impl Optimization {
         let min_residual_energy = capacity * f64::from(battery_args.min_soc_percent) / 100.0;
 
         // Allow the thresholds to settle below or above the actual rates:
-        unique_rates.insert(minimal_buying_rate - EuroPerKilowattHour(dec!(0.01)));
+        unique_rates.insert(minimal_buying_rate - KilowattHourRate(dec!(0.01)));
         unique_rates
-            .insert(*unique_rates.iter().next_back().unwrap() + EuroPerKilowattHour(dec!(0.01)));
+            .insert(*unique_rates.iter().next_back().unwrap() + KilowattHourRate(dec!(0.01)));
 
-        unique_rates
-            // Iterate all possible pairs of charging-discharging thresholds:
-            .into_iter()
-            .combinations_with_replacement(2)
-            .map(|rates| {
-                let max_charge_rate = rates[0];
-                let min_discharge_rate = rates[1];
-                assert!(max_charge_rate <= min_discharge_rate);
-
+        Strategy::iter_from_rates(unique_rates)
+            .map(|strategy| {
                 let working_mode_sequence: Vec<WorkingMode> = hourly_rates
                     .iter()
                     .copied()
                     .map(|hourly_rate| {
                         // TODO: introduce the «keeping» mode (force discharge with zero power)?
-                        if hourly_rate <= max_charge_rate {
+                        if hourly_rate <= strategy.max_charging_rate {
                             WorkingMode::Charging
-                        } else if hourly_rate <= min_discharge_rate {
+                        } else if hourly_rate <= strategy.min_discharging_rate {
                             WorkingMode::Balancing
                         } else {
                             WorkingMode::Discharging
@@ -90,17 +81,11 @@ impl Optimization {
                 };
                 trace!(
                     "Simulated",
-                    max_charge_rate = max_charge_rate.to_string(),
-                    min_discharge_rate = min_discharge_rate.to_string(),
+                    max_charging_rate = strategy.max_charging_rate.to_string(),
+                    min_discharging_rate = strategy.min_discharging_rate.to_string(),
                     profit = simulation.net_profit.to_string(),
                 );
-                Self {
-                    simulation,
-                    max_charge_rate,
-                    min_discharge_rate,
-                    working_mode_sequence,
-                    minimal_residual_energy_value,
-                }
+                Self { simulation, strategy, working_mode_sequence, minimal_residual_energy_value }
             })
             .max_by_key(|optimization| {
                 optimization.simulation.net_profit + optimization.minimal_residual_energy_value

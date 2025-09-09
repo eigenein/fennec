@@ -3,7 +3,7 @@ use chrono::TimeDelta;
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     strategy::WorkingMode,
-    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::EuroPerKilowattHour},
+    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
 pub struct Simulation {
@@ -23,7 +23,7 @@ pub struct Forecast {
 
 impl Simulation {
     pub fn run(
-        hourly_rates: &[EuroPerKilowattHour],
+        hourly_rates: &[KilowattHourRate],
         solar_energy: &[Kilowatts],
         working_mode_sequence: &[WorkingMode],
         residual_energy: KilowattHours,
@@ -153,11 +153,11 @@ mod tests {
     #[test]
     fn test_simulate() {
         let rates = [
-            EuroPerKilowattHour(dec!(1.0)),
-            EuroPerKilowattHour(dec!(2.0)),
-            EuroPerKilowattHour(dec!(3.0)),
-            EuroPerKilowattHour(dec!(4.0)),
-            EuroPerKilowattHour(dec!(5.0)),
+            KilowattHourRate(dec!(1.0)),
+            KilowattHourRate(dec!(2.0)),
+            KilowattHourRate(dec!(3.0)),
+            KilowattHourRate(dec!(4.0)),
+            KilowattHourRate(dec!(5.0)),
         ];
         let working_mode_sequence = [
             WorkingMode::Charging,    // +3 kWh, -3 euro
@@ -183,7 +183,7 @@ mod tests {
             },
             &ConsumptionArgs {
                 stand_by_power: -Kilowatts(1.0),
-                purchase_fees: EuroPerKilowattHour(dec!(0.0)),
+                purchase_fees: KilowattHourRate(dec!(0.0)),
             },
         );
         assert_eq!(simulation.net_profit.0, 8.0);

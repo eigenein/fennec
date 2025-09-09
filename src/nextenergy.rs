@@ -6,7 +6,7 @@ use chrono::NaiveDate;
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{prelude::*, units::rate::EuroPerKilowattHour};
+use crate::{prelude::*, units::rate::KilowattHourRate};
 
 pub struct NextEnergy(Client);
 
@@ -20,7 +20,7 @@ impl NextEnergy {
         &self,
         date: NaiveDate,
         starting_hour: u32,
-    ) -> Result<Vec<EuroPerKilowattHour>> {
+    ) -> Result<Vec<KilowattHourRate>> {
         let response: GetDataPointsResponse = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(date))
@@ -73,7 +73,7 @@ struct GetDataPointsResponseDataPoint {
 
     /// Kilowatt-hour rate.
     #[serde(rename = "Value")]
-    value: EuroPerKilowattHour,
+    value: KilowattHourRate,
 }
 
 impl GetDataPointsResponseDataPoint {

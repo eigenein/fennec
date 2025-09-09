@@ -108,10 +108,14 @@ async fn main() -> Result {
             }
             info!(
                 "Optimized",
-                max_charge_rate =
-                    format!("¢{:.0}", optimization.max_charge_rate * Decimal::ONE_HUNDRED),
-                min_discharge_rate =
-                    format!("¢{:.0}", optimization.min_discharge_rate * Decimal::ONE_HUNDRED),
+                max_charge_rate = format!(
+                    "¢{:.0}",
+                    optimization.strategy.max_charging_rate * Decimal::ONE_HUNDRED
+                ),
+                min_discharge_rate = format!(
+                    "¢{:.0}",
+                    optimization.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
+                ),
                 profit = format!("€{:.2}", optimization.simulation.net_profit),
                 minimal_residual_energy_value =
                     format!("€{:.2}", optimization.minimal_residual_energy_value),

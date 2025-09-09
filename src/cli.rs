@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use rust_decimal::Decimal;
 
-use crate::units::{power::Kilowatts, rate::EuroPerKilowattHour};
+use crate::units::{power::Kilowatts, rate::KilowattHourRate};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]
@@ -101,7 +101,7 @@ pub struct ConsumptionArgs {
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fees-per-kwh", default_value = "0.021", env = "PURCHASE_FEES_PER_KWH")]
     #[allow(clippy::doc_markdown)]
-    pub purchase_fees: EuroPerKilowattHour,
+    pub purchase_fees: KilowattHourRate,
 }
 
 #[derive(Parser)]

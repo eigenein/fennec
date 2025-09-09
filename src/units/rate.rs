@@ -21,9 +21,9 @@ use serde_with::serde_as;
     Serialize,
     Deserialize,
 )]
-pub struct EuroPerKilowattHour(#[serde_as(as = "serde_with::DisplayFromStr")] pub Decimal);
+pub struct KilowattHourRate(#[serde_as(as = "serde_with::DisplayFromStr")] pub Decimal);
 
-impl Mul<Decimal> for EuroPerKilowattHour {
+impl Mul<Decimal> for KilowattHourRate {
     type Output = Self;
 
     fn mul(self, rhs: Decimal) -> Self::Output {

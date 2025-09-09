@@ -4,7 +4,7 @@ use ordered_float::OrderedFloat;
 use rust_decimal::prelude::{ToPrimitive, Zero};
 use serde::Deserialize;
 
-use crate::units::{currency::Cost, rate::EuroPerKilowattHour};
+use crate::units::{currency::Cost, rate::KilowattHourRate};
 
 #[derive(
     Copy,
@@ -62,10 +62,10 @@ impl Div<f64> for KilowattHours {
     }
 }
 
-impl Mul<EuroPerKilowattHour> for KilowattHours {
+impl Mul<KilowattHourRate> for KilowattHours {
     type Output = Cost;
 
-    fn mul(self, rhs: EuroPerKilowattHour) -> Self::Output {
+    fn mul(self, rhs: KilowattHourRate) -> Self::Output {
         Cost(OrderedFloat(self.0 * rhs.0.to_f64().unwrap())) // FIXME: `unwrap`.
     }
 }

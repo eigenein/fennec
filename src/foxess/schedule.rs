@@ -123,10 +123,11 @@ impl TimeSlotSequence {
         let chunks: Vec<_> = chunks.into_iter().collect();
         info!("Grouped schedule into chunks", n_chunks = chunks.len().to_string());
         if chunks.len() > 8 {
-            bail!("FoxESS Cloud allows maximum of 8 schedule groups, got {}", chunks.len());
+            warn!("FoxESS Cloud allows maximum of 8 schedule groups", n_chunks = chunks.len());
         }
         chunks
             .into_iter()
+            .take(8)
             .map(|(working_mode, time_slots)| {
                 let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
                 let feed_power = match working_mode {

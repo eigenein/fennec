@@ -67,7 +67,9 @@ pub struct BatteryArgs {
 
     /// Charging power to apply in when not charging nor discharging on full power.
     /// It is considered «lost» in the hourly residual charge forecast.
-    #[clap(long = "maintenance-power", default_value = "0.02", env = "MAINTENANCE_POWER")]
+    ///
+    /// MQ2200 does not respect anything lower than 40W.
+    #[clap(long = "maintenance-power", default_value = "0.04", env = "MAINTENANCE_POWER")]
     pub maintenance_power: Kilowatts,
 }
 

@@ -70,23 +70,23 @@ spec:
 
 Given the current residual energy of 3.87 out of 8.44 kWh by 01:00, for the following price chart:
 
-![Example price chart](example-prices.png)
+<img src="example-prices.png" alt="Example price chart" height="411">
 
 and the following weather forecast:
 
-![Example weather forecast](example-weather.png)
+<img src="example-weather.png" alt="Example weather forecast" height="200">
 
 Fennec generates the following schedule:
 
 ```text
-  INFO fennec::foxess::schedule Time slot start_time=01:00, end_time=02:00, working_mode=Charging
-  INFO fennec::foxess::schedule Time slot start_time=02:00, end_time=06:00, working_mode=Balancing
-  INFO fennec::foxess::schedule Time slot start_time=06:00, end_time=10:00, working_mode=Discharging
-  INFO fennec::foxess::schedule Time slot start_time=10:00, end_time=11:00, working_mode=Balancing
-  INFO fennec::foxess::schedule Time slot start_time=11:00, end_time=16:00, working_mode=Charging
-  INFO fennec::foxess::schedule Time slot start_time=16:00, end_time=23:59, working_mode=Discharging
+Time slot start_time=01:00, end_time=02:00, working_mode=Charging
+Time slot start_time=02:00, end_time=06:00, working_mode=Balancing
+Time slot start_time=06:00, end_time=10:00, working_mode=Discharging
+Time slot start_time=10:00, end_time=11:00, working_mode=Balancing
+Time slot start_time=11:00, end_time=16:00, working_mode=Charging
+Time slot start_time=16:00, end_time=23:59, working_mode=Discharging
 ```
 
 ## Energy costs cheatsheet
 
-![Price build-up](energy-costs.png)
+<img src="energy-costs.png" alt="Price build-up" height="545">

@@ -49,7 +49,6 @@ async fn main() -> Result {
             let mut hourly_rates = next_energy.get_hourly_rates(now.date(), start_hour).await?;
             hourly_rates
                 .extend(next_energy.get_hourly_rates(now.date() + TimeDelta::days(1), 0).await?);
-            hourly_rates.truncate(24); // FIXME: allow 24-hour increments.
             info!("Fetched energy rates", len = hourly_rates.len().to_string());
 
             let (residual_energy, total_capacity) = {
@@ -80,6 +79,7 @@ async fn main() -> Result {
             .map(|power| Kilowatts(power.0 * hunt_args.solar.pv_surface_square_meters))
             .collect();
 
+            hourly_rates.truncate(solar_power.len().min(24)); // FIXME: allow 24-hour increments.
             let solution = Optimizer::builder()
                 .hourly_rates(&hourly_rates)
                 .solar_power(&solar_power)

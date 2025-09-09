@@ -9,8 +9,12 @@ pub enum WorkingMode {
     Discharging,
 
     /// Charge on excess PV power, discharge on insufficient PV power.
-    #[default]
+    #[allow(dead_code)]
     Balancing,
+
+    /// Do not do anything.
+    #[default]
+    Maintain,
 }
 
 /// Working mode schedule for 24 hours.
@@ -60,7 +64,7 @@ mod tests {
             WorkingMode::Charging,    // index 1
             WorkingMode::Discharging, // index 2
             WorkingMode::Discharging, // index 0
-            WorkingMode::Balancing,   // overflow and must be ignored
+            WorkingMode::Maintain,    // overflow and must be ignored
         ];
         let schedule = WorkingModeHourlySchedule::<3>::from_working_modes(1, working_modes);
         assert_eq!(

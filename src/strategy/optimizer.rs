@@ -58,7 +58,7 @@ impl Optimizer<'_> {
                         {
                             WorkingMode::Discharging
                         } else {
-                            WorkingMode::Balancing
+                            WorkingMode::Maintain
                         }
                     })
                     .collect();

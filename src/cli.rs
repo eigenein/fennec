@@ -61,14 +61,14 @@ pub struct BatteryArgs {
     #[expect(clippy::doc_markdown)]
     pub discharging_efficiency: f64,
 
-    /// Self-discharging rate (look for «Battery Details» in FoxCloud app).
-    #[clap(long = "self-discharging-rate", default_value = "0.046", env = "SELF_DISCHARGING_RATE")]
-    #[expect(clippy::doc_markdown)]
-    pub self_discharging_rate: f64,
-
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
+
+    /// Charging power to apply in when not charging nor discharging on full power.
+    /// It is considered «lost» in the hourly residual charge forecast.
+    #[clap(long = "maintenance-power", default_value = "0.02", env = "MAINTENANCE_POWER")]
+    pub maintenance_power: Kilowatts,
 }
 
 #[derive(Parser)]

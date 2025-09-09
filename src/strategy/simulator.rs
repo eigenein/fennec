@@ -66,6 +66,7 @@ impl Simulator<'_> {
                 WorkingMode::Charging => self.battery.charging_power,
                 WorkingMode::Discharging => self.battery.discharging_power,
                 WorkingMode::Balancing => *solar_power + self.consumption.stand_by_power,
+                WorkingMode::Maintain => self.battery.maintenance_power,
             };
 
             // Charging:
@@ -90,8 +91,9 @@ impl Simulator<'_> {
                 net_profit += hour_net_profit;
 
                 // Update current residual energy taking the efficiency into account:
-                current_residual_energy +=
-                    billable_energy_differential * self.battery.charging_efficiency;
+                current_residual_energy += billable_energy_differential
+                    * self.battery.charging_efficiency
+                    - self.battery.maintenance_power * ONE_HOUR;
 
                 forecast.push(Forecast {
                     residual_energy_after: current_residual_energy,
@@ -101,12 +103,7 @@ impl Simulator<'_> {
                 });
             }
             // Discharging:
-            else if power_balance.0.is_sign_negative() {
-                // Pre-apply self-discharging (to get the average between the initial and resulting residual energy):
-                current_residual_energy -=
-                    current_residual_energy * self.battery.self_discharging_rate * 0.5;
-                assert!(current_residual_energy.is_non_negative());
-
+            else {
                 // Let's see how much energy we can obtain taking the minimum SoC and power balance into account.
                 let internal_energy_differential =
                     // Usable residual energy:
@@ -141,12 +138,8 @@ impl Simulator<'_> {
                 net_profit += hour_net_profit;
 
                 // Update current residual energy:
-                current_residual_energy += internal_energy_differential;
-
-                // Post-apply self-discharging:
-                current_residual_energy -=
-                    current_residual_energy * self.battery.self_discharging_rate * 0.5;
-                assert!(current_residual_energy.is_non_negative());
+                current_residual_energy +=
+                    internal_energy_differential - self.battery.maintenance_power * ONE_HOUR;
 
                 forecast.push(Forecast {
                     residual_energy_after: current_residual_energy,
@@ -211,8 +204,8 @@ mod tests {
                 discharging_power: Kilowatts(-2.0),
                 charging_efficiency: 1.0,
                 discharging_efficiency: 1.0,
-                self_discharging_rate: 0.0,
                 min_soc_percent: 25,
+                maintenance_power: Kilowatts::ZERO,
             })
             .consumption(&ConsumptionArgs {
                 stand_by_power: -Kilowatts(1.0),

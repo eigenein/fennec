@@ -123,7 +123,10 @@ impl TimeSlotSequence {
         let chunks: Vec<_> = chunks.into_iter().collect();
         info!("Grouped schedule into chunks", n_chunks = chunks.len().to_string());
         if chunks.len() > 8 {
-            warn!("FoxESS Cloud allows maximum of 8 schedule groups", n_chunks = chunks.len());
+            warn!(
+                "FoxESS Cloud allows maximum of 8 schedule groups, dropping the tail",
+                n_chunks = chunks.len().to_string(),
+            );
         }
         chunks
             .into_iter()
@@ -132,7 +135,14 @@ impl TimeSlotSequence {
                 let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
                 let feed_power = match working_mode {
                     crate::strategy::WorkingMode::Discharging => -battery_args.discharging_power,
+                    crate::strategy::WorkingMode::Maintain => battery_args.maintenance_power,
                     _ => battery_args.charging_power,
+                };
+                let working_mode = match working_mode {
+                    crate::strategy::WorkingMode::Charging
+                    | crate::strategy::WorkingMode::Maintain => WorkingMode::ForceCharge,
+                    crate::strategy::WorkingMode::Discharging => WorkingMode::ForceDischarge,
+                    crate::strategy::WorkingMode::Balancing => WorkingMode::SelfUse,
                 };
                 let time_slot = TimeSlot {
                     is_enabled: true,
@@ -142,7 +152,7 @@ impl TimeSlotSequence {
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,
                     feed_power_watts: feed_power.into_watts_u32(),
-                    working_mode: working_mode.into(),
+                    working_mode,
                 };
                 info!(
                     "Time slot",
@@ -183,16 +193,6 @@ pub enum WorkingMode {
     Backup,
 }
 
-impl From<crate::strategy::WorkingMode> for WorkingMode {
-    fn from(working_mode: crate::strategy::WorkingMode) -> Self {
-        match working_mode {
-            crate::strategy::WorkingMode::Charging => Self::ForceCharge,
-            crate::strategy::WorkingMode::Discharging => Self::ForceDischarge,
-            crate::strategy::WorkingMode::Balancing => Self::SelfUse,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -231,6 +231,7 @@ mod tests {
             WorkingMode::Charging,
             WorkingMode::Discharging,
             WorkingMode::Balancing,
+            WorkingMode::Maintain,
         ]
         .into();
         let time_slot_sequence = TimeSlotSequence::from_schedule(
@@ -240,8 +241,8 @@ mod tests {
                 discharging_power: Kilowatts(-0.8),
                 charging_efficiency: 1.0,
                 discharging_efficiency: 1.0,
-                self_discharging_rate: 0.0,
                 min_soc_percent: 10,
+                maintenance_power: Kilowatts(0.02),
             },
         )?;
         assert_eq!(
@@ -270,12 +271,22 @@ mod tests {
                 FoxEssTimeSlot {
                     is_enabled: true,
                     start_time: StartTime { hour: 3, minute: 0 },
-                    end_time: EndTime { hour: 3, minute: 59 },
+                    end_time: EndTime { hour: 4, minute: 0 },
                     max_soc: 100,
                     min_soc_on_grid: 10,
                     feed_soc: 10,
                     feed_power_watts: 1200,
                     working_mode: FoxEssWorkingMode::SelfUse,
+                },
+                FoxEssTimeSlot {
+                    is_enabled: true,
+                    start_time: StartTime { hour: 4, minute: 0 },
+                    end_time: EndTime { hour: 4, minute: 59 },
+                    max_soc: 100,
+                    min_soc_on_grid: 10,
+                    feed_soc: 10,
+                    feed_power_watts: 20,
+                    working_mode: FoxEssWorkingMode::ForceCharge,
                 },
             ]
         );

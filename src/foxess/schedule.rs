@@ -116,23 +116,25 @@ pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule<const N: usize>(
+        starting_hour: usize,
         schedule: WorkingModeHourlySchedule<N>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
-        let chunks = schedule.into_iter().enumerate().chunk_by(|(_, working_mode)| *working_mode);
-        let chunks: Vec<_> = chunks.into_iter().collect();
-        info!("Grouped schedule into chunks", n_chunks = chunks.len().to_string());
-        if chunks.len() > 8 {
-            warn!(
-                "FoxESS Cloud allows maximum of 8 schedule groups, dropping the tail",
-                n_chunks = chunks.len().to_string(),
-            );
-        }
-        chunks
+        let mut schedule: Vec<_> = schedule.into_iter().enumerate().collect();
+
+        // Rotate the schedule so that the starting hour is the first entry.
+        // This is to ensure that trimming to the 8 slots would not remove the upcoming hours.
+        schedule.rotate_left(starting_hour);
+
+        schedule
             .into_iter()
-            .take(8)
-            .map(|(working_mode, time_slots)| {
-                let hours: Vec<_> = time_slots.map(|(hour, _)| hour).collect();
+            .chunk_by(|(_, working_mode)| *working_mode)
+            .into_iter()
+            .map(|(working_mode, group)| {
+                (working_mode, group.map(|(hour, _)| hour).collect::<Vec<_>>())
+            })
+            .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
+            .map(|(working_mode, hours)| {
                 let feed_power = match working_mode {
                     crate::strategy::WorkingMode::Discharging => -battery_args.discharging_power,
                     crate::strategy::WorkingMode::Maintain => battery_args.maintenance_power,
@@ -235,6 +237,7 @@ mod tests {
         ]
         .into();
         let time_slot_sequence = TimeSlotSequence::from_schedule(
+            2,
             daily_schedule,
             &BatteryArgs {
                 charging_power: Kilowatts(1.2),
@@ -248,16 +251,6 @@ mod tests {
         assert_eq!(
             time_slot_sequence.0,
             [
-                FoxEssTimeSlot {
-                    is_enabled: true,
-                    start_time: StartTime { hour: 0, minute: 0 },
-                    end_time: EndTime { hour: 2, minute: 0 },
-                    max_soc: 100,
-                    min_soc_on_grid: 10,
-                    feed_soc: 10,
-                    feed_power_watts: 1200,
-                    working_mode: FoxEssWorkingMode::ForceCharge,
-                },
                 FoxEssTimeSlot {
                     is_enabled: true,
                     start_time: StartTime { hour: 2, minute: 0 },
@@ -286,6 +279,16 @@ mod tests {
                     min_soc_on_grid: 10,
                     feed_soc: 10,
                     feed_power_watts: 20,
+                    working_mode: FoxEssWorkingMode::ForceCharge,
+                },
+                FoxEssTimeSlot {
+                    is_enabled: true,
+                    start_time: StartTime { hour: 0, minute: 0 },
+                    end_time: EndTime { hour: 2, minute: 0 },
+                    max_soc: 100,
+                    min_soc_on_grid: 10,
+                    feed_soc: 10,
+                    feed_power_watts: 1200,
                     working_mode: FoxEssWorkingMode::ForceCharge,
                 },
             ]

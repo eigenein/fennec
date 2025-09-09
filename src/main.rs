@@ -43,10 +43,10 @@ async fn main() -> Result {
             );
 
             let now = Local::now().naive_local();
-            let start_hour = now.hour();
+            let starting_hour = now.hour();
 
             let next_energy = NextEnergy::try_new()?;
-            let mut hourly_rates = next_energy.get_hourly_rates(now.date(), start_hour).await?;
+            let mut hourly_rates = next_energy.get_hourly_rates(now.date(), starting_hour).await?;
             hourly_rates
                 .extend(next_energy.get_hourly_rates(now.date() + TimeDelta::days(1), 0).await?);
             info!("Fetched energy rates", len = hourly_rates.len().to_string());
@@ -90,7 +90,7 @@ async fn main() -> Result {
                 .build()
                 .run()?;
 
-            for ((((hour, rate), working_mode), forecast), solar_power) in (start_hour..)
+            for ((((hour, rate), working_mode), forecast), solar_power) in (starting_hour..)
                 .zip(hourly_rates)
                 .zip(&solution.working_mode_sequence)
                 .zip(&solution.outcome.forecast)
@@ -124,12 +124,15 @@ async fn main() -> Result {
             );
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
-                start_hour,
+                starting_hour,
                 solution.working_mode_sequence,
             );
 
-            let time_slot_sequence =
-                FoxEseTimeSlotSequence::from_schedule(daily_schedule, &hunt_args.battery)?;
+            let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(
+                starting_hour as usize,
+                daily_schedule,
+                &hunt_args.battery,
+            )?;
 
             if !hunt_args.scout {
                 fox_ess_api

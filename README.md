@@ -74,7 +74,7 @@ Given the current residual energy of 3.87 out of 8.44 kWh by 01:00, for the foll
 
 and the following weather forecast:
 
-<img src="example-weather.png" alt="Example weather forecast" height="200">
+<img src="example-weather.png" alt="Example weather forecast" height="546">
 
 Fennec generates the following schedule:
 
@@ -89,4 +89,4 @@ Time slot start_time=16:00, end_time=23:59, working_mode=Discharging
 
 ## Energy costs cheatsheet
 
-<img src="energy-costs.png" alt="Price build-up" height="545">
+<img src="energy-costs.png" alt="Price build-up" height="300">

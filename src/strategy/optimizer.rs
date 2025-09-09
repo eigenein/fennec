@@ -80,9 +80,7 @@ impl Optimizer<'_> {
                 );
                 Solution { outcome, strategy, working_mode_sequence }
             })
-            .max_by_key(|solution| {
-                solution.outcome.net_profit + solution.outcome.minimal_residual_energy_value
-            })
+            .max_by_key(|solution| solution.outcome.total_profit())
             .context("there is no solution")
     }
 }

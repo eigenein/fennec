@@ -118,9 +118,9 @@ async fn main() -> Result {
                         "¢{:.0}",
                         min_discharging_rate * Decimal::ONE_HUNDRED
                     )),
-                profit = format!("€{:.2}", solution.outcome.net_profit),
-                minimal_residual_energy_value =
-                    format!("€{:.2}", solution.outcome.minimal_residual_energy_value),
+                net_profit = format!("€{:.2}", solution.outcome.net_profit),
+                residual_energy_value = format!("€{:.2}", solution.outcome.residual_energy_value),
+                total_profit = format!("€{:.2}", solution.outcome.total_profit()),
             );
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(

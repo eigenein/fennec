@@ -16,10 +16,17 @@ pub struct Outcome {
     ///
     /// It may be negative, that would mean losses due to the self-discharge below the minimal SoC.
     #[expect(clippy::doc_markdown)]
-    pub minimal_residual_energy_value: Cost,
+    pub residual_energy_value: Cost,
 
     /// Hourly forecast.
     pub forecast: Vec<Forecast>,
+}
+
+impl Outcome {
+    /// Sum of the net profit and the residual energy value.
+    pub fn total_profit(&self) -> Cost {
+        self.net_profit + self.residual_energy_value
+    }
 }
 
 pub struct Forecast {
@@ -150,7 +157,7 @@ impl Simulator<'_> {
             }
         }
 
-        let minimal_residual_energy_value = {
+        let residual_energy_value = {
             let usable_residual_energy =
                 forecast.last().unwrap().residual_energy_after - min_residual_energy;
             let average_buying_rate = self.hourly_rates.iter().copied().sum::<KilowattHourRate>()
@@ -160,12 +167,12 @@ impl Simulator<'_> {
                 // Theoretical money we can make from selling it all at once:
                 usable_residual_energy * self.battery.discharging_efficiency * average_selling_rate
             } else {
-                // Uh-oh, we need to spend money at least this much money to compensate the self-discharge:
+                // Uh-oh, we need to spend at least this much money to compensate the self-discharge:
                 usable_residual_energy / self.battery.charging_efficiency * average_buying_rate
             }
         };
 
-        Outcome { net_profit, minimal_residual_energy_value, forecast }
+        Outcome { net_profit, residual_energy_value, forecast }
     }
 }
 

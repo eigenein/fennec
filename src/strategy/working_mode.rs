@@ -24,9 +24,7 @@ pub enum WorkingMode {
 /// # Constant generic parameter
 ///
 /// Number of hours in a day – values other than 24 are only used in the tests.
-#[derive(
-    Debug, derive_more::From, derive_more::IntoIterator, derive_more::AsRef, derive_more::Deref,
-)]
+#[derive(Debug, derive_more::From)]
 pub struct WorkingModeHourlySchedule<const N: usize = 24>([WorkingMode; N]);
 
 impl<const N: usize> Default for WorkingModeHourlySchedule<N> {
@@ -52,6 +50,14 @@ impl<const N: usize> WorkingModeHourlySchedule<N> {
         }
         this
     }
+
+    /// Iterate the schedule starting with the specified hour.
+    pub fn iter(&self, starting_hour: usize) -> impl Iterator<Item = (usize, WorkingMode)> {
+        (0..N).map(move |i| {
+            let hour = (i + starting_hour) % N;
+            (hour, self.0[hour])
+        })
+    }
 }
 
 #[cfg(test)]
@@ -59,7 +65,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_zip_ok() {
+    fn test_from_working_modes() {
         let working_modes = [
             WorkingMode::Charging,    // index 1
             WorkingMode::Discharging, // index 2
@@ -70,6 +76,21 @@ mod tests {
         assert_eq!(
             schedule.0,
             [WorkingMode::Discharging, WorkingMode::Charging, WorkingMode::Discharging]
+        );
+    }
+
+    #[test]
+    fn test_iter() {
+        let actual: Vec<_> = WorkingModeHourlySchedule([
+            WorkingMode::Charging,
+            WorkingMode::Discharging,
+            WorkingMode::Maintain,
+        ])
+        .iter(1)
+        .collect();
+        assert_eq!(
+            actual,
+            [(1, WorkingMode::Discharging), (2, WorkingMode::Maintain), (0, WorkingMode::Charging)]
         );
     }
 }

@@ -123,14 +123,14 @@ async fn main() -> Result {
                 total_profit = format!("€{:.2}", solution.outcome.total_profit()),
             );
 
-            let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
+            let schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
                 starting_hour,
                 solution.working_mode_sequence,
             );
 
             let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(
                 starting_hour as usize,
-                daily_schedule,
+                &schedule,
                 &hunt_args.battery,
             )?;
 

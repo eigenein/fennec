@@ -122,17 +122,11 @@ impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule<const N: usize>(
         starting_hour: usize,
-        schedule: WorkingModeHourlySchedule<N>,
+        schedule: &WorkingModeHourlySchedule<N>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
-        let mut schedule: Vec<_> = schedule.into_iter().enumerate().collect();
-
-        // Rotate the schedule so that the starting hour is the first entry.
-        // This is to ensure that trimming to the 8 slots would not remove the upcoming hours.
-        schedule.rotate_left(starting_hour);
-
         schedule
-            .into_iter()
+            .iter(starting_hour)
             .chunk_by(|(_, working_mode)| *working_mode)
             .into_iter()
             .map(|(working_mode, group)| {
@@ -209,7 +203,7 @@ mod tests {
             schedule::{EndTime, StartTime, TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
         },
         prelude::*,
-        strategy::WorkingMode,
+        strategy::{WorkingMode, WorkingModeHourlySchedule},
         units::power::Kilowatts,
     };
 
@@ -233,17 +227,16 @@ mod tests {
 
     #[test]
     fn test_from_daily_schedule_ok() -> Result {
-        let daily_schedule = [
+        let schedule = [
             WorkingMode::Charging,
             WorkingMode::Charging,
             WorkingMode::Discharging,
             WorkingMode::Balancing,
             WorkingMode::Maintain,
-        ]
-        .into();
+        ];
         let time_slot_sequence = TimeSlotSequence::from_schedule(
             2,
-            daily_schedule,
+            &WorkingModeHourlySchedule::from(schedule),
             &BatteryArgs {
                 charging_power: Kilowatts(1.2),
                 discharging_power: Kilowatts(-0.8),
@@ -282,7 +275,7 @@ mod tests {
                     max_soc: 100,
                     min_soc_on_grid: 10,
                     feed_soc: 10,
-                    feed_power_watts: 20,
+                    feed_power_watts: 0,
                     working_mode: FoxEssWorkingMode::ForceCharge,
                 },
                 FoxEssTimeSlot {

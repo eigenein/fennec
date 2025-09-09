@@ -4,7 +4,12 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryArgs, prelude::*, strategy::WorkingModeHourlySchedule};
+use crate::{
+    cli::BatteryArgs,
+    prelude::*,
+    strategy::WorkingModeHourlySchedule,
+    units::power::Kilowatts,
+};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -137,7 +142,7 @@ impl TimeSlotSequence {
             .map(|(working_mode, hours)| {
                 let feed_power = match working_mode {
                     crate::strategy::WorkingMode::Discharging => -battery_args.discharging_power,
-                    crate::strategy::WorkingMode::Maintain => battery_args.maintenance_power,
+                    crate::strategy::WorkingMode::Maintain => Kilowatts::ZERO,
                     _ => battery_args.charging_power,
                 };
                 let working_mode = match working_mode {
@@ -245,7 +250,6 @@ mod tests {
                 charging_efficiency: 1.0,
                 discharging_efficiency: 1.0,
                 min_soc_percent: 10,
-                maintenance_power: Kilowatts(0.02),
             },
         )?;
         assert_eq!(

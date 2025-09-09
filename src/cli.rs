@@ -64,13 +64,6 @@ pub struct BatteryArgs {
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
-
-    /// Charging power to apply in when not charging nor discharging on full power.
-    /// It is considered «lost» in the hourly residual charge forecast.
-    ///
-    /// MQ2200 does not respect anything lower than 40W.
-    #[clap(long = "maintenance-power", default_value = "0.04", env = "MAINTENANCE_POWER")]
-    pub maintenance_power: Kilowatts,
 }
 
 #[derive(Parser)]

@@ -66,7 +66,7 @@ impl Simulator<'_> {
                 WorkingMode::Charging => self.battery.charging_power,
                 WorkingMode::Discharging => self.battery.discharging_power,
                 WorkingMode::Balancing => *solar_power + self.consumption.stand_by_power,
-                WorkingMode::Maintain => self.battery.maintenance_power,
+                WorkingMode::Maintain => Kilowatts::ZERO,
             };
 
             // Charging:
@@ -91,9 +91,8 @@ impl Simulator<'_> {
                 net_profit += hour_net_profit;
 
                 // Update current residual energy taking the efficiency into account:
-                current_residual_energy += billable_energy_differential
-                    * self.battery.charging_efficiency
-                    - self.battery.maintenance_power * ONE_HOUR;
+                current_residual_energy +=
+                    billable_energy_differential * self.battery.charging_efficiency;
 
                 forecast.push(Forecast {
                     residual_energy_after: current_residual_energy,
@@ -138,8 +137,7 @@ impl Simulator<'_> {
                 net_profit += hour_net_profit;
 
                 // Update current residual energy:
-                current_residual_energy +=
-                    internal_energy_differential - self.battery.maintenance_power * ONE_HOUR;
+                current_residual_energy += internal_energy_differential;
 
                 forecast.push(Forecast {
                     residual_energy_after: current_residual_energy,
@@ -205,7 +203,6 @@ mod tests {
                 charging_efficiency: 1.0,
                 discharging_efficiency: 1.0,
                 min_soc_percent: 25,
-                maintenance_power: Kilowatts::ZERO,
             })
             .consumption(&ConsumptionArgs {
                 stand_by_power: -Kilowatts(1.0),

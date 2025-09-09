@@ -26,7 +26,7 @@ pub struct Forecast {
 #[derive(Builder)]
 pub struct Simulator<'a> {
     hourly_rates: &'a [KilowattHourRate],
-    solar_energy: &'a [Kilowatts],
+    solar_power: &'a [Kilowatts],
     working_mode_sequence: &'a [WorkingMode],
     residual_energy: KilowattHours,
     capacity: KilowattHours,
@@ -44,7 +44,7 @@ impl Simulator<'_> {
         let mut forecast = Vec::with_capacity(self.hourly_rates.len());
 
         for ((rate, working_mode), solar_power) in
-            self.hourly_rates.iter().zip(self.working_mode_sequence.as_ref()).zip(self.solar_energy)
+            self.hourly_rates.iter().zip(self.working_mode_sequence.as_ref()).zip(self.solar_power)
         {
             let residual_energy_before = current_residual_energy;
 
@@ -174,7 +174,7 @@ mod tests {
         let solar_energy = [Kilowatts(0.0); 5];
         let outcome = Simulator::builder()
             .hourly_rates(&rates)
-            .solar_energy(&solar_energy)
+            .solar_power(&solar_energy)
             .working_mode_sequence(&working_mode_sequence)
             .residual_energy(KilowattHours(1.0))
             .capacity(KilowattHours(4.0))

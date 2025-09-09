@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use bon::Builder;
 use rust_decimal::dec;
 
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
     units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
-pub struct Optimization {
+pub struct Solution {
     pub outcome: Outcome,
     pub strategy: Strategy,
     pub working_mode_sequence: Vec<WorkingMode>,
@@ -22,27 +23,26 @@ pub struct Optimization {
     pub minimal_residual_energy_value: Cost,
 }
 
-impl Optimization {
-    #[instrument(
-    name = "Optimising…",
-    fields(residual_energy = %residual_energy),
-    skip_all,
-)]
-    pub fn run(
-        hourly_rates: &[KilowattHourRate],
-        solar_energy: &[Kilowatts],
-        residual_energy: KilowattHours,
-        capacity: KilowattHours,
-        battery_args: &BatteryArgs,
-        consumption_args: &ConsumptionArgs,
-    ) -> Result<Self> {
+#[derive(Builder)]
+pub struct Optimizer<'a> {
+    hourly_rates: &'a [KilowattHourRate],
+    solar_power: &'a [Kilowatts],
+    residual_energy: KilowattHours,
+    capacity: KilowattHours,
+    battery: &'a BatteryArgs,
+    consumption: &'a ConsumptionArgs,
+}
+
+impl Optimizer<'_> {
+    #[instrument(name = "Optimising…", fields(residual_energy = %self.residual_energy), skip_all)]
+    pub fn run(self) -> Result<Solution> {
         // Find all possible thresholds:
-        let mut unique_rates = hourly_rates.iter().copied().collect::<BTreeSet<_>>();
+        let mut unique_rates = self.hourly_rates.iter().copied().collect::<BTreeSet<_>>();
         let minimal_buying_rate = *unique_rates.iter().next().unwrap();
 
         // I'll use the minimal rate to estimate the residual energy value.
-        let minimal_selling_rate = minimal_buying_rate - consumption_args.purchase_fees;
-        let min_residual_energy = capacity * f64::from(battery_args.min_soc_percent) / 100.0;
+        let minimal_selling_rate = minimal_buying_rate - self.consumption.purchase_fees;
+        let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         // Allow the thresholds to settle below or above the actual rates:
         unique_rates.insert(minimal_buying_rate - KilowattHourRate(dec!(0.01)));
@@ -51,7 +51,8 @@ impl Optimization {
 
         Strategy::iter_from_rates(unique_rates)
             .map(|strategy| {
-                let working_mode_sequence: Vec<WorkingMode> = hourly_rates
+                let working_mode_sequence: Vec<WorkingMode> = self
+                    .hourly_rates
                     .iter()
                     .copied()
                     .map(|hourly_rate| {
@@ -66,13 +67,13 @@ impl Optimization {
                     })
                     .collect();
                 let outcome = Simulator::builder()
-                    .hourly_rates(hourly_rates)
-                    .solar_energy(solar_energy)
+                    .hourly_rates(self.hourly_rates)
+                    .solar_power(self.solar_power)
                     .working_mode_sequence(&working_mode_sequence)
-                    .residual_energy(residual_energy)
-                    .capacity(capacity)
-                    .battery(battery_args)
-                    .consumption(consumption_args)
+                    .residual_energy(self.residual_energy)
+                    .capacity(self.capacity)
+                    .battery(self.battery)
+                    .consumption(self.consumption)
                     .build()
                     .run();
                 let usable_residual_energy =
@@ -80,11 +81,11 @@ impl Optimization {
                 let minimal_residual_energy_value = if usable_residual_energy.is_non_negative() {
                     // Theoretical money we can make from selling it all at once:
                     usable_residual_energy
-                        * battery_args.discharging_efficiency
+                        * self.battery.discharging_efficiency
                         * minimal_selling_rate
                 } else {
                     // Uh-oh, we need to spend money at least this much money to compensate the self-discharge:
-                    usable_residual_energy / battery_args.charging_efficiency * minimal_buying_rate
+                    usable_residual_energy / self.battery.charging_efficiency * minimal_buying_rate
                 };
                 trace!(
                     "Simulated",
@@ -92,7 +93,7 @@ impl Optimization {
                     min_discharging_rate = strategy.min_discharging_rate.to_string(),
                     profit = outcome.net_profit.to_string(),
                 );
-                Self { outcome, strategy, working_mode_sequence, minimal_residual_energy_value }
+                Solution { outcome, strategy, working_mode_sequence, minimal_residual_energy_value }
             })
             .max_by_key(|optimization| {
                 optimization.outcome.net_profit + optimization.minimal_residual_energy_value

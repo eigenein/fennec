@@ -4,7 +4,7 @@ use bon::Builder;
 use itertools::Itertools;
 
 pub use self::{
-    optimizer::Optimization,
+    optimizer::Optimizer,
     working_mode::{WorkingMode, WorkingModeHourlySchedule},
 };
 use crate::units::rate::KilowattHourRate;

@@ -17,7 +17,7 @@ use crate::{
     foxess::{FoxEseTimeSlotSequence, FoxEssApi},
     nextenergy::NextEnergy,
     prelude::*,
-    strategy::{Optimization, WorkingModeHourlySchedule},
+    strategy::{Optimizer, WorkingModeHourlySchedule},
     units::power::Kilowatts,
     weerlive::{Location, Weerlive},
 };
@@ -79,19 +79,20 @@ async fn main() -> Result {
             .map(|power| Kilowatts(power.0 * hunt_args.solar.pv_surface_square_meters))
             .collect();
 
-            let optimization = Optimization::run(
-                &hourly_rates,
-                &solar_power,
-                residual_energy,
-                total_capacity,
-                &hunt_args.battery,
-                &hunt_args.consumption,
-            )?;
+            let solution = Optimizer::builder()
+                .hourly_rates(&hourly_rates)
+                .solar_power(&solar_power)
+                .residual_energy(residual_energy)
+                .capacity(total_capacity)
+                .battery(&hunt_args.battery)
+                .consumption(&hunt_args.consumption)
+                .build()
+                .run()?;
 
             for ((((hour, rate), working_mode), forecast), solar_power) in (start_hour..)
                 .zip(hourly_rates)
-                .zip(&optimization.working_mode_sequence)
-                .zip(&optimization.outcome.forecast)
+                .zip(&solution.working_mode_sequence)
+                .zip(&solution.outcome.forecast)
                 .zip(solar_power)
             {
                 info!(
@@ -108,22 +109,20 @@ async fn main() -> Result {
             }
             info!(
                 "Optimized",
-                max_charge_rate = format!(
-                    "¢{:.0}",
-                    optimization.strategy.max_charging_rate * Decimal::ONE_HUNDRED
-                ),
+                max_charge_rate =
+                    format!("¢{:.0}", solution.strategy.max_charging_rate * Decimal::ONE_HUNDRED),
                 min_discharge_rate = format!(
                     "¢{:.0}",
-                    optimization.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
+                    solution.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
                 ),
-                profit = format!("€{:.2}", optimization.outcome.net_profit),
+                profit = format!("€{:.2}", solution.outcome.net_profit),
                 minimal_residual_energy_value =
-                    format!("€{:.2}", optimization.minimal_residual_energy_value),
+                    format!("€{:.2}", solution.minimal_residual_energy_value),
             );
 
             let daily_schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
                 start_hour,
-                optimization.working_mode_sequence,
+                solution.working_mode_sequence,
             );
 
             let time_slot_sequence =

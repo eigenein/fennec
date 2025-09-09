@@ -91,7 +91,7 @@ async fn main() -> Result {
             for ((((hour, rate), working_mode), forecast), solar_power) in (start_hour..)
                 .zip(hourly_rates)
                 .zip(&optimization.working_mode_sequence)
-                .zip(&optimization.simulation.forecast)
+                .zip(&optimization.outcome.forecast)
                 .zip(solar_power)
             {
                 info!(
@@ -116,7 +116,7 @@ async fn main() -> Result {
                     "¢{:.0}",
                     optimization.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
                 ),
-                profit = format!("€{:.2}", optimization.simulation.net_profit),
+                profit = format!("€{:.2}", optimization.outcome.net_profit),
                 minimal_residual_energy_value =
                     format!("€{:.2}", optimization.minimal_residual_energy_value),
             );

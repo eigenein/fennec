@@ -5,14 +5,20 @@ use rust_decimal::dec;
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    strategy::{Strategy, WorkingMode, simulator::Simulation},
+    strategy::{
+        Strategy,
+        WorkingMode,
+        simulator::{Outcome, Simulator},
+    },
     units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
 pub struct Optimization {
-    pub simulation: Simulation,
+    pub outcome: Outcome,
     pub strategy: Strategy,
     pub working_mode_sequence: Vec<WorkingMode>,
+
+    #[deprecated = "this should go to `Solution`"]
     pub minimal_residual_energy_value: Cost,
 }
 
@@ -59,17 +65,18 @@ impl Optimization {
                         }
                     })
                     .collect();
-                let simulation = Simulation::run(
-                    hourly_rates,
-                    solar_energy,
-                    &working_mode_sequence,
-                    residual_energy,
-                    capacity,
-                    battery_args,
-                    consumption_args,
-                );
+                let outcome = Simulator::builder()
+                    .hourly_rates(hourly_rates)
+                    .solar_energy(solar_energy)
+                    .working_mode_sequence(&working_mode_sequence)
+                    .residual_energy(residual_energy)
+                    .capacity(capacity)
+                    .battery(battery_args)
+                    .consumption(consumption_args)
+                    .build()
+                    .run();
                 let usable_residual_energy =
-                    simulation.forecast.last().unwrap().residual_energy_after - min_residual_energy;
+                    outcome.forecast.last().unwrap().residual_energy_after - min_residual_energy;
                 let minimal_residual_energy_value = if usable_residual_energy.is_non_negative() {
                     // Theoretical money we can make from selling it all at once:
                     usable_residual_energy
@@ -83,12 +90,12 @@ impl Optimization {
                     "Simulated",
                     max_charging_rate = strategy.max_charging_rate.to_string(),
                     min_discharging_rate = strategy.min_discharging_rate.to_string(),
-                    profit = simulation.net_profit.to_string(),
+                    profit = outcome.net_profit.to_string(),
                 );
-                Self { simulation, strategy, working_mode_sequence, minimal_residual_energy_value }
+                Self { outcome, strategy, working_mode_sequence, minimal_residual_energy_value }
             })
             .max_by_key(|optimization| {
-                optimization.simulation.net_profit + optimization.minimal_residual_energy_value
+                optimization.outcome.net_profit + optimization.minimal_residual_energy_value
             })
             .context("there is no solution")
     }

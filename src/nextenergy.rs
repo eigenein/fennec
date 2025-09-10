@@ -16,7 +16,7 @@ impl NextEnergy {
         Ok(Self(Client::builder().build()?))
     }
 
-    #[instrument(name = "Fetching energy prices…", fields(date = date.to_string()), skip_all)]
+    #[instrument(name = "Fetching energy prices…", fields(date = %date), skip_all)]
     pub async fn get_hourly_rates(
         &self,
         date: NaiveDate,

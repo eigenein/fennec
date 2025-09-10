@@ -51,7 +51,7 @@ async fn main() -> Result {
             hourly_rates.extend(
                 next_energy.get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0).await?,
             );
-            info!("Fetched energy rates", len = hourly_rates.len().to_string());
+            info!("Fetched energy rates", len = hourly_rates.len());
 
             let (residual_energy, total_capacity) = {
                 (
@@ -65,11 +65,7 @@ async fn main() -> Result {
                         .total_capacity(),
                 )
             };
-            info!(
-                "Fetched battery details",
-                residual_energy = residual_energy.to_string(),
-                total_capacity = total_capacity.to_string(),
-            );
+            info!("Fetched battery details", residual_energy, total_capacity);
 
             let solar_power: Vec<_> = Weerlive::new(
                 &hunt_args.solar.weerlive_api_key,
@@ -142,13 +138,13 @@ async fn main() -> Result {
             BurrowCommand::DeviceDetails => {
                 let details =
                     fox_ess_api.get_device_details(&args.fox_ess_api.serial_number).await?;
-                info!("Gotcha", total_capacity = details.total_capacity().to_string());
+                info!("Gotcha", total_capacity = details.total_capacity());
             }
 
             BurrowCommand::DeviceVariables => {
                 let variables =
                     fox_ess_api.get_device_variables(&args.fox_ess_api.serial_number).await?;
-                info!("Gotcha", residual_energy = variables.residual_energy.to_string());
+                info!("Gotcha", residual_energy = variables.residual_energy);
             }
 
             BurrowCommand::RawDeviceVariables => {

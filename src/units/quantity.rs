@@ -108,6 +108,16 @@ where
     }
 }
 
+impl<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize>
+    From<Quantity<T, POWER, AREA, TIME, COST>> for opentelemetry::Value
+where
+    T: Into<Self>,
+{
+    fn from(quantity: Quantity<T, POWER, AREA, TIME, COST>) -> Self {
+        quantity.0.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

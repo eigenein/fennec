@@ -101,7 +101,7 @@ impl TimeSlot {
     pub fn trace(&self) {
         info!(
             "Schedule group",
-            is_enabled = self.is_enabled.to_string(),
+            is_enabled = self.is_enabled,
             start_time = self.start_time.to_string(),
             end_time = self.end_time.to_string(),
             work_mode = format!("{:?}", self.working_mode),

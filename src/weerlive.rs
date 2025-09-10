@@ -67,7 +67,7 @@ impl Weerlive {
                 debug!(
                     "Forecast",
                     hour = forecast.start_time.hour().to_string(),
-                    solar_power_watts_per_m2 = forecast.solar_power_watts_per_m2.to_string(),
+                    solar_power_watts_per_m2 = forecast.solar_power_watts_per_m2,
                 );
             })
             .map(|entry| PowerDensity::from(entry.solar_power_watts_per_m2 / 1000.0))

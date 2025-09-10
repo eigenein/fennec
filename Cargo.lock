@@ -616,6 +616,7 @@ dependencies = [
  "itertools",
  "logfire",
  "md5",
+ "opentelemetry",
  "ordered-float",
  "reqwest",
  "rust_decimal",
@@ -1172,9 +1173,9 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "logfire"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0b2cca40e548fe1f78f6c591035b4d20df300b777b6336c32299d5fe2e06567"
+checksum = "ecdeef502337c0cb7ab6646e79a8198aedddbbaa6351b6f9a2ccfb1bb0ed2cf7"
 dependencies = [
  "chrono",
  "env_filter",

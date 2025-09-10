@@ -1,6 +1,6 @@
 use std::ops::Mul;
 
-use crate::units::{Hours, KilowattHours, Quantity};
+use crate::units::{HourRate, Hours, KilowattHourRate, KilowattHours, Quantity};
 
 pub type Kilowatts = Quantity<f64, 1, 0, 0, 0>;
 
@@ -16,5 +16,13 @@ impl Mul<Hours> for Kilowatts {
 
     fn mul(self, rhs: Hours) -> Self::Output {
         Quantity(self.0 * rhs.0)
+    }
+}
+
+impl Mul<KilowattHourRate> for Kilowatts {
+    type Output = HourRate;
+
+    fn mul(self, rhs: KilowattHourRate) -> Self::Output {
+        Quantity(self.0 * f64::from(rhs.0))
     }
 }

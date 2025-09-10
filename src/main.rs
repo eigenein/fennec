@@ -9,7 +9,6 @@ mod weerlive;
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
-use rust_decimal::Decimal;
 use tracing::level_filters::LevelFilter;
 
 use crate::{
@@ -38,8 +37,8 @@ async fn main() -> Result {
     match args.command {
         Command::Hunt(hunt_args) => {
             ensure!(
-                hunt_args.consumption.stand_by_power <= Kilowatts::ZERO,
-                "stand-by consumption must be non-positive",
+                hunt_args.consumption.stand_by >= Kilowatts::ZERO,
+                "stand-by consumption must be non-negative",
             );
 
             let now = Local::now();
@@ -94,23 +93,24 @@ async fn main() -> Result {
                 info!(
                     "Plan",
                     hour = (hour % 24).to_string(),
-                    rate = format!("¢{:.0}", rate * Decimal::ONE_HUNDRED),
+                    rate = format!(
+                        "¢{:.0}/↓{:.1}/↑{:.1}",
+                        rate * 100.0,
+                        step.effective_charging_rate * 100.0,
+                        step.effective_discharging_rate * 100.0
+                    ),
                     solar = format!("{:.2}㎾", solar_power),
                     before = format!("{:.2}", step.residual_energy_before),
                     mode = format!("{:?}", step.working_mode),
-                    grid = format!("{:.2}", step.grid_energy_used),
                     after = format!("{:.2}", step.residual_energy_after),
-                    profit = format!("¢{:.0}", step.net_profit * 100.0),
+                    profit = format!("¢{:.0}", step.profit * 100.0),
                 );
             }
             info!(
                 "Optimized",
-                max_charge_rate =
-                    format!("¢{:.0}", solution.strategy.max_charging_rate * Decimal::ONE_HUNDRED),
-                min_discharge_rate = format!(
-                    "¢{:.0}",
-                    solution.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
-                ),
+                max_charge_rate = format!("¢{:.0}", solution.strategy.max_charging_rate * 100.0),
+                min_discharge_rate =
+                    format!("¢{:.0}", solution.strategy.min_discharging_rate * 100.0),
                 net_profit = format!("€{:.2}", solution.plan.net_profit),
                 residual_energy_value = format!("€{:.2}", solution.plan.residual_energy_value),
                 total_profit = format!("€{:.2}", solution.plan.total_profit()),

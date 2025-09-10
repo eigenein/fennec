@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use rust_decimal::Decimal;
 
 use crate::units::{KilowattHourRate, Kilowatts};
 
@@ -42,24 +41,15 @@ pub struct BatteryArgs {
     /// Maximum external discharging power in kilowatts, negative.
     #[clap(
         long = "discharging-power-kilowatts",
-        default_value = "-0.8",
+        default_value = "0.8",
         env = "DISCHARGING_POWER_KILOWATTS"
     )]
     pub discharging_power: Kilowatts,
 
-    /// Charging efficiency (look for «Battery Details» in FoxCloud app).
+    /// Charging-discharging efficiency (look for «Battery Details» in FoxCloud app).
     #[clap(long = "charging-efficiency", default_value = "0.948", env = "CHARGING_EFFICIENCY")]
     #[expect(clippy::doc_markdown)]
-    pub charging_efficiency: f64,
-
-    /// Discharging efficiency (look for «Battery Details» in FoxCloud app).
-    #[clap(
-        long = "discharging-efficiency",
-        default_value = "0.948",
-        env = "DISCHARGING_EFFICIENCY"
-    )]
-    #[expect(clippy::doc_markdown)]
-    pub discharging_efficiency: f64,
+    pub efficiency: f64,
 
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
@@ -85,13 +75,13 @@ pub struct HuntArgs {
 
 #[derive(Parser)]
 pub struct ConsumptionArgs {
-    /// Average stand-by household usage in watts, typically negative.
+    /// Average stand-by household usage in kilowatts.
     #[clap(
-        long = "stand-by-power-kilowatts",
-        default_value = "-0.4",
-        env = "STAND_BY_POWER_KILOWATTS"
+        long = "stand-by-consumption-kilowatts",
+        default_value = "0.5",
+        env = "STAND_BY_CONSUMPTION_KILOWATTS"
     )]
-    pub stand_by_power: Kilowatts,
+    pub stand_by: Kilowatts,
 
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fees-per-kwh", default_value = "0.021", env = "PURCHASE_FEES_PER_KWH")]
@@ -101,10 +91,10 @@ pub struct ConsumptionArgs {
 #[derive(Parser)]
 pub struct SolarArgs {
     #[clap(long = "latitude", default_value = "52.349605", env = "LATITUDE")]
-    pub latitude: Decimal,
+    pub latitude: f64,
 
     #[clap(long = "longitude", default_value = "4.677388", env = "LONGITUDE")]
-    pub longitude: Decimal,
+    pub longitude: f64,
 
     #[clap(long = "pv-surface-m2", default_value = "2", env = "PV_SURFACE_M2")]
     pub pv_surface_square_meters: f64,

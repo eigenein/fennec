@@ -235,8 +235,7 @@ mod tests {
             &BatteryArgs {
                 charging_power: Kilowatts::from(1.2),
                 discharging_power: Kilowatts::from(-0.8),
-                charging_efficiency: 1.0,
-                discharging_efficiency: 1.0,
+                efficiency: 1.0,
                 min_soc_percent: 10,
             },
         )?;

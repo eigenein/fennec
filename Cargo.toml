@@ -9,7 +9,7 @@ license = "MIT"
 publish = true
 readme = "README.md"
 repository = "https://github.com/eigenein/fennec"
-version = "0.7.5"
+version = "0.8.0"
 rust-version = "1.89"
 
 [badges]
@@ -46,10 +46,6 @@ features = ["chrono"]
 [dependencies.clap]
 version = "=4.5.47"
 features = ["cargo", "derive", "env", "unicode"]
-
-[dependencies.rust_decimal]
-version = "=1.37.2"
-features = ["macros"]
 
 [dependencies.chrono]
 version = "=0.4.41"

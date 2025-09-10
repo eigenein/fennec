@@ -12,6 +12,6 @@ pub use self::{
     power::Kilowatts,
     power_density::PowerDensity,
     quantity::Quantity,
-    rate::KilowattHourRate,
+    rate::{HourRate, KilowattHourRate},
     time::Hours,
 };

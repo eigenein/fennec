@@ -1,7 +1,6 @@
 use std::ops::{Div, Mul};
 
 use ordered_float::OrderedFloat;
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(
@@ -72,16 +71,6 @@ impl<const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize
     Quantity<OrderedFloat<f64>, POWER, AREA, TIME, COST>
 {
     pub const ZERO: Self = Self(OrderedFloat(0.0));
-}
-
-impl<const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize>
-    Quantity<Decimal, POWER, AREA, TIME, COST>
-{
-    #[allow(dead_code)]
-    pub const ZERO: Self = Self(Decimal::ZERO);
-
-    #[allow(dead_code)]
-    pub const ONE: Self = Self(Decimal::ONE);
 }
 
 impl<L, R, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Mul<R>

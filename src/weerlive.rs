@@ -1,6 +1,5 @@
 use chrono::{DateTime, Local, Timelike};
 use reqwest::Client;
-use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde_with::serde_as;
 
@@ -13,8 +12,8 @@ pub struct Weerlive {
 
 pub enum Location {
     Coordinates {
-        latitude: Decimal,
-        longitude: Decimal,
+        latitude: f64,
+        longitude: f64,
     },
 
     #[allow(dead_code)]
@@ -22,7 +21,7 @@ pub enum Location {
 }
 
 impl Location {
-    pub const fn coordinates(latitude: Decimal, longitude: Decimal) -> Self {
+    pub const fn coordinates(latitude: f64, longitude: f64) -> Self {
         Self::Coordinates { latitude, longitude }
     }
 }

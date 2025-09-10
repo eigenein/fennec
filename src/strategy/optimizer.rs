@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 
 use bon::Builder;
-use ordered_float::OrderedFloat;
 
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},

@@ -234,7 +234,7 @@ mod tests {
             &WorkingModeHourlySchedule::from(schedule),
             &BatteryArgs {
                 charging_power: Kilowatts::from(1.2),
-                discharging_power: Kilowatts::from(-0.8),
+                discharging_power: Kilowatts::from(0.8),
                 efficiency: 1.0,
                 min_soc_percent: 10,
             },

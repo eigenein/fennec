@@ -5,8 +5,9 @@ use std::str::FromStr;
 use chrono::NaiveDate;
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
+use serde_with::serde_as;
 
-use crate::{prelude::*, units::rate::KilowattHourRate};
+use crate::{prelude::*, units::KilowattHourRate};
 
 pub struct NextEnergy(Client);
 
@@ -63,6 +64,7 @@ struct GetDataPointsResponseDataPoints {
     list: Vec<GetDataPointsResponseDataPoint>,
 }
 
+#[serde_as]
 #[derive(Deserialize)]
 struct GetDataPointsResponseDataPoint {
     #[serde(
@@ -72,6 +74,7 @@ struct GetDataPointsResponseDataPoint {
     hour: u32,
 
     /// Kilowatt-hour rate.
+    #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "Value")]
     value: KilowattHourRate,
 }

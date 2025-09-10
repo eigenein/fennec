@@ -8,7 +8,7 @@ pub use self::{
     schedule::WorkingModeHourlySchedule,
     working_mode::WorkingMode,
 };
-use crate::units::rate::KilowattHourRate;
+use crate::units::KilowattHourRate;
 
 mod optimizer;
 mod schedule;

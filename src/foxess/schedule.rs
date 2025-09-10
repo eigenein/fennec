@@ -4,12 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{
-    cli::BatteryArgs,
-    prelude::*,
-    strategy::WorkingModeHourlySchedule,
-    units::power::Kilowatts,
-};
+use crate::{cli::BatteryArgs, prelude::*, strategy::WorkingModeHourlySchedule, units::Kilowatts};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -204,7 +199,7 @@ mod tests {
         },
         prelude::*,
         strategy::{WorkingMode, WorkingModeHourlySchedule},
-        units::power::Kilowatts,
+        units::Kilowatts,
     };
 
     #[test]
@@ -238,8 +233,8 @@ mod tests {
             2,
             &WorkingModeHourlySchedule::from(schedule),
             &BatteryArgs {
-                charging_power: Kilowatts(1.2),
-                discharging_power: Kilowatts(-0.8),
+                charging_power: Kilowatts::new(1.2),
+                discharging_power: Kilowatts::new(-0.8),
                 charging_efficiency: 1.0,
                 discharging_efficiency: 1.0,
                 min_soc_percent: 10,

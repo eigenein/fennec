@@ -8,7 +8,7 @@ pub use self::{
         TimeSlotSequence as FoxEseTimeSlotSequence,
     },
 };
-use crate::units::energy::KilowattHours;
+use crate::units::KilowattHours;
 
 mod api;
 mod response;
@@ -53,7 +53,9 @@ impl DeviceDetails {
         self.batteries
             .iter()
             .filter_map(|battery| {
-                battery.capacity_watt_hours.map(|watt_hours| KilowattHours(watt_hours / 1000.0))
+                battery
+                    .capacity_watt_hours
+                    .map(|watt_hours| KilowattHours::new(watt_hours / 1000.0))
             })
             .sum()
     }

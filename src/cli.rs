@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use rust_decimal::Decimal;
 
-use crate::units::{power::Kilowatts, rate::KilowattHourRate};
+use crate::units::{KilowattHourRate, Kilowatts};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]

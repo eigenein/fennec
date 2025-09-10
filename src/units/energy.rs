@@ -1,30 +1,13 @@
-use std::ops::{Div, Mul};
+use std::ops::Mul;
 
 use ordered_float::OrderedFloat;
 use rust_decimal::prelude::{ToPrimitive, Zero};
-use serde::Deserialize;
 
-use crate::units::{currency::Cost, rate::KilowattHourRate};
+use crate::units::{Quantity, currency::Cost, rate::KilowattHourRate};
 
-#[derive(
-    Copy,
-    Clone,
-    Deserialize,
-    Debug,
-    derive_more::Display,
-    derive_more::FromStr,
-    derive_more::Sum,
-    derive_more::Add,
-    derive_more::Sub,
-    derive_more::Neg,
-    derive_more::AddAssign,
-    derive_more::SubAssign,
-)]
-pub struct KilowattHours(pub f64);
+pub type KilowattHours = Quantity<f64, 1, 0, 1, 0>;
 
 impl KilowattHours {
-    pub const ZERO: Self = Self(0.0);
-
     pub const fn max(self, rhs: Self) -> Self {
         Self(self.0.max(rhs.0))
     }
@@ -46,26 +29,10 @@ impl KilowattHours {
     }
 }
 
-impl Mul<f64> for KilowattHours {
-    type Output = Self;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Self(self.0 * rhs)
-    }
-}
-
-impl Div<f64> for KilowattHours {
-    type Output = Self;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        Self(self.0 / rhs)
-    }
-}
-
 impl Mul<KilowattHourRate> for KilowattHours {
     type Output = Cost;
 
     fn mul(self, rhs: KilowattHourRate) -> Self::Output {
-        Cost(OrderedFloat(self.0 * rhs.0.to_f64().unwrap())) // FIXME: `unwrap`.
+        Cost::new(OrderedFloat(self.0 * rhs.0.to_f64().unwrap())) // FIXME: `unwrap`.
     }
 }

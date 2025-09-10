@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::{prelude::*, units::power::KilowattsPerMeterSquared};
+use crate::{prelude::*, units::PowerDensity};
 
 pub struct Weerlive {
     client: Client,
@@ -43,7 +43,7 @@ impl Weerlive {
     }
 
     #[instrument(skip_all, name = "Fetching the local weather…", fields(now = ?now))]
-    pub async fn get(&self, now: DateTime<Local>) -> Result<Vec<KilowattsPerMeterSquared>> {
+    pub async fn get(&self, now: DateTime<Local>) -> Result<Vec<PowerDensity>> {
         let mut hourly_forecast: Vec<_> =
             self.client.get(&self.url).send().await?.json::<Forecast>().await?.hourly_forecast;
         hourly_forecast.sort_by_key(|entry| entry.start_time);
@@ -70,7 +70,7 @@ impl Weerlive {
                     solar_power_watts_per_m2 = forecast.solar_power_watts_per_m2.to_string(),
                 );
             })
-            .map(|entry| KilowattsPerMeterSquared(entry.solar_power_watts_per_m2 / 1000.0))
+            .map(|entry| PowerDensity::new(entry.solar_power_watts_per_m2 / 1000.0))
             .collect())
     }
 }

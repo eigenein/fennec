@@ -1,14 +1,13 @@
 use std::collections::BTreeSet;
 
 use bon::Builder;
-use chrono::TimeDelta;
-use rust_decimal::dec;
+use rust_decimal::{Decimal, dec};
 
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
     strategy::{Strategy, WorkingMode},
-    units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts},
 };
 
 #[derive(Builder)]
@@ -29,9 +28,9 @@ impl Optimizer<'_> {
         let minimal_buying_rate = *unique_rates.iter().next().unwrap();
 
         // Allow the thresholds to settle below or above the actual rates:
-        unique_rates.insert(minimal_buying_rate - KilowattHourRate(dec!(0.01)));
+        unique_rates.insert(minimal_buying_rate - KilowattHourRate::new(dec!(0.01)));
         unique_rates
-            .insert(*unique_rates.iter().next_back().unwrap() + KilowattHourRate(dec!(0.01)));
+            .insert(*unique_rates.iter().next_back().unwrap() + KilowattHourRate::new(dec!(0.01)));
 
         Strategy::iter_from_rates(&unique_rates)
             .map(|strategy| {
@@ -49,7 +48,6 @@ impl Optimizer<'_> {
     }
 
     fn simulate(&self, strategy: Strategy) -> Plan {
-        const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
@@ -80,11 +78,11 @@ impl Optimizer<'_> {
             if power_balance.0.is_sign_positive() {
                 // Let's see how much energy is spent charging it taking the power balance and capacity into account:
                 let billable_energy_differential = (self.capacity - current_residual_energy)
-                    .min(self.battery.charging_power.min(power_balance) * ONE_HOUR);
+                    .min(self.battery.charging_power.min(power_balance) * Hours::ONE);
                 assert!(billable_energy_differential.is_non_negative());
 
                 // Calculate the distribution between the available grid and PV energy:
-                let pv_energy_used = (solar_power * ONE_HOUR).min(billable_energy_differential);
+                let pv_energy_used = (solar_power * Hours::ONE).min(billable_energy_differential);
                 let grid_energy_used = billable_energy_differential - pv_energy_used;
                 assert!(pv_energy_used.is_non_negative());
                 assert!(grid_energy_used.is_non_negative());
@@ -117,7 +115,7 @@ impl Optimizer<'_> {
                     (min_residual_energy - current_residual_energy)
                     .clamp(
                         // Limited by actual discharging power corrected by the efficiency:
-                    self.battery.discharging_power.max(power_balance) / self.battery.discharging_efficiency * ONE_HOUR,
+                    self.battery.discharging_power.max(power_balance) / self.battery.discharging_efficiency * Hours::ONE,
                         // The self-discharging could already drop the residual energy below the reserve:
                         KilowattHours::ZERO,
                     );
@@ -130,7 +128,7 @@ impl Optimizer<'_> {
 
                 // Calculate the payback (`max` is because the differential is negative):
                 let stand_by_differential =
-                    billable_energy_differential.max(self.consumption.stand_by_power * ONE_HOUR);
+                    billable_energy_differential.max(self.consumption.stand_by_power * Hours::ONE);
                 let grid_differential = billable_energy_differential - stand_by_differential;
                 assert!(stand_by_differential.is_non_positive());
                 assert!(
@@ -161,7 +159,7 @@ impl Optimizer<'_> {
             let usable_residual_energy =
                 forecast.last().unwrap().residual_energy_after - min_residual_energy;
             let average_buying_rate = self.hourly_rates.iter().copied().sum::<KilowattHourRate>()
-                / self.hourly_rates.len();
+                / Decimal::from(self.hourly_rates.len());
             let average_selling_rate = average_buying_rate - self.consumption.purchase_fees;
             if usable_residual_energy.is_non_negative() {
                 // Theoretical money we can make from selling it all at once:
@@ -222,32 +220,32 @@ mod tests {
     #[test]
     fn test_simulate() {
         let rates = [
-            KilowattHourRate(dec!(1.0)),
-            KilowattHourRate(dec!(2.0)),
-            KilowattHourRate(dec!(3.0)),
-            KilowattHourRate(dec!(4.0)),
-            KilowattHourRate(dec!(5.0)),
+            KilowattHourRate::new(dec!(1.0)),
+            KilowattHourRate::new(dec!(2.0)),
+            KilowattHourRate::new(dec!(3.0)),
+            KilowattHourRate::new(dec!(4.0)),
+            KilowattHourRate::new(dec!(5.0)),
         ];
         let outcome = Optimizer::builder()
             .hourly_rates(&rates)
-            .solar_power(&[Kilowatts(0.0); 5])
-            .residual_energy(KilowattHours(1.0))
-            .capacity(KilowattHours(4.0))
+            .solar_power(&[Kilowatts::ZERO; 5])
+            .residual_energy(KilowattHours::new(1.0))
+            .capacity(KilowattHours::new(4.0))
             .battery(&BatteryArgs {
-                charging_power: Kilowatts(3.0),
-                discharging_power: Kilowatts(-2.0),
+                charging_power: Kilowatts::new(3.0),
+                discharging_power: Kilowatts::new(-2.0),
                 charging_efficiency: 1.0,
                 discharging_efficiency: 1.0,
                 min_soc_percent: 25,
             })
             .consumption(&ConsumptionArgs {
-                stand_by_power: -Kilowatts(1.0),
-                purchase_fees: KilowattHourRate(dec!(0.0)),
+                stand_by_power: -Kilowatts::new(1.0),
+                purchase_fees: KilowattHourRate::new(dec!(0.0)),
             })
             .build()
             .simulate(Strategy {
-                max_charging_rate: KilowattHourRate(dec!(2.0)),
-                min_discharging_rate: KilowattHourRate(dec!(4.0)),
+                max_charging_rate: KilowattHourRate::new(dec!(2.0)),
+                min_discharging_rate: KilowattHourRate::new(dec!(4.0)),
             });
 
         assert_eq!(

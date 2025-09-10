@@ -5,11 +5,13 @@ use itertools::Itertools;
 
 pub use self::{
     optimizer::Optimizer,
-    working_mode::{WorkingMode, WorkingModeHourlySchedule},
+    schedule::WorkingModeHourlySchedule,
+    working_mode::WorkingMode,
 };
 use crate::units::rate::KilowattHourRate;
 
 mod optimizer;
+mod schedule;
 mod working_mode;
 
 #[derive(Copy, Clone, Builder)]

@@ -70,7 +70,7 @@ impl Weerlive {
                     solar_power_watts_per_m2 = forecast.solar_power_watts_per_m2.to_string(),
                 );
             })
-            .map(|entry| PowerDensity::new(entry.solar_power_watts_per_m2 / 1000.0))
+            .map(|entry| PowerDensity::from(entry.solar_power_watts_per_m2 / 1000.0))
             .collect())
     }
 }

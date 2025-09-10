@@ -55,7 +55,7 @@ impl DeviceDetails {
             .filter_map(|battery| {
                 battery
                     .capacity_watt_hours
-                    .map(|watt_hours| KilowattHours::new(watt_hours / 1000.0))
+                    .map(|watt_hours| KilowattHours::from(watt_hours / 1000.0))
             })
             .sum()
     }

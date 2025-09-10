@@ -4,6 +4,8 @@ use crate::units::Quantity;
 
 pub type Cost = Quantity<OrderedFloat<f64>, 0, 0, 0, 1>;
 
-impl Cost {
-    pub const ZERO: Self = Self(OrderedFloat(0.0));
+impl From<f64> for Cost {
+    fn from(value: f64) -> Self {
+        Self::from(OrderedFloat(value))
+    }
 }

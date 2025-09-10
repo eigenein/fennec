@@ -9,14 +9,6 @@ impl Kilowatts {
     pub fn into_watts_u32(self) -> u32 {
         (self.0 * 1000.0).round() as u32
     }
-
-    pub const fn min(self, rhs: Self) -> Self {
-        Self(self.0.min(rhs.0))
-    }
-
-    pub const fn max(self, rhs: Self) -> Self {
-        Self(self.0.max(rhs.0))
-    }
 }
 
 impl Mul<Hours> for Kilowatts {

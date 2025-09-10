@@ -78,7 +78,7 @@ async fn main() -> Result {
             .get(now)
             .await?
             .into_iter()
-            .map(|power| Kilowatts::new(power.0 * hunt_args.solar.pv_surface_square_meters))
+            .map(|power| Kilowatts::from(power.0 * hunt_args.solar.pv_surface_square_meters))
             .collect();
 
             hourly_rates.truncate(solar_power.len().min(24)); // FIXME: allow 24-hour increments.

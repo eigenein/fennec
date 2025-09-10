@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, Timelike};
+use chrono::{DateTime, Local, Timelike};
 use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -43,24 +43,9 @@ impl Weerlive {
     }
 
     #[instrument(skip_all, name = "Fetching the local weather…", fields(now = ?now))]
-    pub async fn get(&self, now: NaiveDateTime) -> Result<Vec<KilowattsPerMeterSquared>> {
-        let mut hourly_forecast: Vec<_> = self
-            .client
-            .get(&self.url)
-            .send()
-            .await?
-            .json::<Forecast>()
-            .await?
-            .hourly_forecast
-            .into_iter()
-            .filter(|forecast| {
-                let start_time = forecast.start_time;
-                // Keep the future forecasts:
-                start_time > now
-                // And the current hour forecast:
-                || (start_time.date() == now.date() && start_time.hour() == now.hour())
-            })
-            .collect();
+    pub async fn get(&self, now: DateTime<Local>) -> Result<Vec<KilowattsPerMeterSquared>> {
+        let mut hourly_forecast: Vec<_> =
+            self.client.get(&self.url).send().await?.json::<Forecast>().await?.hourly_forecast;
         hourly_forecast.sort_by_key(|entry| entry.start_time);
         match hourly_forecast.first() {
             Some(next_hour_forecast) => {
@@ -101,7 +86,7 @@ struct Forecast {
 struct HourlyForecast {
     #[serde_as(as = "serde_with::TimestampSeconds<i64>")]
     #[serde(rename = "timestamp")]
-    start_time: NaiveDateTime,
+    start_time: DateTime<Local>,
 
     #[serde(rename = "gr")]
     solar_power_watts_per_m2: f64,
@@ -116,7 +101,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "online test"]
     async fn test_get_ok() -> Result {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         Weerlive::new("demo", &Location::Name("Amsterdam")).get(now).await?;
         // TODO: add assertions.
         Ok(())

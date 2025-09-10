@@ -42,13 +42,15 @@ async fn main() -> Result {
                 "stand-by consumption must be non-positive",
             );
 
-            let now = Local::now().naive_local();
+            let now = Local::now();
             let starting_hour = now.hour();
 
             let next_energy = NextEnergy::try_new()?;
-            let mut hourly_rates = next_energy.get_hourly_rates(now.date(), starting_hour).await?;
-            hourly_rates
-                .extend(next_energy.get_hourly_rates(now.date() + TimeDelta::days(1), 0).await?);
+            let mut hourly_rates =
+                next_energy.get_hourly_rates(now.date_naive(), starting_hour).await?;
+            hourly_rates.extend(
+                next_energy.get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0).await?,
+            );
             info!("Fetched energy rates", len = hourly_rates.len().to_string());
 
             let (residual_energy, total_capacity) = {

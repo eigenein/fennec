@@ -93,7 +93,7 @@ async fn main() -> Result {
                 .run()?;
 
             for (((hour, rate), step), solar_power) in
-                (starting_hour..).zip(hourly_rates).zip(&solution.outcome.steps).zip(solar_power)
+                (starting_hour..).zip(hourly_rates).zip(&solution.plan.steps).zip(solar_power)
             {
                 info!(
                     "Plan",
@@ -115,14 +115,14 @@ async fn main() -> Result {
                     "¢{:.0}",
                     solution.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
                 ),
-                net_profit = format!("€{:.2}", solution.outcome.net_profit),
-                residual_energy_value = format!("€{:.2}", solution.outcome.residual_energy_value),
-                total_profit = format!("€{:.2}", solution.outcome.total_profit()),
+                net_profit = format!("€{:.2}", solution.plan.net_profit),
+                residual_energy_value = format!("€{:.2}", solution.plan.residual_energy_value),
+                total_profit = format!("€{:.2}", solution.plan.total_profit()),
             );
 
             let schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
                 starting_hour,
-                solution.outcome.steps.iter().map(|step| step.working_mode),
+                solution.plan.steps.iter().map(|step| step.working_mode),
             );
 
             let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(

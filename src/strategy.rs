@@ -10,7 +10,6 @@ pub use self::{
 use crate::units::rate::KilowattHourRate;
 
 mod optimizer;
-mod simulator;
 mod working_mode;
 
 #[derive(Copy, Clone, Builder)]

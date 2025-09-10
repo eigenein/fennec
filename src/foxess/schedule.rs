@@ -130,7 +130,7 @@ impl TimeSlotSequence {
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
             .map(|((_, working_mode), hours)| {
                 let feed_power = match working_mode {
-                    crate::strategy::WorkingMode::Discharging => -battery_args.discharging_power,
+                    crate::strategy::WorkingMode::Discharging => battery_args.discharging_power,
                     crate::strategy::WorkingMode::Maintain => Kilowatts::ZERO,
                     _ => battery_args.charging_power,
                 };

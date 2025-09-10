@@ -122,13 +122,13 @@ impl TimeSlotSequence {
     ) -> Result<Self> {
         schedule
             .iter(starting_hour)
-            .chunk_by(|(_, working_mode)| *working_mode)
+            .chunk_by(|(hour, working_mode)| (*hour >= starting_hour, *working_mode))
             .into_iter()
             .map(|(working_mode, group)| {
                 (working_mode, group.map(|(hour, _)| hour).collect::<Vec<_>>())
             })
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
-            .map(|(working_mode, hours)| {
+            .map(|((_, working_mode), hours)| {
                 let feed_power = match working_mode {
                     crate::strategy::WorkingMode::Discharging => -battery_args.discharging_power,
                     crate::strategy::WorkingMode::Maintain => Kilowatts::ZERO,

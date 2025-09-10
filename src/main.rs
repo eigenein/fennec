@@ -92,34 +92,29 @@ async fn main() -> Result {
                 .build()
                 .run()?;
 
-            for ((((hour, rate), working_mode), forecast), solar_power) in (starting_hour..)
-                .zip(hourly_rates)
-                .zip(&solution.working_mode_sequence)
-                .zip(&solution.outcome.forecast)
-                .zip(solar_power)
+            for (((hour, rate), step), solar_power) in
+                (starting_hour..).zip(hourly_rates).zip(&solution.outcome.steps).zip(solar_power)
             {
                 info!(
                     "Plan",
                     hour = (hour % 24).to_string(),
                     rate = format!("¢{:.0}", rate * Decimal::ONE_HUNDRED),
                     solar = format!("{:.2}㎾", solar_power),
-                    before = format!("{:.2}", forecast.residual_energy_before),
-                    mode = format!("{working_mode:?}"),
-                    grid = format!("{:.2}", forecast.grid_energy_used),
-                    after = format!("{:.2}", forecast.residual_energy_after),
-                    profit = format!("¢{:.0}", forecast.net_profit * 100.0),
+                    before = format!("{:.2}", step.residual_energy_before),
+                    mode = format!("{:?}", step.working_mode),
+                    grid = format!("{:.2}", step.grid_energy_used),
+                    after = format!("{:.2}", step.residual_energy_after),
+                    profit = format!("¢{:.0}", step.net_profit * 100.0),
                 );
             }
             info!(
                 "Optimized",
-                max_charge_rate = solution.strategy.max_charging_rate.map(
-                    |max_charging_rate| format!("¢{:.0}", max_charging_rate * Decimal::ONE_HUNDRED)
+                max_charge_rate =
+                    format!("¢{:.0}", solution.strategy.max_charging_rate * Decimal::ONE_HUNDRED),
+                min_discharge_rate = format!(
+                    "¢{:.0}",
+                    solution.strategy.min_discharging_rate * Decimal::ONE_HUNDRED
                 ),
-                min_discharge_rate =
-                    solution.strategy.min_discharging_rate.map(|min_discharging_rate| format!(
-                        "¢{:.0}",
-                        min_discharging_rate * Decimal::ONE_HUNDRED
-                    )),
                 net_profit = format!("€{:.2}", solution.outcome.net_profit),
                 residual_energy_value = format!("€{:.2}", solution.outcome.residual_energy_value),
                 total_profit = format!("€{:.2}", solution.outcome.total_profit()),
@@ -127,7 +122,7 @@ async fn main() -> Result {
 
             let schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
                 starting_hour,
-                solution.working_mode_sequence,
+                solution.outcome.steps.iter().map(|step| step.working_mode),
             );
 
             let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(

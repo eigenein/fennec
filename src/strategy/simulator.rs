@@ -3,7 +3,7 @@ use chrono::TimeDelta;
 
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
-    strategy::WorkingMode,
+    strategy::{Strategy, WorkingMode},
     units::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
@@ -19,7 +19,7 @@ pub struct Outcome {
     pub residual_energy_value: Cost,
 
     /// Hourly forecast.
-    pub forecast: Vec<Forecast>,
+    pub steps: Vec<HourStep>,
 }
 
 impl Outcome {
@@ -29,7 +29,8 @@ impl Outcome {
     }
 }
 
-pub struct Forecast {
+pub struct HourStep {
+    pub working_mode: WorkingMode,
     pub residual_energy_before: KilowattHours,
     pub residual_energy_after: KilowattHours,
     pub grid_energy_used: KilowattHours,
@@ -40,7 +41,7 @@ pub struct Forecast {
 pub struct Simulator<'a> {
     hourly_rates: &'a [KilowattHourRate],
     solar_power: &'a [Kilowatts],
-    working_mode_sequence: &'a [WorkingMode],
+    strategy: Strategy,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery: &'a BatteryArgs,
@@ -56,16 +57,23 @@ impl Simulator<'_> {
         let mut net_profit = Cost::ZERO;
         let mut forecast = Vec::with_capacity(self.hourly_rates.len());
 
-        for ((rate, working_mode), solar_power) in
-            self.hourly_rates.iter().zip(self.working_mode_sequence.as_ref()).zip(self.solar_power)
+        for (rate, solar_power) in
+            self.hourly_rates.iter().copied().zip(self.solar_power.iter().copied())
         {
             let residual_energy_before = current_residual_energy;
 
             // Here's what's happening at the battery connection point:
+            let working_mode = if rate <= self.strategy.max_charging_rate {
+                WorkingMode::Charging
+            } else if rate >= self.strategy.min_discharging_rate {
+                WorkingMode::Discharging
+            } else {
+                WorkingMode::Maintain
+            };
             let power_balance = match working_mode {
                 WorkingMode::Charging => self.battery.charging_power,
                 WorkingMode::Discharging => self.battery.discharging_power,
-                WorkingMode::Balancing => *solar_power + self.consumption.stand_by_power,
+                WorkingMode::Balancing => solar_power + self.consumption.stand_by_power,
                 WorkingMode::Maintain => Kilowatts::ZERO,
             };
 
@@ -77,7 +85,7 @@ impl Simulator<'_> {
                 assert!(billable_energy_differential.is_non_negative());
 
                 // Calculate the distribution between the available grid and PV energy:
-                let pv_energy_used = (*solar_power * ONE_HOUR).min(billable_energy_differential);
+                let pv_energy_used = (solar_power * ONE_HOUR).min(billable_energy_differential);
                 let grid_energy_used = billable_energy_differential - pv_energy_used;
                 assert!(pv_energy_used.is_non_negative());
                 assert!(grid_energy_used.is_non_negative());
@@ -85,20 +93,21 @@ impl Simulator<'_> {
                 // Calculate the associated costs:
                 let hour_net_profit =
                     // For PV energy, we estimate the lost profit without the purchase fees:
-                    -pv_energy_used * (*rate - self.consumption.purchase_fees)
+                    -pv_energy_used * (rate - self.consumption.purchase_fees)
                     // For grid energy, we are buying it at the full rate:
-                    - grid_energy_used * *rate;
+                    - grid_energy_used * rate;
                 net_profit += hour_net_profit;
 
                 // Update current residual energy taking the efficiency into account:
                 current_residual_energy +=
                     billable_energy_differential * self.battery.charging_efficiency;
 
-                forecast.push(Forecast {
+                forecast.push(HourStep {
                     residual_energy_after: current_residual_energy,
                     grid_energy_used,
                     residual_energy_before,
                     net_profit: hour_net_profit,
+                    working_mode,
                 });
             }
             // Discharging:
@@ -131,19 +140,20 @@ impl Simulator<'_> {
                 );
                 let hour_net_profit =
                     // Equivalent stand-by consumption from the grid would be billed with the full rate:
-                    -stand_by_differential * *rate
+                    -stand_by_differential * rate
                     // The rest we sell a little cheaper, without the purchase fees:
-                    - grid_differential * (*rate - self.consumption.purchase_fees);
+                    - grid_differential * (rate - self.consumption.purchase_fees);
                 net_profit += hour_net_profit;
 
                 // Update current residual energy:
                 current_residual_energy += internal_energy_differential;
 
-                forecast.push(Forecast {
+                forecast.push(HourStep {
                     residual_energy_after: current_residual_energy,
                     grid_energy_used: grid_differential,
                     residual_energy_before,
                     net_profit: hour_net_profit,
+                    working_mode,
                 });
             }
         }
@@ -163,7 +173,7 @@ impl Simulator<'_> {
             }
         };
 
-        Outcome { net_profit, residual_energy_value, forecast }
+        Outcome { net_profit, residual_energy_value, steps: forecast }
     }
 }
 
@@ -183,18 +193,13 @@ mod tests {
             KilowattHourRate(dec!(4.0)),
             KilowattHourRate(dec!(5.0)),
         ];
-        let working_mode_sequence = [
-            WorkingMode::Charging,    // +3 kWh, -3 euro
-            WorkingMode::Charging,    // battery is capped at 4 kWh
-            WorkingMode::Balancing,   // -1 kWh, +3 euro
-            WorkingMode::Discharging, //-2 kWh, +8 euro
-            WorkingMode::Discharging, // battery is capped at 1 kWh
-        ];
-        let solar_energy = [Kilowatts(0.0); 5];
         let outcome = Simulator::builder()
             .hourly_rates(&rates)
-            .solar_power(&solar_energy)
-            .working_mode_sequence(&working_mode_sequence)
+            .solar_power(&[Kilowatts(0.0); 5])
+            .strategy(Strategy {
+                max_charging_rate: KilowattHourRate(dec!(2.0)),
+                min_discharging_rate: KilowattHourRate(dec!(4.0)),
+            })
             .residual_energy(KilowattHours(1.0))
             .capacity(KilowattHours(4.0))
             .battery(&BatteryArgs {
@@ -210,6 +215,17 @@ mod tests {
             })
             .build()
             .run();
-        assert_eq!(outcome.net_profit.0, 8.0);
+
+        assert_eq!(
+            outcome.steps.iter().map(|step| step.working_mode).collect::<Vec<_>>(),
+            [
+                WorkingMode::Charging, // +3 kWh, -3 euro
+                WorkingMode::Charging, // battery is capped at 4 kWh
+                WorkingMode::Maintain,
+                WorkingMode::Discharging, // -2 kWh, +8 euro
+                WorkingMode::Discharging, // -1 kWh, +5 euro, battery is further capped at 1 kWh
+            ]
+        );
+        assert_eq!(outcome.net_profit.0, 10.0);
     }
 }

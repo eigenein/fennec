@@ -8,7 +8,6 @@ use crate::{
     prelude::*,
     strategy::{
         Strategy,
-        WorkingMode,
         simulator::{Outcome, Simulator},
     },
     units::{energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
@@ -17,7 +16,6 @@ use crate::{
 pub struct Solution {
     pub outcome: Outcome,
     pub strategy: Strategy,
-    pub working_mode_sequence: Vec<WorkingMode>,
 }
 
 #[derive(Builder)]
@@ -44,28 +42,10 @@ impl Optimizer<'_> {
 
         Strategy::iter_from_rates(&unique_rates)
             .map(|strategy| {
-                let working_mode_sequence: Vec<WorkingMode> = self
-                    .hourly_rates
-                    .iter()
-                    .copied()
-                    .map(|hourly_rate| {
-                        if let Some(max_charging_rate) = strategy.max_charging_rate
-                            && hourly_rate <= max_charging_rate
-                        {
-                            WorkingMode::Charging
-                        } else if let Some(min_discharging_rate) = strategy.min_discharging_rate
-                            && hourly_rate >= min_discharging_rate
-                        {
-                            WorkingMode::Discharging
-                        } else {
-                            WorkingMode::Maintain
-                        }
-                    })
-                    .collect();
                 let outcome = Simulator::builder()
                     .hourly_rates(self.hourly_rates)
                     .solar_power(self.solar_power)
-                    .working_mode_sequence(&working_mode_sequence)
+                    .strategy(strategy)
                     .residual_energy(self.residual_energy)
                     .capacity(self.capacity)
                     .battery(self.battery)
@@ -74,11 +54,11 @@ impl Optimizer<'_> {
                     .run();
                 trace!(
                     "Simulated",
-                    max_charging_rate = format!("{:?}", strategy.max_charging_rate),
-                    min_discharging_rate = format!("{:?}", strategy.min_discharging_rate),
+                    max_charging_rate = strategy.max_charging_rate.to_string(),
+                    min_discharging_rate = strategy.min_discharging_rate.to_string(),
                     profit = outcome.net_profit.to_string(),
                 );
-                Solution { outcome, strategy, working_mode_sequence }
+                Solution { outcome, strategy }
             })
             .max_by_key(|solution| solution.outcome.total_profit())
             .context("there is no solution")

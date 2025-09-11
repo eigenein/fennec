@@ -120,13 +120,22 @@ impl TimeSlotSequence {
         schedule: &WorkingModeHourlySchedule<N>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
-        schedule
+        let chunks = schedule
             .iter(starting_hour)
             .chunk_by(|(hour, working_mode)| (*hour >= starting_hour, *working_mode))
             .into_iter()
             .map(|(working_mode, group)| {
                 (working_mode, group.map(|(hour, _)| hour).collect::<Vec<_>>())
             })
+            .collect::<Vec<_>>();
+        if chunks.len() > 8 {
+            warn!(
+                "Last schedule groups will be dropped and it is okay",
+                n_dropped = chunks.len() - 8,
+            );
+        }
+        let time_slots = chunks
+            .into_iter()
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
             .map(|((_, working_mode), hours)| {
                 let feed_power = match working_mode {
@@ -159,8 +168,8 @@ impl TimeSlotSequence {
                 );
                 Ok(time_slot)
             })
-            .collect::<Result<_>>()
-            .map(Self)
+            .collect::<Result<_>>()?;
+        Ok(Self(time_slots))
     }
 
     pub fn trace(&self) {

@@ -22,8 +22,6 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 - Household standby power consumption
 - Energy feed-in tariff («inkoopvergoeding»)
 
-It optimizes two parameters: maximum charging rate and minimum discharge threshold to maximize profit.
-
 Fennec is designed to run as a cron job, continuously refining and updating the schedule.
 
 ## Caveats

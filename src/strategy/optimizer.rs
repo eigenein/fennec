@@ -24,17 +24,19 @@ impl Optimizer<'_> {
     #[instrument(name = "Optimising…", fields(residual_energy = %self.residual_energy), skip_all)]
     pub fn run(self) -> Result<Solution> {
         let rates = {
-            let (min_rate, max_rate) = self
-                .hourly_rates
-                .iter()
-                .copied()
-                .minmax_by(|lhs, rhs| lhs.partial_cmp(rhs).unwrap_or(Ordering::Equal))
-                .into_option()
-                .unwrap();
-            let mut rate = min_rate;
+            let (mut rate, max_rate) = {
+                let (min_rate, max_rate) = self
+                    .hourly_rates
+                    .iter()
+                    .copied()
+                    .minmax_by(|lhs, rhs| lhs.partial_cmp(rhs).unwrap_or(Ordering::Equal))
+                    .into_option()
+                    .unwrap();
+                (min_rate - KilowattHourRate::CENT, max_rate + KilowattHourRate::HALF_CENT)
+            };
             from_fn(move || {
                 let current_rate = rate;
-                rate += KilowattHourRate::from(0.005);
+                rate += KilowattHourRate::HALF_CENT;
                 if current_rate <= max_rate { Some(current_rate) } else { None }
             })
         };

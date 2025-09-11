@@ -5,6 +5,11 @@ use crate::units::{Cost, Hours, Kilowatts, Quantity};
 /// Euro per kilowatt-hour.
 pub type KilowattHourRate = Quantity<f64, 1, 0, 1, -1>;
 
+impl KilowattHourRate {
+    pub const HALF_CENT: Self = Quantity(0.005);
+    pub const CENT: Self = Quantity(0.01);
+}
+
 /// Euro per hour.
 pub type HourRate = Quantity<f64, 0, 0, -1, 1>;
 

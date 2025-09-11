@@ -1,10 +1,8 @@
+mod api;
 mod cli;
-mod foxess;
-mod nextenergy;
 mod prelude;
 mod strategy;
 mod units;
-mod weerlive;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
@@ -12,13 +10,11 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
+    api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowCommand, Command},
-    foxess::{FoxEseTimeSlotSequence, FoxEssApi},
-    nextenergy::NextEnergy,
     prelude::*,
     strategy::{Optimizer, WorkingModeHourlySchedule},
     units::Kilowatts,
-    weerlive::{Location, Weerlive},
 };
 
 #[expect(clippy::too_many_lines)]
@@ -32,7 +28,7 @@ async fn main() -> Result {
         .shutdown_guard();
 
     let args = Args::parse();
-    let fox_ess_api = FoxEssApi::try_new(args.fox_ess_api.api_key)?;
+    let foxess = FoxEss::try_new(args.fox_ess_api.api_key)?;
 
     match args.command {
         Command::Hunt(hunt_args) => {
@@ -54,11 +50,11 @@ async fn main() -> Result {
 
             let (residual_energy, total_capacity) = {
                 (
-                    fox_ess_api
+                    foxess
                         .get_device_variables(&args.fox_ess_api.serial_number)
                         .await?
                         .residual_energy,
-                    fox_ess_api
+                    foxess
                         .get_device_details(&args.fox_ess_api.serial_number)
                         .await?
                         .total_capacity(),
@@ -68,7 +64,7 @@ async fn main() -> Result {
 
             let solar_power: Vec<_> = Weerlive::new(
                 &hunt_args.solar.weerlive_api_key,
-                &Location::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
+                &WeerliveLocation::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
             )
             .get(now)
             .await?
@@ -121,34 +117,31 @@ async fn main() -> Result {
                 solution.plan.steps.iter().map(|step| step.working_mode),
             );
 
-            let time_slot_sequence = FoxEseTimeSlotSequence::from_schedule(
+            let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(
                 starting_hour as usize,
                 &schedule,
                 &hunt_args.battery,
             )?;
 
             if !hunt_args.scout {
-                fox_ess_api
-                    .set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence)
-                    .await?;
+                foxess.set_schedule(&args.fox_ess_api.serial_number, &time_slot_sequence).await?;
             }
         }
 
         Command::Burrow(burrow_args) => match burrow_args.command {
             BurrowCommand::DeviceDetails => {
-                let details =
-                    fox_ess_api.get_device_details(&args.fox_ess_api.serial_number).await?;
+                let details = foxess.get_device_details(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", total_capacity = details.total_capacity());
             }
 
             BurrowCommand::DeviceVariables => {
                 let variables =
-                    fox_ess_api.get_device_variables(&args.fox_ess_api.serial_number).await?;
+                    foxess.get_device_variables(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", residual_energy = variables.residual_energy);
             }
 
             BurrowCommand::RawDeviceVariables => {
-                let response = fox_ess_api
+                let response = foxess
                     .get_devices_variables_raw(&[args.fox_ess_api.serial_number.as_str()])
                     .await?;
                 info!("Gotcha!");
@@ -167,7 +160,7 @@ async fn main() -> Result {
             }
 
             BurrowCommand::Schedule => {
-                let schedule = fox_ess_api.get_schedule(&args.fox_ess_api.serial_number).await?;
+                let schedule = foxess.get_schedule(&args.fox_ess_api.serial_number).await?;
                 info!("Gotcha", enabled = schedule.is_enabled);
                 schedule.groups.trace();
             }

@@ -191,16 +191,8 @@ pub enum WorkingMode {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        cli::BatteryArgs,
-        foxess::{
-            FoxEssTimeSlot,
-            schedule::{EndTime, StartTime, TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
-        },
-        prelude::*,
-        strategy::{WorkingMode, WorkingModeHourlySchedule},
-        units::Kilowatts,
-    };
+    use super::*;
+    use crate::strategy::WorkingMode as StrategyWorkingMode;
 
     #[test]
     fn test_start_time_try_from_ok() -> Result {
@@ -223,11 +215,11 @@ mod tests {
     #[test]
     fn test_from_daily_schedule_ok() -> Result {
         let schedule = [
-            WorkingMode::Charging,
-            WorkingMode::Charging,
-            WorkingMode::Discharging,
-            WorkingMode::Balancing,
-            WorkingMode::Maintain,
+            StrategyWorkingMode::Charging,
+            StrategyWorkingMode::Charging,
+            StrategyWorkingMode::Discharging,
+            StrategyWorkingMode::Balancing,
+            StrategyWorkingMode::Maintain,
         ];
         let time_slot_sequence = TimeSlotSequence::from_schedule(
             2,
@@ -242,7 +234,7 @@ mod tests {
         assert_eq!(
             time_slot_sequence.0,
             [
-                FoxEssTimeSlot {
+                TimeSlot {
                     is_enabled: true,
                     start_time: StartTime { hour: 2, minute: 0 },
                     end_time: EndTime { hour: 3, minute: 0 },
@@ -250,9 +242,9 @@ mod tests {
                     min_soc_on_grid: 10,
                     feed_soc: 10,
                     feed_power_watts: 800,
-                    working_mode: FoxEssWorkingMode::ForceDischarge,
+                    working_mode: WorkingMode::ForceDischarge,
                 },
-                FoxEssTimeSlot {
+                TimeSlot {
                     is_enabled: true,
                     start_time: StartTime { hour: 3, minute: 0 },
                     end_time: EndTime { hour: 4, minute: 0 },
@@ -260,9 +252,9 @@ mod tests {
                     min_soc_on_grid: 10,
                     feed_soc: 10,
                     feed_power_watts: 1200,
-                    working_mode: FoxEssWorkingMode::SelfUse,
+                    working_mode: WorkingMode::SelfUse,
                 },
-                FoxEssTimeSlot {
+                TimeSlot {
                     is_enabled: true,
                     start_time: StartTime { hour: 4, minute: 0 },
                     end_time: EndTime { hour: 4, minute: 59 },
@@ -270,9 +262,9 @@ mod tests {
                     min_soc_on_grid: 10,
                     feed_soc: 10,
                     feed_power_watts: 0,
-                    working_mode: FoxEssWorkingMode::ForceCharge,
+                    working_mode: WorkingMode::ForceCharge,
                 },
-                FoxEssTimeSlot {
+                TimeSlot {
                     is_enabled: true,
                     start_time: StartTime { hour: 0, minute: 0 },
                     end_time: EndTime { hour: 2, minute: 0 },
@@ -280,7 +272,7 @@ mod tests {
                     min_soc_on_grid: 10,
                     feed_soc: 10,
                     feed_power_watts: 1200,
-                    working_mode: FoxEssWorkingMode::ForceCharge,
+                    working_mode: WorkingMode::ForceCharge,
                 },
             ]
         );

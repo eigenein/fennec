@@ -9,9 +9,9 @@ use serde_with::serde_as;
 
 use crate::{prelude::*, units::KilowattHourRate};
 
-pub struct NextEnergy(Client);
+pub struct Api(Client);
 
-impl NextEnergy {
+impl Api {
     pub fn try_new() -> Result<Self> {
         Ok(Self(Client::builder().build()?))
     }
@@ -147,7 +147,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "makes the API request"]
     async fn test_get_hourly_rates_ok() -> Result {
-        let points = NextEnergy::try_new()?.get_hourly_rates(Local::now().date_naive(), 0).await?;
+        let points = Api::try_new()?.get_hourly_rates(Local::now().date_naive(), 0).await?;
         assert_eq!(points.len(), 24);
         Ok(())
     }

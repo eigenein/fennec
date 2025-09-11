@@ -5,7 +5,7 @@ use serde_with::serde_as;
 
 use crate::{prelude::*, units::PowerDensity};
 
-pub struct Weerlive {
+pub struct Api {
     client: Client,
     url: String,
 }
@@ -26,7 +26,7 @@ impl Location {
     }
 }
 
-impl Weerlive {
+impl Api {
     pub fn new(api_key: &str, location: &Location) -> Self {
         let url = match location {
             Location::Name(name) => {
@@ -101,7 +101,7 @@ mod tests {
     #[ignore = "online test"]
     async fn test_get_ok() -> Result {
         let now = Local::now();
-        Weerlive::new("demo", &Location::Name("Amsterdam")).get(now).await?;
+        Api::new("demo", &Location::Name("Amsterdam")).get(now).await?;
         // TODO: add assertions.
         Ok(())
     }

@@ -1,22 +1,23 @@
+mod models;
+mod response;
+mod schedule;
+
 use chrono::Utc;
+use models::DeviceDetails;
 use reqwest::{
     Client,
     Method,
     header::{HeaderMap, HeaderValue},
 };
+use response::Response;
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::{
-    foxess::{
-        DeviceDetails,
-        DeviceRealTimeData,
-        DeviceVariables,
-        FoxEssSchedule,
-        FoxEssTimeSlot,
-        response::Response,
-    },
-    prelude::*,
+pub use self::schedule::TimeSlotSequence;
+use self::{
+    models::{DeviceRealTimeData, DeviceVariables},
+    schedule::{Schedule, TimeSlot},
 };
+use crate::prelude::*;
 
 pub struct Api {
     client: Client,
@@ -94,7 +95,7 @@ impl Api {
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number), name = "Fetching the device schedule…")]
-    pub async fn get_schedule(&self, serial_number: &str) -> Result<FoxEssSchedule> {
+    pub async fn get_schedule(&self, serial_number: &str) -> Result<Schedule> {
         #[derive(Serialize)]
         struct GetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]
@@ -112,14 +113,14 @@ impl Api {
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number), name = "Setting the device schedule…")]
-    pub async fn set_schedule(&self, serial_number: &str, groups: &[FoxEssTimeSlot]) -> Result {
+    pub async fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]
             serial_number: &'a str,
 
             #[serde(rename = "groups")]
-            groups: &'a [FoxEssTimeSlot],
+            groups: &'a [TimeSlot],
         }
 
         self.call(

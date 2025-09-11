@@ -104,9 +104,9 @@ async fn main() -> Result {
             }
             info!(
                 "Optimized",
-                max_charge_rate = format!("¢{:.0}", solution.strategy.max_charging_rate * 100.0),
+                max_charge_rate = format!("¢{:.1}", solution.strategy.max_charging_rate * 100.0),
                 min_discharge_rate =
-                    format!("¢{:.0}", solution.strategy.min_discharging_rate * 100.0),
+                    format!("¢{:.1}", solution.strategy.min_discharging_rate * 100.0),
                 net_profit = format!("€{:.2}", solution.plan.net_profit),
                 residual_energy_value = format!("€{:.2}", solution.plan.residual_energy_value),
                 total_profit = format!("€{:.2}", solution.plan.total_profit()),

@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use bon::Builder;
 use itertools::Itertools;
 
@@ -34,14 +32,14 @@ impl<S: strategy_builder::IsComplete> StrategyBuilder<S> {
 
 impl Strategy {
     /// Generate all possible strategies given the unique future rates.
-    pub fn iter_from_rates(rates: &BTreeSet<KilowattHourRate>) -> impl Iterator<Item = Self> {
-        rates.iter().copied().array_combinations().map(
-            |[max_charging_rate, min_discharging_rate]| {
-                Self::builder()
-                    .max_charging_rate(max_charging_rate)
-                    .min_discharging_rate(min_discharging_rate)
-                    .build()
-            },
-        )
+    pub fn iter_from_rates(
+        rates: impl Iterator<Item = KilowattHourRate> + Clone,
+    ) -> impl Iterator<Item = Self> {
+        rates.array_combinations().map(|[max_charging_rate, min_discharging_rate]| {
+            Self::builder()
+                .max_charging_rate(max_charging_rate)
+                .min_discharging_rate(min_discharging_rate)
+                .build()
+        })
     }
 }

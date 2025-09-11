@@ -1,6 +1,7 @@
-use std::collections::BTreeSet;
+use std::{cmp::Ordering, iter::from_fn};
 
 use bon::Builder;
+use itertools::Itertools;
 
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
@@ -22,10 +23,22 @@ pub struct Optimizer<'a> {
 impl Optimizer<'_> {
     #[instrument(name = "Optimising…", fields(residual_energy = %self.residual_energy), skip_all)]
     pub fn run(self) -> Result<Solution> {
-        // Find all possible thresholds:
-        let unique_rates = self.hourly_rates.iter().copied().collect::<BTreeSet<_>>();
-
-        Strategy::iter_from_rates(&unique_rates)
+        let rates = {
+            let (min_rate, max_rate) = self
+                .hourly_rates
+                .iter()
+                .copied()
+                .minmax_by(|lhs, rhs| lhs.partial_cmp(rhs).unwrap_or(Ordering::Equal))
+                .into_option()
+                .unwrap();
+            let mut rate = min_rate;
+            from_fn(move || {
+                let current_rate = rate;
+                rate += KilowattHourRate::from(0.005);
+                if current_rate <= max_rate { Some(current_rate) } else { None }
+            })
+        };
+        Strategy::iter_from_rates(rates)
             .map(|strategy| {
                 let plan = self.simulate(strategy);
                 trace!(
@@ -36,7 +49,12 @@ impl Optimizer<'_> {
                 );
                 Solution { strategy, plan }
             })
-            .max_by_key(|solution| solution.plan.total_profit())
+            .max_by(|lhs, rhs| {
+                lhs.plan
+                    .total_profit()
+                    .partial_cmp(&rhs.plan.total_profit())
+                    .unwrap_or(Ordering::Equal)
+            })
             .context("there is no solution")
     }
 

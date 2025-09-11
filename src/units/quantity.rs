@@ -1,6 +1,5 @@
 use std::ops::{Div, Mul};
 
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 #[derive(
@@ -67,12 +66,6 @@ impl<const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize
     pub const ONE: Self = Self(1.0);
 }
 
-impl<const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize>
-    Quantity<OrderedFloat<f64>, POWER, AREA, TIME, COST>
-{
-    pub const ZERO: Self = Self(OrderedFloat(0.0));
-}
-
 impl<L, R, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Mul<R>
     for Quantity<L, POWER, AREA, TIME, COST>
 where
@@ -85,15 +78,27 @@ where
     }
 }
 
-impl<L, R, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Div<R>
-    for Quantity<L, POWER, AREA, TIME, COST>
+impl<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Div<Self>
+    for Quantity<T, POWER, AREA, TIME, COST>
 where
-    L: Div<R>,
+    T: Div<T, Output = T>,
 {
-    type Output = Quantity<L::Output, POWER, AREA, TIME, COST>;
+    type Output = Bare<T>;
 
-    fn div(self, rhs: R) -> Self::Output {
-        Quantity(self.0 / rhs)
+    fn div(self, rhs: Self) -> Self::Output {
+        Quantity(self.0 / rhs.0)
+    }
+}
+
+impl<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Div<T>
+    for Quantity<T, POWER, AREA, TIME, COST>
+where
+    T: Div<T, Output = T>,
+{
+    type Output = Self;
+
+    fn div(self, rhs: T) -> Self::Output {
+        Self(self.0 / rhs)
     }
 }
 

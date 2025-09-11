@@ -23,6 +23,6 @@ impl Mul<KilowattHourRate> for Kilowatts {
     type Output = HourRate;
 
     fn mul(self, rhs: KilowattHourRate) -> Self::Output {
-        Quantity(self.0 * f64::from(rhs.0))
+        Quantity(self.0 * rhs.0)
     }
 }

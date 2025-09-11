@@ -23,7 +23,11 @@ pub struct Optimizer<'a> {
 }
 
 impl Optimizer<'_> {
-    #[instrument(name = "Optimising…", fields(residual_energy = %self.residual_energy), skip_all)]
+    #[instrument(
+        name = "Optimising…",
+        fields(residual_energy = %self.residual_energy, n_steps = self.n_steps),
+        skip_all,
+    )]
     pub fn run(self) -> Solution {
         let n_hours = self.hourly_rates.len().min(self.solar_power.len());
         let best_plan: Mutex<(Vec<WorkingMode>, Option<Plan>)> =

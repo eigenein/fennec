@@ -80,8 +80,9 @@ async fn main() -> Result {
                 .capacity(total_capacity)
                 .battery(&hunt_args.battery)
                 .consumption(&hunt_args.consumption)
+                .n_steps(hunt_args.n_optimization_steps)
                 .build()
-                .run()?;
+                .run();
 
             for (((hour, rate), step), solar_power) in
                 (starting_hour..).zip(hourly_rates).zip(&solution.plan.steps).zip(solar_power)
@@ -89,27 +90,20 @@ async fn main() -> Result {
                 info!(
                     "Plan",
                     hour = (hour % 24).to_string(),
-                    rate = format!(
-                        "¢{:.0}/↓{:.1}/↑{:.1}",
-                        rate * 100.0,
-                        step.effective_charging_rate * 100.0,
-                        step.effective_discharging_rate * 100.0
-                    ),
+                    rate = format!("¢{:.0}", rate * 100.0),
                     solar = format!("{:.2}㎾", solar_power),
                     before = format!("{:.2}", step.residual_energy_before),
                     mode = format!("{:?}", step.working_mode),
                     after = format!("{:.2}", step.residual_energy_after),
-                    profit = format!("¢{:.0}", step.profit * 100.0),
+                    total = format!("{:.2}", step.total_consumption),
+                    loss = format!("¢{:.0}", step.loss * 100.0),
                 );
             }
             info!(
                 "Optimized",
-                max_charge_rate = format!("¢{:.1}", solution.strategy.max_charging_rate * 100.0),
-                min_discharge_rate =
-                    format!("¢{:.1}", solution.strategy.min_discharging_rate * 100.0),
-                net_profit = format!("€{:.2}", solution.plan.net_profit),
-                residual_energy_value = format!("€{:.2}", solution.plan.residual_energy_value),
-                total_profit = format!("€{:.2}", solution.plan.total_profit()),
+                net_loss = format!("¢{:.0}", solution.plan.net_loss * 100.0),
+                without_battery = format!("¢{:.0}", solution.plan.net_loss_without_battery * 100.0),
+                profit = format!("¢{:.0}", solution.plan.profit() * 100.0),
             );
 
             let schedule = WorkingModeHourlySchedule::<24>::from_working_modes(

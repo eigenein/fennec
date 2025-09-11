@@ -53,7 +53,7 @@ mod tests {
             WorkingMode::Charging,    // index 1
             WorkingMode::Discharging, // index 2
             WorkingMode::Discharging, // index 0
-            WorkingMode::Maintain,    // overflow and must be ignored
+            WorkingMode::Maintaining, // overflow and must be ignored
         ];
         let schedule = WorkingModeHourlySchedule::<3>::from_working_modes(1, working_modes);
         assert_eq!(
@@ -67,13 +67,17 @@ mod tests {
         let actual: Vec<_> = WorkingModeHourlySchedule([
             WorkingMode::Charging,
             WorkingMode::Discharging,
-            WorkingMode::Maintain,
+            WorkingMode::Maintaining,
         ])
         .iter(1)
         .collect();
         assert_eq!(
             actual,
-            [(1, WorkingMode::Discharging), (2, WorkingMode::Maintain), (0, WorkingMode::Charging)]
+            [
+                (1, WorkingMode::Discharging),
+                (2, WorkingMode::Maintaining),
+                (0, WorkingMode::Charging)
+            ]
         );
     }
 }

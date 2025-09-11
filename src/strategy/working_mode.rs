@@ -12,5 +12,5 @@ pub enum WorkingMode {
 
     /// Do not do anything.
     #[default]
-    Maintain,
+    Maintaining,
 }

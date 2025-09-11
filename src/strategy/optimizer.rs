@@ -72,7 +72,6 @@ impl Optimizer<'_> {
                 let internal_consumption =
                     self.battery.discharging_power.min(self.consumption.stand_by);
                 let grid_export = self.battery.discharging_power - internal_consumption;
-                assert_eq!(internal_consumption + grid_export, self.battery.discharging_power);
 
                 // Internal consumption compensates the full rate:
                 internal_consumption * rate
@@ -81,20 +80,22 @@ impl Optimizer<'_> {
             } / self.battery.discharging_power;
             let is_discharging_allowed = discharging_rate >= strategy.min_discharging_rate;
 
+            let is_balancing_allowed = is_charging_allowed
+                && (
+                    // With balancing, we do not export energy, so we're effectively covering the full rate:
+                    rate >= strategy.min_discharging_rate
+                    // Just in case, but should be implied by the previous clause:
+                    || is_discharging_allowed
+                );
+
             // Figure out the working mode and effective power:
-            let (working_mode, power) = if is_charging_allowed {
-                if is_discharging_allowed {
-                    // «Self-use», so covering the deficit and accumulating the excess:
-                    (WorkingMode::Balancing, power_balance)
-                } else {
-                    // Forcibly charging:
-                    (WorkingMode::Charging, self.battery.charging_power)
-                }
+            let (working_mode, power) = if is_balancing_allowed {
+                (WorkingMode::Balancing, power_balance)
+            } else if is_charging_allowed {
+                (WorkingMode::Charging, self.battery.charging_power)
             } else if is_discharging_allowed {
-                // Forcibly discharging:
                 (WorkingMode::Discharging, -self.battery.discharging_power)
             } else {
-                // Just keep fingers crossed:
                 (WorkingMode::Maintain, Kilowatts::ZERO)
             };
 
@@ -103,20 +104,27 @@ impl Optimizer<'_> {
             current_residual_energy = if power > Kilowatts::ZERO {
                 // The actual residual energy grows slower:
                 (residual_energy_before + power * Hours::ONE * self.battery.efficiency)
+                    // And capped by the capacity:
                     .min(self.capacity)
             } else {
                 // The residual energy is spent faster:
                 (residual_energy_before + power * Hours::ONE / self.battery.efficiency)
+                    // And capped by the minimum SoC:
                     .max(min_residual_energy)
             };
 
             // And the step profit:
-            let profit = if power > Kilowatts::ZERO {
+            let profit = if power >= Kilowatts::ZERO {
+                // Charging:
                 assert!(residual_energy_before <= current_residual_energy);
                 (residual_energy_before - current_residual_energy) * charging_rate
-            } else {
-                assert!(residual_energy_before >= current_residual_energy);
+            } else if residual_energy_before > current_residual_energy {
+                // Discharging:
                 (residual_energy_before - current_residual_energy) * discharging_rate
+            } else {
+                // The battery is self-discharged.
+                current_residual_energy = residual_energy_before;
+                Cost::ZERO
             };
 
             steps.push(HourStep {
@@ -133,16 +141,22 @@ impl Optimizer<'_> {
         let residual_energy_value = {
             let usable_residual_energy =
                 steps.last().unwrap().residual_energy_after - min_residual_energy;
-            #[allow(clippy::cast_precision_loss)]
-            let average_buying_rate = self.hourly_rates.iter().copied().sum::<KilowattHourRate>()
-                / self.hourly_rates.len() as f64;
-            let average_selling_rate = average_buying_rate - self.consumption.purchase_fees;
             if usable_residual_energy >= KilowattHours::ZERO {
                 // Theoretical money we can make from selling it all at once:
-                usable_residual_energy * self.battery.efficiency * average_selling_rate
+                #[allow(clippy::cast_precision_loss)]
+                let average_discharging_rate = steps
+                    .iter()
+                    .map(|step| step.effective_discharging_rate)
+                    .sum::<KilowattHourRate>()
+                    / steps.len() as f64;
+                usable_residual_energy * self.battery.efficiency * average_discharging_rate
             } else {
                 // Uh-oh, we need to spend at least this much money to compensate the self-discharge:
-                usable_residual_energy / self.battery.efficiency * average_buying_rate
+                #[allow(clippy::cast_precision_loss)]
+                let average_charging_rate =
+                    steps.iter().map(|step| step.effective_charging_rate).sum::<KilowattHourRate>()
+                        / steps.len() as f64;
+                usable_residual_energy / self.battery.efficiency * average_charging_rate
             }
         };
 

@@ -69,7 +69,7 @@ async fn main() -> Result {
             .get(now)
             .await?
             .into_iter()
-            .map(|power| Kilowatts::from(power.0 * hunt_args.solar.pv_surface_square_meters))
+            .map(|density| density * hunt_args.solar.pv_surface)
             .collect();
             info!("Fetched solar power forecast", len = solar_power.len());
 

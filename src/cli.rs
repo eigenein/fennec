@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use crate::units::{KilowattHourRate, Kilowatts};
+use crate::units::{KilowattHourRate, Kilowatts, SurfaceArea};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]
@@ -100,7 +100,7 @@ pub struct SolarArgs {
     pub longitude: f64,
 
     #[clap(long = "pv-surface-m2", default_value = "2", env = "PV_SURFACE_M2")]
-    pub pv_surface_square_meters: f64,
+    pub pv_surface: SurfaceArea,
 
     #[clap(long = "weerlive-api-key", env = "WEERLIVE_API_KEY")]
     pub weerlive_api_key: String,

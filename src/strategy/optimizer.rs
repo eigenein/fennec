@@ -4,17 +4,17 @@ use bon::Builder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
-use super::{Plan, Solution, Step, WorkingMode, WorkingModeSchedule};
+use super::{Forecast, Plan, Solution, Step, WorkingMode, WorkingModeSchedule};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts},
+    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, SurfaceArea},
 };
 
 #[derive(Builder)]
 pub struct Optimizer<'a> {
-    hourly_rates: &'a [KilowattHourRate],
-    solar_power: &'a [Kilowatts],
+    forecast: &'a [Forecast],
+    pv_surface_area: SurfaceArea,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery: &'a BatteryArgs,
@@ -55,20 +55,15 @@ impl Optimizer<'_> {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
-        let mut steps = Vec::with_capacity(self.hourly_rates.len());
+        let mut steps = Vec::with_capacity(24);
 
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for ((grid_rate, solar_power), working_mode) in self
-            .hourly_rates
-            .iter()
-            .copied()
-            .zip(self.solar_power.iter().copied())
-            .zip(schedule.into_iter())
-        {
+        for (forecast, working_mode) in self.forecast.iter().copied().zip(schedule.into_iter()) {
             // Positive is excess, negative is deficit:
-            let production_power = solar_power - self.consumption.stand_by;
+            let production_power =
+                forecast.solar_power_density * self.pv_surface_area - self.consumption.stand_by;
 
             // Power flow to the battery (negative is directed from the battery):
             let battery_power = match working_mode {
@@ -102,9 +97,9 @@ impl Optimizer<'_> {
             let production_without_battery = production_power * Hours::ONE;
             let total_consumption = battery_external_consumption - production_without_battery;
 
-            let loss = self.loss(grid_rate, total_consumption);
+            let loss = self.loss(forecast.grid_rate, total_consumption);
             net_loss += loss;
-            net_loss_without_battery += self.loss(grid_rate, -production_without_battery);
+            net_loss_without_battery += self.loss(forecast.grid_rate, -production_without_battery);
 
             steps.push(Step {
                 working_mode,

@@ -13,7 +13,7 @@ use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowCommand, Command},
     prelude::*,
-    strategy::{Optimizer, WorkingModeSchedule},
+    strategy::{Forecast, Optimizer, WorkingModeSchedule},
     units::Kilowatts,
 };
 
@@ -40,13 +40,37 @@ async fn main() -> Result {
             let now = Local::now();
             let starting_hour = now.hour();
 
-            let next_energy = NextEnergy::try_new()?;
-            let mut hourly_rates =
-                next_energy.get_hourly_rates(now.date_naive(), starting_hour).await?;
-            hourly_rates.extend(
-                next_energy.get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0).await?,
-            );
-            info!("Fetched energy rates", len = hourly_rates.len());
+            let forecast: Vec<_> = {
+                let next_energy = NextEnergy::try_new()?;
+                let mut hourly_rates =
+                    next_energy.get_hourly_rates(now.date_naive(), starting_hour).await?;
+                hourly_rates.extend(
+                    next_energy
+                        .get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0)
+                        .await?,
+                );
+                info!("Fetched energy rates", len = hourly_rates.len());
+
+                let solar_power_density: Vec<_> = Weerlive::new(
+                    &hunt_args.solar.weerlive_api_key,
+                    &WeerliveLocation::coordinates(
+                        hunt_args.solar.latitude,
+                        hunt_args.solar.longitude,
+                    ),
+                )
+                .get(now)
+                .await?;
+                info!("Fetched solar power forecast", len = solar_power_density.len());
+
+                hourly_rates
+                    .into_iter()
+                    .zip(solar_power_density.into_iter())
+                    .map(|(rate, solar_power_density)| Forecast {
+                        grid_rate: rate,
+                        solar_power_density,
+                    })
+                    .collect()
+            };
 
             let (residual_energy, total_capacity) = {
                 (
@@ -62,21 +86,10 @@ async fn main() -> Result {
             };
             info!("Fetched battery details", residual_energy, total_capacity);
 
-            let solar_power: Vec<_> = Weerlive::new(
-                &hunt_args.solar.weerlive_api_key,
-                &WeerliveLocation::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
-            )
-            .get(now)
-            .await?
-            .into_iter()
-            .map(|density| density * hunt_args.solar.pv_surface)
-            .collect();
-            info!("Fetched solar power forecast", len = solar_power.len());
-
             let start_time = Utc::now();
             let solution = Optimizer::builder()
-                .hourly_rates(&hourly_rates)
-                .solar_power(&solar_power)
+                .forecast(&forecast)
+                .pv_surface_area(hunt_args.solar.pv_surface)
                 .residual_energy(residual_energy)
                 .capacity(total_capacity)
                 .battery(&hunt_args.battery)
@@ -86,18 +99,18 @@ async fn main() -> Result {
                 .run();
             let run_duration = Utc::now() - start_time;
 
-            for (((hour, rate), step), solar_power) in
-                (starting_hour..).zip(hourly_rates).zip(&solution.plan.steps).zip(solar_power)
+            for ((hour, forecast), step) in
+                (starting_hour..).zip(forecast.into_iter()).zip(&solution.plan.steps)
             {
                 info!(
                     "Plan",
                     hour = (hour % 24).to_string(),
-                    rate = format!("¢{:.0}", rate * 100.0),
-                    solar = format!("{:.2}㎾", solar_power),
+                    rate = format!("¢{:.0}", forecast.grid_rate * 100.0),
+                    solar = format!("{:.3}", forecast.solar_power_density),
                     before = format!("{:.2}", step.residual_energy_before),
                     mode = format!("{:?}", step.working_mode),
                     after = format!("{:.2}", step.residual_energy_after),
-                    total = format!("{:.2}", step.total_consumption),
+                    total = format!("{:+.2}", step.total_consumption),
                     loss = format!("¢{:.0}", step.loss * 100.0),
                 );
             }

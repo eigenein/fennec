@@ -51,8 +51,10 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         hunt_args.consumption.stand_by >= Kilowatts::ZERO,
         "stand-by consumption must be non-negative",
     );
-    let cache_path = Path::new("cache.pb");
-    let mut cache = Cache::read_from(cache_path);
+    let cache_path = Path::new("cache.json");
+    let mut cache = Cache::read_from(cache_path)
+        .inspect_err(|error| warn!("Failed to load the cache: {error:#}"))
+        .unwrap_or_default();
 
     let now = Local::now();
 
@@ -124,7 +126,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         profit = format!("¢{:.0}", solution.plan.profit() * 100.0),
     );
 
-    let schedule = WorkingModeSchedule::<24>::from_working_modes(
+    let schedule = WorkingModeSchedule::from_working_modes(
         now.hour(),
         solution.plan.steps.iter().map(|step| step.working_mode),
     );
@@ -136,7 +138,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;
     }
 
-    cache.write_to(cache_path);
+    cache.write_to(cache_path)?;
     Ok(())
 }
 

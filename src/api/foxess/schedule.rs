@@ -89,10 +89,9 @@ impl Display for EndTime {
 }
 
 impl EndTime {
-    pub fn try_from<const N: usize>(hour_inclusive: usize) -> Result<Self> {
+    pub fn try_from(hour_inclusive: usize) -> Result<Self> {
         // End time is exclusive, but FoxESS Cloud won't accept `00:00`…
-        let (hour, minute) =
-            if hour_inclusive == (N - 1) { (N - 1, 59) } else { (hour_inclusive + 1, 0) };
+        let (hour, minute) = if hour_inclusive == 23 { (23, 59) } else { (hour_inclusive + 1, 0) };
         Ok(Self { hour: u32::try_from(hour)?, minute })
     }
 }
@@ -115,9 +114,9 @@ pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
-    pub fn from_schedule<const N: usize>(
+    pub fn from_schedule(
         starting_hour: usize,
-        schedule: &WorkingModeSchedule<N>,
+        schedule: &WorkingModeSchedule,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
         let chunks = schedule
@@ -152,7 +151,7 @@ impl TimeSlotSequence {
                 let time_slot = TimeSlot {
                     is_enabled: true,
                     start_time: StartTime::try_from(*hours.first().unwrap())?,
-                    end_time: EndTime::try_from::<N>(*hours.last().unwrap())?,
+                    end_time: EndTime::try_from(*hours.last().unwrap())?,
                     max_soc: 100,
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,
@@ -201,7 +200,6 @@ pub enum WorkingMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::strategy::WorkingMode as StrategyWorkingMode;
 
     #[test]
     fn test_start_time_try_from_ok() -> Result {
@@ -211,80 +209,13 @@ mod tests {
 
     #[test]
     fn test_end_time_try_from_non_last_hour_ok() -> Result {
-        assert_eq!(EndTime::try_from::<24>(1)?, EndTime { hour: 2, minute: 0 });
+        assert_eq!(EndTime::try_from(1)?, EndTime { hour: 2, minute: 0 });
         Ok(())
     }
 
     #[test]
     fn test_end_time_try_from_last_hour_ok() -> Result {
-        assert_eq!(EndTime::try_from::<24>(23)?, EndTime { hour: 23, minute: 59 });
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_daily_schedule_ok() -> Result {
-        let schedule = [
-            StrategyWorkingMode::Charging,
-            StrategyWorkingMode::Charging,
-            StrategyWorkingMode::Discharging,
-            StrategyWorkingMode::Balancing,
-            StrategyWorkingMode::Maintaining,
-        ];
-        let time_slot_sequence = TimeSlotSequence::from_schedule(
-            2,
-            &WorkingModeSchedule::from(schedule),
-            &BatteryArgs {
-                charging_power: Kilowatts::from(1.2),
-                discharging_power: Kilowatts::from(0.8),
-                efficiency: 1.0,
-                min_soc_percent: 10,
-            },
-        )?;
-        assert_eq!(
-            time_slot_sequence.0,
-            [
-                TimeSlot {
-                    is_enabled: true,
-                    start_time: StartTime { hour: 2, minute: 0 },
-                    end_time: EndTime { hour: 3, minute: 0 },
-                    max_soc: 100,
-                    min_soc_on_grid: 10,
-                    feed_soc: 10,
-                    feed_power_watts: 800,
-                    working_mode: WorkingMode::ForceDischarge,
-                },
-                TimeSlot {
-                    is_enabled: true,
-                    start_time: StartTime { hour: 3, minute: 0 },
-                    end_time: EndTime { hour: 4, minute: 0 },
-                    max_soc: 100,
-                    min_soc_on_grid: 10,
-                    feed_soc: 10,
-                    feed_power_watts: 1200,
-                    working_mode: WorkingMode::SelfUse,
-                },
-                TimeSlot {
-                    is_enabled: true,
-                    start_time: StartTime { hour: 4, minute: 0 },
-                    end_time: EndTime { hour: 4, minute: 59 },
-                    max_soc: 100,
-                    min_soc_on_grid: 10,
-                    feed_soc: 10,
-                    feed_power_watts: 0,
-                    working_mode: WorkingMode::ForceCharge,
-                },
-                TimeSlot {
-                    is_enabled: true,
-                    start_time: StartTime { hour: 0, minute: 0 },
-                    end_time: EndTime { hour: 2, minute: 0 },
-                    max_soc: 100,
-                    min_soc_on_grid: 10,
-                    feed_soc: 10,
-                    feed_power_watts: 1200,
-                    working_mode: WorkingMode::ForceCharge,
-                },
-            ]
-        );
+        assert_eq!(EndTime::try_from(23)?, EndTime { hour: 23, minute: 59 });
         Ok(())
     }
 }

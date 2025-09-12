@@ -1,4 +1,4 @@
-cache.pb
+cache.json
 
 # Added by goreleaser init:
 dist/

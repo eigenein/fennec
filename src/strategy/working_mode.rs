@@ -1,14 +1,21 @@
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, prost::Enumeration)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum WorkingMode {
     /// Do not do anything.
-    Maintaining = 0,
+    #[default]
+    #[serde(rename = "M")]
+    Maintaining,
 
     /// Forced charging on any power.
-    Charging = 1,
+    #[serde(rename = "C")]
+    Charging,
 
     /// Forced discharging, no matter the actual consumption.
-    Discharging = 2,
+    #[serde(rename = "D")]
+    Discharging,
 
     /// Charge on excess PV power, discharge on insufficient PV power.
-    Balancing = 3,
+    #[serde(rename = "B")]
+    Balancing,
 }

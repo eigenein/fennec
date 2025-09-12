@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-pub use anyhow::{Context, Error, bail, ensure};
+pub use anyhow::{Context, Error, anyhow, bail, ensure};
 pub use logfire::{debug, error, info, trace, warn};
 pub use tracing::{Level, instrument};
 

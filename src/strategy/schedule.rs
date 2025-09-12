@@ -6,6 +6,23 @@ use crate::{prelude::*, strategy::WorkingMode};
 #[derive(Copy, Clone, Debug, derive_more::From, derive_more::IntoIterator)]
 pub struct WorkingModeSchedule<const N_HOURS: usize = 24>([WorkingMode; N_HOURS]);
 
+impl<const N_HOURS: usize> TryFrom<crate::cache::WorkingModeSchedule>
+    for WorkingModeSchedule<N_HOURS>
+{
+    type Error = Error;
+
+    /// Convert from the cached schedule.
+    fn try_from(schedule: crate::cache::WorkingModeSchedule) -> Result<Self> {
+        schedule
+            .into_iter()
+            .map(WorkingMode::try_from)
+            .collect::<Result<Vec<WorkingMode>, prost::UnknownEnumValue>>()?
+            .try_into()
+            .map_err(|original| anyhow!("invalid schedule: {original:?}"))
+            .map(Self)
+    }
+}
+
 impl<const N: usize> Default for WorkingModeSchedule<N> {
     fn default() -> Self {
         Self([WorkingMode::default(); N])

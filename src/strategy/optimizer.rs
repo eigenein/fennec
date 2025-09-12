@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    strategy::WorkingMode,
+    strategy::{WorkingMode, WorkingModeSchedule},
     units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts},
 };
 
@@ -29,23 +29,14 @@ impl Optimizer<'_> {
         skip_all,
     )]
     pub fn run(self) -> Solution {
-        let n_hours = self.hourly_rates.len().min(self.solar_power.len());
-        let best_plan: Mutex<(Vec<WorkingMode>, Option<Plan>)> =
-            Mutex::new((vec![WorkingMode::Maintaining; n_hours], None));
+        let best_plan: Mutex<(WorkingModeSchedule, Option<Plan>)> =
+            Mutex::new((WorkingModeSchedule::default(), None));
 
         (0..self.n_steps).into_par_iter().progress().for_each(|_| {
-            let mut working_modes = { best_plan.lock().unwrap().0.clone() };
-            for _ in 0..2 {
-                let new_mode = fastrand::choice([
-                    WorkingMode::Maintaining,
-                    WorkingMode::Balancing,
-                    WorkingMode::Charging,
-                    WorkingMode::Discharging,
-                ]);
-                working_modes[fastrand::usize(0..n_hours)] = new_mode.unwrap();
-            }
+            let mut schedule = { best_plan.lock().unwrap().0 };
+            schedule.mutate();
 
-            let tested_plan = self.simulate(&working_modes);
+            let tested_plan = self.simulate(&schedule);
 
             let mut best_plan = best_plan.lock().unwrap();
             if best_plan
@@ -53,14 +44,14 @@ impl Optimizer<'_> {
                 .as_ref()
                 .is_none_or(|best_plan| tested_plan.net_loss < best_plan.net_loss)
             {
-                *best_plan = (working_modes, Some(tested_plan));
+                *best_plan = (schedule, Some(tested_plan));
             }
         });
 
         Solution { plan: best_plan.into_inner().unwrap().1.unwrap() }
     }
 
-    fn simulate(&self, working_modes: &[WorkingMode]) -> Plan {
+    fn simulate(&self, schedule: &WorkingModeSchedule) -> Plan {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
@@ -74,7 +65,7 @@ impl Optimizer<'_> {
             .iter()
             .copied()
             .zip(self.solar_power.iter().copied())
-            .zip(working_modes.iter().copied())
+            .zip(schedule.into_iter())
         {
             // Positive is excess, negative is deficit:
             let production_power = solar_power - self.consumption.stand_by;

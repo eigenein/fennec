@@ -4,7 +4,7 @@ mod prelude;
 mod strategy;
 mod units;
 
-use chrono::{Local, TimeDelta, Timelike};
+use chrono::{Local, TimeDelta, Timelike, Utc};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
@@ -13,7 +13,7 @@ use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowCommand, Command},
     prelude::*,
-    strategy::{Optimizer, WorkingModeHourlySchedule},
+    strategy::{Optimizer, WorkingModeSchedule},
     units::Kilowatts,
 };
 
@@ -72,7 +72,7 @@ async fn main() -> Result {
             .map(|power| Kilowatts::from(power.0 * hunt_args.solar.pv_surface_square_meters))
             .collect();
 
-            hourly_rates.truncate(solar_power.len().min(24)); // FIXME: allow 24-hour increments.
+            let start_time = Utc::now();
             let solution = Optimizer::builder()
                 .hourly_rates(&hourly_rates)
                 .solar_power(&solar_power)
@@ -83,6 +83,7 @@ async fn main() -> Result {
                 .n_steps(hunt_args.n_optimization_steps)
                 .build()
                 .run();
+            let run_duration = Utc::now() - start_time;
 
             for (((hour, rate), step), solar_power) in
                 (starting_hour..).zip(hourly_rates).zip(&solution.plan.steps).zip(solar_power)
@@ -101,12 +102,13 @@ async fn main() -> Result {
             }
             info!(
                 "Optimized",
+                run_duration = format!("{:.1}s", run_duration.as_seconds_f64()),
                 net_loss = format!("¢{:.0}", solution.plan.net_loss * 100.0),
                 without_battery = format!("¢{:.0}", solution.plan.net_loss_without_battery * 100.0),
                 profit = format!("¢{:.0}", solution.plan.profit() * 100.0),
             );
 
-            let schedule = WorkingModeHourlySchedule::<24>::from_working_modes(
+            let schedule = WorkingModeSchedule::<24>::from_working_modes(
                 starting_hour,
                 solution.plan.steps.iter().map(|step| step.working_mode),
             );

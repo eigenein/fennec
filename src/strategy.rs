@@ -1,8 +1,4 @@
-pub use self::{
-    optimizer::Optimizer,
-    schedule::WorkingModeHourlySchedule,
-    working_mode::WorkingMode,
-};
+pub use self::{optimizer::Optimizer, schedule::WorkingModeSchedule, working_mode::WorkingMode};
 
 mod optimizer;
 mod schedule;

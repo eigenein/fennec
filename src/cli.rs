@@ -54,6 +54,10 @@ pub struct BatteryArgs {
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
+
+    /// Battery retention efficiency (1 - self-discharge rate).
+    #[clap(long = "retention", default_value = "0.972", env = "RETENTION")]
+    pub retention: f64,
 }
 
 #[derive(Parser)]

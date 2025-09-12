@@ -63,20 +63,26 @@ impl Optimizer<'_> {
         let mut net_loss_without_battery = Cost::ZERO;
 
         for (forecast, working_mode) in self.forecast.iter().copied().zip(schedule.into_iter()) {
+            // Apply self-discharge:
+            if working_mode == WorkingMode::Retaining {
+                current_residual_energy = current_residual_energy * self.battery.retention;
+            }
+
+            let initial_residual_energy = current_residual_energy;
+
             // Positive is excess, negative is deficit:
             let production_power =
                 forecast.solar_power_density * self.pv_surface_area - self.consumption.stand_by;
 
             // Power flow to the battery (negative is directed from the battery):
             let battery_power = match working_mode {
-                WorkingMode::Maintaining => Kilowatts::ZERO,
+                WorkingMode::Retaining => Kilowatts::ZERO,
                 WorkingMode::Charging => self.battery.charging_power,
                 WorkingMode::Discharging => -self.battery.discharging_power,
                 WorkingMode::Balancing => production_power
                     .clamp(-self.battery.discharging_power, self.battery.charging_power),
             };
 
-            let initial_residual_energy = current_residual_energy;
             current_residual_energy = (initial_residual_energy + battery_power * Hours::ONE).clamp(
                 min_residual_energy.min(initial_residual_energy),
                 self.capacity.max(initial_residual_energy),

@@ -26,9 +26,7 @@ impl WorkingModeSchedule {
         working_modes: impl IntoIterator<Item = WorkingMode>,
     ) -> Self {
         let mut this = Self::default();
-        for (hour, working_mode) in
-            (starting_hour as usize..).zip(working_modes.into_iter().take(24))
-        {
+        for (hour, working_mode) in (starting_hour as usize..).zip(working_modes).take(24) {
             let hour = hour % 24;
             debug!("Set", hour = hour.to_string(), working_mode = format!("{working_mode:?}"));
             this.0[hour] = working_mode;
@@ -39,7 +37,7 @@ impl WorkingModeSchedule {
     /// Randomly mutate the schedule.
     pub fn mutate(&mut self) {
         const MODES: [WorkingMode; 4] = [
-            WorkingMode::Maintaining,
+            WorkingMode::Retaining,
             WorkingMode::Balancing,
             WorkingMode::Charging,
             WorkingMode::Discharging,

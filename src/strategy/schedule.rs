@@ -60,13 +60,13 @@ mod tests {
         let working_modes = [
             WorkingMode::Charging,    // index 1
             WorkingMode::Discharging, // index 2
-            WorkingMode::Discharging, // index 0
+            WorkingMode::Balancing,   // index 0
             WorkingMode::Maintaining, // overflow and must be ignored
         ];
         let schedule = WorkingModeSchedule::<3>::from_working_modes(1, working_modes);
         assert_eq!(
             schedule.0,
-            [WorkingMode::Discharging, WorkingMode::Charging, WorkingMode::Discharging]
+            [WorkingMode::Balancing, WorkingMode::Charging, WorkingMode::Discharging],
         );
     }
 

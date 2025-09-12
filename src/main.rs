@@ -71,6 +71,7 @@ async fn main() -> Result {
             .into_iter()
             .map(|power| Kilowatts::from(power.0 * hunt_args.solar.pv_surface_square_meters))
             .collect();
+            info!("Fetched solar power forecast", len = solar_power.len());
 
             let start_time = Utc::now();
             let solution = Optimizer::builder()

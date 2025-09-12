@@ -64,9 +64,7 @@ impl Optimizer<'_> {
 
         for (forecast, working_mode) in self.forecast.iter().copied().zip(schedule.into_iter()) {
             // Apply self-discharge:
-            if working_mode == WorkingMode::Retaining {
-                current_residual_energy = current_residual_energy * self.battery.retention;
-            }
+            current_residual_energy = current_residual_energy * self.battery.retention;
 
             let initial_residual_energy = current_residual_energy;
 

@@ -1,5 +1,11 @@
-pub use self::{optimizer::Optimizer, schedule::WorkingModeSchedule, working_mode::WorkingMode};
-
 mod optimizer;
+mod plan;
 mod schedule;
 mod working_mode;
+
+pub use self::{
+    optimizer::Optimizer,
+    plan::{Plan, Solution, Step},
+    schedule::WorkingModeSchedule,
+    working_mode::WorkingMode,
+};

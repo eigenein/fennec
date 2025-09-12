@@ -4,10 +4,10 @@ use bon::Builder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
+use super::{Plan, Solution, Step, WorkingMode, WorkingModeSchedule};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    strategy::{WorkingMode, WorkingModeSchedule},
     units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts},
 };
 
@@ -106,7 +106,7 @@ impl Optimizer<'_> {
             net_loss += loss;
             net_loss_without_battery += self.loss(grid_rate, -production_without_battery);
 
-            steps.push(HourStep {
+            steps.push(Step {
                 working_mode,
                 residual_energy_before: initial_residual_energy,
                 residual_energy_after: current_residual_energy,
@@ -126,31 +126,4 @@ impl Optimizer<'_> {
             consumption * (grid_rate - self.consumption.purchase_fees)
         }
     }
-}
-
-/// Optimization plan that describes how the battery will work in the upcoming hours.
-pub struct Plan {
-    pub net_loss: Cost,
-    pub net_loss_without_battery: Cost,
-    pub steps: Vec<HourStep>,
-}
-
-impl Plan {
-    pub fn profit(&self) -> Cost {
-        // We expect that with the battery we lose less… 😅
-        self.net_loss_without_battery - self.net_loss
-    }
-}
-
-/// Single-hour working plan step.
-pub struct HourStep {
-    pub working_mode: WorkingMode,
-    pub residual_energy_before: KilowattHours,
-    pub residual_energy_after: KilowattHours,
-    pub total_consumption: KilowattHours,
-    pub loss: Cost,
-}
-
-pub struct Solution {
-    pub plan: Plan,
 }

@@ -41,8 +41,8 @@ impl Api {
         Self { client: Client::new(), url }
     }
 
-    #[instrument(skip_all, name = "Fetching the local weather…", fields(now = ?now))]
-    pub async fn get(&self, now: DateTime<Local>) -> Result<Vec<PowerDensity>> {
+    #[instrument(skip_all, name = "Fetching the local weather…", fields(starting_hour = starting_hour))]
+    pub async fn get(&self, starting_hour: u32) -> Result<Vec<PowerDensity>> {
         let mut hourly_forecast: Vec<_> =
             self.client.get(&self.url).send().await?.json::<Forecast>().await?.hourly_forecast;
         hourly_forecast.sort_by_key(|entry| entry.start_time);
@@ -50,9 +50,9 @@ impl Api {
             Some(next_hour_forecast) => {
                 // At some point, Weerlive stops returning any forecast for the current hour:
                 let next_hour = next_hour_forecast.start_time.hour();
-                if next_hour != now.hour() {
+                if next_hour != starting_hour {
                     // Use the next hour as a predictor for the current hour:
-                    ensure!(next_hour == (now.hour() + 1) % 24);
+                    ensure!(next_hour == (starting_hour + 1) % 24);
                     hourly_forecast.insert(0, *next_hour_forecast);
                 }
             }
@@ -101,7 +101,7 @@ mod tests {
     #[ignore = "online test"]
     async fn test_get_ok() -> Result {
         let now = Local::now();
-        Api::new("demo", &Location::Name("Amsterdam")).get(now).await?;
+        Api::new("demo", &Location::Name("Amsterdam")).get(now.hour()).await?;
         // TODO: add assertions.
         Ok(())
     }

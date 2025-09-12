@@ -5,6 +5,8 @@ mod prelude;
 mod strategy;
 mod units;
 
+use std::path::Path;
+
 use chrono::{Local, TimeDelta, Timelike, Utc};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
@@ -12,6 +14,7 @@ use tracing::level_filters::LevelFilter;
 
 use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
+    cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
     strategy::{Forecast, Optimizer, WorkingModeSchedule},
@@ -48,14 +51,14 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         hunt_args.consumption.stand_by >= Kilowatts::ZERO,
         "stand-by consumption must be non-negative",
     );
+    let cache_path = Path::new("cache.pb");
+    let mut cache = Cache::read_from(cache_path);
 
     let now = Local::now();
-    let starting_hour = now.hour();
 
     let forecast: Vec<_> = {
         let next_energy = NextEnergy::try_new()?;
-        let mut hourly_rates =
-            next_energy.get_hourly_rates(now.date_naive(), starting_hour).await?;
+        let mut hourly_rates = next_energy.get_hourly_rates(now.date_naive(), now.hour()).await?;
         hourly_rates.extend(
             next_energy.get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0).await?,
         );
@@ -65,7 +68,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
             &hunt_args.solar.weerlive_api_key,
             &WeerliveLocation::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
         )
-        .get(now)
+        .get(now.hour())
         .await?;
         info!("Fetched solar power forecast", len = solar_power_density.len());
 
@@ -93,12 +96,13 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .battery(&hunt_args.battery)
         .consumption(&hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
+        .cache(&mut cache)
         .build()
         .run();
     let run_duration = Utc::now() - start_time;
 
     for ((hour, forecast), step) in
-        (starting_hour..).zip(forecast.into_iter()).zip(&solution.plan.steps)
+        (now.hour()..).zip(forecast.into_iter()).zip(&solution.plan.steps)
     {
         info!(
             "Plan",
@@ -121,20 +125,18 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     );
 
     let schedule = WorkingModeSchedule::<24>::from_working_modes(
-        starting_hour,
+        now.hour(),
         solution.plan.steps.iter().map(|step| step.working_mode),
     );
 
-    let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(
-        starting_hour as usize,
-        &schedule,
-        &hunt_args.battery,
-    )?;
+    let time_slot_sequence =
+        FoxEssTimeSlotSequence::from_schedule(now.hour() as usize, &schedule, &hunt_args.battery)?;
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;
     }
 
+    cache.write_to(cache_path);
     Ok(())
 }
 

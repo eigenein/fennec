@@ -6,6 +6,7 @@ use rayon::prelude::*;
 
 use super::{Forecast, Plan, Solution, Step, WorkingMode, WorkingModeSchedule};
 use crate::{
+    cache::Cache,
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
     units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, SurfaceArea},
@@ -20,6 +21,7 @@ pub struct Optimizer<'a> {
     battery: &'a BatteryArgs,
     consumption: &'a ConsumptionArgs,
     n_steps: usize,
+    cache: &'a mut Cache,
 }
 
 impl Optimizer<'_> {
@@ -29,8 +31,10 @@ impl Optimizer<'_> {
         skip_all,
     )]
     pub fn run(self) -> Solution {
-        let best_plan: Mutex<(WorkingModeSchedule, Option<Plan>)> =
-            Mutex::new((WorkingModeSchedule::default(), None));
+        let best_plan: Mutex<(WorkingModeSchedule, Plan)> = {
+            let initial_schedule = self.cache.working_mode_schedule.clone().try_into().unwrap();
+            Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
+        };
 
         (0..self.n_steps).into_par_iter().progress().for_each(|_| {
             let mut schedule = { best_plan.lock().unwrap().0 };
@@ -39,16 +43,14 @@ impl Optimizer<'_> {
             let tested_plan = self.simulate(&schedule);
 
             let mut best_plan = best_plan.lock().unwrap();
-            if best_plan
-                .1
-                .as_ref()
-                .is_none_or(|best_plan| tested_plan.net_loss < best_plan.net_loss)
-            {
-                *best_plan = (schedule, Some(tested_plan));
+            if tested_plan.net_loss < best_plan.1.net_loss {
+                *best_plan = (schedule, tested_plan);
             }
         });
 
-        Solution { plan: best_plan.into_inner().unwrap().1.unwrap() }
+        let (schedule, plan) = best_plan.into_inner().unwrap();
+        self.cache.working_mode_schedule = schedule.into();
+        Solution { plan }
     }
 
     fn simulate(&self, schedule: &WorkingModeSchedule) -> Plan {

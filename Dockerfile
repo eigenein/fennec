@@ -4,6 +4,9 @@ LABEL org.opencontainers.image.description="FoxESS home battery steering based o
 LABEL org.opencontainers.image.authors="eigenein"
 LABEL org.opencontainers.image.source="https://github.com/eigenein/fennec"
 
-ENTRYPOINT ["/fennec"]
+RUN mkdir /data
+WORKDIR /data
+VOLUME /data
 
+ENTRYPOINT ["/fennec"]
 ADD fennec /

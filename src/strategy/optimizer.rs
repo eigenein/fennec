@@ -14,14 +14,13 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Optimizer<'a> {
-    forecast: &'a HourlySeries<Metrics>,
+    metrics: &'a HourlySeries<Metrics>,
     pv_surface_area: SurfaceArea,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery: &'a BatteryArgs,
     consumption: &'a ConsumptionArgs,
     n_steps: usize,
-    start_hour: usize,
     cache: &'a mut Cache,
 }
 
@@ -35,7 +34,7 @@ impl Optimizer<'_> {
         let best_plan: Mutex<(HourlySchedule, Plan)> = {
             let mut initial_schedule =
                 HourlySchedule::from_iter(0, self.cache.working_mode_schedule);
-            initial_schedule.rotate_to(self.start_hour);
+            initial_schedule.rotate_to(self.metrics.start_hour);
             Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
         };
 
@@ -61,12 +60,12 @@ impl Optimizer<'_> {
 
         let mut current_residual_energy = self.residual_energy;
         let mut steps =
-            HourlySeries { start_hour: self.start_hour, points: Vec::with_capacity(24) };
+            HourlySeries { start_hour: self.metrics.start_hour, points: Vec::with_capacity(24) };
 
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for (hour, forecast) in self.forecast.iter() {
+        for (hour, forecast) in self.metrics.iter() {
             let working_mode = schedule.get(hour);
 
             // Apply self-discharge:

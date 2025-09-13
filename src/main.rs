@@ -60,7 +60,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
 
     let now = Local::now();
 
-    let forecast = {
+    let metrics = {
         let next_energy = NextEnergy::try_new()?;
         let mut hourly_rates = next_energy.get_hourly_rates(now.date_naive(), now.hour()).await?;
         hourly_rates.try_extend(
@@ -92,7 +92,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
 
     let start_time = Utc::now();
     let plan = Optimizer::builder()
-        .forecast(&forecast)
+        .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
@@ -100,12 +100,11 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .consumption(&hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
         .cache(&mut cache)
-        .start_hour(now.hour() as usize)
         .build()
         .run();
     let run_duration = Utc::now() - start_time;
 
-    let series = forecast.try_zip(&plan.steps, |metrics, step| (metrics, step))?;
+    let series = metrics.try_zip(&plan.steps, |metrics, step| (metrics, step))?;
     for (hour, (metrics, step)) in series.iter() {
         info!(
             "Plan",

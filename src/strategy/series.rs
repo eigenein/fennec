@@ -1,11 +1,15 @@
 use crate::{prelude::*, strategy::Point};
 
-#[derive(derive_more::AsRef, derive_more::AsMut, derive_more::From, derive_more::IntoIterator)]
+#[derive(derive_more::AsMut, derive_more::From, derive_more::IntoIterator)]
 pub struct Series<M>(Vec<Point<M>>);
 
 impl<M> Series<M> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self(Vec::with_capacity(capacity))
+    }
+
+    pub const fn len(&self) -> usize {
+        self.0.len()
     }
 
     pub fn try_zip_by_time<R>(

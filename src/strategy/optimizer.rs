@@ -60,7 +60,7 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for Point { time, metrics: (grid_rate, solar_power_density) } in self.metrics.as_ref() {
+        for Point { time, metrics: (grid_rate, solar_power_density) } in self.metrics.iter() {
             let working_mode = schedule.get(time.hour() as usize);
 
             // Apply self-discharge:
@@ -70,7 +70,7 @@ impl Optimizer<'_> {
 
             // Positive is excess, negative is deficit:
             let production_power =
-                *solar_power_density * self.pv_surface_area - self.consumption.stand_by;
+                solar_power_density * self.pv_surface_area - self.consumption.stand_by;
 
             // Power flow to the battery (negative is directed from the battery):
             let battery_power = match working_mode {
@@ -103,12 +103,12 @@ impl Optimizer<'_> {
             let production_without_battery = production_power * Hours::ONE;
             let total_consumption = battery_external_consumption - production_without_battery;
 
-            let loss = self.loss(*grid_rate, total_consumption);
+            let loss = self.loss(grid_rate, total_consumption);
             net_loss += loss;
-            net_loss_without_battery += self.loss(*grid_rate, -production_without_battery);
+            net_loss_without_battery += self.loss(grid_rate, -production_without_battery);
 
             steps.as_mut().push(Point {
-                time: *time,
+                time,
                 metrics: Step {
                     working_mode,
                     residual_energy_before: initial_residual_energy,

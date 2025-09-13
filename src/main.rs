@@ -55,7 +55,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         let mut hourly_rates = next_energy.get_hourly_rates(now).await?;
         let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
         hourly_rates.as_mut().extend(next_energy.get_hourly_rates(next_day).await?);
-        info!("Fetched energy rates", len = hourly_rates.as_ref().len());
+        info!("Fetched energy rates", len = hourly_rates.len());
 
         let solar_power_density = Weerlive::new(
             &hunt_args.solar.weerlive_api_key,
@@ -63,7 +63,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         )
         .get(now)
         .await?;
-        info!("Fetched solar power forecast", len = solar_power_density.as_ref().len());
+        info!("Fetched solar power forecast", len = solar_power_density.len());
 
         hourly_rates.try_zip_by_time(solar_power_density)?
     };

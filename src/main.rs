@@ -17,7 +17,7 @@ use crate::{
     cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
-    strategy::{Forecast, HourlySchedule, Optimizer},
+    strategy::{HourlySchedule, Metrics, Optimizer},
     units::Kilowatts,
 };
 
@@ -60,27 +60,26 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
 
     let now = Local::now();
 
-    let forecast: Vec<_> = {
+    let forecast = {
         let next_energy = NextEnergy::try_new()?;
         let mut hourly_rates = next_energy.get_hourly_rates(now.date_naive(), now.hour()).await?;
-        hourly_rates.extend(
+        hourly_rates.try_extend(
             next_energy.get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0).await?,
-        );
-        info!("Fetched energy rates", len = hourly_rates.len());
+        )?;
+        info!("Fetched energy rates", len = hourly_rates.metrics.len());
 
-        let solar_power_density: Vec<_> = Weerlive::new(
+        let solar_power_density = Weerlive::new(
             &hunt_args.solar.weerlive_api_key,
             &WeerliveLocation::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
         )
-        .get(now.hour())
+        .get(now)
         .await?;
-        info!("Fetched solar power forecast", len = solar_power_density.len());
+        info!("Fetched solar power forecast", len = solar_power_density.metrics.len());
 
-        hourly_rates
-            .into_iter()
-            .zip(solar_power_density.into_iter())
-            .map(|(rate, solar_power_density)| Forecast { grid_rate: rate, solar_power_density })
-            .collect()
+        hourly_rates.try_zip(solar_power_density, |grid_rate, solar_power_density| Metrics {
+            grid_rate,
+            solar_power_density,
+        })?
     };
 
     let (residual_energy, total_capacity) = {
@@ -106,14 +105,12 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .run();
     let run_duration = Utc::now() - start_time;
 
-    for ((hour, forecast), step) in
-        (now.hour()..).zip(forecast.into_iter()).zip(&solution.plan.steps)
-    {
+    for ((hour, metrics), step) in forecast.iter().zip(&solution.plan.steps) {
         info!(
             "Plan",
             hour = (hour % 24).to_string(),
-            rate = format!("¢{:.0}", forecast.grid_rate * 100.0),
-            solar = format!("{:.3}", forecast.solar_power_density),
+            rate = format!("¢{:.0}", metrics.grid_rate * 100.0),
+            solar = format!("{:.3}", metrics.solar_power_density),
             before = format!("{:.2}", step.residual_energy_before),
             mode = format!("{:?}", step.working_mode),
             after = format!("{:.2}", step.residual_energy_after),
@@ -191,10 +188,10 @@ fn init() {
         .with_console(Some(
             ConsoleOptions::default()
                 .with_include_timestamps(false)
-                .with_min_log_level(Level::TRACE),
+                .with_min_log_level(Level::DEBUG),
         ))
         .send_to_logfire(SendToLogfire::No)
-        .with_default_level_filter(LevelFilter::TRACE)
+        .with_default_level_filter(LevelFilter::DEBUG)
         .finish()
         .unwrap();
 }

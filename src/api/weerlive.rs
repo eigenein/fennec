@@ -3,7 +3,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::{prelude::*, units::PowerDensity};
+use crate::{prelude::*, strategy::Forecast, units::PowerDensity};
 
 pub struct Api {
     client: Client,
@@ -41,41 +41,41 @@ impl Api {
         Self { client: Client::new(), url }
     }
 
-    #[instrument(skip_all, name = "Fetching the local weather…", fields(start_hour = start_hour))]
-    pub async fn get(&self, start_hour: u32) -> Result<Vec<PowerDensity>> {
-        let mut hourly_forecast: Vec<_> =
-            self.client.get(&self.url).send().await?.json::<Forecast>().await?.hourly_forecast;
-        hourly_forecast.sort_by_key(|entry| entry.start_time);
-        match hourly_forecast.first() {
-            Some(next_hour_forecast) => {
-                // At some point, Weerlive stops returning any forecast for the current hour:
-                let next_hour = next_hour_forecast.start_time.hour();
-                if next_hour != start_hour {
-                    // Use the next hour as a predictor for the current hour:
-                    ensure!(next_hour == (start_hour + 1) % 24);
-                    hourly_forecast.insert(0, *next_hour_forecast);
-                }
-            }
-            None => {
-                bail!("there is no forecast");
-            }
-        }
-        Ok(hourly_forecast
+    #[instrument(skip_all, name = "Fetching the local weather…", fields(now = ?now))]
+    pub async fn get(&self, now: DateTime<Local>) -> Result<Forecast<PowerDensity>> {
+        let forecast: Vec<_> = self
+            .client
+            .get(&self.url)
+            .send()
+            .await?
+            .json::<Response>()
+            .await?
+            .hourly_forecast
             .into_iter()
-            .inspect(|forecast| {
-                debug!(
-                    "Forecast",
-                    hour = forecast.start_time.hour().to_string(),
-                    solar_power_watts_per_m2 = forecast.solar_power_watts_per_m2,
-                );
-            })
+            .filter(|entry| Self::is_actual(entry.start_time, now))
+            .collect();
+        ensure!(forecast.is_sorted_by_key(|entry| entry.start_time), "the forecast is not sorted");
+        ensure!(
+            forecast.first().context("missing forecast")?.start_time.hour() == now.hour(),
+            "the forecast does not start with the current hour",
+        );
+        let metrics = forecast
+            .into_iter()
             .map(|entry| PowerDensity::from(entry.solar_power_watts_per_m2 / 1000.0))
-            .collect())
+            .collect();
+        Ok(Forecast { start_hour: now.hour() as usize, metrics })
+    }
+
+    /// Check whether the time slot is still actual.
+    ///
+    /// This is needed because Weerlive sometimes returns the past hours.
+    fn is_actual(slot_time: DateTime<Local>, now: DateTime<Local>) -> bool {
+        (slot_time.date_naive(), slot_time.hour()) >= (now.date_naive(), now.hour())
     }
 }
 
 #[derive(Deserialize)]
-struct Forecast {
+struct Response {
     #[serde(rename = "uur_verw")]
     hourly_forecast: Vec<HourlyForecast>,
 }
@@ -93,15 +93,32 @@ struct HourlyForecast {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Local;
+    use chrono::{Local, TimeZone};
 
     use super::*;
+
+    #[test]
+    fn test_is_actual() {
+        assert!(!Api::is_actual(
+            Local.with_ymd_and_hms(2025, 9, 13, 18, 59, 59).unwrap(),
+            Local.with_ymd_and_hms(2025, 9, 13, 19, 19, 0).unwrap(),
+        ));
+        assert!(Api::is_actual(
+            Local.with_ymd_and_hms(2025, 9, 13, 19, 0, 0).unwrap(),
+            Local.with_ymd_and_hms(2025, 9, 13, 19, 19, 0).unwrap(),
+        ));
+        assert!(Api::is_actual(
+            Local.with_ymd_and_hms(2025, 9, 14, 19, 0, 0).unwrap(),
+            Local.with_ymd_and_hms(2025, 9, 13, 19, 19, 0).unwrap(),
+        ));
+    }
 
     #[tokio::test]
     #[ignore = "online test"]
     async fn test_get_ok() -> Result {
         let now = Local::now();
-        Api::new("demo", &Location::Name("Amsterdam")).get(now.hour()).await?;
+        let forecast = Api::new("demo", &Location::Name("Amsterdam")).get(now).await?;
+        assert_eq!(forecast.start_hour, now.hour() as usize);
         // TODO: add assertions.
         Ok(())
     }

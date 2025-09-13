@@ -4,7 +4,7 @@ use bon::Builder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
-use super::{Forecast, HourlySchedule, Plan, Solution, Step, WorkingMode};
+use super::{Forecast, HourlySchedule, Metrics, Plan, Solution, Step, WorkingMode};
 use crate::{
     cache::Cache,
     cli::{BatteryArgs, ConsumptionArgs},
@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Optimizer<'a> {
-    forecast: &'a [Forecast],
+    forecast: &'a Forecast<Metrics>,
     pv_surface_area: SurfaceArea,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
@@ -65,9 +65,8 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        assert_eq!(schedule.start_hour, self.start_hour);
-        for (i, forecast) in (0..24).zip(self.forecast.iter().copied()) {
-            let working_mode = schedule.slots[i];
+        for (hour, forecast) in self.forecast.iter() {
+            let working_mode = schedule.get(hour);
 
             // Apply self-discharge:
             current_residual_energy = current_residual_energy * self.battery.retention;

@@ -7,7 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{prelude::*, units::KilowattHourRate};
+use crate::{prelude::*, strategy::Forecast, units::KilowattHourRate};
 
 pub struct Api(Client);
 
@@ -21,8 +21,8 @@ impl Api {
         &self,
         date: NaiveDate,
         start_hour: u32,
-    ) -> Result<Vec<KilowattHourRate>> {
-        let response: GetDataPointsResponse = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
+    ) -> Result<Forecast<KilowattHourRate>> {
+        let metrics = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(date))
             .send()
@@ -30,20 +30,17 @@ impl Api {
             .context("failed to call")?
             .error_for_status()
             .context("request failed")?
-            .json()
+            .json::<GetDataPointsResponse>()
             .await
-            .context("failed to deserialize the response")?;
-        Ok(response
+            .context("failed to deserialize the response")?
             .data
             .points
             .list
             .into_iter()
             .filter(|point| point.hour >= start_hour)
-            .inspect(|point| {
-                debug!("Rate", hour = point.hour.to_string(), value = point.value.to_string());
-            })
             .map(|point| point.value)
-            .collect())
+            .collect();
+        Ok(Forecast { start_hour: start_hour as usize, metrics })
     }
 }
 
@@ -140,15 +137,18 @@ struct Variables {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Local;
+    use chrono::{Local, Timelike};
 
     use super::*;
 
     #[tokio::test]
     #[ignore = "makes the API request"]
     async fn test_get_hourly_rates_ok() -> Result {
-        let points = Api::try_new()?.get_hourly_rates(Local::now().date_naive(), 0).await?;
-        assert_eq!(points.len(), 24);
+        let now = Local::now();
+        let points = Api::try_new()?.get_hourly_rates(now.date_naive(), now.hour()).await?;
+        assert_eq!(points.start_hour, now.hour() as usize);
+        assert!(!points.metrics.is_empty());
+        assert!(points.metrics.len() <= 24);
         Ok(())
     }
 }

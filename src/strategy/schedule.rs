@@ -38,11 +38,17 @@ where
     pub fn iter(&self) -> impl Iterator<Item = (usize, T)> {
         (self.start_hour..).map(|hour| hour % N_HOURS).zip(self.slots)
     }
+
+    pub const fn get(&self, hour: usize) -> T {
+        // FIXME: this expression repeats itself:
+        self.slots[(hour + N_HOURS - self.start_hour) % N_HOURS]
+    }
 }
 
 impl<T, const N_HOURS: usize> HourlySchedule<T, N_HOURS> {
     /// Rotate the schedule so that the slots would start at the specified hour.
     pub fn rotate_to(&mut self, start_hour: usize) {
+        // FIXME: this expression repeats itself:
         self.slots.rotate_right((self.start_hour + N_HOURS - start_hour) % N_HOURS);
         self.start_hour = start_hour;
     }
@@ -102,5 +108,11 @@ mod tests {
     fn test_into_array() {
         let schedule = HourlySchedule { start_hour: 1, slots: [1, 2, 0] };
         assert_eq!(schedule.into_array(0), [0, 1, 2]);
+    }
+
+    #[test]
+    fn test_get() {
+        let schedule = HourlySchedule { start_hour: 1, slots: [1, 2, 0] };
+        assert_eq!(schedule.get(0), 0);
     }
 }

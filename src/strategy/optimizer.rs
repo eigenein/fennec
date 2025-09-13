@@ -21,6 +21,7 @@ pub struct Optimizer<'a> {
     battery: &'a BatteryArgs,
     consumption: &'a ConsumptionArgs,
     n_steps: usize,
+    starting_hour: usize,
     cache: &'a mut Cache,
 }
 
@@ -38,7 +39,7 @@ impl Optimizer<'_> {
 
         (0..self.n_steps).into_par_iter().progress().for_each(|_| {
             let mut schedule = { best_plan.lock().unwrap().0 };
-            schedule.mutate();
+            schedule.mutate(); // TODO: only mutate `starting_hour..(starting_hour + forecast.len)`.
 
             let tested_plan = self.simulate(&schedule);
 
@@ -62,7 +63,10 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for (forecast, working_mode) in self.forecast.iter().copied().zip(schedule.into_iter()) {
+        for (i, forecast) in self.forecast.iter().copied().enumerate() {
+            // FIXME: gotta make this clearer:
+            let working_mode = schedule[(i + self.starting_hour) % 24];
+
             // Apply self-discharge:
             current_residual_energy = current_residual_energy * self.battery.retention;
 

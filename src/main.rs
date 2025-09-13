@@ -89,12 +89,12 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .run();
     let run_duration = Utc::now() - start_time;
 
-    let series = metrics.try_zip_by_time(plan.steps.iter().copied())?;
+    let series = metrics.try_zip_by_time(plan.steps.iter())?;
     for Point { time, metrics: ((grid_rate, solar_power_density), step) } in series.iter() {
         info!(
             "Plan",
             time = time.format("%H:%M").to_string(),
-            rate = format!("¢{:.0}", *grid_rate * 100.0),
+            rate = format!("¢{:.0}", grid_rate * 100.0),
             solar = format!("{:.3}", solar_power_density),
             before = format!("{:.2}", step.residual_energy_before),
             mode = format!("{:?}", step.working_mode),

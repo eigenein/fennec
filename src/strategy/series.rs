@@ -8,10 +8,6 @@ impl<M> Series<M> {
         Self(Vec::with_capacity(capacity))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Point<M>> {
-        self.0.iter()
-    }
-
     pub fn try_zip_by_time<R>(
         self,
         rhs: impl IntoIterator<Item = Point<R>>,
@@ -28,5 +24,11 @@ impl<M> Series<M> {
             })
             .collect::<Result<_>>()
             .map(Series)
+    }
+}
+
+impl<M: Copy> Series<M> {
+    pub fn iter(&self) -> impl Iterator<Item = Point<M>> {
+        self.0.iter().copied()
     }
 }

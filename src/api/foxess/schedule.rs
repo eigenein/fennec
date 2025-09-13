@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryArgs, prelude::*, strategy::WorkingModeSchedule, units::Kilowatts};
+use crate::{cli::BatteryArgs, prelude::*, strategy::HourlySchedule, units::Kilowatts};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -116,7 +116,7 @@ impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule(
         starting_hour: usize,
-        schedule: &WorkingModeSchedule,
+        schedule: &HourlySchedule,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
         let chunks = schedule

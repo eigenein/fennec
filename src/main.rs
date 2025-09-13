@@ -17,7 +17,7 @@ use crate::{
     cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
-    strategy::{Forecast, Optimizer, WorkingModeSchedule},
+    strategy::{Forecast, HourlySchedule, Optimizer},
     units::Kilowatts,
 };
 
@@ -129,7 +129,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         profit = format!("¢{:.0}", solution.plan.profit() * 100.0),
     );
 
-    let schedule = WorkingModeSchedule::from_working_modes(
+    let schedule = HourlySchedule::from_iter(
         now.hour(),
         solution.plan.steps.iter().map(|step| step.working_mode),
     );

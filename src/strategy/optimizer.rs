@@ -4,7 +4,7 @@ use bon::Builder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
-use super::{Forecast, Plan, Solution, Step, WorkingMode, WorkingModeSchedule};
+use super::{Forecast, HourlySchedule, Plan, Solution, Step, WorkingMode};
 use crate::{
     cache::Cache,
     cli::{BatteryArgs, ConsumptionArgs},
@@ -32,7 +32,7 @@ impl Optimizer<'_> {
         skip_all,
     )]
     pub fn run(self) -> Solution {
-        let best_plan: Mutex<(WorkingModeSchedule, Plan)> = {
+        let best_plan: Mutex<(HourlySchedule, Plan)> = {
             let initial_schedule = self.cache.working_mode_schedule.into();
             Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
         };
@@ -54,7 +54,7 @@ impl Optimizer<'_> {
         Solution { plan }
     }
 
-    fn simulate(&self, schedule: &WorkingModeSchedule) -> Plan {
+    fn simulate(&self, schedule: &HourlySchedule) -> Plan {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;

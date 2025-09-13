@@ -8,6 +8,6 @@ pub use self::{
     forecast::Forecast,
     optimizer::Optimizer,
     plan::{Plan, Solution, Step},
-    schedule::WorkingModeSchedule,
+    schedule::HourlySchedule,
     working_mode::WorkingMode,
 };

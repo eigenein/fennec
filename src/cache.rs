@@ -29,13 +29,13 @@ impl Cache {
 #[derive(Copy, Clone, Default, Serialize, Deserialize)]
 pub struct WorkingModeSchedule([WorkingMode; 24]);
 
-impl From<crate::strategy::WorkingModeSchedule<24>> for WorkingModeSchedule {
-    fn from(schedule: crate::strategy::WorkingModeSchedule<24>) -> Self {
+impl From<crate::strategy::HourlySchedule<WorkingMode, 24>> for WorkingModeSchedule {
+    fn from(schedule: crate::strategy::HourlySchedule<WorkingMode, 24>) -> Self {
         Self(schedule.into())
     }
 }
 
-impl From<WorkingModeSchedule> for crate::strategy::WorkingModeSchedule<24> {
+impl From<WorkingModeSchedule> for crate::strategy::HourlySchedule<WorkingMode, 24> {
     fn from(schedule: WorkingModeSchedule) -> Self {
         Self::from(schedule.0)
     }

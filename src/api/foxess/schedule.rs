@@ -110,7 +110,7 @@ impl TimeSlot {
 }
 
 #[derive(Serialize, Deserialize, derive_more::Deref)]
-pub struct TimeSlotSequence(pub Vec<TimeSlot>);
+pub struct TimeSlotSequence(Vec<TimeSlot>);
 
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]

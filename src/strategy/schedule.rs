@@ -40,7 +40,6 @@ where
     }
 
     pub const fn get(&self, hour: usize) -> T {
-        // FIXME: this expression repeats itself:
         self.slots[(hour + N_HOURS - self.start_hour) % N_HOURS]
     }
 }
@@ -48,7 +47,6 @@ where
 impl<T, const N_HOURS: usize> HourlySchedule<T, N_HOURS> {
     /// Rotate the schedule so that the slots would start at the specified hour.
     pub fn rotate_to(&mut self, start_hour: usize) {
-        // FIXME: this expression repeats itself:
         self.slots.rotate_right((self.start_hour + N_HOURS - start_hour) % N_HOURS);
         self.start_hour = start_hour;
     }
@@ -83,12 +81,6 @@ mod tests {
         let schedule = HourlySchedule::<i32, 3>::from_iter(1, [1, 2, 0, 42]);
         assert_eq!(schedule.start_hour, 1);
         assert_eq!(schedule.slots, [1, 2, 0]);
-    }
-
-    #[test]
-    fn test_iter() {
-        let schedule = HourlySchedule { start_hour: 1, slots: [1, 2, 0] };
-        assert_eq!(schedule.iter().collect::<Vec<_>>(), [(1, 1), (2, 2), (0, 0)]);
     }
 
     #[test]

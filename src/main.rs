@@ -7,7 +7,7 @@ mod units;
 
 use std::path::Path;
 
-use chrono::{Local, TimeDelta, Timelike, Utc};
+use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
@@ -17,7 +17,7 @@ use crate::{
     cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
-    strategy::{HourlySchedule, Metrics, Optimizer},
+    strategy::{HourlySchedule, Optimizer, Point},
     units::Kilowatts,
 };
 
@@ -62,11 +62,10 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
 
     let metrics = {
         let next_energy = NextEnergy::try_new()?;
-        let mut hourly_rates = next_energy.get_hourly_rates(now.date_naive(), now.hour()).await?;
-        hourly_rates.try_extend(
-            next_energy.get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0).await?,
-        )?;
-        info!("Fetched energy rates", len = hourly_rates.points.len());
+        let mut hourly_rates = next_energy.get_hourly_rates(now).await?;
+        let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
+        hourly_rates.as_mut().extend(next_energy.get_hourly_rates(next_day).await?);
+        info!("Fetched energy rates", len = hourly_rates.as_ref().len());
 
         let solar_power_density = Weerlive::new(
             &hunt_args.solar.weerlive_api_key,
@@ -74,12 +73,9 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         )
         .get(now)
         .await?;
-        info!("Fetched solar power forecast", len = solar_power_density.points.len());
+        info!("Fetched solar power forecast", len = solar_power_density.as_ref().len());
 
-        hourly_rates.try_zip(&solar_power_density, |grid_rate, solar_power_density| Metrics {
-            grid_rate,
-            solar_power_density,
-        })?
+        hourly_rates.try_zip_by_time(solar_power_density)?
     };
 
     let (residual_energy, total_capacity) = {
@@ -104,17 +100,17 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .run();
     let run_duration = Utc::now() - start_time;
 
-    let series = metrics.try_zip(&plan.steps, |metrics, step| (metrics, step))?;
-    for (hour, (metrics, step)) in series.iter() {
+    let series = metrics.try_zip_by_time(plan.steps.iter().copied())?;
+    for Point { time, metrics: ((grid_rate, solar_power_density), step) } in series.iter() {
         info!(
             "Plan",
-            hour = (hour % 24).to_string(),
-            rate = format!("¢{:.0}", metrics.grid_rate * 100.0),
-            solar = format!("{:.3}", metrics.solar_power_density),
+            time = time.format("%H:%M").to_string(),
+            rate = format!("¢{:.0}", *grid_rate * 100.0),
+            solar = format!("{:.3}", solar_power_density),
             before = format!("{:.2}", step.residual_energy_before),
             mode = format!("{:?}", step.working_mode),
             after = format!("{:.2}", step.residual_energy_after),
-            total = format!("{:+.2}", step.total_consumption),
+            grid = format!("{:.2}", step.total_consumption),
             loss = format!("¢{:.0}", step.loss * 100.0),
         );
     }
@@ -128,7 +124,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
 
     let schedule = HourlySchedule::from_iter(
         now.hour(),
-        series.points.into_iter().map(|(_, step)| step.working_mode),
+        series.into_iter().map(|Point { metrics: (_, step), .. }| step.working_mode),
     );
 
     let time_slot_sequence =

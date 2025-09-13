@@ -2,12 +2,16 @@
 
 use std::str::FromStr;
 
-use chrono::NaiveDate;
+use chrono::{DateTime, DurationRound, Local, NaiveDate, TimeDelta, Timelike};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{prelude::*, strategy::HourlySeries, units::KilowattHourRate};
+use crate::{
+    prelude::*,
+    strategy::{Point, Series},
+    units::KilowattHourRate,
+};
 
 pub struct Api(Client);
 
@@ -16,15 +20,15 @@ impl Api {
         Ok(Self(Client::builder().build()?))
     }
 
-    #[instrument(name = "Fetching energy prices…", fields(date = %date), skip_all)]
+    #[instrument(name = "Fetching energy prices…", fields(since = %since), skip_all)]
     pub async fn get_hourly_rates(
         &self,
-        date: NaiveDate,
-        start_hour: u32,
-    ) -> Result<HourlySeries<KilowattHourRate>> {
-        let metrics = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
+        since: DateTime<Local>,
+    ) -> Result<Series<KilowattHourRate>> {
+        let since = since.duration_trunc(TimeDelta::hours(1))?;
+        self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
-            .json(&GetDataPointsRequest::new(date))
+            .json(&GetDataPointsRequest::new(since.date_naive()))
             .send()
             .await
             .context("failed to call")?
@@ -37,10 +41,10 @@ impl Api {
             .points
             .list
             .into_iter()
-            .filter(|point| point.hour >= start_hour)
-            .map(|point| point.value)
-            .collect();
-        Ok(HourlySeries { start_hour: start_hour as usize, points: metrics })
+            .filter(|point| point.hour >= since.hour())
+            .map(|point| Ok(Point { time: since.with_hour(point.hour).context("invalid hour")?, metrics: point.value }))
+            .collect::<Result<Vec<_>>>()
+            .map(Series::from)
     }
 }
 
@@ -138,6 +142,7 @@ struct Variables {
 #[cfg(test)]
 mod tests {
     use chrono::{Local, Timelike};
+    use itertools::Itertools;
 
     use super::*;
 
@@ -145,10 +150,10 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_hourly_rates_ok() -> Result {
         let now = Local::now();
-        let points = Api::try_new()?.get_hourly_rates(now.date_naive(), now.hour()).await?;
-        assert_eq!(points.start_hour, now.hour() as usize);
-        assert!(!points.points.is_empty());
-        assert!(points.points.len() <= 24);
+        let series = Api::try_new()?.get_hourly_rates(now).await?.into_iter().collect_vec();
+        assert_eq!(series[0].time.hour(), now.hour());
+        assert!(!series.is_empty());
+        assert!(series.len() <= 24);
         Ok(())
     }
 }

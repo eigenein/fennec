@@ -1,45 +1,32 @@
-use crate::prelude::*;
+use crate::{prelude::*, strategy::Point};
 
-pub struct HourlySeries<M> {
-    pub start_hour: usize,
-    pub points: Vec<M>,
-}
+#[derive(derive_more::AsRef, derive_more::AsMut, derive_more::From, derive_more::IntoIterator)]
+pub struct Series<M>(Vec<Point<M>>);
 
-impl<M> HourlySeries<M> {
-    pub fn try_extend(&mut self, other: Self) -> Result {
-        let expected_hour = (self.start_hour + self.points.len()) % 24;
-        ensure!(
-            other.start_hour == expected_hour,
-            "the other plan starts at the wrong hour: {actual} (expected {expected})",
-            expected = expected_hour,
-            actual = other.start_hour,
-        );
-        self.points.extend(other.points);
-        Ok(())
+impl<M> Series<M> {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(Vec::with_capacity(capacity))
     }
 
-    pub fn try_zip<R: Copy, T>(
+    pub fn iter(&self) -> impl Iterator<Item = &Point<M>> {
+        self.0.iter()
+    }
+
+    pub fn try_zip_by_time<R>(
         self,
-        rhs: &HourlySeries<R>,
-        f: fn(M, R) -> T,
-    ) -> Result<HourlySeries<T>> {
-        ensure!(
-            self.start_hour == rhs.start_hour,
-            "both plans start at different hours: {} vs {}",
-            self.start_hour,
-            rhs.start_hour,
-        );
-        let metrics =
-            self.points.into_iter().zip(&rhs.points).map(|(lhs, rhs)| f(lhs, *rhs)).collect();
-        Ok(HourlySeries { start_hour: self.start_hour, points: metrics })
-    }
-}
-
-impl<M> HourlySeries<M>
-where
-    M: Copy,
-{
-    pub fn iter(&self) -> impl Iterator<Item = (usize, M)> {
-        (self.start_hour..).zip(&self.points).map(|(hour, metrics)| (hour % 24, *metrics))
+        rhs: impl IntoIterator<Item = Point<R>>,
+    ) -> Result<Series<(M, R)>> {
+        self.0
+            .into_iter()
+            .zip(rhs)
+            .map(|(lhs, rhs)| {
+                if lhs.time == rhs.time {
+                    Ok(Point { time: lhs.time, metrics: (lhs.metrics, rhs.metrics) })
+                } else {
+                    bail!("the timestamps differ: {:?} vs {:?}", lhs.time, rhs.time)
+                }
+            })
+            .collect::<Result<_>>()
+            .map(Series)
     }
 }

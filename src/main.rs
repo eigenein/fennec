@@ -101,7 +101,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .consumption(&hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
         .cache(&mut cache)
-        .starting_hour(now.hour() as usize)
+        .start_hour(now.hour() as usize)
         .build()
         .run();
     let run_duration = Utc::now() - start_time;

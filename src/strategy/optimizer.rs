@@ -21,7 +21,7 @@ pub struct Optimizer<'a> {
     battery: &'a BatteryArgs,
     consumption: &'a ConsumptionArgs,
     n_steps: usize,
-    starting_hour: usize,
+    start_hour: usize,
     cache: &'a mut Cache,
 }
 
@@ -33,7 +33,9 @@ impl Optimizer<'_> {
     )]
     pub fn run(self) -> Solution {
         let best_plan: Mutex<(HourlySchedule, Plan)> = {
-            let initial_schedule = self.cache.working_mode_schedule.into();
+            let mut initial_schedule =
+                HourlySchedule::from_iter(0, self.cache.working_mode_schedule);
+            initial_schedule.rotate_to(self.start_hour);
             Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
         };
 
@@ -50,7 +52,7 @@ impl Optimizer<'_> {
         });
 
         let (schedule, plan) = best_plan.into_inner().unwrap();
-        self.cache.working_mode_schedule = schedule.into();
+        self.cache.working_mode_schedule = schedule.into_array(0);
         Solution { plan }
     }
 
@@ -63,9 +65,9 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for (i, forecast) in self.forecast.iter().copied().enumerate() {
-            // FIXME: gotta make this clearer:
-            let working_mode = schedule[(i + self.starting_hour) % 24];
+        assert_eq!(schedule.start_hour, self.start_hour);
+        for (i, forecast) in (0..24).zip(self.forecast.iter().copied()) {
+            let working_mode = schedule.slots[i];
 
             // Apply self-discharge:
             current_residual_energy = current_residual_energy * self.battery.retention;

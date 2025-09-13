@@ -20,7 +20,7 @@ impl Api {
     pub async fn get_hourly_rates(
         &self,
         date: NaiveDate,
-        starting_hour: u32,
+        start_hour: u32,
     ) -> Result<Vec<KilowattHourRate>> {
         let response: GetDataPointsResponse = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
@@ -38,7 +38,7 @@ impl Api {
             .points
             .list
             .into_iter()
-            .filter(|point| point.hour >= starting_hour)
+            .filter(|point| point.hour >= start_hour)
             .inspect(|point| {
                 debug!("Rate", hour = point.hour.to_string(), value = point.value.to_string());
             })

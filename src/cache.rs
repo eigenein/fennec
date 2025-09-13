@@ -6,7 +6,7 @@ use crate::{prelude::*, strategy::WorkingMode};
 
 #[derive(Default, bon::Builder, Serialize, Deserialize)]
 pub struct Cache {
-    pub working_mode_schedule: WorkingModeSchedule,
+    pub working_mode_schedule: [WorkingMode; 24],
 }
 
 impl Cache {
@@ -23,20 +23,5 @@ impl Cache {
     #[instrument(skip_all, fields(path = %path.display()), name = "Writing cache…")]
     pub fn write_to(&self, path: &Path) -> Result {
         Ok(std::fs::write(path, serde_json::to_string(&self)?)?)
-    }
-}
-
-#[derive(Copy, Clone, Default, Serialize, Deserialize)]
-pub struct WorkingModeSchedule([WorkingMode; 24]);
-
-impl From<crate::strategy::HourlySchedule<WorkingMode, 24>> for WorkingModeSchedule {
-    fn from(schedule: crate::strategy::HourlySchedule<WorkingMode, 24>) -> Self {
-        Self(schedule.into())
-    }
-}
-
-impl From<WorkingModeSchedule> for crate::strategy::HourlySchedule<WorkingMode, 24> {
-    fn from(schedule: WorkingModeSchedule) -> Self {
-        Self::from(schedule.0)
     }
 }

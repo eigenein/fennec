@@ -115,13 +115,15 @@ pub struct TimeSlotSequence(pub Vec<TimeSlot>);
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule(
-        starting_hour: usize,
+        start_hour: usize,
         schedule: &HourlySchedule,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
+        let mut schedule = *schedule;
+        schedule.rotate_to(start_hour);
         let chunks = schedule
-            .iter(starting_hour)
-            .chunk_by(|(hour, working_mode)| (*hour >= starting_hour, *working_mode))
+            .iter()
+            .chunk_by(|(hour, working_mode)| (*hour >= start_hour, *working_mode))
             .into_iter()
             .map(|(working_mode, group)| {
                 (working_mode, group.map(|(hour, _)| hour).collect::<Vec<_>>())

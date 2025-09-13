@@ -25,7 +25,3 @@ pub struct Step {
     pub total_consumption: KilowattHours,
     pub loss: Cost,
 }
-
-pub struct Solution {
-    pub plan: Plan,
-}

@@ -91,7 +91,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     info!("Fetched battery details", residual_energy, total_capacity);
 
     let start_time = Utc::now();
-    let solution = Optimizer::builder()
+    let plan = Optimizer::builder()
         .forecast(&forecast)
         .pv_surface_area(hunt_args.solar.pv_surface)
         .residual_energy(residual_energy)
@@ -105,7 +105,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .run();
     let run_duration = Utc::now() - start_time;
 
-    for ((hour, metrics), step) in forecast.iter().zip(&solution.plan.steps) {
+    for ((hour, metrics), step) in forecast.iter().zip(&plan.steps) {
         info!(
             "Plan",
             hour = (hour % 24).to_string(),
@@ -121,15 +121,13 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     info!(
         "Optimized",
         run_duration = format!("{:.1}s", run_duration.as_seconds_f64()),
-        net_loss = format!("¢{:.0}", solution.plan.net_loss * 100.0),
-        without_battery = format!("¢{:.0}", solution.plan.net_loss_without_battery * 100.0),
-        profit = format!("¢{:.0}", solution.plan.profit() * 100.0),
+        net_loss = format!("¢{:.0}", plan.net_loss * 100.0),
+        without_battery = format!("¢{:.0}", plan.net_loss_without_battery * 100.0),
+        profit = format!("¢{:.0}", plan.profit() * 100.0),
     );
 
-    let schedule = HourlySchedule::from_iter(
-        now.hour(),
-        solution.plan.steps.iter().map(|step| step.working_mode),
-    );
+    let schedule =
+        HourlySchedule::from_iter(now.hour(), plan.steps.iter().map(|step| step.working_mode));
 
     let time_slot_sequence =
         FoxEssTimeSlotSequence::from_schedule(now.hour() as usize, &schedule, &hunt_args.battery)?;

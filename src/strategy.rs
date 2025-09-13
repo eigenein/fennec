@@ -9,7 +9,7 @@ pub use self::{
     forecast::Forecast,
     metrics::Metrics,
     optimizer::Optimizer,
-    plan::{Plan, Solution, Step},
+    plan::{Plan, Step},
     schedule::HourlySchedule,
     working_mode::WorkingMode,
 };

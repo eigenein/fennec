@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{prelude::*, strategy::WorkingModeSchedule};
+use crate::{prelude::*, strategy::WorkingMode};
 
 #[derive(Default, bon::Builder, Serialize, Deserialize)]
 pub struct Cache {
@@ -13,7 +13,7 @@ impl Cache {
     #[instrument(skip_all, fields(path = %path.display()), name = "Reading cache…")]
     pub fn read_from(path: &Path) -> Result<Self> {
         if path.is_file() {
-            serde_json::from_slice(&std::fs::read(path)?).context("failed to decode the cache file")
+            Ok(serde_json::from_slice(&std::fs::read(path)?)?)
         } else {
             warn!("Cache file is not found");
             Ok(Self::default())
@@ -22,7 +22,21 @@ impl Cache {
 
     #[instrument(skip_all, fields(path = %path.display()), name = "Writing cache…")]
     pub fn write_to(&self, path: &Path) -> Result {
-        std::fs::write(path, serde_json::to_string(&self)?)
-            .context("failed to write the cache file")
+        Ok(std::fs::write(path, serde_json::to_string(&self)?)?)
+    }
+}
+
+#[derive(Copy, Clone, Default, Serialize, Deserialize)]
+pub struct WorkingModeSchedule([WorkingMode; 24]);
+
+impl From<crate::strategy::WorkingModeSchedule<24>> for WorkingModeSchedule {
+    fn from(schedule: crate::strategy::WorkingModeSchedule<24>) -> Self {
+        Self(schedule.into())
+    }
+}
+
+impl From<WorkingModeSchedule> for crate::strategy::WorkingModeSchedule<24> {
+    fn from(schedule: WorkingModeSchedule) -> Self {
+        Self::from(schedule.0)
     }
 }

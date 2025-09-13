@@ -33,7 +33,7 @@ impl Optimizer<'_> {
     )]
     pub fn run(self) -> Solution {
         let best_plan: Mutex<(WorkingModeSchedule, Plan)> = {
-            let initial_schedule = self.cache.working_mode_schedule;
+            let initial_schedule = self.cache.working_mode_schedule.into();
             Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
         };
 
@@ -50,7 +50,7 @@ impl Optimizer<'_> {
         });
 
         let (schedule, plan) = best_plan.into_inner().unwrap();
-        self.cache.working_mode_schedule = schedule;
+        self.cache.working_mode_schedule = schedule.into();
         Solution { plan }
     }
 

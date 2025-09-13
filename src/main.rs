@@ -52,6 +52,8 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         "stand-by consumption must be non-negative",
     );
     let cache_path = Path::new("cache.json");
+
+    #[allow(clippy::literal_string_with_formatting_args)]
     let mut cache = Cache::read_from(cache_path)
         .inspect_err(|error| warn!("Failed to load the cache: {error:#}"))
         .unwrap_or_default();

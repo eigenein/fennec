@@ -116,27 +116,17 @@ impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule(
         start_hour: usize,
-        schedule: &HourlySchedule,
+        mut schedule: HourlySchedule,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
-        let mut schedule = *schedule;
         schedule.rotate_to(start_hour);
-        let chunks = schedule
+        schedule
             .iter()
             .chunk_by(|(hour, working_mode)| (*hour >= start_hour, *working_mode))
             .into_iter()
             .map(|(working_mode, group)| {
                 (working_mode, group.map(|(hour, _)| hour).collect::<Vec<_>>())
             })
-            .collect::<Vec<_>>();
-        if chunks.len() > 8 {
-            warn!(
-                "Last schedule groups will be dropped and it is okay",
-                n_dropped = chunks.len() - 8,
-            );
-        }
-        let time_slots = chunks
-            .into_iter()
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
             .map(|((_, working_mode), hours)| {
                 let feed_power = match working_mode {
@@ -169,8 +159,8 @@ impl TimeSlotSequence {
                 );
                 Ok(time_slot)
             })
-            .collect::<Result<_>>()?;
-        Ok(Self(time_slots))
+            .collect::<Result<_>>()
+            .map(Self)
     }
 
     pub fn trace(&self) {

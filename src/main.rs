@@ -117,7 +117,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     );
 
     let time_slot_sequence =
-        FoxEssTimeSlotSequence::from_schedule(now.hour() as usize, &schedule, &hunt_args.battery)?;
+        FoxEssTimeSlotSequence::from_schedule(now.hour() as usize, schedule, &hunt_args.battery)?;
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;

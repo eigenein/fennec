@@ -50,12 +50,6 @@ impl<T, const N_HOURS: usize> HourlySchedule<T, N_HOURS> {
         self.slots.rotate_right((self.start_hour + N_HOURS - start_hour) % N_HOURS);
         self.start_hour = start_hour;
     }
-
-    /// Convert into array which starts at the specified hour.
-    pub fn into_array(mut self, start_hour: usize) -> [T; N_HOURS] {
-        self.rotate_to(start_hour);
-        self.slots
-    }
 }
 
 impl<const N_HOURS: usize> HourlySchedule<WorkingMode, N_HOURS> {
@@ -94,12 +88,6 @@ mod tests {
         schedule.rotate_to(2);
         assert_eq!(schedule.start_hour, 2);
         assert_eq!(schedule.slots, [2, 0, 1]);
-    }
-
-    #[test]
-    fn test_into_array() {
-        let schedule = HourlySchedule { start_hour: 1, slots: [1, 2, 0] };
-        assert_eq!(schedule.into_array(0), [0, 1, 2]);
     }
 
     #[test]

@@ -7,7 +7,6 @@ use rayon::prelude::*;
 
 use super::{HourlySchedule, Plan, Point, Series, Step, WorkingMode};
 use crate::{
-    cache::Cache,
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
     units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, PowerDensity, SurfaceArea},
@@ -22,7 +21,6 @@ pub struct Optimizer<'a> {
     battery: &'a BatteryArgs,
     consumption: &'a ConsumptionArgs,
     n_steps: usize,
-    cache: &'a mut Cache,
 }
 
 impl Optimizer<'_> {
@@ -33,7 +31,7 @@ impl Optimizer<'_> {
     )]
     pub fn run(self) -> Plan {
         let best_plan: Mutex<(HourlySchedule, Plan)> = {
-            let initial_schedule = HourlySchedule::from_iter(0, self.cache.working_mode_schedule);
+            let initial_schedule = HourlySchedule { start_hour: 0, slots: Default::default() };
             Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
         };
 
@@ -49,8 +47,7 @@ impl Optimizer<'_> {
             }
         });
 
-        let (schedule, plan) = best_plan.into_inner().unwrap();
-        self.cache.working_mode_schedule = schedule.into_array(0);
+        let (_, plan) = best_plan.into_inner().unwrap();
         plan
     }
 

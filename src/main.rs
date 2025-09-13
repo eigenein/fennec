@@ -1,11 +1,8 @@
 mod api;
-mod cache;
 mod cli;
 mod prelude;
 mod strategy;
 mod units;
-
-use std::path::Path;
 
 use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
 use clap::Parser;
@@ -14,7 +11,6 @@ use tracing::level_filters::LevelFilter;
 
 use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
-    cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
     strategy::{HourlySchedule, Optimizer, Point},
@@ -51,12 +47,6 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         hunt_args.consumption.stand_by >= Kilowatts::ZERO,
         "stand-by consumption must be non-negative",
     );
-    let cache_path = Path::new("cache.json");
-
-    #[allow(clippy::literal_string_with_formatting_args)]
-    let mut cache = Cache::read_from(cache_path)
-        .inspect_err(|error| warn!("Failed to load the cache: {error:#}"))
-        .unwrap_or_default();
 
     let now = Local::now();
 
@@ -95,7 +85,6 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .battery(&hunt_args.battery)
         .consumption(&hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
-        .cache(&mut cache)
         .build()
         .run();
     let run_duration = Utc::now() - start_time;
@@ -134,7 +123,6 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;
     }
 
-    cache.write_to(cache_path)?;
     Ok(())
 }
 

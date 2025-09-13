@@ -7,7 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{prelude::*, strategy::Forecast, units::KilowattHourRate};
+use crate::{prelude::*, strategy::HourlySeries, units::KilowattHourRate};
 
 pub struct Api(Client);
 
@@ -21,7 +21,7 @@ impl Api {
         &self,
         date: NaiveDate,
         start_hour: u32,
-    ) -> Result<Forecast<KilowattHourRate>> {
+    ) -> Result<HourlySeries<KilowattHourRate>> {
         let metrics = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(date))
@@ -40,7 +40,7 @@ impl Api {
             .filter(|point| point.hour >= start_hour)
             .map(|point| point.value)
             .collect();
-        Ok(Forecast { start_hour: start_hour as usize, metrics })
+        Ok(HourlySeries { start_hour: start_hour as usize, points: metrics })
     }
 }
 
@@ -147,8 +147,8 @@ mod tests {
         let now = Local::now();
         let points = Api::try_new()?.get_hourly_rates(now.date_naive(), now.hour()).await?;
         assert_eq!(points.start_hour, now.hour() as usize);
-        assert!(!points.metrics.is_empty());
-        assert!(points.metrics.len() <= 24);
+        assert!(!points.points.is_empty());
+        assert!(points.points.len() <= 24);
         Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    strategy::WorkingMode,
+    strategy::{HourlySeries, WorkingMode},
     units::{Cost, KilowattHours},
 };
 
@@ -7,7 +7,7 @@ use crate::{
 pub struct Plan {
     pub net_loss: Cost,
     pub net_loss_without_battery: Cost,
-    pub steps: Vec<Step>,
+    pub steps: HourlySeries<Step>,
 }
 
 impl Plan {
@@ -18,6 +18,7 @@ impl Plan {
 }
 
 /// Single-hour working plan step.
+#[derive(Copy, Clone)]
 pub struct Step {
     pub working_mode: WorkingMode,
     pub residual_energy_before: KilowattHours,

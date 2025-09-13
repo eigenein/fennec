@@ -3,7 +3,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::{prelude::*, strategy::Forecast, units::PowerDensity};
+use crate::{prelude::*, strategy::HourlySeries, units::PowerDensity};
 
 pub struct Api {
     client: Client,
@@ -42,7 +42,7 @@ impl Api {
     }
 
     #[instrument(skip_all, name = "Fetching the local weather…", fields(now = ?now))]
-    pub async fn get(&self, now: DateTime<Local>) -> Result<Forecast<PowerDensity>> {
+    pub async fn get(&self, now: DateTime<Local>) -> Result<HourlySeries<PowerDensity>> {
         let forecast: Vec<_> = self
             .client
             .get(&self.url)
@@ -63,7 +63,7 @@ impl Api {
             .into_iter()
             .map(|entry| PowerDensity::from(entry.solar_power_watts_per_m2 / 1000.0))
             .collect();
-        Ok(Forecast { start_hour: now.hour() as usize, metrics })
+        Ok(HourlySeries { start_hour: now.hour() as usize, points: metrics })
     }
 
     /// Check whether the time slot is still actual.

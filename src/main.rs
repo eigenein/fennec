@@ -66,7 +66,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         hourly_rates.try_extend(
             next_energy.get_hourly_rates((now + TimeDelta::days(1)).date_naive(), 0).await?,
         )?;
-        info!("Fetched energy rates", len = hourly_rates.metrics.len());
+        info!("Fetched energy rates", len = hourly_rates.points.len());
 
         let solar_power_density = Weerlive::new(
             &hunt_args.solar.weerlive_api_key,
@@ -74,9 +74,9 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         )
         .get(now)
         .await?;
-        info!("Fetched solar power forecast", len = solar_power_density.metrics.len());
+        info!("Fetched solar power forecast", len = solar_power_density.points.len());
 
-        hourly_rates.try_zip(solar_power_density, |grid_rate, solar_power_density| Metrics {
+        hourly_rates.try_zip(&solar_power_density, |grid_rate, solar_power_density| Metrics {
             grid_rate,
             solar_power_density,
         })?
@@ -105,7 +105,8 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .run();
     let run_duration = Utc::now() - start_time;
 
-    for ((hour, metrics), step) in forecast.iter().zip(&plan.steps) {
+    let series = forecast.try_zip(&plan.steps, |metrics, step| (metrics, step))?;
+    for (hour, (metrics, step)) in series.iter() {
         info!(
             "Plan",
             hour = (hour % 24).to_string(),
@@ -126,8 +127,10 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         profit = format!("¢{:.0}", plan.profit() * 100.0),
     );
 
-    let schedule =
-        HourlySchedule::from_iter(now.hour(), plan.steps.iter().map(|step| step.working_mode));
+    let schedule = HourlySchedule::from_iter(
+        now.hour(),
+        series.points.into_iter().map(|(_, step)| step.working_mode),
+    );
 
     let time_slot_sequence =
         FoxEssTimeSlotSequence::from_schedule(now.hour() as usize, &schedule, &hunt_args.battery)?;

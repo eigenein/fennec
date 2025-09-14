@@ -80,9 +80,9 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        let series =
-            self.metrics.iter().zip(schedule).inspect(|(lhs, rhs)| assert_eq!(lhs.time, rhs.time));
-        for (metrics, working_mode) in series {
+        for (metrics, working_mode) in self.metrics.iter().zip(schedule) {
+            assert_eq!(metrics.time, working_mode.time);
+
             // Apply self-discharge:
             current_residual_energy = current_residual_energy * self.battery.retention;
 

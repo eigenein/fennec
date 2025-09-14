@@ -92,7 +92,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
 
     let profit = solution.profit();
     let series: Vec<Point<Plan>> =
-        metrics.into_iter().zip(solution.steps).map(Point::<Plan>::try_from).try_collect()?;
+        metrics.into_iter().zip(solution.steps).map(Point::<Plan>::from).collect();
     for point in &series {
         info!(
             "Plan",

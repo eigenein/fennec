@@ -2,7 +2,6 @@ use std::sync::Mutex;
 
 use bon::Builder;
 use indicatif::ParallelProgressIterator;
-use itertools::Itertools;
 use rayon::prelude::*;
 
 use super::{Metrics, Point, Solution, Step, WorkingMode};
@@ -29,14 +28,8 @@ impl Optimizer<'_> {
         fields(residual_energy = %self.residual_energy, n_steps = self.n_steps),
         skip_all,
     )]
-    pub fn run(self) -> Solution {
+    pub fn run(self, initial_schedule: Vec<Point<WorkingMode>>) -> Solution {
         let best_solution: Mutex<(Vec<Point<WorkingMode>>, Solution)> = {
-            // TODO: fill in from the cache:
-            let initial_schedule = self
-                .metrics
-                .iter()
-                .map(|point| Point { time: point.time, value: WorkingMode::default() })
-                .collect_vec();
             let initial_solution = self.simulate(&initial_schedule);
             Mutex::new((initial_schedule, initial_solution))
         };
@@ -45,11 +38,11 @@ impl Optimizer<'_> {
             let mut schedule = { best_solution.lock().unwrap().0.clone() };
             Self::mutate(&mut schedule);
 
-            let trial = self.simulate(&schedule);
+            let solution = self.simulate(&schedule);
 
             let mut best_solution = best_solution.lock().unwrap();
-            if trial.net_loss < best_solution.1.net_loss {
-                *best_solution = (schedule, trial);
+            if solution.net_loss < best_solution.1.net_loss {
+                *best_solution = (schedule, solution);
             }
         });
 

@@ -1,16 +1,19 @@
 mod api;
+mod cache;
 mod cli;
 mod prelude;
 mod strategy;
 mod units;
 
-use chrono::{DurationRound, Local, TimeDelta, Utc};
+use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
 use clap::Parser;
+use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
+    cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
     strategy::{Metrics, Optimizer, Point},
@@ -48,6 +51,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         "stand-by consumption must be non-negative",
     );
 
+    let mut cache = Cache::read_from("cache.json")?;
     let now = Local::now();
 
     let metrics: Vec<Point<Metrics>> = {
@@ -77,6 +81,10 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     info!("Fetched battery details", residual_energy, total_capacity);
 
     let start_time = Utc::now();
+    let initial_schedule = metrics
+        .iter()
+        .map(|point| Point { time: point.time, value: cache.schedule[point.time.hour() as usize] })
+        .collect_vec();
     let solution = Optimizer::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
@@ -86,12 +94,13 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .consumption(hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
         .build()
-        .run();
+        .run(initial_schedule);
     let run_duration = Utc::now() - start_time;
 
     let profit = solution.profit();
-    for (metrics, step) in metrics.into_iter().zip(&solution.steps) {
+    for (metrics, step) in metrics.iter().zip(&solution.steps) {
         assert_eq!(metrics.time, step.time);
+        cache.schedule[step.time.hour() as usize] = step.value.working_mode;
         info!(
             "Plan",
             time = metrics.time.format("%H:%M").to_string(),
@@ -124,6 +133,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;
     }
 
+    cache.write_to("cache.json")?;
     Ok(())
 }
 

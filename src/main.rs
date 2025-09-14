@@ -100,16 +100,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let profit = solution.profit();
     for (metrics, step) in metrics.iter().zip(&solution.steps) {
         assert_eq!(metrics.time, step.time);
-        let hour = step.time.hour() as usize;
-        if cache.schedule[hour] != step.value.working_mode {
-            info!(
-                "Cache updated",
-                hour,
-                from = format!("{:?}", cache.schedule[hour]),
-                to = format!("{:?}", step.value.working_mode),
-            );
-            cache.schedule[hour] = step.value.working_mode;
-        }
+        cache.schedule[step.time.hour() as usize] = step.value.working_mode;
         info!(
             "Plan",
             time = metrics.time.format("%H:%M").to_string(),

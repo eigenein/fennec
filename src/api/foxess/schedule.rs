@@ -5,12 +5,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{
-    cli::BatteryArgs,
-    prelude::*,
-    strategy::{Plan, Point},
-    units::Kilowatts,
-};
+use crate::{cli::BatteryArgs, prelude::*, strategy::Point, units::Kilowatts};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -118,11 +113,15 @@ pub struct TimeSlotSequence(Vec<TimeSlot>);
 
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
-    pub fn from_schedule(plan: &[Point<Plan>], battery_args: &BatteryArgs) -> Result<Self> {
-        plan.iter()
+    pub fn from_schedule(
+        schedule: impl IntoIterator<Item = Point<crate::strategy::WorkingMode>>,
+        battery_args: &BatteryArgs,
+    ) -> Result<Self> {
+        schedule
+            .into_iter()
             .chunk_by(|point| {
                 // Group by date as well because we cannot have time slots like 22:00-02:00:
-                (point.time.date_naive(), point.value.step.working_mode)
+                (point.time.date_naive(), point.value)
             })
             .into_iter()
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups

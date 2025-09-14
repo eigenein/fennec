@@ -6,7 +6,6 @@ mod units;
 
 use chrono::{DurationRound, Local, TimeDelta, Utc};
 use clap::Parser;
-use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -14,7 +13,7 @@ use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
-    strategy::{Metrics, Optimizer, Plan, Point},
+    strategy::{Metrics, Optimizer, Point},
     units::Kilowatts,
 };
 
@@ -91,19 +90,18 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let run_duration = Utc::now() - start_time;
 
     let profit = solution.profit();
-    let series: Vec<Point<Plan>> =
-        metrics.into_iter().zip(solution.steps).map(Point::<Plan>::from).collect();
-    for point in &series {
+    for (metrics, step) in metrics.into_iter().zip(&solution.steps) {
+        assert_eq!(metrics.time, step.time);
         info!(
             "Plan",
-            time = point.time.format("%H:%M").to_string(),
-            rate = format!("¢{:.0}", point.value.metrics.grid_rate * 100.0),
-            solar = format!("{:.3}", point.value.metrics.solar_power_density),
-            before = format!("{:.2}", point.value.step.residual_energy_before),
-            mode = format!("{:?}", point.value.step.working_mode),
-            after = format!("{:.2}", point.value.step.residual_energy_after),
-            grid = format!("{:.2}", point.value.step.total_consumption),
-            loss = format!("¢{:.0}", point.value.step.loss * 100.0),
+            time = metrics.time.format("%H:%M").to_string(),
+            rate = format!("¢{:.0}", metrics.value.grid_rate * 100.0),
+            solar = format!("{:.3}", metrics.value.solar_power_density),
+            before = format!("{:.2}", step.value.residual_energy_before),
+            mode = format!("{:?}", step.value.working_mode),
+            after = format!("{:.2}", step.value.residual_energy_after),
+            grid = format!("{:.2}", step.value.total_consumption),
+            loss = format!("¢{:.0}", step.value.loss * 100.0),
         );
     }
     info!(
@@ -114,7 +112,13 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         profit = format!("¢{:.0}", profit * 100.0),
     );
 
-    let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(&series, &hunt_args.battery)?;
+    let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(
+        solution
+            .steps
+            .into_iter()
+            .map(|step| Point { time: step.time, value: step.value.working_mode }),
+        &hunt_args.battery,
+    )?;
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;

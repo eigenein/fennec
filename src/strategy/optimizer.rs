@@ -53,8 +53,7 @@ impl Optimizer<'_> {
             }
         });
 
-        let (_, plan) = best_solution.into_inner().unwrap();
-        plan
+        best_solution.into_inner().unwrap().1
     }
 
     fn mutate(schedule: &mut [Point<WorkingMode>]) {

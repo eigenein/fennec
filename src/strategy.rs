@@ -1,15 +1,17 @@
+mod metrics;
 mod optimizer;
 mod plan;
 mod point;
 mod schedule;
-mod series;
+mod solution;
 mod working_mode;
 
 pub use self::{
+    metrics::Metrics,
     optimizer::Optimizer,
-    plan::{Plan, Step},
+    plan::Plan,
     point::Point,
     schedule::HourlySchedule,
-    series::Series,
+    solution::{Solution, Step},
     working_mode::WorkingMode,
 };

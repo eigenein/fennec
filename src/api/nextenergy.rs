@@ -7,11 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{
-    prelude::*,
-    strategy::{Point, Series},
-    units::KilowattHourRate,
-};
+use crate::{prelude::*, strategy::Point, units::KilowattHourRate};
 
 pub struct Api(Client);
 
@@ -24,7 +20,7 @@ impl Api {
     pub async fn get_hourly_rates(
         &self,
         since: DateTime<Local>,
-    ) -> Result<Series<KilowattHourRate>> {
+    ) -> Result<Vec<Point<KilowattHourRate>>> {
         let since = since.duration_trunc(TimeDelta::hours(1))?;
         self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
@@ -42,9 +38,8 @@ impl Api {
             .list
             .into_iter()
             .filter(|point| point.hour >= since.hour())
-            .map(|point| Ok(Point { time: since.with_hour(point.hour).context("invalid hour")?, metrics: point.value }))
-            .collect::<Result<Vec<_>>>()
-            .map(Series::from)
+            .map(|point| Ok(Point { time: since.with_hour(point.hour).context("invalid hour")?, value: point.value }))
+            .collect()
     }
 }
 

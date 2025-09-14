@@ -5,21 +5,21 @@ use chrono::Timelike;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
-use super::{HourlySchedule, Plan, Point, Series, Step, WorkingMode};
+use super::{HourlySchedule, Metrics, Point, Solution, Step, WorkingMode};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, PowerDensity, SurfaceArea},
+    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, SurfaceArea},
 };
 
 #[derive(Builder)]
 pub struct Optimizer<'a> {
-    metrics: &'a Series<(KilowattHourRate, PowerDensity)>,
+    metrics: &'a [Point<Metrics>],
     pv_surface_area: SurfaceArea,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
-    battery: &'a BatteryArgs,
-    consumption: &'a ConsumptionArgs,
+    battery: BatteryArgs,
+    consumption: ConsumptionArgs,
     n_steps: usize,
 }
 
@@ -29,39 +29,39 @@ impl Optimizer<'_> {
         fields(residual_energy = %self.residual_energy, n_steps = self.n_steps),
         skip_all,
     )]
-    pub fn run(self) -> Plan {
-        let best_plan: Mutex<(HourlySchedule, Plan)> = {
+    pub fn run(self) -> Solution {
+        let best_solution: Mutex<(HourlySchedule, Solution)> = {
             let initial_schedule = HourlySchedule { start_hour: 0, slots: Default::default() };
             Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
         };
 
         (0..self.n_steps).into_par_iter().progress().for_each(|_| {
-            let mut schedule = { best_plan.lock().unwrap().0 };
+            let mut schedule = { best_solution.lock().unwrap().0 };
             schedule.mutate(); // TODO: only mutate `starting_hour..(starting_hour + forecast.len)`.
 
-            let tested_plan = self.simulate(&schedule);
+            let trial = self.simulate(&schedule);
 
-            let mut best_plan = best_plan.lock().unwrap();
-            if tested_plan.net_loss < best_plan.1.net_loss {
-                *best_plan = (schedule, tested_plan);
+            let mut best_solution = best_solution.lock().unwrap();
+            if trial.net_loss < best_solution.1.net_loss {
+                *best_solution = (schedule, trial);
             }
         });
 
-        let (_, plan) = best_plan.into_inner().unwrap();
+        let (_, plan) = best_solution.into_inner().unwrap();
         plan
     }
 
-    fn simulate(&self, schedule: &HourlySchedule) -> Plan {
+    fn simulate(&self, schedule: &HourlySchedule) -> Solution {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
-        let mut steps = Series::with_capacity(24);
+        let mut steps = Vec::with_capacity(self.metrics.len());
 
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for Point { time, metrics: (grid_rate, solar_power_density) } in self.metrics.iter() {
-            let working_mode = schedule.get(time.hour() as usize);
+        for point in self.metrics {
+            let working_mode = schedule.get(point.time.hour() as usize);
 
             // Apply self-discharge:
             current_residual_energy = current_residual_energy * self.battery.retention;
@@ -70,7 +70,7 @@ impl Optimizer<'_> {
 
             // Positive is excess, negative is deficit:
             let production_power =
-                solar_power_density * self.pv_surface_area - self.consumption.stand_by;
+                point.value.solar_power_density * self.pv_surface_area - self.consumption.stand_by;
 
             // Power flow to the battery (negative is directed from the battery):
             let battery_power = match working_mode {
@@ -103,13 +103,14 @@ impl Optimizer<'_> {
             let production_without_battery = production_power * Hours::ONE;
             let total_consumption = battery_external_consumption - production_without_battery;
 
-            let loss = self.loss(grid_rate, total_consumption);
+            let loss = self.loss(point.value.grid_rate, total_consumption);
             net_loss += loss;
-            net_loss_without_battery += self.loss(grid_rate, -production_without_battery);
+            net_loss_without_battery +=
+                self.loss(point.value.grid_rate, -production_without_battery);
 
-            steps.as_mut().push(Point {
-                time,
-                metrics: Step {
+            steps.push(Point {
+                time: point.time,
+                value: Step {
                     working_mode,
                     residual_energy_before: initial_residual_energy,
                     residual_energy_after: current_residual_energy,
@@ -119,7 +120,7 @@ impl Optimizer<'_> {
             });
         }
 
-        Plan { net_loss, net_loss_without_battery, steps }
+        Solution { net_loss, net_loss_without_battery, steps }
     }
 
     fn loss(&self, grid_rate: KilowattHourRate, consumption: KilowattHours) -> Cost {

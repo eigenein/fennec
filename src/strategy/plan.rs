@@ -1,28 +1,20 @@
 use crate::{
-    strategy::{Series, WorkingMode},
-    units::{Cost, KilowattHours},
+    prelude::*,
+    strategy::{Metrics, Point, Step},
 };
 
-/// Optimization plan that describes how the battery will work in the upcoming hours.
 pub struct Plan {
-    pub net_loss: Cost,
-    pub net_loss_without_battery: Cost,
-    pub steps: Series<Step>,
+    pub metrics: Metrics,
+    pub step: Step,
 }
 
-impl Plan {
-    pub fn profit(&self) -> Cost {
-        // We expect that with the battery we lose less… 😅
-        self.net_loss_without_battery - self.net_loss
+impl Point<Plan> {
+    pub fn try_from(zip: (Point<Metrics>, Point<Step>)) -> Result<Self> {
+        let (metrics_point, step_point) = zip;
+        ensure!(metrics_point.time == step_point.time);
+        Ok(Self {
+            time: metrics_point.time,
+            value: Plan { metrics: metrics_point.value, step: step_point.value },
+        })
     }
-}
-
-/// Single-hour working plan step.
-#[derive(Copy, Clone)]
-pub struct Step {
-    pub working_mode: WorkingMode,
-    pub residual_energy_before: KilowattHours,
-    pub residual_energy_after: KilowattHours,
-    pub total_consumption: KilowattHours,
-    pub loss: Cost,
 }

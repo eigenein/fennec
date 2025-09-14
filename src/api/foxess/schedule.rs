@@ -8,8 +8,8 @@ use serde_with::serde_as;
 use crate::{
     cli::BatteryArgs,
     prelude::*,
-    strategy::{Series, Step},
-    units::{KilowattHourRate, Kilowatts, PowerDensity},
+    strategy::{Plan, Point},
+    units::Kilowatts,
 };
 
 #[serde_as]
@@ -118,19 +118,19 @@ pub struct TimeSlotSequence(Vec<TimeSlot>);
 
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
-    pub fn from_schedule(
-        series: Series<((KilowattHourRate, PowerDensity), Step)>,
-        battery_args: &BatteryArgs,
-    ) -> Result<Self> {
-        series
+    pub fn from_schedule(plan: &[Point<Plan>], battery_args: &BatteryArgs) -> Result<Self> {
+        plan.iter()
+            .chunk_by(|point| {
+                // Group by date as well because we cannot have time slots like 22:00-02:00:
+                (point.time.date_naive(), point.value.step.working_mode)
+            })
             .into_iter()
-            .chunk_by(|point| (point.time.date_naive(), point.metrics.1.working_mode))
-            .into_iter()
+            .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
             .map(|((_, working_mode), group)| {
+                // Convert into time slots with their respective working mode:
                 (working_mode, group.map(|point| point.time).collect::<Vec<_>>())
             })
-            .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
-            .map(|(working_mode, times)| {
+            .map(|(working_mode, timestamps)| {
                 let feed_power = match working_mode {
                     crate::strategy::WorkingMode::Discharging => battery_args.discharging_power,
                     crate::strategy::WorkingMode::Retaining => Kilowatts::ZERO,
@@ -144,8 +144,8 @@ impl TimeSlotSequence {
                 };
                 let time_slot = TimeSlot {
                     is_enabled: true,
-                    start_time: StartTime::from_hour(times.first().unwrap().hour()),
-                    end_time: EndTime::from_hour(times.last().unwrap().hour()),
+                    start_time: StartTime::from_hour(timestamps.first().unwrap().hour()),
+                    end_time: EndTime::from_hour(timestamps.last().unwrap().hour()),
                     max_soc: 100,
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,

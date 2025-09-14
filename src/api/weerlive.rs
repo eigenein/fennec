@@ -1,14 +1,9 @@
 use chrono::{DateTime, DurationRound, Local, TimeDelta};
-use itertools::Itertools;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::{
-    prelude::*,
-    strategy::{Point, Series},
-    units::PowerDensity,
-};
+use crate::{prelude::*, strategy::Point, units::PowerDensity};
 
 pub struct Api {
     client: Client,
@@ -47,7 +42,7 @@ impl Api {
     }
 
     #[instrument(skip_all, name = "Fetching the local weather…", fields(since = ?since))]
-    pub async fn get(&self, since: DateTime<Local>) -> Result<Series<PowerDensity>> {
+    pub async fn get(&self, since: DateTime<Local>) -> Result<Vec<Point<PowerDensity>>> {
         let since = since.duration_trunc(TimeDelta::hours(1))?;
         let forecast: Vec<_> = self
             .client
@@ -60,15 +55,14 @@ impl Api {
             .into_iter()
             .collect();
         ensure!(forecast.is_sorted_by_key(|entry| entry.start_time), "the forecast is not sorted");
-        ensure!(forecast.first().context("missing forecast")?.start_time == since);
-        let points = forecast
+        ensure!(forecast.first().context("missing forecast")?.start_time == since); // FIXME
+        Ok(forecast
             .into_iter()
             .map(|entry| Point {
                 time: entry.start_time,
-                metrics: PowerDensity::from(entry.solar_power_watts_per_m2 / 1000.0),
+                value: PowerDensity::from(entry.solar_power_watts_per_m2 / 1000.0),
             })
-            .collect_vec();
-        Ok(Series::from(points))
+            .collect())
     }
 }
 

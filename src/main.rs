@@ -6,6 +6,7 @@ mod units;
 
 use chrono::{DurationRound, Local, TimeDelta, Utc};
 use clap::Parser;
+use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -13,7 +14,7 @@ use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
-    strategy::{Optimizer, Point},
+    strategy::{Metrics, Optimizer, Plan, Point},
     units::Kilowatts,
 };
 
@@ -50,11 +51,11 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
 
     let now = Local::now();
 
-    let metrics = {
+    let metrics: Vec<Point<Metrics>> = {
         let next_energy = NextEnergy::try_new()?;
         let mut hourly_rates = next_energy.get_hourly_rates(now).await?;
         let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-        hourly_rates.as_mut().extend(next_energy.get_hourly_rates(next_day).await?);
+        hourly_rates.extend(next_energy.get_hourly_rates(next_day).await?);
         info!("Fetched energy rates", len = hourly_rates.len());
 
         let solar_power_density = Weerlive::new(
@@ -65,7 +66,11 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .await?;
         info!("Fetched solar power forecast", len = solar_power_density.len());
 
-        hourly_rates.try_zip_by_time(solar_power_density)?
+        hourly_rates
+            .into_iter()
+            .zip(solar_power_density)
+            .map(Point::<Metrics>::try_from)
+            .try_collect()?
     };
 
     let (residual_energy, total_capacity) = {
@@ -77,41 +82,43 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     info!("Fetched battery details", residual_energy, total_capacity);
 
     let start_time = Utc::now();
-    let plan = Optimizer::builder()
+    let solution = Optimizer::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
-        .battery(&hunt_args.battery)
-        .consumption(&hunt_args.consumption)
+        .battery(hunt_args.battery)
+        .consumption(hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
         .build()
         .run();
     let run_duration = Utc::now() - start_time;
 
-    let series = metrics.try_zip_by_time(plan.steps.iter())?;
-    for Point { time, metrics: ((grid_rate, solar_power_density), step) } in series.iter() {
+    let profit = solution.profit();
+    let series: Vec<Point<Plan>> =
+        metrics.into_iter().zip(solution.steps).map(Point::<Plan>::try_from).try_collect()?;
+    for point in &series {
         info!(
             "Plan",
-            time = time.format("%H:%M").to_string(),
-            rate = format!("¢{:.0}", grid_rate * 100.0),
-            solar = format!("{:.3}", solar_power_density),
-            before = format!("{:.2}", step.residual_energy_before),
-            mode = format!("{:?}", step.working_mode),
-            after = format!("{:.2}", step.residual_energy_after),
-            grid = format!("{:.2}", step.total_consumption),
-            loss = format!("¢{:.0}", step.loss * 100.0),
+            time = point.time.format("%H:%M").to_string(),
+            rate = format!("¢{:.0}", point.value.metrics.grid_rate * 100.0),
+            solar = format!("{:.3}", point.value.metrics.solar_power_density),
+            before = format!("{:.2}", point.value.step.residual_energy_before),
+            mode = format!("{:?}", point.value.step.working_mode),
+            after = format!("{:.2}", point.value.step.residual_energy_after),
+            grid = format!("{:.2}", point.value.step.total_consumption),
+            loss = format!("¢{:.0}", point.value.step.loss * 100.0),
         );
     }
     info!(
         "Optimized",
         run_duration = format!("{:.1}s", run_duration.as_seconds_f64()),
-        net_loss = format!("¢{:.0}", plan.net_loss * 100.0),
-        without_battery = format!("¢{:.0}", plan.net_loss_without_battery * 100.0),
-        profit = format!("¢{:.0}", plan.profit() * 100.0),
+        net_loss = format!("¢{:.0}", solution.net_loss * 100.0),
+        without_battery = format!("¢{:.0}", solution.net_loss_without_battery * 100.0),
+        profit = format!("¢{:.0}", profit * 100.0),
     );
 
-    let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(series, &hunt_args.battery)?;
+    let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(&series, &hunt_args.battery)?;
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;

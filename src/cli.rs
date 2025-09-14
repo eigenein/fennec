@@ -28,7 +28,7 @@ pub enum Command {
     Burrow(BurrowArgs),
 }
 
-#[derive(Parser)]
+#[derive(Copy, Clone, Parser)]
 pub struct BatteryArgs {
     /// Maximum external charging power in kilowatts.
     #[clap(

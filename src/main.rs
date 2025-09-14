@@ -16,7 +16,7 @@ use crate::{
     cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
-    strategy::{Metrics, Optimizer, Point},
+    strategy::{Metrics, Optimizer, Point, Step},
     units::Kilowatts,
 };
 
@@ -100,7 +100,16 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let profit = solution.profit();
     for (metrics, step) in metrics.iter().zip(&solution.steps) {
         assert_eq!(metrics.time, step.time);
-        cache.schedule[step.time.hour() as usize] = step.value.working_mode;
+        let hour = step.time.hour() as usize;
+        if cache.schedule[hour] != step.value.working_mode {
+            info!(
+                "Cache updated",
+                hour,
+                from = format!("{:?}", cache.schedule[hour]),
+                to = format!("{:?}", step.value.working_mode),
+            );
+            cache.schedule[hour] = step.value.working_mode;
+        }
         info!(
             "Plan",
             time = metrics.time.format("%H:%M").to_string(),
@@ -122,10 +131,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     );
 
     let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(
-        solution
-            .steps
-            .into_iter()
-            .map(|step| Point { time: step.time, value: step.value.working_mode }),
+        solution.steps.into_iter().map(Point::mapper(|step: Step| step.working_mode)),
         &hunt_args.battery,
     )?;
 

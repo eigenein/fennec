@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{prelude::*, strategy::WorkingMode};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Cache {
     #[serde(default, rename = "schedule")]
     pub schedule: [WorkingMode; 24],
@@ -13,7 +13,12 @@ pub struct Cache {
 impl Cache {
     #[instrument(name = "Reading the cache…")]
     pub fn read_from<P: AsRef<Path> + Debug>(path: P) -> Result<Self> {
-        Ok(serde_json::from_slice(&fs::read(path)?)?)
+        let path = path.as_ref();
+        if path.is_file() {
+            Ok(serde_json::from_slice(&fs::read(path)?)?)
+        } else {
+            Ok(Self::default())
+        }
     }
 
     #[instrument(skip(self), name = "Writing the cache…")]

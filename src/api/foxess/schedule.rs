@@ -1,10 +1,16 @@
 use std::fmt::{Display, Formatter};
 
+use chrono::Timelike;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryArgs, prelude::*, strategy::HourlySchedule, units::Kilowatts};
+use crate::{
+    cli::BatteryArgs,
+    prelude::*,
+    strategy::{Series, Step},
+    units::{KilowattHourRate, Kilowatts, PowerDensity},
+};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -65,11 +71,9 @@ impl Display for StartTime {
     }
 }
 
-impl TryFrom<usize> for StartTime {
-    type Error = Error;
-
-    fn try_from(hour: usize) -> Result<Self> {
-        Ok(Self { hour: u32::try_from(hour)?, minute: 0 })
+impl StartTime {
+    pub const fn from_hour(hour: u32) -> Self {
+        Self { hour, minute: 0 }
     }
 }
 
@@ -89,10 +93,10 @@ impl Display for EndTime {
 }
 
 impl EndTime {
-    pub fn try_from(hour_inclusive: usize) -> Result<Self> {
+    pub const fn from_hour(hour_inclusive: u32) -> Self {
         // End time is exclusive, but FoxESS Cloud won't accept `00:00`…
         let (hour, minute) = if hour_inclusive == 23 { (23, 59) } else { (hour_inclusive + 1, 0) };
-        Ok(Self { hour: u32::try_from(hour)?, minute })
+        Self { hour, minute }
     }
 }
 
@@ -115,20 +119,18 @@ pub struct TimeSlotSequence(Vec<TimeSlot>);
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule(
-        start_hour: usize,
-        mut schedule: HourlySchedule,
+        series: Series<((KilowattHourRate, PowerDensity), Step)>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
-        schedule.rotate_to(start_hour);
-        schedule
-            .iter()
-            .chunk_by(|(hour, working_mode)| (*hour >= start_hour, *working_mode))
+        series
             .into_iter()
-            .map(|(working_mode, group)| {
-                (working_mode, group.map(|(hour, _)| hour).collect::<Vec<_>>())
+            .chunk_by(|point| (point.time.date_naive(), point.metrics.1.working_mode))
+            .into_iter()
+            .map(|((_, working_mode), group)| {
+                (working_mode, group.map(|point| point.time).collect::<Vec<_>>())
             })
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
-            .map(|((_, working_mode), hours)| {
+            .map(|(working_mode, times)| {
                 let feed_power = match working_mode {
                     crate::strategy::WorkingMode::Discharging => battery_args.discharging_power,
                     crate::strategy::WorkingMode::Retaining => Kilowatts::ZERO,
@@ -142,8 +144,8 @@ impl TimeSlotSequence {
                 };
                 let time_slot = TimeSlot {
                     is_enabled: true,
-                    start_time: StartTime::try_from(*hours.first().unwrap())?,
-                    end_time: EndTime::try_from(*hours.last().unwrap())?,
+                    start_time: StartTime::from_hour(times.first().unwrap().hour()),
+                    end_time: EndTime::from_hour(times.last().unwrap().hour()),
                     max_soc: 100,
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,
@@ -195,19 +197,19 @@ mod tests {
 
     #[test]
     fn test_start_time_try_from_ok() -> Result {
-        assert_eq!(StartTime::try_from(2)?, StartTime { hour: 2, minute: 0 });
+        assert_eq!(StartTime::from_hour(2), StartTime { hour: 2, minute: 0 });
         Ok(())
     }
 
     #[test]
     fn test_end_time_try_from_non_last_hour_ok() -> Result {
-        assert_eq!(EndTime::try_from(1)?, EndTime { hour: 2, minute: 0 });
+        assert_eq!(EndTime::from_hour(1), EndTime { hour: 2, minute: 0 });
         Ok(())
     }
 
     #[test]
     fn test_end_time_try_from_last_hour_ok() -> Result {
-        assert_eq!(EndTime::try_from(23)?, EndTime { hour: 23, minute: 59 });
+        assert_eq!(EndTime::from_hour(23), EndTime { hour: 23, minute: 59 });
         Ok(())
     }
 }

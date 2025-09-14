@@ -4,7 +4,7 @@ mod prelude;
 mod strategy;
 mod units;
 
-use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
+use chrono::{DurationRound, Local, TimeDelta, Utc};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
@@ -13,7 +13,7 @@ use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     prelude::*,
-    strategy::{HourlySchedule, Optimizer, Point},
+    strategy::{Optimizer, Point},
     units::Kilowatts,
 };
 
@@ -111,13 +111,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         profit = format!("¢{:.0}", plan.profit() * 100.0),
     );
 
-    let schedule = HourlySchedule::from_iter(
-        now.hour(),
-        series.into_iter().map(|Point { metrics: (_, step), .. }| step.working_mode),
-    );
-
-    let time_slot_sequence =
-        FoxEssTimeSlotSequence::from_schedule(now.hour() as usize, schedule, &hunt_args.battery)?;
+    let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(series, &hunt_args.battery)?;
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;

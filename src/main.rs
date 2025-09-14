@@ -66,11 +66,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .await?;
         info!("Fetched solar power forecast", len = solar_power_density.len());
 
-        hourly_rates
-            .into_iter()
-            .zip(solar_power_density)
-            .map(Point::<Metrics>::try_from)
-            .try_collect()?
+        hourly_rates.into_iter().zip(solar_power_density).map(Point::<Metrics>::from).collect()
     };
 
     let (residual_energy, total_capacity) = {

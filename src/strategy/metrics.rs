@@ -1,5 +1,4 @@
 use crate::{
-    prelude::*,
     strategy::Point,
     units::{KilowattHourRate, PowerDensity},
 };
@@ -9,16 +8,16 @@ pub struct Metrics {
     pub solar_power_density: PowerDensity,
 }
 
-impl Point<Metrics> {
-    pub fn try_from(zip: (Point<KilowattHourRate>, Point<PowerDensity>)) -> Result<Self> {
-        let (grid_rate_point, solar_power_density_point) = zip;
-        ensure!(grid_rate_point.time == solar_power_density_point.time);
-        Ok(Self {
+impl From<(Point<KilowattHourRate>, Point<PowerDensity>)> for Point<Metrics> {
+    fn from(pair: (Point<KilowattHourRate>, Point<PowerDensity>)) -> Self {
+        let (grid_rate_point, solar_power_density_point) = pair;
+        assert_eq!(grid_rate_point.time, solar_power_density_point.time);
+        Self {
             time: grid_rate_point.time,
             value: Metrics {
                 grid_rate: grid_rate_point.value,
                 solar_power_density: solar_power_density_point.value,
             },
-        })
+        }
     }
 }

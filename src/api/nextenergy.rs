@@ -16,7 +16,7 @@ impl Api {
         Ok(Self(Client::builder().build()?))
     }
 
-    #[instrument(name = "Fetching energy prices…", fields(since = %since), skip_all)]
+    #[instrument(name = "Fetching energy prices…", fields(since = ?since), skip_all)]
     pub async fn get_hourly_rates(
         &self,
         since: DateTime<Local>,

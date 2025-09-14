@@ -1,11 +1,11 @@
 use std::sync::Mutex;
 
 use bon::Builder;
-use chrono::Timelike;
 use indicatif::ParallelProgressIterator;
+use itertools::Itertools;
 use rayon::prelude::*;
 
-use super::{HourlySchedule, Metrics, Point, Solution, Step, WorkingMode};
+use super::{Metrics, Point, Solution, Step, WorkingMode};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
@@ -30,14 +30,20 @@ impl Optimizer<'_> {
         skip_all,
     )]
     pub fn run(self) -> Solution {
-        let best_solution: Mutex<(HourlySchedule, Solution)> = {
-            let initial_schedule = HourlySchedule { start_hour: 0, slots: Default::default() };
-            Mutex::new((initial_schedule, self.simulate(&initial_schedule)))
+        let best_solution: Mutex<(Vec<Point<WorkingMode>>, Solution)> = {
+            // TODO: fill in from the cache:
+            let initial_schedule = self
+                .metrics
+                .iter()
+                .map(|point| Point { time: point.time, value: WorkingMode::default() })
+                .collect_vec();
+            let initial_solution = self.simulate(&initial_schedule);
+            Mutex::new((initial_schedule, initial_solution))
         };
 
         (0..self.n_steps).into_par_iter().progress().for_each(|_| {
-            let mut schedule = { best_solution.lock().unwrap().0 };
-            schedule.mutate(); // TODO: only mutate `starting_hour..(starting_hour + forecast.len)`.
+            let mut schedule = { best_solution.lock().unwrap().0.clone() };
+            Self::mutate(&mut schedule);
 
             let trial = self.simulate(&schedule);
 
@@ -51,7 +57,21 @@ impl Optimizer<'_> {
         plan
     }
 
-    fn simulate(&self, schedule: &HourlySchedule) -> Solution {
+    fn mutate(schedule: &mut [Point<WorkingMode>]) {
+        for point in schedule.iter_mut() {
+            if fastrand::u8(0..10) == 0 {
+                point.value = fastrand::choice([
+                    WorkingMode::Retaining,
+                    WorkingMode::Balancing,
+                    WorkingMode::Charging,
+                    WorkingMode::Discharging,
+                ])
+                .unwrap();
+            }
+        }
+    }
+
+    fn simulate(&self, schedule: &[Point<WorkingMode>]) -> Solution {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
@@ -60,20 +80,20 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for point in self.metrics {
-            let working_mode = schedule.get(point.time.hour() as usize);
-
+        let series =
+            self.metrics.iter().zip(schedule).inspect(|(lhs, rhs)| assert_eq!(lhs.time, rhs.time));
+        for (metrics, working_mode) in series {
             // Apply self-discharge:
             current_residual_energy = current_residual_energy * self.battery.retention;
 
             let initial_residual_energy = current_residual_energy;
 
             // Positive is excess, negative is deficit:
-            let production_power =
-                point.value.solar_power_density * self.pv_surface_area - self.consumption.stand_by;
+            let production_power = metrics.value.solar_power_density * self.pv_surface_area
+                - self.consumption.stand_by;
 
             // Power flow to the battery (negative is directed from the battery):
-            let battery_power = match working_mode {
+            let battery_power = match working_mode.value {
                 WorkingMode::Retaining => Kilowatts::ZERO,
                 WorkingMode::Charging => self.battery.charging_power,
                 WorkingMode::Discharging => -self.battery.discharging_power,
@@ -103,15 +123,15 @@ impl Optimizer<'_> {
             let production_without_battery = production_power * Hours::ONE;
             let total_consumption = battery_external_consumption - production_without_battery;
 
-            let loss = self.loss(point.value.grid_rate, total_consumption);
+            let loss = self.loss(metrics.value.grid_rate, total_consumption);
             net_loss += loss;
             net_loss_without_battery +=
-                self.loss(point.value.grid_rate, -production_without_battery);
+                self.loss(metrics.value.grid_rate, -production_without_battery);
 
             steps.push(Point {
-                time: point.time,
+                time: metrics.time,
                 value: Step {
-                    working_mode,
+                    working_mode: working_mode.value,
                     residual_energy_before: initial_residual_energy,
                     residual_energy_after: current_residual_energy,
                     total_consumption,

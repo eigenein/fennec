@@ -74,11 +74,6 @@ impl Optimizer<'_> {
 
         for (metrics, working_mode) in self.metrics.iter().zip(schedule) {
             assert_eq!(metrics.time, working_mode.time);
-
-            // Apply self-discharge:
-            let self_discharge = current_residual_energy * self.battery.self_discharge;
-            current_residual_energy -= self_discharge;
-
             let initial_residual_energy = current_residual_energy;
 
             // For missing weather forecast, assume none solar power:
@@ -117,6 +112,14 @@ impl Optimizer<'_> {
             // Finally, total household energy balance:
             let production_without_battery = production_power * Hours::ONE;
             let total_consumption = battery_external_consumption - production_without_battery;
+
+            // Apply self-discharge:
+            let mut self_discharge = current_residual_energy * self.battery.self_discharge;
+            if battery_external_consumption.abs() >= self_discharge {
+                // The battery is actively used, zero the self-discharge out:
+                self_discharge = Quantity::ZERO;
+            }
+            current_residual_energy -= self_discharge;
 
             let loss = self.loss(metrics.value.grid_rate, total_consumption + self_discharge);
             net_loss += loss;

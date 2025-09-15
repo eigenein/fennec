@@ -76,7 +76,8 @@ impl Optimizer<'_> {
             assert_eq!(metrics.time, working_mode.time);
 
             // Apply self-discharge:
-            current_residual_energy = current_residual_energy * self.battery.retention;
+            let self_discharge = current_residual_energy * self.battery.self_discharge;
+            current_residual_energy -= self_discharge;
 
             let initial_residual_energy = current_residual_energy;
 
@@ -115,7 +116,7 @@ impl Optimizer<'_> {
             let production_without_battery = production_power * Hours::ONE;
             let total_consumption = battery_external_consumption - production_without_battery;
 
-            let loss = self.loss(metrics.value.grid_rate, total_consumption);
+            let loss = self.loss(metrics.value.grid_rate, total_consumption + self_discharge);
             net_loss += loss;
             net_loss_without_battery +=
                 self.loss(metrics.value.grid_rate, -production_without_battery);

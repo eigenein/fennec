@@ -55,10 +55,11 @@ impl Api {
             .into_iter()
             .collect();
         ensure!(forecast.is_sorted_by_key(|entry| entry.start_time), "the forecast is not sorted");
-        ensure!(
-            forecast.first().context("missing forecast")?.start_time == since,
-            "missing forecast for {since}",
-        ); // FIXME
+        {
+            // FIXME
+            let first = forecast.first().context("missing forecast")?.start_time;
+            ensure!(first == since, "missing forecast for {since}, actual: {first}");
+        }
         Ok(forecast
             .into_iter()
             .map(|entry| Point {

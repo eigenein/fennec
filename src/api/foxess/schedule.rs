@@ -119,12 +119,13 @@ impl TimeSlotSequence {
     ) -> Result<Self> {
         schedule
             .into_iter()
+            .take(24) // Avoid collisions with the same hours next day.
             .chunk_by(|point| {
                 // Group by date as well because we cannot have time slots like 22:00-02:00:
                 (point.time.date_naive(), point.value)
             })
             .into_iter()
-            .take(8) // FoxESS Cloud allows maximum of 8 schedule groups
+            .take(8) // FoxESS Cloud allows maximum of 8 schedule groups.
             .map(|((_, working_mode), group)| {
                 // Convert into time slots with their respective working mode:
                 (working_mode, group.map(|point| point.time).collect::<Vec<_>>())

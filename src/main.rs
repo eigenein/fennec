@@ -7,7 +7,7 @@ mod units;
 
 use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
 use clap::Parser;
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -69,7 +69,20 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .await?;
         info!("Fetched solar power forecast", len = solar_power_density.len());
 
-        hourly_rates.into_iter().zip(solar_power_density).map(Point::<Metrics>::from).collect()
+        hourly_rates
+            .into_iter()
+            .zip_longest(solar_power_density)
+            .filter_map(|pair| match pair {
+                EitherOrBoth::Both(grid_rate, solar_power_density) => {
+                    Some(Point::<Metrics>::from((grid_rate, solar_power_density)))
+                }
+                EitherOrBoth::Left(grid_rate) => Some(Point {
+                    time: grid_rate.time,
+                    value: Metrics { grid_rate: grid_rate.value, solar_power_density: None },
+                }),
+                EitherOrBoth::Right(_) => None,
+            })
+            .collect()
     };
 
     let (residual_energy, total_capacity) = {
@@ -100,12 +113,11 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let profit = solution.profit();
     for (metrics, step) in metrics.iter().zip(&solution.steps) {
         assert_eq!(metrics.time, step.time);
-        cache.schedule[step.time.hour() as usize] = step.value.working_mode;
         info!(
             "Plan",
             time = metrics.time.format("%H:%M").to_string(),
             rate = format!("¢{:.0}", metrics.value.grid_rate * 100.0),
-            solar = format!("{:.3}", metrics.value.solar_power_density),
+            solar = metrics.value.solar_power_density.map(|value| format!("{value:.3}")),
             before = format!("{:.2}", step.value.residual_energy_before),
             mode = format!("{:?}", step.value.working_mode),
             after = format!("{:.2}", step.value.residual_energy_after),
@@ -120,6 +132,11 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         without_battery = format!("¢{:.0}", solution.net_loss_without_battery * 100.0),
         profit = format!("¢{:.0}", profit * 100.0),
     );
+
+    // Update the cache and avoid collisions with the same hours next day:
+    for step in solution.steps.iter().take(cache.schedule.len()) {
+        cache.schedule[step.time.hour() as usize] = step.value.working_mode;
+    }
 
     let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(
         solution.steps.into_iter().map(Point::mapper(|step: Step| step.working_mode)),

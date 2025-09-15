@@ -5,7 +5,7 @@ use crate::{
 
 pub struct Metrics {
     pub grid_rate: KilowattHourRate,
-    pub solar_power_density: PowerDensity,
+    pub solar_power_density: Option<PowerDensity>,
 }
 
 impl From<(Point<KilowattHourRate>, Point<PowerDensity>)> for Point<Metrics> {
@@ -16,7 +16,7 @@ impl From<(Point<KilowattHourRate>, Point<PowerDensity>)> for Point<Metrics> {
             time: grid_rate_point.time,
             value: Metrics {
                 grid_rate: grid_rate_point.value,
-                solar_power_density: solar_power_density_point.value,
+                solar_power_density: Some(solar_power_density_point.value),
             },
         }
     }

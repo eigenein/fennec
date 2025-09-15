@@ -8,7 +8,7 @@ use super::{Metrics, Point, Solution, Step, WorkingMode};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
-    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, SurfaceArea},
+    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, Quantity, SurfaceArea},
 };
 
 #[derive(Builder)]
@@ -81,9 +81,11 @@ impl Optimizer<'_> {
 
             let initial_residual_energy = current_residual_energy;
 
+            // For missing weather forecast, assume none solar power:
+            let solar_production =
+                metrics.value.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
             // Positive is excess, negative is deficit:
-            let production_power = metrics.value.solar_power_density * self.pv_surface_area
-                - self.consumption.stand_by;
+            let production_power = solar_production - self.consumption.stand_by;
 
             // Power flow to the battery (negative is directed from the battery):
             let battery_power = match working_mode.value {

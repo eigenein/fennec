@@ -121,7 +121,7 @@ impl Optimizer<'_> {
             }
             current_residual_energy -= self_discharge;
 
-            let loss = self.loss(metrics.value.grid_rate, total_consumption + self_discharge);
+            let loss = self.loss(metrics.value.grid_rate, total_consumption);
             net_loss += loss;
             net_loss_without_battery +=
                 self.loss(metrics.value.grid_rate, -production_without_battery);

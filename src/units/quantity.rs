@@ -65,7 +65,7 @@ impl<const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize
     pub const ZERO: Self = Self(0.0);
     pub const ONE: Self = Self(1.0);
 
-    pub fn abs(self) -> Self {
+    pub const fn abs(self) -> Self {
         Self(self.0.abs())
     }
 }

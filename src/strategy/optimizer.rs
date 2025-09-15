@@ -50,16 +50,14 @@ impl Optimizer<'_> {
     }
 
     fn mutate(schedule: &mut [Point<WorkingMode>]) {
-        for point in schedule.iter_mut() {
-            if fastrand::u8(0..10) == 0 {
-                point.value = fastrand::choice([
-                    WorkingMode::Retaining,
-                    WorkingMode::Balancing,
-                    WorkingMode::Charging,
-                    WorkingMode::Discharging,
-                ])
-                .unwrap();
-            }
+        const MODES: [WorkingMode; 4] = [
+            WorkingMode::Idle,
+            WorkingMode::Balancing,
+            WorkingMode::Charging,
+            WorkingMode::Discharging,
+        ];
+        for _ in 0..2 {
+            schedule[fastrand::usize(0..schedule.len())].value = fastrand::choice(MODES).unwrap();
         }
     }
 
@@ -84,7 +82,7 @@ impl Optimizer<'_> {
 
             // Power flow to the battery (negative is directed from the battery):
             let battery_power = match working_mode.value {
-                WorkingMode::Retaining => Kilowatts::ZERO,
+                WorkingMode::Idle => Kilowatts::ZERO,
                 WorkingMode::Charging => self.battery.charging_power,
                 WorkingMode::Discharging => -self.battery.discharging_power,
                 WorkingMode::Balancing => production_power
@@ -109,17 +107,17 @@ impl Optimizer<'_> {
                 KilowattHours::ZERO
             };
 
-            // Finally, total household energy balance:
-            let production_without_battery = production_power * Hours::ONE;
-            let total_consumption = battery_external_consumption - production_without_battery;
-
             // Apply self-discharge:
-            let mut self_discharge = current_residual_energy * self.battery.self_discharge;
+            let mut self_discharge = self.battery.self_discharge * Hours::ONE;
             if battery_external_consumption.abs() >= self_discharge {
                 // The battery is actively used, zero the self-discharge out:
                 self_discharge = Quantity::ZERO;
             }
             current_residual_energy -= self_discharge;
+
+            // Finally, total household energy balance:
+            let production_without_battery = production_power * Hours::ONE;
+            let total_consumption = battery_external_consumption - production_without_battery;
 
             let loss = self.loss(metrics.value.grid_rate, total_consumption);
             net_loss += loss;

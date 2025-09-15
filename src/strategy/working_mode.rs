@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 pub enum WorkingMode {
     /// Do not do anything.
     #[default]
-    #[serde(rename = "R", alias = "M")]
-    Retaining,
+    #[serde(rename = "I", alias = "M", alias = "R")]
+    Idle,
 
     /// Forced charging on any power.
     #[serde(rename = "C")]

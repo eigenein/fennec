@@ -133,12 +133,13 @@ impl TimeSlotSequence {
             .map(|(working_mode, timestamps)| {
                 let feed_power = match working_mode {
                     crate::strategy::WorkingMode::Discharging => battery_args.discharging_power,
-                    crate::strategy::WorkingMode::Retaining => Kilowatts::ZERO,
+                    crate::strategy::WorkingMode::Idle => Kilowatts::ZERO,
                     _ => battery_args.charging_power,
                 };
                 let working_mode = match working_mode {
-                    crate::strategy::WorkingMode::Charging
-                    | crate::strategy::WorkingMode::Retaining => WorkingMode::ForceCharge,
+                    crate::strategy::WorkingMode::Charging | crate::strategy::WorkingMode::Idle => {
+                        WorkingMode::ForceCharge
+                    }
                     crate::strategy::WorkingMode::Discharging => WorkingMode::ForceDischarge,
                     crate::strategy::WorkingMode::Balancing => WorkingMode::SelfUse,
                 };

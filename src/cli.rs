@@ -46,17 +46,20 @@ pub struct BatteryArgs {
     )]
     pub discharging_power: Kilowatts,
 
-    /// Charging-discharging efficiency (look for «Battery Details» in FoxCloud app).
-    #[clap(long = "battery-efficiency", default_value = "0.974", env = "BATTERY_EFFICIENCY")]
-    #[expect(clippy::doc_markdown)]
+    /// Charging-discharging efficiency (0.5 + 0.5 * «round-trip efficiency»).
+    #[clap(long = "battery-efficiency", default_value = "0.973", env = "BATTERY_EFFICIENCY")]
     pub efficiency: f64,
 
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
 
-    #[clap(long = "battery-retention", default_value = "0.028", env = "BATTERY_SELF_DISCHARGE")]
-    pub self_discharge: f64,
+    #[clap(
+        long = "battery-self-discharge",
+        default_value = "0.02",
+        env = "BATTERY_SELF_DISCHARGE"
+    )]
+    pub self_discharge: Kilowatts,
 }
 
 #[derive(Parser)]

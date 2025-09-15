@@ -46,8 +46,7 @@ pub struct BatteryArgs {
     )]
     pub discharging_power: Kilowatts,
 
-    /// Charging-discharging efficiency (0.5 + 0.5 * «round-trip efficiency»).
-    #[clap(long = "battery-efficiency", default_value = "0.973", env = "BATTERY_EFFICIENCY")]
+    #[clap(long = "battery-efficiency", default_value = "0.94", env = "BATTERY_EFFICIENCY")]
     pub efficiency: f64,
 
     /// Minimal state-of-charge percent.

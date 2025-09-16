@@ -66,6 +66,3 @@ features = ["macros", "rt"]
 version = "=0.12.23"
 default-features = false
 features = ["http2", "rustls-tls", "gzip", "brotli", "zstd", "deflate", "json"]
-
-[dev-dependencies]
-ctor = "=0.5.0"

@@ -117,9 +117,9 @@ impl Optimizer<'_> {
 
             // Finally, total household energy balance:
             let production_without_battery = production_power * Hours::ONE;
-            let total_consumption = battery_external_consumption - production_without_battery;
+            let grid_consumption = battery_external_consumption - production_without_battery;
 
-            let loss = self.loss(metrics.value.grid_rate, total_consumption);
+            let loss = self.loss(metrics.value.grid_rate, grid_consumption);
             net_loss += loss;
             net_loss_without_battery +=
                 self.loss(metrics.value.grid_rate, -production_without_battery);
@@ -130,7 +130,7 @@ impl Optimizer<'_> {
                     working_mode: working_mode.value,
                     residual_energy_before: initial_residual_energy,
                     residual_energy_after: current_residual_energy,
-                    total_consumption,
+                    grid_consumption,
                     loss,
                 },
             });

@@ -23,7 +23,11 @@ use crate::{
 #[tokio::main]
 async fn main() -> Result {
     let _logfire_guard = logfire::configure()
-        .with_console(Some(ConsoleOptions::default().with_include_timestamps(false)))
+        .with_console(Some(
+            ConsoleOptions::default()
+                .with_min_log_level(Level::INFO) // doesn't seem to work
+                .with_include_timestamps(false),
+        ))
         .send_to_logfire(SendToLogfire::IfTokenPresent)
         .with_default_level_filter(LevelFilter::INFO)
         .finish()?
@@ -121,7 +125,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
             before = format!("{:.2}", step.value.residual_energy_before),
             mode = format!("{:?}", step.value.working_mode),
             after = format!("{:.2}", step.value.residual_energy_after),
-            grid = format!("{:.2}", step.value.total_consumption),
+            grid = format!("{:.2}", step.value.grid_consumption),
             loss = format!("¢{:.0}", step.value.loss * 100.0),
         );
     }
@@ -187,20 +191,4 @@ async fn burrow(fox_ess: FoxEss, serial_number: &str, args: BurrowArgs) -> Resul
         }
     }
     Ok(())
-}
-
-/// Configure Logfire for unit tests.
-#[cfg(test)]
-#[ctor::ctor]
-fn init() {
-    logfire::configure()
-        .with_console(Some(
-            ConsoleOptions::default()
-                .with_include_timestamps(false)
-                .with_min_log_level(Level::DEBUG),
-        ))
-        .send_to_logfire(SendToLogfire::No)
-        .with_default_level_filter(LevelFilter::DEBUG)
-        .finish()
-        .unwrap();
 }

@@ -23,6 +23,6 @@ pub struct Step {
     pub working_mode: WorkingMode,
     pub residual_energy_before: KilowattHours,
     pub residual_energy_after: KilowattHours,
-    pub total_consumption: KilowattHours,
+    pub grid_consumption: KilowattHours,
     pub loss: Cost,
 }

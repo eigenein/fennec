@@ -1,6 +1,6 @@
-use std::ops::Mul;
+use std::ops::{Div, Mul};
 
-use crate::units::{Quantity, currency::Cost, rate::KilowattHourRate};
+use crate::units::{Hours, Kilowatts, Quantity, currency::Cost, rate::KilowattHourRate};
 
 pub type KilowattHours = Quantity<f64, 1, 0, 1, 0>;
 
@@ -9,5 +9,13 @@ impl Mul<KilowattHourRate> for KilowattHours {
 
     fn mul(self, rhs: KilowattHourRate) -> Self::Output {
         Cost::from(self.0 * rhs.0)
+    }
+}
+
+impl Div<Kilowatts> for KilowattHours {
+    type Output = Hours;
+
+    fn div(self, rhs: Kilowatts) -> Self::Output {
+        Quantity(self.0 / rhs.0)
     }
 }

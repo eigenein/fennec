@@ -4,7 +4,7 @@ use bon::Builder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
-use super::{Metrics, Series, Solution, Step, TryZip, WorkingMode};
+use super::{Metrics, Series, Solution, Step, WorkingMode};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
@@ -61,7 +61,7 @@ impl Optimizer<'_> {
         ];
         for _ in 0..2 {
             let len = schedule.len();
-            schedule[fastrand::usize(0..len)].value = fastrand::choice(MODES).unwrap();
+            schedule[fastrand::usize(0..len)] = fastrand::choice(MODES).unwrap();
         }
     }
 
@@ -74,7 +74,7 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for point in TryZip::try_zip(self.metrics, schedule) {
+        for point in self.metrics.try_zip(schedule) {
             let point = point?;
             let (metrics, working_mode) = point.value;
             let initial_residual_energy = current_residual_energy;

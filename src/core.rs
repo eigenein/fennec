@@ -13,7 +13,7 @@ pub use self::{
     metrics::Metrics,
     optimizer::Optimizer,
     point::Point,
-    series::{Series, TryZip},
+    series::Series,
     solution::{Solution, Step},
     working_mode::WorkingMode,
 };

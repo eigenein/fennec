@@ -13,7 +13,7 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{Cache, Metrics, Optimizer, Point, Series, Step, TryZip},
+    core::{Cache, Metrics, Optimizer, Point, Series, Step},
     prelude::*,
     units::Kilowatts,
 };

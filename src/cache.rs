@@ -2,7 +2,7 @@ use std::{fmt::Debug, fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{prelude::*, strategy::WorkingMode};
+use crate::{core::WorkingMode, prelude::*};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Cache {

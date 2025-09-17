@@ -7,7 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{prelude::*, strategy::Point, units::KilowattHourRate};
+use crate::{core::Point, prelude::*, units::KilowattHourRate};
 
 pub struct Api(Client);
 

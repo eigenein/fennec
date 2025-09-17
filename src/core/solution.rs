@@ -1,5 +1,5 @@
 use crate::{
-    strategy::{Point, WorkingMode},
+    core::{Point, WorkingMode},
     units::{Cost, KilowattHours},
 };
 

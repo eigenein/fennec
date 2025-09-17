@@ -1,8 +1,8 @@
 mod api;
 mod cache;
 mod cli;
+mod core;
 mod prelude;
-mod strategy;
 mod units;
 
 use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
@@ -15,8 +15,8 @@ use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
+    core::{Metrics, Optimizer, Point, Step},
     prelude::*,
-    strategy::{Metrics, Optimizer, Point, Step},
     units::Kilowatts,
 };
 

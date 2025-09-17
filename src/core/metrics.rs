@@ -1,5 +1,5 @@
 use crate::{
-    strategy::Point,
+    core::Point,
     units::{KilowattHourRate, PowerDensity},
 };
 

@@ -5,7 +5,7 @@ use chrono::{DateTime, Local};
 use crate::{core::Point, prelude::*};
 
 #[derive(Clone, derive_more::IntoIterator, serde::Deserialize, serde::Serialize)]
-pub struct Series<V>(Vec<Point<V>>);
+pub struct Series<V>(#[into_iterator(owned, ref)] Vec<Point<V>>);
 
 impl<V> FromIterator<Point<V>> for Series<V> {
     fn from_iter<I: IntoIterator<Item = Point<V>>>(iter: I) -> Self {
@@ -34,10 +34,6 @@ impl<V> Series<V> {
 
     pub const fn len(&self) -> usize {
         self.0.len()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = Point<&V>> {
-        self.0.iter().map(Point::from)
     }
 
     /// Push the point.

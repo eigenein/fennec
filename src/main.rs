@@ -96,8 +96,8 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     info!("Fetched battery details", residual_energy, total_capacity);
 
     let start_time = Utc::now();
-    let initial_schedule = metrics
-        .iter()
+    let initial_schedule = (&metrics)
+        .into_iter()
         .map(|point| Point { time: point.time, value: cache.schedule[point.time.hour() as usize] })
         .collect();
     let solution = Optimizer::builder()
@@ -137,7 +137,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     );
 
     // Update the cache and avoid collisions with the same hours next day:
-    for step in solution.steps.iter().take(cache.schedule.len()) {
+    for step in (&solution.steps).into_iter().take(cache.schedule.len()) {
         cache.schedule[step.time.hour() as usize] = step.value.working_mode;
     }
 

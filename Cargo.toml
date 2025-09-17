@@ -28,8 +28,8 @@ pedantic = { level = "warn", priority = -1 }
 
 [dependencies]
 anyhow = "=1.0.99"
-derive_more = { version = "=2.0.1", features = ["full"] }
 bon = "3.7.2"
+derive_more = { version = "=2.0.1", features = ["full"] }
 fastrand = "2.3.0"
 itertools = "=0.14.0"
 logfire = "=0.8.2"

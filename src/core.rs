@@ -9,7 +9,7 @@ mod working_mode;
 
 pub use self::{
     cache::Cache,
-    genetic::Optimizer as GeneticOptimizer,
+    genetic::{Dna, Optimizer as GeneticOptimizer},
     metrics::Metrics,
     optimizer::Optimizer,
     point::Point,

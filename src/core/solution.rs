@@ -1,5 +1,5 @@
 use crate::{
-    core::{Point, WorkingMode},
+    core::{Series, WorkingMode},
     units::{Cost, KilowattHours},
 };
 
@@ -7,7 +7,7 @@ use crate::{
 pub struct Solution {
     pub net_loss: Cost,
     pub net_loss_without_battery: Cost,
-    pub steps: Vec<Point<Step>>,
+    pub steps: Series<Step>,
 }
 
 impl Solution {

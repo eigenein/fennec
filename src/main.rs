@@ -13,7 +13,7 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{Cache, Metrics, Optimizer, Point, Step},
+    core::{Cache, Metrics, Optimizer, Point, Series, Step},
     prelude::*,
     units::Kilowatts,
 };
@@ -56,7 +56,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let mut cache = Cache::read_from("cache.json")?;
     let now = Local::now();
 
-    let metrics: Vec<Point<Metrics>> = {
+    let metrics: Series<Metrics> = {
         let next_energy = NextEnergy::try_new()?;
         let mut hourly_rates = next_energy.get_hourly_rates(now).await?;
         let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
@@ -99,7 +99,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let initial_schedule = metrics
         .iter()
         .map(|point| Point { time: point.time, value: cache.schedule[point.time.hour() as usize] })
-        .collect_vec();
+        .collect();
     let solution = Optimizer::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
@@ -109,22 +109,23 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         .consumption(hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
         .build()
-        .run(initial_schedule);
+        .run(initial_schedule)?;
     let run_duration = Utc::now() - start_time;
 
     let profit = solution.profit();
-    for (metrics, step) in metrics.iter().zip(&solution.steps) {
-        assert_eq!(metrics.time, step.time);
+    for point in metrics.try_zip(solution.steps.iter()) {
+        let point = point?;
+        let (metrics, step) = point.value;
         info!(
             "Plan",
-            time = metrics.time.format("%H:%M").to_string(),
-            rate = format!("¢{:.0}", metrics.value.grid_rate * 100.0),
-            solar = metrics.value.solar_power_density.map(|value| format!("{value:.3}")),
-            before = format!("{:.2}", step.value.residual_energy_before),
-            mode = format!("{:?}", step.value.working_mode),
-            after = format!("{:.2}", step.value.residual_energy_after),
-            grid = format!("{:.2}", step.value.grid_consumption),
-            loss = format!("¢{:.0}", step.value.loss * 100.0),
+            time = point.time.format("%H:%M").to_string(),
+            rate = format!("¢{:.0}", metrics.grid_rate * 100.0),
+            solar = metrics.solar_power_density.map(|value| format!("{value:.3}")),
+            before = format!("{:.2}", step.residual_energy_before),
+            mode = format!("{:?}", step.working_mode),
+            after = format!("{:.2}", step.residual_energy_after),
+            grid = format!("{:.2}", step.grid_consumption),
+            loss = format!("¢{:.0}", step.loss * 100.0),
         );
     }
     info!(
@@ -141,7 +142,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     }
 
     let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(
-        solution.steps.into_iter().map(Point::mapper(|step: Step| step.working_mode)),
+        solution.steps.map(|step: Step| step.working_mode),
         &hunt_args.battery,
     )?;
 

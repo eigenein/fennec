@@ -1,5 +1,4 @@
 mod cache;
-mod genetic;
 mod metrics;
 mod optimizer;
 mod point;
@@ -9,7 +8,6 @@ mod working_mode;
 
 pub use self::{
     cache::Cache,
-    genetic::{Dna, Optimizer as GeneticOptimizer},
     metrics::Metrics,
     optimizer::Optimizer,
     point::Point,

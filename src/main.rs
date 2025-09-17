@@ -1,5 +1,4 @@
 mod api;
-mod cache;
 mod cli;
 mod core;
 mod prelude;
@@ -13,9 +12,8 @@ use tracing::level_filters::LevelFilter;
 
 use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
-    cache::Cache,
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{Metrics, Optimizer, Point, Step},
+    core::{Cache, Metrics, Optimizer, Point, Step},
     prelude::*,
     units::Kilowatts,
 };

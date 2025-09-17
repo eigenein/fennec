@@ -4,7 +4,7 @@ use bon::Builder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
-use super::{Metrics, Series, Solution, Step, WorkingMode};
+use super::{Metrics, Series, Solution, Step, TryZip, WorkingMode};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     prelude::*,
@@ -74,7 +74,7 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for point in self.metrics.try_zip(schedule) {
+        for point in TryZip::try_zip(self.metrics, schedule) {
             let point = point?;
             let (metrics, working_mode) = point.value;
             let initial_residual_energy = current_residual_energy;

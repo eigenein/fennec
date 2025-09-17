@@ -52,14 +52,44 @@ impl<V> Series<V> {
     pub fn map<T>(self, f: fn(V) -> T) -> impl IntoIterator<Item = Point<T>> {
         self.0.into_iter().map(move |point| point.map(f))
     }
+}
 
+pub trait TryZip<L> {
     /// Zip the time series by the point timestamps.
     ///
     /// `try_zip()` returns an error when the timestamps do not match.
-    pub fn try_zip<R>(
-        &self,
+    fn try_zip<R>(
+        self,
         rhs: impl IntoIterator<Item = Point<R>>,
-    ) -> impl Iterator<Item = Result<Point<(&V, R)>>> {
-        self.0.iter().zip(rhs).map(|(lhs, rhs)| lhs.try_zip(rhs))
+    ) -> impl Iterator<Item = Result<Point<(L, R)>>>;
+}
+
+impl<L, I> TryZip<L> for I
+where
+    I: IntoIterator<Item = Point<L>>,
+    Self: IntoIterator<Item = Point<L>>,
+{
+    fn try_zip<R>(
+        self,
+        rhs: impl IntoIterator<Item = Point<R>>,
+    ) -> impl Iterator<Item = Result<Point<(L, R)>>> {
+        self.into_iter().zip(rhs).map(|(lhs, rhs)| {
+            ensure!(lhs.time == rhs.time);
+            Ok(Point { time: lhs.time, value: (lhs.value, rhs.value) })
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_zip_ok() -> Result {
+        let time = Local::now();
+        let lhs = Series::from_iter([Point::new(time, 1)]);
+        let rhs = Series::from_iter([Point::new(time, 2)]);
+        assert_eq!(lhs.try_zip(rhs).next().unwrap()?, Point::new(time, (1, 2)));
+        Ok(())
     }
 }

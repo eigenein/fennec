@@ -3,7 +3,16 @@ use chrono::{DateTime, Local};
 use crate::prelude::*;
 
 /// A time series point.
-#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    derive_more::Constructor,
+    serde::Deserialize,
+    serde::Serialize,
+)]
 pub struct Point<V> {
     pub time: DateTime<Local>,
     pub value: V,
@@ -21,6 +30,6 @@ impl<V> Point<V> {
     }
 
     pub fn map<T>(self, f: fn(V) -> T) -> Point<T> {
-        Point { time: self.time, value: f(self.value) }
+        Point::new(self.time, f(self.value))
     }
 }

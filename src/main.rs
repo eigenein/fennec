@@ -13,7 +13,7 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{Cache, Metrics, Optimizer, Point, Series, Step},
+    core::{Cache, Metrics, Optimizer, Point, Series, Step, TryZip},
     prelude::*,
     units::Kilowatts,
 };
@@ -113,7 +113,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let run_duration = Utc::now() - start_time;
 
     let profit = solution.profit();
-    for point in metrics.try_zip(solution.steps.iter()) {
+    for point in metrics.try_zip(&solution.steps) {
         let point = point?;
         let (metrics, step) = point.value;
         info!(

@@ -15,8 +15,8 @@ use crate::{
 pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Result<Table> {
     ensure!(!metrics.is_empty());
     #[allow(clippy::cast_precision_loss)]
-    let average_rate = metrics.into_iter().map(|point| point.value.grid_rate.0).sum::<f64>()
-        / metrics.len() as f64;
+    let average_rate =
+        metrics.iter().map(|point| point.value.grid_rate.0).sum::<f64>() / metrics.len() as f64;
 
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);

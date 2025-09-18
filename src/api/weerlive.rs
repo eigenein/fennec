@@ -120,3 +120,17 @@ impl From<HourlyForecast> for Point<PowerDensity> {
         Self::new(forecast.timestamp, PowerDensity::from_watts(forecast.solar_power_watts_per_m2))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "online test"]
+    async fn test_get() -> Result {
+        let now = Local::now();
+        let series = Api::new("demo", &Location::Name("Amsterdam")).get(now).await?;
+        assert_eq!(series[0].time, now.duration_trunc(TimeDelta::hours(1))?);
+        Ok(())
+    }
+}

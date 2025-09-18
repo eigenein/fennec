@@ -19,6 +19,7 @@ pub struct Schedule {
     #[serde(rename = "enable")]
     pub is_enabled: bool,
 
+    #[serde(rename = "groups")]
     pub groups: TimeSlotSequence,
 }
 
@@ -100,21 +101,8 @@ impl EndTime {
     }
 }
 
-impl TimeSlot {
-    pub fn trace(&self) {
-        info!(
-            "Schedule group",
-            is_enabled = self.is_enabled,
-            start_time = self.start_time.to_string(),
-            end_time = self.end_time.to_string(),
-            work_mode = format!("{:?}", self.working_mode),
-            feed_power_watts = self.feed_power_watts.to_string(),
-        );
-    }
-}
-
-#[derive(Serialize, Deserialize, derive_more::Deref)]
-pub struct TimeSlotSequence(Vec<TimeSlot>);
+#[derive(Serialize, Deserialize, derive_more::AsRef, derive_more::IntoIterator)]
+pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
 
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
@@ -156,23 +144,10 @@ impl TimeSlotSequence {
                     feed_power_watts: feed_power.into_watts_u32(),
                     working_mode,
                 };
-                info!(
-                    "Time slot",
-                    start_time = time_slot.start_time.to_string(),
-                    end_time = time_slot.end_time.to_string(),
-                    working_mode = format!("{working_mode:?}"),
-                    feed_power_watts = time_slot.feed_power_watts.to_string(),
-                );
                 Ok(time_slot)
             })
             .collect::<Result<_>>()
             .map(Self)
-    }
-
-    pub fn trace(&self) {
-        for time_slot in &self.0 {
-            time_slot.trace();
-        }
     }
 }
 

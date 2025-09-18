@@ -2,6 +2,7 @@ mod api;
 mod cli;
 mod core;
 mod prelude;
+mod render;
 mod units;
 
 use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
@@ -22,6 +23,7 @@ use crate::{
         solution::Step,
     },
     prelude::*,
+    render::{render_time_slot_sequence, try_render_steps},
     units::power::Kilowatts,
 };
 
@@ -120,21 +122,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     let run_duration = Utc::now() - start_time;
 
     let profit = solution.profit();
-    for point in metrics.try_zip(&solution.steps) {
-        let point = point?;
-        let (metrics, step) = point.value;
-        info!(
-            "Plan",
-            time = point.time.format("%H:%M").to_string(),
-            rate = format!("¢{:.0}", metrics.grid_rate * 100.0),
-            solar = metrics.solar_power_density.map(|value| format!("{value:.3}")),
-            before = format!("{:.2}", step.residual_energy_before),
-            mode = format!("{:?}", step.working_mode),
-            after = format!("{:.2}", step.residual_energy_after),
-            grid = format!("{:.2}", step.grid_consumption),
-            loss = format!("¢{:.0}", step.loss * 100.0),
-        );
-    }
+    println!("{}", try_render_steps(&metrics, &solution.steps)?);
     info!(
         "Optimized",
         run_duration = format!("{:.1}s", run_duration.as_seconds_f64()),
@@ -152,9 +140,10 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         solution.steps.map(|step: Step| step.working_mode),
         &hunt_args.battery,
     )?;
+    println!("{}", render_time_slot_sequence(&time_slot_sequence));
 
     if !hunt_args.scout {
-        fox_ess.set_schedule(serial_number, &time_slot_sequence).await?;
+        fox_ess.set_schedule(serial_number, time_slot_sequence.as_ref()).await?;
     }
 
     cache.write_to("cache.json")?;
@@ -193,7 +182,7 @@ async fn burrow(fox_ess: foxess::Api, serial_number: &str, args: BurrowArgs) -> 
         BurrowCommand::Schedule => {
             let schedule = fox_ess.get_schedule(serial_number).await?;
             info!("Gotcha", enabled = schedule.is_enabled);
-            schedule.groups.trace();
+            println!("{}", render_time_slot_sequence(&schedule.groups));
         }
     }
     Ok(())

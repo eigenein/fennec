@@ -9,7 +9,7 @@ license = "MIT"
 publish = true
 readme = "README.md"
 repository = "https://github.com/eigenein/fennec"
-version = "0.14.7"
+version = "0.15.0"
 rust-version = "1.89"
 
 [badges]
@@ -29,6 +29,7 @@ pedantic = { level = "warn", priority = -1 }
 [dependencies]
 anyhow = "=1.0.99"
 bon = "3.7.2"
+comfy-table = "7.2.1"
 derive_more = { version = "=2.0.1", features = ["full"] }
 fastrand = "2.3.0"
 itertools = "=0.14.0"

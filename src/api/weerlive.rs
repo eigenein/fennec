@@ -44,15 +44,21 @@ impl Api {
     #[instrument(skip_all, name = "Fetching the local weather…", fields(since = ?since))]
     pub async fn get(&self, since: DateTime<Local>) -> Result<Vec<Point<PowerDensity>>> {
         let since = since.duration_trunc(TimeDelta::hours(1))?;
-        let response = self.client.get(&self.url).send().await?.json::<Response>().await?;
+        let (live, mut hourly) = {
+            let response = self.client.get(&self.url).send().await?.json::<Response>().await?;
+            (response.live, response.hourly_forecast)
+        };
 
-        // I need to correct for when the current hour forecast disappears:
-        let maybe_first = match response.hourly_forecast.first() {
-            Some(forecast) if forecast.timestamp == since => {
+        // Sometimes, they return a past forecast…
+        hourly.retain(|forecast| forecast.timestamp >= since);
+
+        // And, correct for when the current hour forecast disappears:
+        let maybe_first = match hourly.first() {
+            Some(first) if first.timestamp == since => {
                 // No need to correct the forecast:
                 None
             }
-            _ => match response.live.first() {
+            _ => match live.first() {
                 Some(live) => {
                     warn!("Missing forecast for the current hour, using live weather");
                     Some(Point::try_from(live)?)
@@ -63,10 +69,7 @@ impl Api {
             },
         };
 
-        Ok(maybe_first
-            .into_iter()
-            .chain(response.hourly_forecast.into_iter().map(Point::from))
-            .collect())
+        Ok(maybe_first.into_iter().chain(hourly.into_iter().map(Point::from)).collect())
     }
 }
 

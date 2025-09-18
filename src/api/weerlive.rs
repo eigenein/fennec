@@ -3,11 +3,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::{
-    core::{point::Point, series::Series},
-    prelude::*,
-    units::power_density::PowerDensity,
-};
+use crate::{core::series::Series, prelude::*, units::power_density::PowerDensity};
 
 pub struct Api {
     client: Client,
@@ -105,17 +101,6 @@ struct Live {
     solar_power_watts_per_m2: f64,
 }
 
-impl TryFrom<&Live> for Point<PowerDensity> {
-    type Error = Error;
-
-    fn try_from(live: &Live) -> Result<Self> {
-        Ok(Self::new(
-            live.timestamp.duration_trunc(TimeDelta::hours(1))?,
-            PowerDensity::from_watts(live.solar_power_watts_per_m2),
-        ))
-    }
-}
-
 #[serde_as]
 #[derive(Copy, Clone, Deserialize)]
 struct HourlyForecast {
@@ -125,12 +110,6 @@ struct HourlyForecast {
 
     #[serde(rename = "gr")]
     solar_power_watts_per_m2: f64,
-}
-
-impl From<HourlyForecast> for Point<PowerDensity> {
-    fn from(forecast: HourlyForecast) -> Self {
-        Self::new(forecast.timestamp, PowerDensity::from_watts(forecast.solar_power_watts_per_m2))
-    }
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ use reqwest::{
 
 use crate::prelude::*;
 
+#[expect(dead_code)]
 pub struct Api {
     client: Client,
 
@@ -40,6 +41,7 @@ pub struct Api {
 }
 
 impl Api {
+    #[expect(dead_code)]
     pub fn try_new(access_token: &str, total_energy_usage_url: Url) -> Result<Self> {
         let headers = HeaderMap::from_iter([(
             HeaderName::from_static("Authorization"),
@@ -57,6 +59,7 @@ impl Api {
 /// [State classes][1].
 ///
 /// [1]: https://developers.home-assistant.io/docs/core/entity/sensor/#available-state-classes
+#[expect(dead_code)]
 #[derive(Copy, Clone, Eq, PartialEq, serde::Deserialize)]
 enum StateClass {
     /// The state represents a total amount that can both increase and decrease, e.g. a net energy meter.

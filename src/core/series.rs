@@ -1,5 +1,3 @@
-use std::ops::{Index, IndexMut};
-
 use chrono::{DateTime, Local};
 
 use crate::{core::point::Point, prelude::*};
@@ -10,20 +8,6 @@ pub struct Series<V>(Vec<Point<V>>);
 impl<V> FromIterator<Point<V>> for Series<V> {
     fn from_iter<I: IntoIterator<Item = Point<V>>>(iter: I) -> Self {
         Self(iter.into_iter().collect())
-    }
-}
-
-impl<V> Index<usize> for Series<V> {
-    type Output = V;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index].value
-    }
-}
-
-impl<V> IndexMut<usize> for Series<V> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index].value
     }
 }
 
@@ -42,6 +26,10 @@ impl<V> Series<V> {
 
     pub fn iter(&self) -> impl Iterator<Item = Point<&V>> {
         self.0.iter().map(|point| Point::new(point.time, &point.value))
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = Point<&mut V>> {
+        self.0.iter_mut().map(|point| Point::new(point.time, &mut point.value))
     }
 
     /// Push the point.

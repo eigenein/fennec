@@ -70,21 +70,24 @@ impl Optimizer<'_> {
             WorkingMode::Discharging,
         ];
 
-        assert!(schedule.len() >= 2);
+        let len = schedule.len();
+        assert!(len >= 2);
 
-        let i1 = fastrand::usize(0..(schedule.len() - 1));
-        let i2 = fastrand::usize((i1 + 1)..schedule.len());
+        let mut iterator = schedule.iter_mut();
 
-        let (new_mode_1, new_mode_2) = loop {
+        let n1 = fastrand::usize(0..(len - 1));
+        let point_1 = iterator.nth(n1).unwrap();
+
+        let n2 = fastrand::usize(0..(len - n1 - 1));
+        let point_2 = iterator.nth(n2).unwrap();
+
+        (*point_1.value, *point_2.value) = loop {
             let mode_1 = fastrand::choice(MODES).unwrap();
             let mode_2 = fastrand::choice(MODES).unwrap();
-            if mode_1 != schedule[i1] || mode_2 != schedule[i2] {
+            if mode_1 != *point_1.value || mode_2 != *point_2.value {
                 break (mode_1, mode_2);
             }
         };
-
-        schedule[i1] = new_mode_1;
-        schedule[i2] = new_mode_2;
     }
 
     fn simulate(&self, schedule: &Series<WorkingMode>) -> Result<Solution> {

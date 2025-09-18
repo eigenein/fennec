@@ -12,7 +12,7 @@ use reqwest::{
 use response::Response;
 use serde::{Serialize, de::DeserializeOwned};
 
-pub use self::schedule::TimeSlotSequence;
+pub use self::schedule::{TimeSlotSequence, WorkingMode};
 use self::{
     models::{DeviceRealTimeData, DeviceVariables},
     schedule::{Schedule, TimeSlot},

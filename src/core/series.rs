@@ -36,6 +36,10 @@ impl<V> Series<V> {
         self.0.len()
     }
 
+    pub const fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Push the point.
     pub fn push(&mut self, time: DateTime<Local>, value: V) {
         self.0.push(Point { time, value });
@@ -53,6 +57,7 @@ impl<V> Series<V> {
         &'l self,
         rhs: &'r Series<R>,
     ) -> impl Iterator<Item = Result<Point<(&'l V, &'r R)>>> {
+        // FIXME: should call `zip_longest` and verify no leftovers.
         self.0.iter().zip(&rhs.0).map(|(lhs, rhs)| lhs.try_zip(rhs))
     }
 }

@@ -14,14 +14,7 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{foxess, nextenergy, weerlive},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{
-        cache::Cache,
-        metrics::Metrics,
-        optimizer::Optimizer,
-        point::Point,
-        series::Series,
-        solution::Step,
-    },
+    core::{cache::Cache, metrics::Metrics, optimizer::Optimizer, series::Series, solution::Step},
     prelude::*,
     render::{render_time_slot_sequence, try_render_steps},
     units::power::Kilowatts,
@@ -85,12 +78,19 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
             .zip_longest(solar_power_density)
             .filter_map(|pair| match pair {
                 EitherOrBoth::Both(grid_rate, solar_power_density) => {
-                    Some(Point::<Metrics>::from((grid_rate, solar_power_density)))
+                    assert_eq!(grid_rate.time, solar_power_density.time);
+                    Some((
+                        grid_rate.time,
+                        Metrics {
+                            grid_rate: grid_rate.value,
+                            solar_power_density: Some(solar_power_density.value),
+                        },
+                    ))
                 }
-                EitherOrBoth::Left(grid_rate) => Some(Point {
-                    time: grid_rate.time,
-                    value: Metrics { grid_rate: grid_rate.value, solar_power_density: None },
-                }),
+                EitherOrBoth::Left(grid_rate) => Some((
+                    grid_rate.time,
+                    Metrics { grid_rate: grid_rate.value, solar_power_density: None },
+                )),
                 EitherOrBoth::Right(_) => None,
             })
             .collect()
@@ -105,10 +105,8 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     info!("Fetched battery details", residual_energy, total_capacity);
 
     let start_time = Utc::now();
-    let initial_schedule = metrics
-        .iter()
-        .map(|(time, _)| Point { time, value: cache.schedule[time.hour() as usize] })
-        .collect();
+    let initial_schedule =
+        metrics.iter().map(|(time, _)| (time, cache.schedule[time.hour() as usize])).collect();
     let (n_mutations_succeeded, solution) = Optimizer::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)

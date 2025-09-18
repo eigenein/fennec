@@ -5,9 +5,9 @@ use crate::{core::point::Point, prelude::*};
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct Series<V>(Vec<Point<V>>);
 
-impl<V> FromIterator<Point<V>> for Series<V> {
-    fn from_iter<I: IntoIterator<Item = Point<V>>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
+impl<V> FromIterator<(DateTime<Local>, V)> for Series<V> {
+    fn from_iter<I: IntoIterator<Item = (DateTime<Local>, V)>>(iter: I) -> Self {
+        Self(iter.into_iter().map(|(time, value)| Point::new(time, value)).collect())
     }
 }
 
@@ -61,8 +61,8 @@ mod tests {
     #[test]
     fn test_try_zip_ok() -> Result {
         let time = Local::now();
-        let lhs = Series::from_iter([Point::new(time, 1)]);
-        let rhs = Series::from_iter([Point::new(time, 2)]);
+        let lhs = Series::from_iter([(time, 1)]);
+        let rhs = Series::from_iter([(time, 2)]);
         assert_eq!(lhs.try_zip(&rhs).next().unwrap()?, (time, &1, &2));
         Ok(())
     }

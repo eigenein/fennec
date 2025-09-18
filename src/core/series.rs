@@ -24,12 +24,12 @@ impl<V> Series<V> {
         self.0.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Point<&V>> {
-        self.0.iter().map(|point| Point::new(point.time, &point.value))
+    pub fn iter(&self) -> impl Iterator<Item = (DateTime<Local>, &V)> {
+        self.0.iter().map(|point| (point.time, &point.value))
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = Point<&mut V>> {
-        self.0.iter_mut().map(|point| Point::new(point.time, &mut point.value))
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (DateTime<Local>, &mut V)> {
+        self.0.iter_mut().map(|point| (point.time, &mut point.value))
     }
 
     /// Push the point.
@@ -38,8 +38,8 @@ impl<V> Series<V> {
     }
 
     /// Map each point value.
-    pub fn map<T>(self, f: fn(V) -> T) -> impl IntoIterator<Item = Point<T>> {
-        self.0.into_iter().map(move |point| point.map(f))
+    pub fn map<T>(self, f: fn(V) -> T) -> impl IntoIterator<Item = (DateTime<Local>, T)> {
+        self.0.into_iter().map(move |point| (point.time, f(point.value)))
     }
 
     /// Zip the time series by the point timestamps.

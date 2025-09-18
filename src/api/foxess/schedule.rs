@@ -1,13 +1,13 @@
 use std::fmt::{Display, Formatter};
 
-use chrono::Timelike;
+use chrono::{DateTime, Local, Timelike};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
     cli::BatteryArgs,
-    core::{point::Point, working_mode::WorkingMode as CoreWorkingMode},
+    core::working_mode::WorkingMode as CoreWorkingMode,
     prelude::*,
     units::power::Kilowatts,
 };
@@ -107,21 +107,21 @@ pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule(
-        schedule: impl IntoIterator<Item = Point<CoreWorkingMode>>,
+        schedule: impl IntoIterator<Item = (DateTime<Local>, CoreWorkingMode)>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
         schedule
             .into_iter()
             .take(24) // Avoid collisions with the same hours next day.
-            .chunk_by(|point| {
+            .chunk_by(|(time, mode)| {
                 // Group by date as well because we cannot have time slots like 22:00-02:00:
-                (point.time.date_naive(), point.value)
+                (time.date_naive(), *mode)
             })
             .into_iter()
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups.
             .map(|((_, working_mode), group)| {
                 // Convert into time slots with their respective working mode:
-                (working_mode, group.map(|point| point.time).collect::<Vec<_>>())
+                (working_mode, group.map(|(time, _)| time).collect::<Vec<_>>())
             })
             .map(|(working_mode, timestamps)| {
                 let feed_power = match working_mode {

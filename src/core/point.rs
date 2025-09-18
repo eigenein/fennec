@@ -23,8 +23,4 @@ impl<V> Point<V> {
         ensure!(self.time == rhs.time);
         Ok(Point::new(self.time, (&self.value, &rhs.value)))
     }
-
-    pub fn map<T>(self, f: fn(V) -> T) -> Point<T> {
-        Point::new(self.time, f(self.value))
-    }
 }

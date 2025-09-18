@@ -77,15 +77,15 @@ impl Optimizer<'_> {
         let mut iterator = schedule.iter_mut();
 
         let n1 = fastrand::usize(0..(len - 1));
-        let point_1 = iterator.nth(n1).unwrap();
+        let (_, point_1) = iterator.nth(n1).unwrap();
 
         let n2 = fastrand::usize(0..(len - n1 - 1));
-        let point_2 = iterator.nth(n2).unwrap();
+        let (_, point_2) = iterator.nth(n2).unwrap();
 
-        (*point_1.value, *point_2.value) = loop {
+        (*point_1, *point_2) = loop {
             let mode_1 = fastrand::choice(MODES).unwrap();
             let mode_2 = fastrand::choice(MODES).unwrap();
-            if mode_1 != *point_1.value || mode_2 != *point_2.value {
+            if mode_1 != *point_1 || mode_2 != *point_2 {
                 break (mode_1, mode_2);
             }
         };

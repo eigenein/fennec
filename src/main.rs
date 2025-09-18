@@ -107,7 +107,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     let start_time = Utc::now();
     let initial_schedule = metrics
         .iter()
-        .map(|point| Point { time: point.time, value: cache.schedule[point.time.hour() as usize] })
+        .map(|(time, _)| Point { time, value: cache.schedule[time.hour() as usize] })
         .collect();
     let (n_mutations_succeeded, solution) = Optimizer::builder()
         .metrics(&metrics)
@@ -133,8 +133,8 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     );
 
     // Update the cache and avoid collisions with the same hours next day:
-    for step in solution.steps.iter().take(cache.schedule.len()) {
-        cache.schedule[step.time.hour() as usize] = step.value.working_mode;
+    for (time, step) in solution.steps.iter().take(cache.schedule.len()) {
+        cache.schedule[time.hour() as usize] = step.working_mode;
     }
 
     let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(

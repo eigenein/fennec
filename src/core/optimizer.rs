@@ -38,7 +38,8 @@ impl Optimizer<'_> {
         fields(residual_energy = %self.residual_energy, n_steps = self.n_steps),
         skip_all,
     )]
-    pub fn run(self, initial_schedule: Series<WorkingMode>) -> Result<Solution> {
+    pub fn run(self, initial_schedule: Series<WorkingMode>) -> Result<(usize, Solution)> {
+        let mut n_mutations_succeeded = 0;
         let mut best_solution: (Series<WorkingMode>, Solution) = {
             let initial_solution = self.simulate(&initial_schedule)?;
             (initial_schedule, initial_solution)
@@ -52,12 +53,13 @@ impl Optimizer<'_> {
 
             if solution.net_loss < best_solution.1.net_loss {
                 best_solution = (schedule, solution);
+                n_mutations_succeeded += 1;
             }
 
             Ok::<_, Error>(())
         })?;
 
-        Ok(best_solution.1)
+        Ok((n_mutations_succeeded, best_solution.1))
     }
 
     fn mutate(schedule: &mut Series<WorkingMode>) {
@@ -67,10 +69,22 @@ impl Optimizer<'_> {
             WorkingMode::Charging,
             WorkingMode::Discharging,
         ];
-        for _ in 0..2 {
-            let len = schedule.len();
-            schedule[fastrand::usize(0..len)] = fastrand::choice(MODES).unwrap();
-        }
+
+        assert!(schedule.len() >= 2);
+
+        let i1 = fastrand::usize(0..(schedule.len() - 1));
+        let i2 = fastrand::usize((i1 + 1)..schedule.len());
+
+        let (new_mode_1, new_mode_2) = loop {
+            let mode_1 = fastrand::choice(MODES).unwrap();
+            let mode_2 = fastrand::choice(MODES).unwrap();
+            if mode_1 != schedule[i1] || mode_2 != schedule[i2] {
+                break (mode_1, mode_2);
+            }
+        };
+
+        schedule[i1] = new_mode_1;
+        schedule[i2] = new_mode_2;
     }
 
     fn simulate(&self, schedule: &Series<WorkingMode>) -> Result<Solution> {

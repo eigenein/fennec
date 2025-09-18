@@ -46,6 +46,7 @@ impl Optimizer<'_> {
         };
 
         (0..self.n_steps).progress().try_for_each(|_| {
+            // FIXME: do not use `clone()` and revert instead.
             let mut schedule = best_solution.0.clone();
             Self::mutate(&mut schedule);
 

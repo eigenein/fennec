@@ -62,7 +62,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         let next_energy = nextenergy::Api::try_new()?;
         let mut hourly_rates = next_energy.get_hourly_rates(now).await?;
         let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-        hourly_rates.extend(next_energy.get_hourly_rates(next_day).await?);
+        hourly_rates.extend(next_energy.get_hourly_rates(next_day).await?.into_iter());
         info!("Fetched energy rates", len = hourly_rates.len());
 
         let solar_power_density = weerlive::Api::new(
@@ -75,22 +75,18 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
 
         hourly_rates
             .into_iter()
-            .zip_longest(solar_power_density)
+            .zip_longest(solar_power_density.into_iter())
             .filter_map(|pair| match pair {
-                EitherOrBoth::Both(grid_rate, solar_power_density) => {
-                    assert_eq!(grid_rate.time, solar_power_density.time);
+                EitherOrBoth::Both((lhs_time, grid_rate), (rhs_time, solar_power_density)) => {
+                    assert_eq!(lhs_time, rhs_time);
                     Some((
-                        grid_rate.time,
-                        Metrics {
-                            grid_rate: grid_rate.value,
-                            solar_power_density: Some(solar_power_density.value),
-                        },
+                        lhs_time,
+                        Metrics { grid_rate, solar_power_density: Some(solar_power_density) },
                     ))
                 }
-                EitherOrBoth::Left(grid_rate) => Some((
-                    grid_rate.time,
-                    Metrics { grid_rate: grid_rate.value, solar_power_density: None },
-                )),
+                EitherOrBoth::Left((time, grid_rate)) => {
+                    Some((time, Metrics { grid_rate, solar_power_density: None }))
+                }
                 EitherOrBoth::Right(_) => None,
             })
             .collect()

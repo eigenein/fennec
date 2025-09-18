@@ -3,7 +3,11 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::{core::point::Point, prelude::*, units::power_density::PowerDensity};
+use crate::{
+    core::{point::Point, series::Series},
+    prelude::*,
+    units::power_density::PowerDensity,
+};
 
 pub struct Api {
     client: Client,
@@ -42,7 +46,7 @@ impl Api {
     }
 
     #[instrument(skip_all, name = "Fetching the local weather…", fields(since = ?since))]
-    pub async fn get(&self, since: DateTime<Local>) -> Result<Vec<Point<PowerDensity>>> {
+    pub async fn get(&self, since: DateTime<Local>) -> Result<Series<PowerDensity>> {
         let since = since.duration_trunc(TimeDelta::hours(1))?;
         let (live, mut hourly) = {
             let response = self.client.get(&self.url).send().await?.json::<Response>().await?;
@@ -61,7 +65,10 @@ impl Api {
             _ => match live.first() {
                 Some(live) => {
                     warn!("Missing forecast for the current hour, using live weather");
-                    Some(Point::try_from(live)?)
+                    Some((
+                        live.timestamp.duration_trunc(TimeDelta::hours(1))?,
+                        PowerDensity::from_watts(live.solar_power_watts_per_m2),
+                    ))
                 }
                 _ => {
                     bail!("missing both forecasted and live weather for the current hour");
@@ -69,7 +76,12 @@ impl Api {
             },
         };
 
-        Ok(maybe_first.into_iter().chain(hourly.into_iter().map(Point::from)).collect())
+        Ok(maybe_first
+            .into_iter()
+            .chain(hourly.into_iter().map(|forecast| {
+                (forecast.timestamp, PowerDensity::from_watts(forecast.solar_power_watts_per_m2))
+            }))
+            .collect())
     }
 }
 
@@ -129,8 +141,13 @@ mod tests {
     #[ignore = "online test"]
     async fn test_get() -> Result {
         let now = Local::now();
-        let series = Api::new("demo", &Location::Name("Amsterdam")).get(now).await?;
-        assert_eq!(series[0].time, now.duration_trunc(TimeDelta::hours(1))?);
+        let (time, _) = Api::new("demo", &Location::Name("Amsterdam"))
+            .get(now)
+            .await?
+            .into_iter()
+            .next()
+            .unwrap();
+        assert_eq!(time, now.duration_trunc(TimeDelta::hours(1))?);
         Ok(())
     }
 }

@@ -24,6 +24,10 @@ impl<V> Series<V> {
         self.0.is_empty()
     }
 
+    pub fn into_iter(self) -> impl Iterator<Item = (DateTime<Local>, V)> {
+        self.0.into_iter().map(|point| (point.time, point.value))
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (DateTime<Local>, &V)> {
         self.0.iter().map(|point| (point.time, &point.value))
     }
@@ -35,6 +39,10 @@ impl<V> Series<V> {
     /// Push the point.
     pub fn push(&mut self, time: DateTime<Local>, value: V) {
         self.0.push(Point { time, value });
+    }
+
+    pub fn extend(&mut self, other: impl IntoIterator<Item = (DateTime<Local>, V)>) {
+        self.0.extend(other.into_iter().map(|(time, value)| Point::new(time, value)));
     }
 
     /// Map each point value.

@@ -7,7 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{core::point::Point, prelude::*, units::rate::KilowattHourRate};
+use crate::{core::series::Series, prelude::*, units::rate::KilowattHourRate};
 
 pub struct Api(Client);
 
@@ -20,7 +20,7 @@ impl Api {
     pub async fn get_hourly_rates(
         &self,
         since: DateTime<Local>,
-    ) -> Result<Vec<Point<KilowattHourRate>>> {
+    ) -> Result<Series<KilowattHourRate>> {
         let since = since.duration_trunc(TimeDelta::hours(1))?;
         self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
@@ -38,7 +38,7 @@ impl Api {
             .list
             .into_iter()
             .filter(|point| point.hour >= since.hour())
-            .map(|point| Ok(Point { time: since.with_hour(point.hour).context("invalid hour")?, value: point.value }))
+            .map(|point| Ok((since.with_hour(point.hour).context("invalid hour")?, point.value)))
             .collect()
     }
 }
@@ -137,7 +137,6 @@ struct Variables {
 #[cfg(test)]
 mod tests {
     use chrono::{Local, Timelike};
-    use itertools::Itertools;
 
     use super::*;
 
@@ -145,8 +144,9 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_hourly_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new()?.get_hourly_rates(now).await?.into_iter().collect_vec();
-        assert_eq!(series[0].time.hour(), now.hour());
+        let series = Api::try_new()?.get_hourly_rates(now).await?;
+        let (time, _) = series.iter().next().unwrap();
+        assert_eq!(time.hour(), now.hour());
         assert!(!series.is_empty());
         assert!(series.len() <= 24);
         Ok(())

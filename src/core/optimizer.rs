@@ -4,17 +4,30 @@ use bon::Builder;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 
-use super::{Metrics, Series, Solution, Step, WorkingMode};
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
+    core::{
+        metrics::Metrics,
+        series::Series,
+        solution::{Solution, Step},
+        working_mode::WorkingMode,
+    },
     prelude::*,
-    units::{Cost, Hours, KilowattHourRate, KilowattHours, Kilowatts, Quantity, SurfaceArea},
+    units::{
+        currency::Cost,
+        energy::KilowattHours,
+        power::Kilowatts,
+        quantity::Quantity,
+        rate::KilowattHourRate,
+        surface_area::SquareMetres,
+        time::Hours,
+    },
 };
 
 #[derive(Builder)]
 pub struct Optimizer<'a> {
     metrics: &'a Series<Metrics>,
-    pv_surface_area: SurfaceArea,
+    pv_surface_area: SquareMetres,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery: BatteryArgs,

@@ -5,7 +5,12 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryArgs, core::Point, prelude::*, units::Kilowatts};
+use crate::{
+    cli::BatteryArgs,
+    core::{point::Point, working_mode::WorkingMode as CoreWorkingMode},
+    prelude::*,
+    units::power::Kilowatts,
+};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -114,7 +119,7 @@ pub struct TimeSlotSequence(Vec<TimeSlot>);
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule(
-        schedule: impl IntoIterator<Item = Point<crate::core::WorkingMode>>,
+        schedule: impl IntoIterator<Item = Point<CoreWorkingMode>>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
         schedule
@@ -132,16 +137,14 @@ impl TimeSlotSequence {
             })
             .map(|(working_mode, timestamps)| {
                 let feed_power = match working_mode {
-                    crate::core::WorkingMode::Discharging => battery_args.discharging_power,
-                    crate::core::WorkingMode::Idle => Kilowatts::ZERO,
+                    CoreWorkingMode::Discharging => battery_args.discharging_power,
+                    CoreWorkingMode::Idle => Kilowatts::ZERO,
                     _ => battery_args.charging_power,
                 };
                 let working_mode = match working_mode {
-                    crate::core::WorkingMode::Charging | crate::core::WorkingMode::Idle => {
-                        WorkingMode::ForceCharge
-                    }
-                    crate::core::WorkingMode::Discharging => WorkingMode::ForceDischarge,
-                    crate::core::WorkingMode::Balancing => WorkingMode::SelfUse,
+                    CoreWorkingMode::Charging | CoreWorkingMode::Idle => WorkingMode::ForceCharge,
+                    CoreWorkingMode::Discharging => WorkingMode::ForceDischarge,
+                    CoreWorkingMode::Balancing => WorkingMode::SelfUse,
                 };
                 let time_slot = TimeSlot {
                     is_enabled: true,

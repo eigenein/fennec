@@ -1,6 +1,6 @@
 use std::ops::{Div, Mul};
 
-use crate::units::{Cost, Hours, Kilowatts, Quantity};
+use crate::units::{currency::Cost, power::Kilowatts, quantity::Quantity, time::Hours};
 
 /// Euro per kilowatt-hour.
 pub type KilowattHourRate = Quantity<f64, 1, 0, 1, -1>;

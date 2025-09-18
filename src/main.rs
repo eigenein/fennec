@@ -11,11 +11,18 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{FoxEss, FoxEssTimeSlotSequence, NextEnergy, Weerlive, WeerliveLocation},
+    api::{foxess, nextenergy, weerlive},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{Cache, Metrics, Optimizer, Point, Series, Step},
+    core::{
+        cache::Cache,
+        metrics::Metrics,
+        optimizer::Optimizer,
+        point::Point,
+        series::Series,
+        solution::Step,
+    },
     prelude::*,
-    units::Kilowatts,
+    units::power::Kilowatts,
 };
 
 #[tokio::main]
@@ -32,7 +39,7 @@ async fn main() -> Result {
         .shutdown_guard();
 
     let args = Args::parse();
-    let fox_ess = FoxEss::try_new(args.fox_ess_api.api_key)?;
+    let fox_ess = foxess::Api::try_new(args.fox_ess_api.api_key)?;
 
     match args.command {
         Command::Hunt(hunt_args) => {
@@ -47,7 +54,7 @@ async fn main() -> Result {
     Ok(())
 }
 
-async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Result {
+async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
     ensure!(
         hunt_args.consumption.stand_by >= Kilowatts::ZERO,
         "stand-by consumption must be non-negative",
@@ -57,15 +64,15 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     let now = Local::now();
 
     let metrics: Series<Metrics> = {
-        let next_energy = NextEnergy::try_new()?;
+        let next_energy = nextenergy::Api::try_new()?;
         let mut hourly_rates = next_energy.get_hourly_rates(now).await?;
         let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
         hourly_rates.extend(next_energy.get_hourly_rates(next_day).await?);
         info!("Fetched energy rates", len = hourly_rates.len());
 
-        let solar_power_density = Weerlive::new(
+        let solar_power_density = weerlive::Api::new(
             &hunt_args.solar.weerlive_api_key,
-            &WeerliveLocation::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
+            &weerlive::Location::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
         )
         .get(now)
         .await?;
@@ -141,7 +148,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
         cache.schedule[step.time.hour() as usize] = step.value.working_mode;
     }
 
-    let time_slot_sequence = FoxEssTimeSlotSequence::from_schedule(
+    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(
         solution.steps.map(|step: Step| step.working_mode),
         &hunt_args.battery,
     )?;
@@ -154,7 +161,7 @@ async fn hunt(fox_ess: FoxEss, serial_number: &str, hunt_args: HuntArgs) -> Resu
     Ok(())
 }
 
-async fn burrow(fox_ess: FoxEss, serial_number: &str, args: BurrowArgs) -> Result {
+async fn burrow(fox_ess: foxess::Api, serial_number: &str, args: BurrowArgs) -> Result {
     match args.command {
         BurrowCommand::DeviceDetails => {
             let details = fox_ess.get_device_details(serial_number).await?;

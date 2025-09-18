@@ -1,6 +1,6 @@
 use crate::{
-    core::{Series, WorkingMode},
-    units::{Cost, KilowattHours},
+    core::{series::Series, working_mode::WorkingMode},
+    units::{currency::Cost, energy::KilowattHours},
 };
 
 /// Optimization plan that describes how the battery will work in the upcoming hours.

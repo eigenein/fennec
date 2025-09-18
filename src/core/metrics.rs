@@ -1,6 +1,6 @@
 use crate::{
-    core::Point,
-    units::{KilowattHourRate, PowerDensity},
+    core::point::Point,
+    units::{power_density::PowerDensity, rate::KilowattHourRate},
 };
 
 pub struct Metrics {

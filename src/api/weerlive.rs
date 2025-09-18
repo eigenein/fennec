@@ -3,7 +3,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::{core::Point, prelude::*, units::PowerDensity};
+use crate::{core::point::Point, prelude::*, units::power_density::PowerDensity};
 
 pub struct Api {
     client: Client,

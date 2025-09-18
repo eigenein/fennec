@@ -1,6 +1,11 @@
 use std::ops::Mul;
 
-use crate::units::{HourRate, Hours, KilowattHourRate, KilowattHours, Quantity};
+use crate::units::{
+    energy::KilowattHours,
+    quantity::Quantity,
+    rate::{HourRate, KilowattHourRate},
+    time::Hours,
+};
 
 pub type Kilowatts = Quantity<f64, 1, 0, 0, 0>;
 

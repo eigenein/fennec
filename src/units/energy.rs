@@ -1,6 +1,12 @@
 use std::ops::{Div, Mul};
 
-use crate::units::{Hours, Kilowatts, Quantity, currency::Cost, rate::KilowattHourRate};
+use crate::units::{
+    currency::Cost,
+    power::Kilowatts,
+    quantity::Quantity,
+    rate::KilowattHourRate,
+    time::Hours,
+};
 
 pub type KilowattHours = Quantity<f64, 1, 0, 1, 0>;
 

@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use chrono::{DateTime, Local};
 
-use crate::{core::Point, prelude::*};
+use crate::{core::point::Point, prelude::*};
 
 #[derive(Clone, derive_more::IntoIterator, serde::Deserialize, serde::Serialize)]
 pub struct Series<V>(#[into_iterator(owned, ref)] Vec<Point<V>>);

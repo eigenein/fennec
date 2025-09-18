@@ -1,3 +1,3 @@
-use crate::units::Quantity;
+use crate::units::quantity::Quantity;
 
-pub type SurfaceArea = Quantity<f64, 0, 1, 0, 0>;
+pub type SquareMetres = Quantity<f64, 0, 1, 0, 0>;

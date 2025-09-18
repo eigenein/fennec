@@ -48,7 +48,7 @@ impl<V> Series<V> {
     pub fn try_zip<'l, 'r, R>(
         &'l self,
         rhs: &'r Series<R>,
-    ) -> impl Iterator<Item = Result<Point<(&'l V, &'r R)>>> {
+    ) -> impl Iterator<Item = Result<(DateTime<Local>, &'l V, &'r R)>> {
         // FIXME: should call `zip_longest` and verify no leftovers.
         self.0.iter().zip(&rhs.0).map(|(lhs, rhs)| lhs.try_zip(rhs))
     }
@@ -63,7 +63,7 @@ mod tests {
         let time = Local::now();
         let lhs = Series::from_iter([Point::new(time, 1)]);
         let rhs = Series::from_iter([Point::new(time, 2)]);
-        assert_eq!(lhs.try_zip(&rhs).next().unwrap()?, Point::new(time, (&1, &2)));
+        assert_eq!(lhs.try_zip(&rhs).next().unwrap()?, (time, &1, &2));
         Ok(())
     }
 }

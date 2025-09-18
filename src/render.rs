@@ -31,8 +31,7 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
         "Loss\n€",
     ]);
     for point in metrics.try_zip(steps) {
-        let point = point?;
-        let (metrics, step) = point.value;
+        let (time, metrics, step) = point?;
         let solar_color = match metrics.solar_power_density {
             Some(density) if density.0 > 0.5 => Color::Green,
             Some(density) if density.0 > 0.25 => Color::DarkYellow,
@@ -43,7 +42,7 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
             .solar_power_density
             .map_or_else(|| "unknown".to_string(), |value| format!("{:.0}", value.0 * 1000.0));
         table.add_row(vec![
-            Cell::new(point.time.format("%H:%M").to_string()),
+            Cell::new(time.format("%H:%M").to_string()),
             Cell::new(format!("{:.2}", metrics.grid_rate))
                 .fg(if metrics.grid_rate.0 >= average_rate { Color::Red } else { Color::Green }),
             Cell::new(solar_content).fg(solar_color),

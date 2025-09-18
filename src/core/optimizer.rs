@@ -101,8 +101,7 @@ impl Optimizer<'_> {
         let mut net_loss_without_battery = Cost::ZERO;
 
         for point in self.metrics.try_zip(schedule) {
-            let point = point?;
-            let (metrics, working_mode) = point.value;
+            let (time, metrics, working_mode) = point?;
             let initial_residual_energy = current_residual_energy;
 
             // For missing weather forecast, assume none solar power:
@@ -159,7 +158,7 @@ impl Optimizer<'_> {
             net_loss_without_battery += self.loss(metrics.grid_rate, -production_without_battery);
 
             steps.push(
-                point.time,
+                time,
                 Step {
                     working_mode: *working_mode,
                     residual_energy_before: initial_residual_energy,

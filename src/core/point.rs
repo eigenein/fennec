@@ -19,8 +19,11 @@ pub struct Point<V> {
 }
 
 impl<V> Point<V> {
-    pub fn try_zip<'l, 'r, R>(&'l self, rhs: &'r Point<R>) -> Result<Point<(&'l V, &'r R)>> {
+    pub fn try_zip<'l, 'r, R>(
+        &'l self,
+        rhs: &'r Point<R>,
+    ) -> Result<(DateTime<Local>, &'l V, &'r R)> {
         ensure!(self.time == rhs.time);
-        Ok(Point::new(self.time, (&self.value, &rhs.value)))
+        Ok((self.time, &self.value, &rhs.value))
     }
 }

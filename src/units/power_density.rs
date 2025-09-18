@@ -7,6 +7,12 @@ use crate::units::{power::Kilowatts, quantity::Quantity, surface_area::SquareMet
 /// [1]: https://en.wikipedia.org/wiki/Surface_power_density
 pub type PowerDensity = Quantity<f64, 1, -2, 0, 0>;
 
+impl PowerDensity {
+    pub fn from_watts(watts: f64) -> Self {
+        Self(watts / 1000.0)
+    }
+}
+
 impl Mul<SquareMetres> for PowerDensity {
     type Output = Kilowatts;
 

@@ -44,36 +44,61 @@ impl Api {
     #[instrument(skip_all, name = "Fetching the local weather…", fields(since = ?since))]
     pub async fn get(&self, since: DateTime<Local>) -> Result<Vec<Point<PowerDensity>>> {
         let since = since.duration_trunc(TimeDelta::hours(1))?;
-        let forecast: Vec<_> = self
-            .client
-            .get(&self.url)
-            .send()
-            .await?
-            .json::<Response>()
-            .await?
-            .hourly_forecast
+        let response = self.client.get(&self.url).send().await?.json::<Response>().await?;
+
+        // I need to correct for when the current hour forecast disappears:
+        let maybe_first = match response.hourly_forecast.first() {
+            Some(forecast) if forecast.timestamp == since => {
+                // No need to correct the forecast:
+                None
+            }
+            _ => match response.live.first() {
+                Some(live) => {
+                    warn!("Missing forecast for the current hour, using live weather");
+                    Some(Point::try_from(live)?)
+                }
+                _ => {
+                    bail!("missing both forecasted and live weather for the current hour");
+                }
+            },
+        };
+
+        Ok(maybe_first
             .into_iter()
-            .collect();
-        ensure!(forecast.is_sorted_by_key(|entry| entry.start_time), "the forecast is not sorted");
-        {
-            // FIXME
-            let first = forecast.first().context("missing forecast")?.start_time;
-            ensure!(first == since, "missing forecast for {since}, actual: {first}");
-        }
-        Ok(forecast
-            .into_iter()
-            .map(|entry| Point {
-                time: entry.start_time,
-                value: PowerDensity::from(entry.solar_power_watts_per_m2 / 1000.0),
-            })
+            .chain(response.hourly_forecast.into_iter().map(Point::from))
             .collect())
     }
 }
 
 #[derive(Deserialize)]
 struct Response {
+    #[serde(rename = "liveweer")]
+    live: Vec<Live>,
+
     #[serde(rename = "uur_verw")]
     hourly_forecast: Vec<HourlyForecast>,
+}
+
+#[serde_as]
+#[derive(Copy, Clone, Deserialize)]
+struct Live {
+    #[serde_as(as = "serde_with::TimestampSeconds<i64>")]
+    #[serde(rename = "timestamp")]
+    timestamp: DateTime<Local>,
+
+    #[serde(rename = "gr")]
+    solar_power_watts_per_m2: f64,
+}
+
+impl TryFrom<&Live> for Point<PowerDensity> {
+    type Error = Error;
+
+    fn try_from(live: &Live) -> Result<Self> {
+        Ok(Self::new(
+            live.timestamp.duration_trunc(TimeDelta::hours(1))?,
+            PowerDensity::from_watts(live.solar_power_watts_per_m2),
+        ))
+    }
 }
 
 #[serde_as]
@@ -81,8 +106,14 @@ struct Response {
 struct HourlyForecast {
     #[serde_as(as = "serde_with::TimestampSeconds<i64>")]
     #[serde(rename = "timestamp")]
-    start_time: DateTime<Local>,
+    timestamp: DateTime<Local>,
 
     #[serde(rename = "gr")]
     solar_power_watts_per_m2: f64,
+}
+
+impl From<HourlyForecast> for Point<PowerDensity> {
+    fn from(forecast: HourlyForecast) -> Self {
+        Self::new(forecast.timestamp, PowerDensity::from_watts(forecast.solar_power_watts_per_m2))
+    }
 }

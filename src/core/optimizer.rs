@@ -1,8 +1,5 @@
-use std::sync::Mutex;
-
 use bon::Builder;
-use indicatif::ParallelProgressIterator;
-use rayon::prelude::*;
+use indicatif::ProgressIterator;
 
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
@@ -42,27 +39,25 @@ impl Optimizer<'_> {
         skip_all,
     )]
     pub fn run(self, initial_schedule: Series<WorkingMode>) -> Result<Solution> {
-        let best_solution: Mutex<(Series<WorkingMode>, Solution)> = {
+        let mut best_solution: (Series<WorkingMode>, Solution) = {
             let initial_solution = self.simulate(&initial_schedule)?;
-            Mutex::new((initial_schedule, initial_solution))
+            (initial_schedule, initial_solution)
         };
 
-        (0..self.n_steps).into_par_iter().progress().try_for_each(|_| {
-            let mut schedule = { best_solution.lock().unwrap().0.clone() };
+        (0..self.n_steps).progress().try_for_each(|_| {
+            let mut schedule = best_solution.0.clone();
             Self::mutate(&mut schedule);
 
             let solution = self.simulate(&schedule)?;
 
-            let mut best_solution = best_solution.lock().unwrap();
             if solution.net_loss < best_solution.1.net_loss {
-                *best_solution = (schedule, solution);
+                best_solution = (schedule, solution);
             }
-            drop(best_solution);
 
             Ok::<_, Error>(())
         })?;
 
-        Ok(best_solution.into_inner()?.1)
+        Ok(best_solution.1)
     }
 
     fn mutate(schedule: &mut Series<WorkingMode>) {

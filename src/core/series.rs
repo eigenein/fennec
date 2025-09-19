@@ -47,9 +47,11 @@ impl<V, I: Ord> Series<V, I> {
 }
 
 impl<V, I: Debug + Ord> Series<V, I> {
-    /// Zip the time series by the point timestamps.
+    /// Zip the series by the indices.
     ///
-    /// `try_zip_exactly()` returns an error when the timestamps do not match.
+    /// It returns an error when the indices do not match.
+    ///
+    /// FIXME: unit-test the error.
     pub fn try_zip_exactly<'l, 'r, R>(
         &'l self,
         rhs: &'r Series<R, I>,
@@ -62,6 +64,30 @@ impl<V, I: Debug + Ord> Series<V, I> {
                 EitherOrBoth::Left((index, _)) | EitherOrBoth::Right((index, _)) => {
                     bail!("non-matching index: `{index:?}`");
                 }
+            },
+        )
+    }
+
+    /// Zip the series by the indices.
+    ///
+    /// Missing indices on the left side are skipped,
+    /// and missing indices on the right side are replaced with the `default`.
+    ///
+    /// FIXME: add a unit test.
+    pub fn zip_right_or<'l, 'r, R>(
+        &'l self,
+        rhs: &'r Series<R, I>,
+        default: &'r R,
+    ) -> impl Iterator<Item = (&'l I, (&'l V, &'r R))> {
+        self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).filter_map(
+            move |pair| match pair {
+                EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
+                    Some((left_index, (left_value, right_value)))
+                }
+                EitherOrBoth::Left((left_index, left_value)) => {
+                    Some((left_index, (left_value, default)))
+                }
+                EitherOrBoth::Right(_) => None,
             },
         )
     }

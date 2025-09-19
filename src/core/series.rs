@@ -70,8 +70,6 @@ impl<V, I: Debug + Ord> Series<V, I> {
     ///
     /// Missing indices on the left side are skipped,
     /// and missing indices on the right side are replaced with the `default`.
-    ///
-    /// FIXME: add a unit test.
     pub fn zip_right_or<'l, 'r, R>(
         &'l self,
         rhs: &'r Series<R, I>,
@@ -108,5 +106,12 @@ mod tests {
         let lhs = Series::from_iter([(42, 1)]);
         let rhs = Series::from_iter([(43, 2)]);
         assert!(lhs.try_zip_exactly(&rhs).next().unwrap().is_err());
+    }
+
+    #[test]
+    fn test_zip_right_or() {
+        let lhs = Series::from_iter([(42, 2), (43, 4)]);
+        let rhs = Series::from_iter([(41, 1), (42, 3)]);
+        assert_eq!(lhs.zip_right_or(&rhs, &5).collect_vec(), [(&42, (&2, &3)), (&43, (&4, &5))]);
     }
 }

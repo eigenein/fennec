@@ -32,7 +32,7 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
         "Loss\n€",
     ]);
     for point in metrics.try_zip_exactly(steps) {
-        let (time, metrics, step) = point?;
+        let (time, (metrics, step)) = point?;
         let solar_color = match metrics.solar_power_density {
             Some(density) if density.0 > 0.5 => Color::Green,
             Some(density) if density.0 > 0.25 => Color::DarkYellow,

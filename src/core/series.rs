@@ -53,17 +53,17 @@ impl<V, I: Debug + Ord> Series<V, I> {
     pub fn try_zip_exactly<'l, 'r, R>(
         &'l self,
         rhs: &'r Series<R, I>,
-    ) -> impl Iterator<Item = Result<(&'l I, &'l V, &'r R)>> {
-        self.0.iter().zip_longest(&rhs.0).map(|pair| match pair {
-            EitherOrBoth::Both((left_index, left_value), (right_index, right_value)) => {
-                if left_index == right_index {
-                    Ok((left_index, left_value, right_value))
-                } else {
-                    bail!("indexes do not match: `{left_index:?}` vs `{right_index:?}`");
+    ) -> impl Iterator<Item = Result<(&'l I, (&'l V, &'r R))>> {
+        self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).map(
+            |pair| match pair {
+                EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
+                    Ok((left_index, (left_value, right_value)))
                 }
-            }
-            _ => bail!("the series lengths do not match"),
-        })
+                EitherOrBoth::Left((index, _)) | EitherOrBoth::Right((index, _)) => {
+                    bail!("non-matching index: `{index:?}`");
+                }
+            },
+        )
     }
 }
 
@@ -75,7 +75,7 @@ mod tests {
     fn test_try_zip_ok() -> Result {
         let lhs = Series::from_iter([(42, 1)]);
         let rhs = Series::from_iter([(42, 2)]);
-        assert_eq!(lhs.try_zip_exactly(&rhs).next().unwrap()?, (&42, &1, &2));
+        assert_eq!(lhs.try_zip_exactly(&rhs).next().unwrap()?, (&42, (&1, &2)));
         Ok(())
     }
 }

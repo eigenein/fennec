@@ -68,17 +68,19 @@ impl<V, I: Debug + Ord> Series<V, I> {
 
     /// Zip the series by the indices.
     ///
-    /// Missing indices on the left side are skipped,
-    /// and missing indices on the right side are replaced with the `default`.
-    pub fn zip_right_or<'l, 'r, R>(
-        &'l self,
-        rhs: &'r Series<R, I>,
-        default: &'r R,
-    ) -> impl Iterator<Item = (&'l I, (&'l V, &'r R))> {
+    /// - Matched indices are zipped together and the right-hand side value is mapped.
+    /// - Missing indices on the left side are skipped.
+    /// - Missing indices on the right side are replaced with the `default`.
+    pub fn zip_right_or<R, T: Copy>(
+        &self,
+        rhs: &Series<R, I>,
+        map: fn(&R) -> T,
+        default: T,
+    ) -> impl Iterator<Item = (&I, (&V, T))> {
         self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).filter_map(
             move |pair| match pair {
                 EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
-                    Some((left_index, (left_value, right_value)))
+                    Some((left_index, (left_value, map(right_value))))
                 }
                 EitherOrBoth::Left((left_index, left_value)) => {
                     Some((left_index, (left_value, default)))
@@ -112,6 +114,9 @@ mod tests {
     fn test_zip_right_or() {
         let lhs = Series::from_iter([(42, 2), (43, 4)]);
         let rhs = Series::from_iter([(41, 1), (42, 3)]);
-        assert_eq!(lhs.zip_right_or(&rhs, &5).collect_vec(), [(&42, (&2, &3)), (&43, (&4, &5))]);
+        assert_eq!(
+            lhs.zip_right_or(&rhs, |rhs| Some(*rhs), None).collect_vec(),
+            [(&42, (&2, Some(3))), (&43, (&4, None))]
+        );
     }
 }

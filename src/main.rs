@@ -7,7 +7,6 @@ mod units;
 
 use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
 use clap::Parser;
-use itertools::{EitherOrBoth, Itertools};
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -59,11 +58,14 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     let now = Local::now();
 
     let metrics: Series<Metrics> = {
-        let next_energy = nextenergy::Api::try_new()?;
-        let mut hourly_rates = next_energy.get_hourly_rates(now).await?;
-        let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-        hourly_rates.extend(next_energy.get_hourly_rates(next_day).await?.into_iter());
-        info!("Fetched energy rates", len = hourly_rates.len());
+        let grid_rates = {
+            let next_energy = nextenergy::Api::try_new()?;
+            let mut grid_rates = next_energy.get_hourly_rates(now).await?;
+            let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
+            grid_rates.extend(next_energy.get_hourly_rates(next_day).await?.into_iter());
+            grid_rates
+        };
+        info!("Fetched energy rates", len = grid_rates.len());
 
         let solar_power_density = weerlive::Api::new(
             &hunt_args.solar.weerlive_api_key,
@@ -73,22 +75,10 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         .await?;
         info!("Fetched solar power forecast", len = solar_power_density.len());
 
-        // FIXME: this should be implemented via `Series`:
-        hourly_rates
-            .into_iter()
-            .zip_longest(solar_power_density.into_iter())
-            .filter_map(|pair| match pair {
-                EitherOrBoth::Both((lhs_time, grid_rate), (rhs_time, solar_power_density)) => {
-                    assert_eq!(lhs_time, rhs_time);
-                    Some((
-                        lhs_time,
-                        Metrics { grid_rate, solar_power_density: Some(solar_power_density) },
-                    ))
-                }
-                EitherOrBoth::Left((time, grid_rate)) => {
-                    Some((time, Metrics { grid_rate, solar_power_density: None }))
-                }
-                EitherOrBoth::Right(_) => None,
+        grid_rates
+            .zip_right_or(&solar_power_density, |power_density| Some(*power_density), None)
+            .map(|(time, (grid_rate, solar_power_density))| {
+                (*time, Metrics { grid_rate: *grid_rate, solar_power_density })
             })
             .collect()
     };

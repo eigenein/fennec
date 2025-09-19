@@ -73,6 +73,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         .await?;
         info!("Fetched solar power forecast", len = solar_power_density.len());
 
+        // FIXME: this should be implemented via `Series`:
         hourly_rates
             .into_iter()
             .zip_longest(solar_power_density.into_iter())

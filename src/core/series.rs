@@ -50,8 +50,6 @@ impl<V, I: Debug + Ord> Series<V, I> {
     /// Zip the series by the indices.
     ///
     /// It returns an error when the indices do not match.
-    ///
-    /// FIXME: unit-test the error.
     pub fn try_zip_exactly<'l, 'r, R>(
         &'l self,
         rhs: &'r Series<R, I>,
@@ -98,10 +96,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_try_zip_ok() -> Result {
+    fn test_try_zip_exactly_ok() -> Result {
         let lhs = Series::from_iter([(42, 1)]);
         let rhs = Series::from_iter([(42, 2)]);
         assert_eq!(lhs.try_zip_exactly(&rhs).next().unwrap()?, (&42, (&1, &2)));
         Ok(())
+    }
+
+    #[test]
+    fn test_try_zip_exactly_error() {
+        let lhs = Series::from_iter([(42, 1)]);
+        let rhs = Series::from_iter([(43, 2)]);
+        assert!(lhs.try_zip_exactly(&rhs).next().unwrap().is_err());
     }
 }

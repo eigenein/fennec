@@ -116,7 +116,6 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     let run_duration = Utc::now() - start_time;
 
     let profit = solution.profit();
-    println!("{}", try_render_steps(&metrics, &solution.steps)?);
     info!(
         "Optimized",
         run_duration = format!("{:.1}s", run_duration.as_seconds_f64()),
@@ -125,6 +124,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         without_battery = format!("¢{:.0}", solution.net_loss_without_battery * 100.0),
         profit = format!("¢{:.0}", profit * 100.0),
     );
+    println!("{}", try_render_steps(&metrics, &solution.steps)?);
 
     // Update the cache and avoid collisions with the same hours next day:
     for (time, step) in solution.steps.iter().take(cache.schedule.len()) {

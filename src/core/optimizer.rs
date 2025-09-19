@@ -100,7 +100,7 @@ impl Optimizer<'_> {
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
-        for point in self.metrics.try_zip(schedule) {
+        for point in self.metrics.try_zip_exactly(schedule) {
             let (time, metrics, working_mode) = point?;
             let initial_residual_energy = current_residual_energy;
 

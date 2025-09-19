@@ -95,7 +95,7 @@ impl Optimizer<'_> {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
-        let mut steps = Series::with_capacity(self.metrics.len());
+        let mut steps = Series::default();
 
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
@@ -157,8 +157,8 @@ impl Optimizer<'_> {
             net_loss += loss;
             net_loss_without_battery += self.loss(metrics.grid_rate, -production_without_battery);
 
-            steps.push(
-                time,
+            steps.insert(
+                *time,
                 Step {
                     working_mode: *working_mode,
                     residual_energy_before: initial_residual_energy,

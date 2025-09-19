@@ -14,7 +14,7 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{foxess, nextenergy, weerlive},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{cache::Cache, metrics::Metrics, optimizer::Optimizer, series::Series, solution::Step},
+    core::{cache::Cache, metrics::Metrics, optimizer::Optimizer, series::Series},
     prelude::*,
     render::{render_time_slot_sequence, try_render_steps},
     units::power::Kilowatts,
@@ -103,7 +103,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
 
     let start_time = Utc::now();
     let initial_schedule =
-        metrics.iter().map(|(time, _)| (time, cache.schedule[time.hour() as usize])).collect();
+        metrics.iter().map(|(time, _)| (*time, cache.schedule[time.hour() as usize])).collect();
     let (n_mutations_succeeded, solution) = Optimizer::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
@@ -133,7 +133,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     }
 
     let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(
-        solution.steps.map(|step: Step| step.working_mode),
+        solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)),
         &hunt_args.battery,
     )?;
     println!("{}", render_time_slot_sequence(&time_slot_sequence));

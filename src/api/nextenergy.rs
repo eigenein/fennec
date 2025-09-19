@@ -16,6 +16,16 @@ impl Api {
         Ok(Self(Client::builder().build()?))
     }
 
+    pub async fn get_hourly_rates_48h(
+        &self,
+        since: DateTime<Local>,
+    ) -> Result<Series<KilowattHourRate>> {
+        let mut grid_rates = self.get_hourly_rates(since).await?;
+        let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
+        grid_rates.extend(self.get_hourly_rates(next_day).await?.into_iter());
+        Ok(grid_rates)
+    }
+
     #[instrument(name = "Fetching energy prices…", fields(since = ?since), skip_all)]
     pub async fn get_hourly_rates(
         &self,

@@ -5,7 +5,7 @@ mod prelude;
 mod render;
 mod units;
 
-use chrono::{DurationRound, Local, TimeDelta, Timelike, Utc};
+use chrono::{Local, Timelike, Utc};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
@@ -58,13 +58,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     let now = Local::now();
 
     let metrics: Series<Metrics> = {
-        let grid_rates = {
-            let next_energy = nextenergy::Api::try_new()?;
-            let mut grid_rates = next_energy.get_hourly_rates(now).await?;
-            let next_day = (now + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-            grid_rates.extend(next_energy.get_hourly_rates(next_day).await?.into_iter());
-            grid_rates
-        };
+        let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
         info!("Fetched energy rates", len = grid_rates.len());
 
         let solar_power_density = weerlive::Api::new(

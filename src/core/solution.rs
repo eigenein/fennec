@@ -1,5 +1,7 @@
+use chrono::{DateTime, Local};
+
 use crate::{
-    core::{series::Series, working_mode::WorkingMode},
+    core::working_mode::WorkingMode,
     units::{currency::Cost, energy::KilowattHours},
 };
 
@@ -7,7 +9,7 @@ use crate::{
 pub struct Solution {
     pub net_loss: Cost,
     pub net_loss_without_battery: Cost,
-    pub steps: Series<Step>,
+    pub steps: Vec<(DateTime<Local>, Step)>,
 }
 
 impl Solution {

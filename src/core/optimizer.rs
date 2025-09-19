@@ -44,23 +44,27 @@ impl Optimizer<'_> {
             let initial_solution = self.simulate(&initial_schedule)?;
             (initial_schedule, initial_solution)
         };
-
-        (0..self.n_steps).progress().try_for_each(|_| {
-            // FIXME: do not use `clone()` and revert instead.
-            let mut schedule = best_solution.0.clone();
-            Self::mutate(&mut schedule);
-
-            let solution = self.simulate(&schedule)?;
-
-            if solution.net_loss < best_solution.1.net_loss {
-                best_solution = (schedule, solution);
-                n_mutations_succeeded += 1;
-            }
-
-            Ok::<_, Error>(())
-        })?;
-
+        (0..self.n_steps)
+            .progress()
+            .try_for_each(|_| self.step(&mut best_solution, &mut n_mutations_succeeded))?;
         Ok((n_mutations_succeeded, best_solution.1))
+    }
+
+    fn step(
+        &self,
+        best_solution: &mut (Series<WorkingMode>, Solution),
+        n_mutations_succeeded: &mut usize,
+    ) -> Result {
+        let mut schedule = best_solution.0.clone();
+        Self::mutate(&mut schedule);
+
+        let solution = self.simulate(&schedule)?;
+
+        if solution.net_loss < best_solution.1.net_loss {
+            *best_solution = (schedule, solution);
+            *n_mutations_succeeded += 1;
+        }
+        Ok(())
     }
 
     fn mutate(schedule: &mut Series<WorkingMode>) {
@@ -95,7 +99,7 @@ impl Optimizer<'_> {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
-        let mut steps = Series::default();
+        let mut steps = Vec::with_capacity(schedule.len());
 
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
@@ -160,7 +164,7 @@ impl Optimizer<'_> {
             net_loss += loss;
             net_loss_without_battery += self.loss(metrics.grid_rate, -production_without_battery);
 
-            steps.insert(
+            steps.push((
                 *time,
                 Step {
                     working_mode: *working_mode,
@@ -169,7 +173,7 @@ impl Optimizer<'_> {
                     grid_consumption,
                     loss,
                 },
-            );
+            ));
         }
 
         Ok(Solution { net_loss, net_loss_without_battery, steps })

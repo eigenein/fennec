@@ -1,4 +1,5 @@
 cache.json
+flamegraph.svg
 
 # Added by goreleaser init:
 dist/

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local};
 use comfy_table::{Cell, Color, Table, modifiers, presets};
 
 use crate::{
@@ -12,8 +13,10 @@ use crate::{
     units::currency::Cost,
 };
 
-pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Result<Table> {
-    ensure!(!metrics.is_empty());
+pub fn try_render_steps(
+    metrics: &Series<Metrics>,
+    steps: &[(DateTime<Local>, Step)],
+) -> Result<Table> {
     #[allow(clippy::cast_precision_loss)]
     let average_rate =
         metrics.iter().map(|(_, metrics)| metrics.grid_rate.0).sum::<f64>() / metrics.len() as f64;
@@ -31,8 +34,8 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
         "Grid usage\nkWh",
         "Loss\n€",
     ]);
-    for point in metrics.try_zip_exactly(steps) {
-        let (time, (metrics, step)) = point?;
+    for ((time, metrics), (right_time, step)) in metrics.iter().zip(steps) {
+        ensure!(time == right_time);
         let solar_color = match metrics.solar_power_density {
             Some(density) if density.0 > 0.5 => Color::Green,
             Some(density) if density.0 > 0.25 => Color::DarkYellow,

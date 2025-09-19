@@ -2,12 +2,15 @@ use std::{fmt::Debug, fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{core::working_mode::WorkingMode, prelude::*};
+use crate::{
+    core::{series::Series, working_mode::WorkingMode},
+    prelude::*,
+};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Cache {
-    #[serde(default, rename = "schedule")]
-    pub schedule: [WorkingMode; 24],
+    #[serde(default, rename = "solution")]
+    pub solution: Series<WorkingMode>,
 }
 
 impl Cache {
@@ -23,7 +26,7 @@ impl Cache {
 
     #[instrument(skip(self), name = "Writing the cache…")]
     pub fn write_to<P: AsRef<Path> + Debug>(&self, path: P) -> Result {
-        fs::write(path, serde_json::to_string(self)?)?;
+        fs::write(path, serde_json::to_string_pretty(self)?)?;
         Ok(())
     }
 }

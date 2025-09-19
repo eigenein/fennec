@@ -4,18 +4,18 @@ use serde::{Deserialize, Serialize};
 pub enum WorkingMode {
     /// Do not do anything.
     #[default]
-    #[serde(rename = "I", alias = "M", alias = "R")]
+    #[serde(alias = "I", alias = "M", alias = "R")]
     Idle,
 
     /// Forced charging on any power.
-    #[serde(rename = "C")]
+    #[serde(alias = "C")]
     Charging,
 
     /// Forced discharging, no matter the actual consumption.
-    #[serde(rename = "D")]
+    #[serde(alias = "D")]
     Discharging,
 
     /// Charge on excess PV power, discharge on insufficient PV power.
-    #[serde(rename = "B")]
+    #[serde(alias = "B")]
     Balancing,
 }

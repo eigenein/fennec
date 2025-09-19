@@ -5,7 +5,7 @@ mod prelude;
 mod render;
 mod units;
 
-use chrono::{Local, Timelike, Utc};
+use chrono::{Local, Utc};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
@@ -13,7 +13,13 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{foxess, nextenergy, weerlive},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{cache::Cache, metrics::Metrics, optimizer::Optimizer, series::Series},
+    core::{
+        cache::Cache,
+        metrics::Metrics,
+        optimizer::Optimizer,
+        series::Series,
+        working_mode::WorkingMode,
+    },
     prelude::*,
     render::{render_time_slot_sequence, try_render_steps},
     units::power::Kilowatts,
@@ -85,9 +91,14 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     };
     info!("Fetched battery details", residual_energy, total_capacity);
 
+    // Build the initial schedule from the cached one: drop the old entries and fill the future
+    // entries in with the default mode:
+    let initial_schedule: Series<WorkingMode> = metrics
+        .zip_right_or(&cache.solution, |mode| *mode, WorkingMode::default())
+        .map(|(time, (_, mode))| (*time, mode))
+        .collect();
+
     let start_time = Utc::now();
-    let initial_schedule =
-        metrics.iter().map(|(time, _)| (*time, cache.schedule[time.hour() as usize])).collect();
     let (n_mutations_succeeded, solution) = Optimizer::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
@@ -111,15 +122,13 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     );
     println!("{}", try_render_steps(&metrics, &solution.steps)?);
 
-    // Update the cache and avoid collisions with the same hours next day:
-    for (time, step) in solution.steps.iter().take(cache.schedule.len()) {
-        cache.schedule[time.hour() as usize] = step.working_mode;
-    }
+    let schedule: Series<WorkingMode> =
+        solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
 
-    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(
-        solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)),
-        &hunt_args.battery,
-    )?;
+    // Update the cache:
+    cache.solution = schedule.clone();
+
+    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(schedule, &hunt_args.battery)?;
     println!("{}", render_time_slot_sequence(&time_slot_sequence));
 
     if !hunt_args.scout {

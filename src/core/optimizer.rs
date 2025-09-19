@@ -120,8 +120,8 @@ impl Optimizer<'_> {
             };
 
             // Power flow inside the battery corrected by the round-trip efficiency:
-            let battery_external_consumption = if battery_external_power
-                > self.battery.self_discharge
+            let (battery_external_power, battery_active_time) = if battery_external_power
+                > Kilowatts::ZERO
             {
                 // While charging, the residual energy grows slower:
                 let internal_power = battery_external_power * self.battery.efficiency;
@@ -130,28 +130,31 @@ impl Optimizer<'_> {
                 let time_charging =
                     (current_residual_energy - initial_residual_energy) / internal_power;
                 assert!(time_charging >= Hours::ZERO);
-                battery_external_power * time_charging
-            } else if battery_external_power < -self.battery.self_discharge {
+                (battery_external_power, time_charging)
+            } else if battery_external_power < Kilowatts::ZERO {
                 // While discharging, the residual energy is spent faster:
                 let internal_power = battery_external_power / self.battery.efficiency;
-                // Remember that the power here is negative:
+                // Remember that the power here is negative, hence the `+`:
                 current_residual_energy = (current_residual_energy + internal_power * Hours::ONE)
                     .max(min_residual_energy.min(initial_residual_energy));
                 let time_discharging =
                     (current_residual_energy - initial_residual_energy) / internal_power;
                 assert!(time_discharging >= Hours::ZERO);
-                battery_external_power * time_discharging
+                (battery_external_power, time_discharging)
             } else {
-                // Idle and self-discharging:
-                current_residual_energy = (current_residual_energy
-                    - self.battery.self_discharge * Hours::ONE)
-                    .max(KilowattHours::ZERO);
-                KilowattHours::ZERO
+                // Idle:
+                (Kilowatts::ZERO, Hours::ZERO)
             };
+
+            // Self-discharging:
+            current_residual_energy = (current_residual_energy
+                - self.battery.self_discharge * (Hours::ONE - battery_active_time))
+                .max(KilowattHours::ZERO);
 
             // Finally, total household energy balance:
             let production_without_battery = power_balance * Hours::ONE;
-            let grid_consumption = battery_external_consumption - production_without_battery;
+            let grid_consumption =
+                battery_external_power * battery_active_time - production_without_battery;
 
             let loss = self.loss(metrics.grid_rate, grid_consumption);
             net_loss += loss;

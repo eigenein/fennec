@@ -20,6 +20,7 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
 
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
+    table.enforce_styling();
     table.set_header(vec![
         "Time",
         "Grid rate\n€/kWh",
@@ -69,6 +70,7 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
 pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
+    table.enforce_styling();
     table.set_header(vec!["Start", "End", "Mode", "Power, W"]);
     for time_slot in sequence {
         let mode_color = match time_slot.working_mode {

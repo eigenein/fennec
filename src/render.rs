@@ -80,7 +80,7 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
             FoxEssWorkingMode::ForceDischarge if time_slot.feed_power_watts != 0 => Color::Red,
             FoxEssWorkingMode::ForceCharge if time_slot.feed_power_watts != 0 => Color::Green,
             FoxEssWorkingMode::SelfUse => Color::DarkYellow,
-            _ => Color::White,
+            _ => Color::Reset,
         };
         table.add_row(vec![
             Cell::new(time_slot.start_time.to_string()),

@@ -1,9 +1,11 @@
+use chrono::{DateTime, Local};
 use reqwest::{
     Client,
     ClientBuilder,
     Url,
     header::{HeaderMap, HeaderName, HeaderValue},
 };
+use serde_with::serde_as;
 
 use crate::prelude::*;
 
@@ -56,11 +58,30 @@ impl Api {
     }
 }
 
+#[must_use]
+#[serde_as]
+#[derive(serde::Deserialize)]
+struct State {
+    #[serde_as(as = "serde_with::DisplayFromStr")]
+    #[serde(rename = "state")]
+    value: f64,
+
+    #[serde(rename = "last_reported")]
+    last_reported_at: DateTime<Local>,
+
+    attributes: StateAttributes,
+}
+
+#[derive(serde::Deserialize)]
+struct StateAttributes {
+    #[serde(rename = "state_class")]
+    class: StateClass,
+}
+
 /// [State classes][1].
 ///
 /// [1]: https://developers.home-assistant.io/docs/core/entity/sensor/#available-state-classes
-#[expect(dead_code)]
-#[derive(Copy, Clone, Eq, PartialEq, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 enum StateClass {
     /// The state represents a total amount that can both increase and decrease, e.g. a net energy meter.
     #[serde(rename = "total")]
@@ -74,4 +95,41 @@ enum StateClass {
 
     #[serde(other)]
     Other,
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::TimeZone;
+
+    use super::*;
+
+    #[test]
+    fn test_deserialize_response_ok() -> Result {
+        // language=JSON
+        const RESPONSE: &str = r#"
+            {
+                "entity_id": "sensor.custom_total_energy_usage",
+                "state": "39615.719",
+                "attributes": {
+                    "state_class": "total",
+                    "unit_of_measurement": "kWh",
+                    "icon": "mdi:flash",
+                    "friendly_name": "Total energy usage"
+                },
+                "last_changed": "2025-09-20T16:51:49.339572+00:00",
+                "last_reported": "2025-09-20T16:51:49.339572+00:00",
+                "last_updated": "2025-09-20T16:51:49.339572+00:00",
+                "context": {
+                    "id": "01K5M0KZESFSEPEWVWQCHD8VF5",
+                    "parent_id": null,
+                    "user_id": null
+                }
+            }
+        "#;
+        let state = serde_json::from_str::<State>(RESPONSE)?;
+        assert_eq!(state.value, 39615.719);
+        assert_eq!(state.attributes.class, StateClass::Total);
+        assert_eq!(state.last_reported_at, Local.timestamp_micros(1_758_387_109_339_572).unwrap());
+        Ok(())
+    }
 }

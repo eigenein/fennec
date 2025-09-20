@@ -11,7 +11,7 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{foxess, nextenergy, weerlive},
+    api::{foxess, heartbeat, nextenergy, weerlive},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     core::{
         cache::Cache,
@@ -43,7 +43,7 @@ async fn main() -> Result {
 
     match args.command {
         Command::Hunt(hunt_args) => {
-            hunt(fox_ess, &args.fox_ess_api.serial_number, hunt_args).await?;
+            hunt(fox_ess, &args.fox_ess_api.serial_number, *hunt_args).await?;
         }
         Command::Burrow(burrow_args) => {
             burrow(fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
@@ -134,7 +134,9 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, time_slot_sequence.as_ref()).await?;
     }
-
+    if let Some(heartbeat_url) = hunt_args.heartbeat_url {
+        heartbeat::send(heartbeat_url).await;
+    }
     cache.write_to("cache.json")?;
     Ok(())
 }

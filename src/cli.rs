@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use reqwest::Url;
 
 use crate::units::{power::Kilowatts, rate::KilowattHourRate, surface_area::SquareMetres};
 
@@ -20,7 +21,7 @@ pub struct Args {
 pub enum Command {
     /// Main command: fetch the prices, optimize the schedule, and push it to the cloud.
     #[clap(name = "hunt")]
-    Hunt(HuntArgs),
+    Hunt(Box<HuntArgs>),
 
     /// Test FoxESS Cloud API connectivity.
     #[expect(clippy::doc_markdown)]
@@ -53,11 +54,7 @@ pub struct BatteryArgs {
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
 
-    #[clap(
-        long = "battery-self-discharge",
-        default_value = "0.02",
-        env = "BATTERY_SELF_DISCHARGE"
-    )]
+    #[clap(long = "battery-self-discharge", default_value = "0.02", env = "SELF_DISCHARGE")]
     pub self_discharge: Kilowatts,
 }
 
@@ -70,6 +67,9 @@ pub struct HuntArgs {
 
     #[clap(long = "optimization-steps", env = "OPTIMIZATION_STEPS", default_value = "1000000")]
     pub n_optimization_steps: usize,
+
+    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
+    pub heartbeat_url: Option<Url>,
 
     #[clap(flatten)]
     pub battery: BatteryArgs,

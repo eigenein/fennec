@@ -9,7 +9,6 @@ use serde_with::serde_as;
 
 use crate::prelude::*;
 
-#[expect(dead_code)]
 pub struct Api {
     client: Client,
 
@@ -43,11 +42,10 @@ pub struct Api {
 }
 
 impl Api {
-    #[expect(dead_code)]
     pub fn try_new(access_token: &str, total_energy_usage_url: Url) -> Result<Self> {
         let headers = HeaderMap::from_iter([(
-            HeaderName::from_static("Authorization"),
-            HeaderValue::from_str(access_token)?,
+            HeaderName::from_static("authorization"),
+            HeaderValue::from_str(&format!("Bearer {access_token}"))?,
         )]);
         let client = ClientBuilder::new()
             .default_headers(headers)
@@ -56,24 +54,31 @@ impl Api {
             .build()?;
         Ok(Self { client, total_energy_usage_url })
     }
+
+    #[instrument(skip_all, name = "Fetching total energy usage…")]
+    pub async fn get_total_energy_usage(&self) -> Result<State> {
+        Ok(self.client.get(self.total_energy_usage_url.clone()).send().await?.json().await?)
+    }
 }
 
 #[must_use]
 #[serde_as]
 #[derive(serde::Deserialize)]
-struct State {
+pub struct State {
     #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "state")]
-    value: f64,
+    pub value: f64,
 
     #[serde(rename = "last_reported")]
-    last_reported_at: DateTime<Local>,
+    pub last_reported_at: DateTime<Local>,
 
-    attributes: StateAttributes,
+    #[allow(dead_code)]
+    pub attributes: StateAttributes,
 }
 
 #[derive(serde::Deserialize)]
-struct StateAttributes {
+pub struct StateAttributes {
+    #[allow(dead_code)]
     #[serde(rename = "state_class")]
     class: StateClass,
 }
@@ -82,7 +87,7 @@ struct StateAttributes {
 ///
 /// [1]: https://developers.home-assistant.io/docs/core/entity/sensor/#available-state-classes
 #[derive(Copy, Clone, Debug, Eq, PartialEq, serde::Deserialize)]
-enum StateClass {
+pub enum StateClass {
     /// The state represents a total amount that can both increase and decrease, e.g. a net energy meter.
     #[serde(rename = "total")]
     Total,

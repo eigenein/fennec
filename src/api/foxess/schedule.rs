@@ -106,8 +106,8 @@ pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
 
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
-    pub fn from_schedule(
-        schedule: impl IntoIterator<Item = (DateTime<Local>, CoreWorkingMode)>,
+    pub fn from_schedule<'a>(
+        schedule: impl IntoIterator<Item = (&'a DateTime<Local>, &'a CoreWorkingMode)>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
         schedule

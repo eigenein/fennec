@@ -128,7 +128,13 @@ pub struct HomeAssistantArgs {
         env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_URL",
         requires = "access_token"
     )]
-    total_energy_usage_url: Option<Url>,
+    pub total_energy_usage_url: Option<Url>,
+}
+
+impl HomeAssistantArgs {
+    pub fn into_tuple(self) -> Option<(String, Url)> {
+        self.access_token.zip(self.total_energy_usage_url)
+    }
 }
 
 #[derive(Parser)]

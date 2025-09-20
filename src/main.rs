@@ -11,7 +11,7 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{foxess, heartbeat, nextenergy, weerlive},
+    api::{foxess, heartbeat, home_assistant, nextenergy, weerlive},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     core::{
         cache::Cache,
@@ -22,7 +22,7 @@ use crate::{
     },
     prelude::*,
     render::{render_time_slot_sequence, try_render_steps},
-    units::power::Kilowatts,
+    units::{energy::KilowattHours, power::Kilowatts},
 };
 
 #[tokio::main]
@@ -61,9 +61,19 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     );
 
     let mut cache = Cache::read_from("cache.json")?;
-    let now = Local::now();
+
+    if let Some((ha_token, ha_url)) = hunt_args.home_assistant.into_tuple() {
+        let total_energy_usage =
+            home_assistant::Api::try_new(&ha_token, ha_url)?.get_total_energy_usage().await?;
+        cache.total_usage.insert(
+            total_energy_usage.last_reported_at,
+            KilowattHours::from(total_energy_usage.value),
+        );
+    }
 
     let metrics: Series<Metrics> = {
+        let now = Local::now();
+
         let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
         info!("Fetched energy rates", len = grid_rates.len());
 
@@ -125,19 +135,22 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     let schedule: Series<WorkingMode> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
 
-    // Update the cache:
-    cache.solution = schedule.clone();
-
-    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(schedule, &hunt_args.battery)?;
+    let time_slot_sequence =
+        foxess::TimeSlotSequence::from_schedule(&schedule, &hunt_args.battery)?;
     println!("{}", render_time_slot_sequence(&time_slot_sequence));
+
+    // Update the cache:
+    cache.solution = schedule;
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, time_slot_sequence.as_ref()).await?;
     }
+
     if let Some(heartbeat_url) = hunt_args.heartbeat_url {
         heartbeat::send(heartbeat_url).await;
     }
     cache.write_to("cache.json")?;
+
     Ok(())
 }
 

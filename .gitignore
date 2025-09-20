@@ -1,4 +1,5 @@
 cache.json
+cache.toml
 flamegraph.svg
 
 # Added by goreleaser init:

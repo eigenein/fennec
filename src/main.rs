@@ -60,7 +60,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         "stand-by consumption must be non-negative",
     );
 
-    let mut cache = Cache::read_from("cache.json")?;
+    let mut cache = Cache::read_from("cache.toml")?;
 
     if let Some((ha_token, ha_url)) = hunt_args.home_assistant.into_tuple() {
         let total_energy_usage =
@@ -149,7 +149,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     if let Some(heartbeat_url) = hunt_args.heartbeat_url {
         heartbeat::send(heartbeat_url).await;
     }
-    cache.write_to("cache.json")?;
+    cache.write_to("cache.toml")?;
 
     Ok(())
 }

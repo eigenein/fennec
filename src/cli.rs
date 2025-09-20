@@ -79,6 +79,9 @@ pub struct HuntArgs {
 
     #[clap(flatten)]
     pub consumption: ConsumptionArgs,
+
+    #[clap(flatten)]
+    pub home_assistant: HomeAssistantArgs,
 }
 
 #[derive(Parser)]
@@ -109,6 +112,23 @@ pub struct SolarArgs {
 
     #[clap(long = "weerlive-api-key", env = "WEERLIVE_API_KEY")]
     pub weerlive_api_key: String,
+}
+
+#[derive(Parser)]
+pub struct HomeAssistantArgs {
+    #[clap(
+        long = "home-assistant-access-token",
+        env = "HOME_ASSISTANT_ACCESS_TOKEN",
+        requires = "total_energy_usage_url"
+    )]
+    pub access_token: Option<String>,
+
+    #[clap(
+        long = "home-assistant-total-energy-usage-url",
+        env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_URL",
+        requires = "access_token"
+    )]
+    total_energy_usage_url: Option<Url>,
 }
 
 #[derive(Parser)]

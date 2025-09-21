@@ -1,4 +1,7 @@
-use std::ops::{Add, Div, Mul, Sub};
+use std::{
+    iter::Sum,
+    ops::{Add, Div, Mul, Sub},
+};
 
 use chrono::{DateTime, DurationRound, Local, TimeDelta, Timelike};
 use itertools::Itertools;
@@ -9,6 +12,9 @@ use crate::{
 };
 
 impl<V> Series<V> {
+    /// Interpolate the time series and iterate over hours,
+    /// yielding the hour timestamp and interpolated value.
+    #[allow(clippy::type_repetition_in_bounds)]
     pub fn resample_hourly(&self) -> impl Iterator<Item = Result<(DateTime<Local>, V)>>
     where
         V: Copy,
@@ -27,6 +33,32 @@ impl<V> Series<V> {
                 Ok((at, from.interpolate(to, at)))
             },
         )
+    }
+
+    /// Group the points by hour and average the values.
+    #[allow(clippy::type_repetition_in_bounds)]
+    pub fn average_hourly(&self) -> [Option<V>; 24]
+    where
+        V: Copy,
+        V: Sum,
+        V: Div<f64, Output = V>,
+    {
+        let mut averages = [None; 24];
+        self.0
+            .iter()
+            .into_group_map_by(|(index, _)| index.hour())
+            .into_iter()
+            .map(|(hour, points)| {
+                if points.is_empty() {
+                    (hour, None)
+                } else {
+                    #[allow(clippy::cast_precision_loss)]
+                    let n = points.len() as f64;
+                    (hour, Some(points.into_iter().map(|(_, value)| *value).sum::<V>() / n))
+                }
+            })
+            .for_each(|(index, value)| averages[index as usize] = value);
+        averages
     }
 }
 
@@ -56,6 +88,47 @@ mod tests {
         assert_eq!(resampled[1].0, Local.with_ymd_and_hms(2025, 9, 21, 23, 0, 0).unwrap());
         assert_abs_diff_eq!(resampled[1].1, 500.0);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_average_hourly() -> Result {
+        let series = Series::from_iter([
+            (Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap(), 100.0),
+            (Local.with_ymd_and_hms(2025, 9, 21, 21, 45, 0).unwrap(), 150.0),
+            (Local.with_ymd_and_hms(2025, 9, 21, 22, 30, 0).unwrap(), 300.0),
+            (Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap(), 400.0),
+            (Local.with_ymd_and_hms(2025, 9, 21, 23, 30, 0).unwrap(), 700.0),
+        ]);
+        assert_eq!(
+            series.average_hourly(),
+            [
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(125.0),
+                Some(350.0),
+                Some(700.0),
+            ]
+        );
         Ok(())
     }
 }

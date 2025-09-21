@@ -65,7 +65,7 @@ pub struct HuntArgs {
     #[clap(long)]
     pub scout: bool,
 
-    #[clap(long = "optimization-steps", env = "OPTIMIZATION_STEPS", default_value = "1000000")]
+    #[clap(long = "optimization-steps", env = "OPTIMIZATION_STEPS", default_value = "2000000")]
     pub n_optimization_steps: usize,
 
     #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]

@@ -56,7 +56,7 @@ impl Optimizer<'_> {
         n_mutations_succeeded: &mut usize,
     ) -> Result {
         let mut schedule = best_solution.0.clone();
-        Self::mutate(&mut schedule);
+        schedule.mutate();
 
         let solution = self.simulate(&schedule)?;
 
@@ -65,34 +65,6 @@ impl Optimizer<'_> {
             *n_mutations_succeeded += 1;
         }
         Ok(())
-    }
-
-    fn mutate(schedule: &mut Series<WorkingMode>) {
-        const MODES: [WorkingMode; 4] = [
-            WorkingMode::Idle,
-            WorkingMode::Balancing,
-            WorkingMode::Charging,
-            WorkingMode::Discharging,
-        ];
-
-        let len = schedule.len();
-        assert!(len >= 2);
-
-        let mut iterator = schedule.iter_mut();
-
-        let n1 = fastrand::usize(0..(len - 1));
-        let (_, point_1) = iterator.nth(n1).unwrap();
-
-        let n2 = fastrand::usize(0..(len - n1 - 1));
-        let (_, point_2) = iterator.nth(n2).unwrap();
-
-        (*point_1, *point_2) = loop {
-            let mode_1 = fastrand::choice(MODES).unwrap();
-            let mode_2 = fastrand::choice(MODES).unwrap();
-            if mode_1 != *point_1 || mode_2 != *point_2 {
-                break (mode_1, mode_2);
-            }
-        };
     }
 
     fn simulate(&self, schedule: &Series<WorkingMode>) -> Result<Solution> {

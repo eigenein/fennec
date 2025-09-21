@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 use chrono::{DateTime, Local};
 use itertools::{EitherOrBoth, Itertools};
 
-use crate::prelude::*;
+use crate::{core::working_mode::WorkingMode, prelude::*};
 
 #[derive(Clone, serde::Deserialize, serde::Serialize, derive_more::IntoIterator)]
 pub struct Series<V, I: Ord = DateTime<Local>>(#[into_iterator(owned, ref)] BTreeMap<I, V>);
@@ -21,20 +21,18 @@ impl<V, I: Ord> FromIterator<(I, V)> for Series<V, I> {
 }
 
 impl<V, I: Ord> Series<V, I> {
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&I, &V)> {
         self.into_iter()
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&I, &mut V)> {
-        self.0.iter_mut()
     }
 
     pub fn insert(&mut self, index: I, value: V) {
@@ -88,6 +86,36 @@ impl<V, I: Debug + Ord> Series<V, I> {
                 EitherOrBoth::Right(_) => None,
             },
         )
+    }
+}
+
+impl Series<WorkingMode> {
+    pub fn mutate(&mut self) {
+        const MODES: [WorkingMode; 4] = [
+            WorkingMode::Idle,
+            WorkingMode::Balancing,
+            WorkingMode::Charging,
+            WorkingMode::Discharging,
+        ];
+
+        let len = self.0.len();
+        assert!(len >= 2);
+
+        let mut iterator = self.0.iter_mut();
+
+        let n1 = fastrand::usize(0..(len - 1));
+        let (_, point_1) = iterator.nth(n1).unwrap();
+
+        let n2 = fastrand::usize(0..(len - n1 - 1));
+        let (_, point_2) = iterator.nth(n2).unwrap();
+
+        (*point_1, *point_2) = loop {
+            let mode_1 = fastrand::choice(MODES).unwrap();
+            let mode_2 = fastrand::choice(MODES).unwrap();
+            if mode_1 != *point_1 || mode_2 != *point_2 {
+                break (mode_1, mode_2);
+            }
+        };
     }
 }
 

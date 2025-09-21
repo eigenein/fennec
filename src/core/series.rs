@@ -5,7 +5,9 @@ use itertools::{EitherOrBoth, Itertools};
 
 use crate::{core::working_mode::WorkingMode, prelude::*};
 
-#[derive(Clone, serde::Deserialize, serde::Serialize, derive_more::IntoIterator)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, derive_more::IntoIterator,
+)]
 pub struct Series<V, I: Ord = DateTime<Local>>(#[into_iterator(owned, ref)] BTreeMap<I, V>);
 
 impl<V, I: Ord> Default for Series<V, I> {
@@ -89,34 +91,43 @@ impl<V, I: Debug + Ord> Series<V, I> {
     }
 }
 
-impl Series<WorkingMode> {
-    pub fn mutate(&mut self) {
-        const MODES: [WorkingMode; 4] = [
-            WorkingMode::Idle,
-            WorkingMode::Balancing,
-            WorkingMode::Charging,
-            WorkingMode::Discharging,
-        ];
+impl<I: Copy + Ord> Series<WorkingMode, I> {
+    const MODES: [WorkingMode; 4] = [
+        WorkingMode::Idle,
+        WorkingMode::Balancing,
+        WorkingMode::Charging,
+        WorkingMode::Discharging,
+    ];
 
+    pub fn mutate(&mut self) -> (Mutation<WorkingMode, I>, Mutation<WorkingMode, I>) {
         let len = self.0.len();
         assert!(len >= 2);
 
         let mut iterator = self.0.iter_mut();
 
         let n1 = fastrand::usize(0..(len - 1));
-        let (_, point_1) = iterator.nth(n1).unwrap();
+        let (index, value_1) = iterator.nth(n1).unwrap();
+        let mutation_1 = Mutation { index: *index, old_value: *value_1 };
 
         let n2 = fastrand::usize(0..(len - n1 - 1));
-        let (_, point_2) = iterator.nth(n2).unwrap();
+        let (index, value_2) = iterator.nth(n2).unwrap();
+        let mutation_2 = Mutation { index: *index, old_value: *value_2 };
 
-        (*point_1, *point_2) = loop {
-            let mode_1 = fastrand::choice(MODES).unwrap();
-            let mode_2 = fastrand::choice(MODES).unwrap();
-            if mode_1 != *point_1 || mode_2 != *point_2 {
-                break (mode_1, mode_2);
+        (*value_1, *value_2) = loop {
+            let new_1 = fastrand::choice(Self::MODES).unwrap();
+            let new_2 = fastrand::choice(Self::MODES).unwrap();
+            if new_1 != *value_1 || new_2 != *value_2 {
+                break (new_1, new_2);
             }
         };
+
+        (mutation_1, mutation_2)
     }
+}
+
+pub struct Mutation<V, I> {
+    pub index: I,
+    pub old_value: V,
 }
 
 #[cfg(test)]
@@ -146,5 +157,22 @@ mod tests {
             lhs.zip_right_or(&rhs, |rhs| Some(*rhs), None).collect_vec(),
             [(&42, (&2, Some(3))), (&43, (&4, None))]
         );
+    }
+
+    #[test]
+    fn test_mutate() {
+        let mut series = Series::from_iter([
+            (1, WorkingMode::default()),
+            (2, WorkingMode::default()),
+            (3, WorkingMode::default()),
+        ]);
+        let original = series.clone();
+
+        let (mutation_1, mutation_2) = series.mutate();
+        assert_ne!(series, original, "the mutated series must differ from the original");
+
+        series.insert(mutation_1.index, mutation_1.old_value);
+        series.insert(mutation_2.index, mutation_2.old_value);
+        assert_eq!(series, original, "the restored series must equal to the original");
     }
 }

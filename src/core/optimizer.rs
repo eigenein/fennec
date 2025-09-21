@@ -55,15 +55,19 @@ impl Optimizer<'_> {
         best_solution: &mut (Series<WorkingMode>, Solution),
         n_mutations_succeeded: &mut usize,
     ) -> Result {
-        let mut schedule = best_solution.0.clone();
-        schedule.mutate();
+        let (mutation_1, mutation_2) = best_solution.0.mutate();
 
-        let solution = self.simulate(&schedule)?;
+        let solution = self.simulate(&best_solution.0)?;
 
         if solution.net_loss < best_solution.1.net_loss {
-            *best_solution = (schedule, solution);
+            best_solution.1 = solution;
             *n_mutations_succeeded += 1;
+        } else {
+            // Revert:
+            best_solution.0.insert(mutation_1.index, mutation_1.old_value);
+            best_solution.0.insert(mutation_2.index, mutation_2.old_value);
         }
+
         Ok(())
     }
 

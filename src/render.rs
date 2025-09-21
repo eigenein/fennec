@@ -1,4 +1,3 @@
-use chrono::{DateTime, Local};
 use comfy_table::{Cell, Color, Table, modifiers, presets};
 
 use crate::{
@@ -13,10 +12,7 @@ use crate::{
     units::currency::Cost,
 };
 
-pub fn try_render_steps(
-    metrics: &Series<Metrics>,
-    steps: &[(DateTime<Local>, Step)],
-) -> Result<Table> {
+pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Result<Table> {
     #[allow(clippy::cast_precision_loss)]
     let average_rate =
         metrics.iter().map(|(_, metrics)| metrics.grid_rate.0).sum::<f64>() / metrics.len() as f64;

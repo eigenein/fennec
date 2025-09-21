@@ -1,5 +1,4 @@
 use bon::Builder;
-use chrono::{DateTime, Local};
 use indicatif::ProgressIterator;
 
 use crate::{
@@ -44,7 +43,7 @@ impl Optimizer<'_> {
     pub fn run(self, initial_schedule: Series<WorkingMode>) -> Result<(usize, Solution)> {
         let mut n_mutations_succeeded = 0;
         let mut best_schedule = initial_schedule;
-        let mut step_buffer = Vec::with_capacity(self.metrics.len());
+        let mut step_buffer = Series::default();
         let mut best_solution = Solution {
             summary: self.simulate(&best_schedule, &mut step_buffer)?,
             steps: step_buffer.clone(),
@@ -64,7 +63,7 @@ impl Optimizer<'_> {
         &self,
         schedule: &mut Series<WorkingMode>,
         best_solution: &mut Solution,
-        step_buffer: &mut Vec<(DateTime<Local>, Step)>,
+        step_buffer: &mut Series<Step>,
         n_mutations_succeeded: &mut usize,
     ) -> Result {
         let (mutation_1, mutation_2) = schedule.mutate();
@@ -78,8 +77,8 @@ impl Optimizer<'_> {
             *n_mutations_succeeded += 1;
         } else {
             // Revert:
-            schedule.insert(mutation_1.index, mutation_1.old_value);
-            schedule.insert(mutation_2.index, mutation_2.old_value);
+            schedule[mutation_1.index] = mutation_1.old_value;
+            schedule[mutation_2.index] = mutation_2.old_value;
         }
 
         Ok(())
@@ -89,7 +88,7 @@ impl Optimizer<'_> {
     fn simulate(
         &self,
         schedule: &Series<WorkingMode>,
-        step_buffer: &mut Vec<(DateTime<Local>, Step)>,
+        step_buffer: &mut Series<Step>,
     ) -> Result<Summary> {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
@@ -157,7 +156,7 @@ impl Optimizer<'_> {
             net_loss += loss;
             net_loss_without_battery += self.loss(metrics.grid_rate, -production_without_battery);
 
-            step_buffer.push((
+            step_buffer.try_push(
                 *time,
                 Step {
                     working_mode: *working_mode,
@@ -166,7 +165,7 @@ impl Optimizer<'_> {
                     grid_consumption,
                     loss,
                 },
-            ));
+            )?;
         }
 
         Ok(Summary { net_loss, net_loss_without_battery })

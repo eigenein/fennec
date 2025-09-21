@@ -22,7 +22,7 @@ impl Api {
     ) -> Result<Series<KilowattHourRate>> {
         let mut grid_rates = self.get_hourly_rates(since).await?;
         let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-        grid_rates.extend(self.get_hourly_rates(next_day).await?.into_iter());
+        grid_rates.try_extend(self.get_hourly_rates(next_day).await?.into_iter())?;
         Ok(grid_rates)
     }
 

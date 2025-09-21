@@ -1,69 +1,82 @@
-use std::{collections::BTreeMap, fmt::Debug};
+mod serde;
+
+use std::{
+    fmt::Debug,
+    ops::{Index, IndexMut},
+};
 
 use chrono::{DateTime, Local};
 use itertools::{EitherOrBoth, Itertools};
 
 use crate::{core::working_mode::WorkingMode, prelude::*};
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, derive_more::IntoIterator,
-)]
-pub struct Series<V, I: Ord = DateTime<Local>>(#[into_iterator(owned, ref)] BTreeMap<I, V>);
+/// Series of values sorted by index.
+#[must_use]
+#[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator)]
+pub struct Series<V, I = DateTime<Local>>(#[into_iterator(owned, ref)] Vec<(I, V)>);
 
-impl<V, I: Ord> Default for Series<V, I> {
+impl<V, I> Default for Series<V, I> {
     fn default() -> Self {
-        Self(BTreeMap::new())
+        Self(Vec::new())
     }
 }
 
 impl<V, I: Ord> FromIterator<(I, V)> for Series<V, I> {
     fn from_iter<Iter: IntoIterator<Item = (I, V)>>(iter: Iter) -> Self {
-        Self(BTreeMap::from_iter(iter))
+        let mut this = Self(iter.into_iter().collect());
+        // FIXME: `try_collect` isn't stable, so for now, just sort it to ensure the ordering:
+        this.0.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+        this
     }
 }
 
-impl<V, I: Ord> Series<V, I> {
+impl<V, I> Index<usize> for Series<V, I> {
+    type Output = V;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index].1
+    }
+}
+
+impl<V, I> IndexMut<usize> for Series<V, I> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index].1
+    }
+}
+
+impl<V, I> Series<V, I> {
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.0.len()
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&I, &V)> {
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &(I, V)> {
         self.into_iter()
-    }
-
-    pub fn insert(&mut self, index: I, value: V) {
-        self.0.insert(index, value);
-    }
-
-    pub fn extend(&mut self, other: impl IntoIterator<Item = (I, V)>) {
-        self.0.extend(other);
     }
 }
 
-impl<V, I: Debug + Ord> Series<V, I> {
-    /// Zip the series by the indices.
+impl<V, I: Ord> Series<V, I> {
+    pub fn try_extend(&mut self, other: impl IntoIterator<Item = (I, V)>) -> Result {
+        self.0.extend(other);
+        self.assert_sorted()
+    }
+
+    /// Attempt to push a point.
     ///
-    /// It returns an error when the indices do not match.
-    pub fn try_zip_exactly<'l, 'r, R>(
-        &'l self,
-        rhs: &'r Series<R, I>,
-    ) -> impl Iterator<Item = Result<(&'l I, (&'l V, &'r R))>> {
-        self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).map(
-            |pair| match pair {
-                EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
-                    Ok((left_index, (left_value, right_value)))
-                }
-                EitherOrBoth::Left((index, _)) | EitherOrBoth::Right((index, _)) => {
-                    bail!("non-matching index: `{index:?}`");
-                }
-            },
-        )
+    /// The function fails if the point violates the ordering.
+    pub fn try_push(&mut self, index: I, value: V) -> Result {
+        ensure!(self.0.last().is_none_or(|(last_index, _)| last_index < &index));
+        self.0.push((index, value));
+        Ok(())
     }
 
     /// Zip the series by the indices.
@@ -89,9 +102,35 @@ impl<V, I: Debug + Ord> Series<V, I> {
             },
         )
     }
+
+    fn assert_sorted(&self) -> Result {
+        ensure!(self.0.is_sorted_by_key(|(index, _)| index));
+        Ok(())
+    }
 }
 
-impl<I: Copy + Ord> Series<WorkingMode, I> {
+impl<V, I: Debug + Ord> Series<V, I> {
+    /// Zip the series by the indices.
+    ///
+    /// It returns an error when the indices do not match.
+    pub fn try_zip_exactly<'l, 'r, R>(
+        &'l self,
+        rhs: &'r Series<R, I>,
+    ) -> impl Iterator<Item = Result<(&'l I, (&'l V, &'r R))>> {
+        self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).map(
+            |pair| match pair {
+                EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
+                    Ok((left_index, (left_value, right_value)))
+                }
+                EitherOrBoth::Left((index, _)) | EitherOrBoth::Right((index, _)) => {
+                    bail!("non-matching index: `{index:?}`");
+                }
+            },
+        )
+    }
+}
+
+impl<I: Copy> Series<WorkingMode, I> {
     const MODES: [WorkingMode; 4] = [
         WorkingMode::Idle,
         WorkingMode::Balancing,
@@ -99,24 +138,20 @@ impl<I: Copy + Ord> Series<WorkingMode, I> {
         WorkingMode::Discharging,
     ];
 
-    pub fn mutate(&mut self) -> (Mutation<WorkingMode, I>, Mutation<WorkingMode, I>) {
+    pub fn mutate(&mut self) -> (Mutation<WorkingMode>, Mutation<WorkingMode>) {
         let len = self.0.len();
         assert!(len >= 2);
 
-        let mut iterator = self.0.iter_mut();
+        let index_1 = fastrand::usize(0..(len - 1));
+        let mutation_1 = Mutation { index: index_1, old_value: self[index_1] };
 
-        let n1 = fastrand::usize(0..(len - 1));
-        let (index, value_1) = iterator.nth(n1).unwrap();
-        let mutation_1 = Mutation { index: *index, old_value: *value_1 };
+        let index_2 = fastrand::usize(index_1..len);
+        let mutation_2 = Mutation { index: index_2, old_value: self[index_2] };
 
-        let n2 = fastrand::usize(0..(len - n1 - 1));
-        let (index, value_2) = iterator.nth(n2).unwrap();
-        let mutation_2 = Mutation { index: *index, old_value: *value_2 };
-
-        (*value_1, *value_2) = loop {
+        (self[index_1], self[index_2]) = loop {
             let new_1 = fastrand::choice(Self::MODES).unwrap();
             let new_2 = fastrand::choice(Self::MODES).unwrap();
-            if new_1 != *value_1 || new_2 != *value_2 {
+            if (new_1, new_2) != (self[index_1], self[index_2]) {
                 break (new_1, new_2);
             }
         };
@@ -125,8 +160,8 @@ impl<I: Copy + Ord> Series<WorkingMode, I> {
     }
 }
 
-pub struct Mutation<V, I> {
-    pub index: I,
+pub struct Mutation<V> {
+    pub index: usize,
     pub old_value: V,
 }
 
@@ -160,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mutate() {
+    fn test_mutate() -> Result {
         let mut series = Series::from_iter([
             (1, WorkingMode::default()),
             (2, WorkingMode::default()),
@@ -171,8 +206,20 @@ mod tests {
         let (mutation_1, mutation_2) = series.mutate();
         assert_ne!(series, original, "the mutated series must differ from the original");
 
-        series.insert(mutation_1.index, mutation_1.old_value);
-        series.insert(mutation_2.index, mutation_2.old_value);
+        series.try_push(mutation_1.index, mutation_1.old_value)?;
+        series.try_push(mutation_2.index, mutation_2.old_value)?;
         assert_eq!(series, original, "the restored series must equal to the original");
+        Ok(())
+    }
+
+    #[test]
+    fn test_extend_ok() -> Result {
+        Series::from_iter([(1, 1)]).try_extend(Series::from_iter([(2, 2)]))?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_extend_error() {
+        assert!(Series::from_iter([(3, 3)]).try_extend(Series::from_iter([(2, 2)])).is_err());
     }
 }

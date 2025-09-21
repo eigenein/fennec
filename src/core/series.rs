@@ -206,8 +206,8 @@ mod tests {
         let (mutation_1, mutation_2) = series.mutate();
         assert_ne!(series, original, "the mutated series must differ from the original");
 
-        series.try_push(mutation_1.index, mutation_1.old_value)?;
-        series.try_push(mutation_2.index, mutation_2.old_value)?;
+        series[mutation_1.index] = mutation_1.old_value;
+        series[mutation_2.index] = mutation_2.old_value;
         assert_eq!(series, original, "the restored series must equal to the original");
         Ok(())
     }

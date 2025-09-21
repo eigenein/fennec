@@ -23,6 +23,7 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
     table.set_header(vec![
         "Time",
         "Grid rate\n€/kWh",
+        "Stand-by\nkW",
         "Solar\nW/m²",
         "Before\nkWh",
         "Mode",
@@ -45,6 +46,7 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
             Cell::new(time.format("%H:%M").to_string()),
             Cell::new(format!("{:.2}", metrics.grid_rate))
                 .fg(if metrics.grid_rate.0 >= average_rate { Color::Red } else { Color::Green }),
+            Cell::new(format!("{:.2}", step.stand_by_power)),
             Cell::new(solar_content).fg(solar_color),
             Cell::new(format!("{:.2}", step.residual_energy_before)),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {

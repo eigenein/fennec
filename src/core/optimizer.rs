@@ -1,4 +1,5 @@
 use bon::Builder;
+use chrono::Timelike;
 use indicatif::ProgressIterator;
 
 use crate::{
@@ -31,6 +32,7 @@ pub struct Optimizer<'a> {
     capacity: KilowattHours,
     battery: BatteryArgs,
     consumption: ConsumptionArgs,
+    stand_by_power: [Option<Kilowatts>; 24],
     n_steps: usize,
 }
 
@@ -99,12 +101,14 @@ impl Optimizer<'_> {
         for point in self.metrics.try_zip_exactly(schedule) {
             let (time, (metrics, working_mode)) = point?;
             let initial_residual_energy = current_residual_energy;
+            let stand_by_power =
+                self.stand_by_power[time.hour() as usize].unwrap_or(self.consumption.stand_by);
 
             // For missing weather forecast, assume none solar power:
             let solar_production =
                 metrics.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
             // Positive is excess, negative is deficit:
-            let power_balance = solar_production - self.consumption.stand_by;
+            let power_balance = solar_production - stand_by_power;
 
             // Power flow to the battery (negative is directed from the battery):
             let battery_external_power = match working_mode {
@@ -162,6 +166,7 @@ impl Optimizer<'_> {
                     working_mode: *working_mode,
                     residual_energy_before: initial_residual_energy,
                     residual_energy_after: current_residual_energy,
+                    stand_by_power,
                     grid_consumption,
                     loss,
                 },

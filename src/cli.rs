@@ -86,7 +86,7 @@ pub struct HuntArgs {
 
 #[derive(Parser)]
 pub struct ConsumptionArgs {
-    /// Average stand-by household usage in kilowatts.
+    /// Default average stand-by household usage in kilowatts for when actual statistic is unavailable.
     #[clap(
         long = "stand-by-consumption-kilowatts",
         default_value = "0.5",

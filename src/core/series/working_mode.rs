@@ -21,7 +21,7 @@ impl<I: Copy> Series<WorkingMode, I> {
         (self[index_1], self[index_2]) = loop {
             let new_1 = fastrand::choice(Self::MODES).unwrap();
             let new_2 = fastrand::choice(Self::MODES).unwrap();
-            if new_1 != self[index_1] || new_2 != self[index_2] {
+            if (new_1 != mutation_1.old_value) || (new_2 != mutation_2.old_value) {
                 break (new_1, new_2);
             }
         };

@@ -101,6 +101,15 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     };
     info!("Fetched battery details", residual_energy, total_capacity);
 
+    // Calculate the stand-by consumption:
+    let stand_by_power = cache
+        .total_usage
+        .resample_hourly()
+        .collect::<Series<KilowattHours>>()
+        .differentiate()
+        .collect::<Series<Kilowatts>>()
+        .average_hourly();
+
     // Build the initial schedule from the cached one: drop the old entries and fill the future
     // entries in with the default mode:
     let initial_schedule: Series<WorkingMode> = metrics
@@ -117,6 +126,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         .battery(hunt_args.battery)
         .consumption(hunt_args.consumption)
         .n_steps(hunt_args.n_optimization_steps)
+        .stand_by_power(stand_by_power)
         .build()
         .run(initial_schedule)?;
     let run_duration = Utc::now() - start_time;

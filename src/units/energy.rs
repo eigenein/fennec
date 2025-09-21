@@ -25,3 +25,11 @@ impl Div<Kilowatts> for KilowattHours {
         Quantity(self.0 / rhs.0)
     }
 }
+
+impl Div<Hours> for KilowattHours {
+    type Output = Kilowatts;
+
+    fn div(self, rhs: Hours) -> Self::Output {
+        Quantity(self.0 / rhs.0)
+    }
+}

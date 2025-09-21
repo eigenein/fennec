@@ -8,14 +8,14 @@ use itertools::Itertools;
 
 use crate::{
     core::{point::Point, series::Series},
-    prelude::*,
+    units::{energy::KilowattHours, power::Kilowatts, time::Hours},
 };
 
 impl<V> Series<V> {
     /// Interpolate the time series and iterate over hours,
     /// yielding the hour timestamp and interpolated value.
     #[allow(clippy::type_repetition_in_bounds)]
-    pub fn resample_hourly(&self) -> impl Iterator<Item = Result<(DateTime<Local>, V)>>
+    pub fn resample_hourly(&self) -> impl Iterator<Item = (DateTime<Local>, V)>
     where
         V: Copy,
         V: Add<V, Output = V>,
@@ -29,8 +29,8 @@ impl<V> Series<V> {
             |((left_index, left_value), (right_index, right_value))| {
                 let from: Point<V> = Point::new(*left_index, *left_value);
                 let to: Point<V> = Point::new(*right_index, *right_value);
-                let at = right_index.duration_trunc(ONE_HOUR)?;
-                Ok((at, from.interpolate(to, at)))
+                let at = right_index.duration_trunc(ONE_HOUR).unwrap();
+                (at, from.interpolate(to, at))
             },
         )
     }
@@ -62,6 +62,18 @@ impl<V> Series<V> {
     }
 }
 
+impl Series<KilowattHours> {
+    pub fn differentiate(&self) -> impl Iterator<Item = (DateTime<Local>, Kilowatts)> {
+        self.0.iter().tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
+            (
+                *from_index,
+                (*to_value - *from_value)
+                    / Hours::from((*to_index - *from_index).as_seconds_f64() / 3600.0),
+            )
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;
@@ -70,29 +82,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_resample_hourly() -> Result {
+    fn test_resample_hourly() {
         let series = Series::from_iter([
-            (Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap(), 100.0),
-            (Local.with_ymd_and_hms(2025, 9, 21, 21, 45, 0).unwrap(), 150.0),
-            (Local.with_ymd_and_hms(2025, 9, 21, 22, 30, 0).unwrap(), 300.0),
-            (Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap(), 400.0),
-            (Local.with_ymd_and_hms(2025, 9, 21, 23, 30, 0).unwrap(), 700.0),
+            (Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap(), KilowattHours::from(100.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 21, 45, 0).unwrap(), KilowattHours::from(150.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 22, 30, 0).unwrap(), KilowattHours::from(300.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap(), KilowattHours::from(400.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 23, 30, 0).unwrap(), KilowattHours::from(700.0)),
         ]);
-        let resampled: Vec<_> = series.resample_hourly().collect::<Result<_>>()?;
+        let resampled: Vec<_> = series.resample_hourly().collect();
 
         assert_eq!(resampled.len(), 2);
 
         assert_eq!(resampled[0].0, Local.with_ymd_and_hms(2025, 9, 21, 22, 0, 0).unwrap());
-        assert_abs_diff_eq!(resampled[0].1, 200.0);
+        assert_abs_diff_eq!(resampled[0].1.0, 200.0);
 
         assert_eq!(resampled[1].0, Local.with_ymd_and_hms(2025, 9, 21, 23, 0, 0).unwrap());
-        assert_abs_diff_eq!(resampled[1].1, 500.0);
-
-        Ok(())
+        assert_abs_diff_eq!(resampled[1].1.0, 500.0);
     }
 
     #[test]
-    fn test_average_hourly() -> Result {
+    fn test_average_hourly() {
         let series = Series::from_iter([
             (Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap(), 100.0),
             (Local.with_ymd_and_hms(2025, 9, 21, 21, 45, 0).unwrap(), 150.0),
@@ -129,6 +139,29 @@ mod tests {
                 Some(700.0),
             ]
         );
-        Ok(())
+    }
+
+    #[test]
+    fn test_differentiate() {
+        let series = Series::from_iter([
+            (Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap(), KilowattHours::from(100.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 21, 45, 0).unwrap(), KilowattHours::from(150.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 22, 30, 0).unwrap(), KilowattHours::from(300.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap(), KilowattHours::from(400.0)),
+            (Local.with_ymd_and_hms(2025, 9, 21, 23, 30, 0).unwrap(), KilowattHours::from(700.0)),
+        ]);
+        let diff = series.differentiate().collect::<Series<_>>().into_iter().collect::<Vec<_>>();
+
+        assert_eq!(diff.len(), 4);
+
+        assert_eq!(diff[0].0, Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap());
+        assert_abs_diff_eq!(diff[0].1.0, 200.0);
+
+        assert_abs_diff_eq!(diff[1].1.0, 200.0);
+
+        assert_abs_diff_eq!(diff[2].1.0, 400.0);
+
+        assert_eq!(diff[3].0, Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap());
+        assert_abs_diff_eq!(diff[3].1.0, 400.0);
     }
 }

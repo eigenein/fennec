@@ -21,17 +21,25 @@ codegen-units = 1
 debug = "full"
 lto = "thin"
 
-[lints.clippy]
-all = { level = "warn", priority = -1 }
-nursery = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
+[lints.clippy.pedantic]
+level = "warn"
+priority = -1
+
+[lints.clippy.nursery]
+level = "warn"
+priority = -1
+
+[lints.clippy.all]
+level = "warn"
+priority = -1
 
 [dependencies]
-anyhow = "=1.0.99"
+anyhow = "=1.0.100"
 bon = "=3.7.2"
 comfy-table = "=7.2.1"
 derive_more = { version = "=2.0.1", features = ["full"] }
 fastrand = "=2.3.0"
+indicatif = "=0.18.0"
 itertools = "=0.14.0"
 logfire = "=0.8.2"
 md5 = "=0.8.0"
@@ -40,9 +48,6 @@ serde = "=1.0.225"
 serde_json = "=1.0.145"
 toml = "=0.9.7"
 tracing = "=0.1.41"
-
-[dependencies.indicatif]
-version = "0.18.0"
 
 [dependencies.serde_with]
 version = "=3.14.0"

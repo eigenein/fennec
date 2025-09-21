@@ -6,7 +6,7 @@ use crate::{
     core::{
         metrics::Metrics,
         series::Series,
-        solution::Step,
+        step::Step,
         working_mode::WorkingMode as CoreWorkingMode,
     },
     prelude::*,

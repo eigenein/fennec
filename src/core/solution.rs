@@ -1,30 +1,12 @@
 use chrono::{DateTime, Local};
 
-use crate::{
-    core::working_mode::WorkingMode,
-    units::{currency::Cost, energy::KilowattHours},
-};
+use crate::core::{step::Step, summary::Summary};
 
-/// Optimization plan that describes how the battery will work in the upcoming hours.
 pub struct Solution {
-    pub net_loss: Cost,
-    pub net_loss_without_battery: Cost,
+    pub summary: Summary,
+
+    /// The simulated working plan.
+    ///
+    /// Note, that I could not use [`crate::core::series::Series`] here to avoid the b-tree insertion penalty.
     pub steps: Vec<(DateTime<Local>, Step)>,
-}
-
-impl Solution {
-    pub fn profit(&self) -> Cost {
-        // We expect that with the battery we lose less… 😅
-        self.net_loss_without_battery - self.net_loss
-    }
-}
-
-/// Single-hour working plan step.
-#[derive(Copy, Clone)]
-pub struct Step {
-    pub working_mode: WorkingMode,
-    pub residual_energy_before: KilowattHours,
-    pub residual_energy_after: KilowattHours,
-    pub grid_consumption: KilowattHours,
-    pub loss: Cost,
 }

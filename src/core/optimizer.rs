@@ -1,4 +1,5 @@
 use bon::Builder;
+use chrono::{DateTime, Local};
 use indicatif::ProgressIterator;
 
 use crate::{
@@ -6,7 +7,9 @@ use crate::{
     core::{
         metrics::Metrics,
         series::Series,
-        solution::{Solution, Step},
+        solution::Solution,
+        step::Step,
+        summary::Summary,
         working_mode::WorkingMode,
     },
     prelude::*,
@@ -41,9 +44,18 @@ impl Optimizer<'_> {
     pub fn run(self, initial_schedule: Series<WorkingMode>) -> Result<(usize, Solution)> {
         let mut n_mutations_succeeded = 0;
         let mut best_schedule = initial_schedule;
-        let mut best_solution = self.simulate(&best_schedule)?;
+        let mut step_buffer = Vec::with_capacity(self.metrics.len());
+        let mut best_solution = Solution {
+            summary: self.simulate(&best_schedule, &mut step_buffer)?,
+            steps: step_buffer.clone(),
+        };
         (0..self.n_steps).progress().try_for_each(|_| {
-            self.step(&mut best_schedule, &mut best_solution, &mut n_mutations_succeeded)
+            self.step(
+                &mut best_schedule,
+                &mut best_solution,
+                &mut step_buffer,
+                &mut n_mutations_succeeded,
+            )
         })?;
         Ok((n_mutations_succeeded, best_solution))
     }
@@ -52,14 +64,17 @@ impl Optimizer<'_> {
         &self,
         schedule: &mut Series<WorkingMode>,
         best_solution: &mut Solution,
+        step_buffer: &mut Vec<(DateTime<Local>, Step)>,
         n_mutations_succeeded: &mut usize,
     ) -> Result {
         let (mutation_1, mutation_2) = schedule.mutate();
 
-        let solution = self.simulate(schedule)?;
+        step_buffer.clear();
+        let summary = self.simulate(schedule, step_buffer)?;
 
-        if solution.net_loss < best_solution.net_loss {
-            *best_solution = solution;
+        if summary.net_loss < best_solution.summary.net_loss {
+            best_solution.summary = summary;
+            best_solution.steps.clone_from(step_buffer);
             *n_mutations_succeeded += 1;
         } else {
             // Revert:
@@ -70,12 +85,15 @@ impl Optimizer<'_> {
         Ok(())
     }
 
-    fn simulate(&self, schedule: &Series<WorkingMode>) -> Result<Solution> {
+    /// Simulate the schedule.
+    fn simulate(
+        &self,
+        schedule: &Series<WorkingMode>,
+        step_buffer: &mut Vec<(DateTime<Local>, Step)>,
+    ) -> Result<Summary> {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
 
         let mut current_residual_energy = self.residual_energy;
-        let mut steps = Vec::with_capacity(schedule.len());
-
         let mut net_loss = Cost::ZERO;
         let mut net_loss_without_battery = Cost::ZERO;
 
@@ -139,7 +157,7 @@ impl Optimizer<'_> {
             net_loss += loss;
             net_loss_without_battery += self.loss(metrics.grid_rate, -production_without_battery);
 
-            steps.push((
+            step_buffer.push((
                 *time,
                 Step {
                     working_mode: *working_mode,
@@ -151,7 +169,7 @@ impl Optimizer<'_> {
             ));
         }
 
-        Ok(Solution { net_loss, net_loss_without_battery, steps })
+        Ok(Summary { net_loss, net_loss_without_battery })
     }
 
     fn loss(&self, grid_rate: KilowattHourRate, consumption: KilowattHours) -> Cost {

@@ -40,32 +40,31 @@ impl Optimizer<'_> {
     )]
     pub fn run(self, initial_schedule: Series<WorkingMode>) -> Result<(usize, Solution)> {
         let mut n_mutations_succeeded = 0;
-        let mut best_solution: (Series<WorkingMode>, Solution) = {
-            let initial_solution = self.simulate(&initial_schedule)?;
-            (initial_schedule, initial_solution)
-        };
-        (0..self.n_steps)
-            .progress()
-            .try_for_each(|_| self.step(&mut best_solution, &mut n_mutations_succeeded))?;
-        Ok((n_mutations_succeeded, best_solution.1))
+        let mut best_schedule = initial_schedule;
+        let mut best_solution = self.simulate(&best_schedule)?;
+        (0..self.n_steps).progress().try_for_each(|_| {
+            self.step(&mut best_schedule, &mut best_solution, &mut n_mutations_succeeded)
+        })?;
+        Ok((n_mutations_succeeded, best_solution))
     }
 
     fn step(
         &self,
-        best_solution: &mut (Series<WorkingMode>, Solution),
+        schedule: &mut Series<WorkingMode>,
+        best_solution: &mut Solution,
         n_mutations_succeeded: &mut usize,
     ) -> Result {
-        let (mutation_1, mutation_2) = best_solution.0.mutate();
+        let (mutation_1, mutation_2) = schedule.mutate();
 
-        let solution = self.simulate(&best_solution.0)?;
+        let solution = self.simulate(schedule)?;
 
-        if solution.net_loss < best_solution.1.net_loss {
-            best_solution.1 = solution;
+        if solution.net_loss < best_solution.net_loss {
+            *best_solution = solution;
             *n_mutations_succeeded += 1;
         } else {
             // Revert:
-            best_solution.0.insert(mutation_1.index, mutation_1.old_value);
-            best_solution.0.insert(mutation_2.index, mutation_2.old_value);
+            schedule.insert(mutation_1.index, mutation_1.old_value);
+            schedule.insert(mutation_2.index, mutation_2.old_value);
         }
 
         Ok(())

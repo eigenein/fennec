@@ -39,7 +39,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: 🧪 Test
-        run: cargo llvm-cov --all-features --workspace --codecov --output-path=codecov.json -- --include-ignored
+        run: cargo llvm-cov --codecov --output-path=codecov.json -- --include-ignored
         env:
           TZ: Europe/Amsterdam
 

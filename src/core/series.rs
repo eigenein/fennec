@@ -1,3 +1,4 @@
+pub mod consumption;
 mod serde;
 pub mod working_mode;
 

@@ -1,3 +1,5 @@
+use std::ops::{Add, Div, Mul, Sub};
+
 use chrono::{DateTime, Local};
 
 #[derive(Copy, Clone, derive_more::Constructor)]
@@ -6,13 +8,18 @@ pub struct Point<V, I = DateTime<Local>> {
     pub value: V,
 }
 
-impl<V: From<f64> + Into<f64>> Point<V> {
+impl<V> Point<V>
+where
+    V: Copy,
+    V: Add<V, Output = V>,
+    V: Sub<V, Output = V>,
+    V: Mul<f64, Output = V>,
+    V: Div<f64, Output = V>,
+{
     /// Perform linear interpolation between two time series points.
     pub fn interpolate(self, to: Self, at: DateTime<Local>) -> V {
-        let from_value = self.value.into();
-        let change_per_second =
-            (to.value.into() - from_value) / (to.index - self.index).as_seconds_f64();
-        change_per_second.mul_add((at - self.index).as_seconds_f64(), from_value).into()
+        let change_per_second = (to.value - self.value) / (to.index - self.index).as_seconds_f64();
+        self.value + change_per_second * (at - self.index).as_seconds_f64()
     }
 }
 

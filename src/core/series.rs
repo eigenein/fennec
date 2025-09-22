@@ -132,6 +132,12 @@ impl<V, I: Debug + Ord> Series<V, I> {
     }
 }
 
+impl<V, I> Series<V, I> {
+    pub fn index_at(&self, i: usize) -> &I {
+        &self.0[i].0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

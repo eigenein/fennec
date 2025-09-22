@@ -4,6 +4,7 @@ pub mod optimizer;
 pub mod point;
 pub mod series;
 pub mod solution;
+mod solver;
 pub mod step;
 pub mod summary;
 pub mod working_mode;

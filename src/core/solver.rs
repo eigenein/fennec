@@ -1,5 +1,5 @@
 use bon::{Builder, builder};
-use chrono::Timelike;
+use chrono::{DateTime, Local, Timelike};
 use ordered_float::OrderedFloat;
 
 use crate::{
@@ -72,21 +72,15 @@ impl Solver<'_> {
                 hour_backtracks.push((next_state, step));
             }
             future_losses = losses;
-            backtracks.push(hour_backtracks);
+            backtracks.push((*timestamp, hour_backtracks));
         }
 
-        let mut energy_state = Self::discretize(self.residual_energy);
-        let net_loss = future_losses[energy_state];
-        let mut steps = Series::default();
-        for (hour_backtracks, (timestamp, _)) in backtracks.into_iter().rev().zip(self.metrics) {
-            let (next_energy_state, step) = hour_backtracks[energy_state];
-            steps.try_push(*timestamp, step).unwrap();
-            energy_state = next_energy_state;
-        }
+        let initial_energy_state = Self::discretize(self.residual_energy);
+        let net_loss = future_losses[initial_energy_state];
 
         Solution {
             summary: Summary { net_loss, net_loss_without_battery: Quantity(0.0) }, // FIXME
-            steps,
+            steps: Self::backtrack(initial_energy_state, backtracks),
         }
     }
 
@@ -199,6 +193,23 @@ impl Solver<'_> {
             // We sell excess energy cheaper:
             consumption * (grid_rate - self.consumption.purchase_fees)
         }
+    }
+
+    #[expect(clippy::type_complexity)] // FIXME
+    fn backtrack(
+        initial_energy_state: usize,
+        backtracks: Vec<(DateTime<Local>, Vec<(usize, Step)>)>,
+    ) -> Series<Step> {
+        let mut energy_state = initial_energy_state;
+        backtracks
+            .into_iter()
+            .rev()
+            .map(|(timestamp, hour_backtracks)| {
+                let (next_energy_state, step) = hour_backtracks[energy_state];
+                energy_state = next_energy_state;
+                (timestamp, step)
+            })
+            .collect()
     }
 
     /// Express the energy in 10s of watt-hours.

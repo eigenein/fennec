@@ -57,11 +57,11 @@ impl Solver<'_> {
                 self.stand_by_power[timestamp.hour() as usize].unwrap_or(self.consumption.stand_by);
 
             let mut losses = Vec::with_capacity(n_energy_states);
-            let mut hour_backtracks = Vec::with_capacity(n_energy_states);
+            let mut linked_steps = Vec::with_capacity(n_energy_states);
 
             for energy_state in 0..=n_energy_states {
                 let initial_residual_energy = Self::undiscretize(energy_state);
-                let (loss, next_state, step) = self.optimise_hour(
+                let (loss, next_energy_state, step) = self.optimise_hour(
                     stand_by_power,
                     metrics,
                     initial_residual_energy,
@@ -69,10 +69,12 @@ impl Solver<'_> {
                     &future_losses,
                 );
                 losses.push(loss);
-                hour_backtracks.push((next_state, step));
+                // FIXME: introduce some kind of `LinkedStep` type:
+                linked_steps.push((next_energy_state, step));
             }
             future_losses = losses;
-            backtracks.push((*timestamp, hour_backtracks));
+            // FIXME: introduce some kind of `Backtrack` type:
+            backtracks.push((*timestamp, linked_steps));
         }
 
         let initial_energy_state = Self::discretize(self.residual_energy);
@@ -102,10 +104,10 @@ impl Solver<'_> {
                     min_residual_energy,
                     working_mode,
                 );
-                let next_state =
+                let next_energy_state =
                     Self::discretize(step.residual_energy_after).min(next_hour_losses.len());
-                let net_loss = step.loss + next_hour_losses[next_state];
-                (net_loss, next_state, step)
+                let net_loss = step.loss + next_hour_losses[next_energy_state];
+                (net_loss, next_energy_state, step)
             })
             .min_by_key(|(net_loss, _, _)| OrderedFloat(net_loss.0))
             .unwrap()
@@ -204,8 +206,8 @@ impl Solver<'_> {
         backtracks
             .into_iter()
             .rev()
-            .map(|(timestamp, hour_backtracks)| {
-                let (next_energy_state, step) = hour_backtracks[energy_state];
+            .map(|(timestamp, linked_steps)| {
+                let (next_energy_state, step) = linked_steps[energy_state];
                 energy_state = next_energy_state;
                 (timestamp, step)
             })

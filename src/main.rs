@@ -5,7 +5,7 @@ mod prelude;
 mod render;
 mod units;
 
-use chrono::{Local, Utc};
+use chrono::Local;
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
@@ -110,7 +110,6 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         .collect::<Series<Kilowatts>>()
         .average_hourly();
 
-    let start_time = Utc::now();
     let solution = Solver::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
@@ -120,12 +119,10 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         .consumption(hunt_args.consumption)
         .stand_by_power(stand_by_power)
         .solve();
-    let run_duration = Utc::now() - start_time;
 
     let profit = solution.summary.profit();
     info!(
         "Optimized",
-        run_duration = format!("{:.1}s", run_duration.as_seconds_f64()),
         net_loss = format!("¢{:.0}", solution.summary.net_loss * 100.0),
         without_battery = format!("¢{:.0}", solution.summary.net_loss_without_battery * 100.0),
         profit = format!("¢{:.0}", profit * 100.0),

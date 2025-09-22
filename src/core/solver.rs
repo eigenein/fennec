@@ -125,6 +125,7 @@ impl Solver<'_> {
     ) -> Step {
         let mut current_residual_energy = initial_residual_energy;
 
+        // TODO: move these out:
         // For missing weather forecast, assume none solar power:
         let solar_production =
             metrics.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
@@ -215,6 +216,8 @@ impl Solver<'_> {
     }
 
     /// Express the energy in 10s of watt-hours.
+    ///
+    /// TODO: introduce `EnergyLevel` with fallible conversions.
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     fn discretize(energy: KilowattHours) -> usize {

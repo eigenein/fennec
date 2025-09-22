@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Single-hour working plan step.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Step {
     pub stand_by_power: Kilowatts,
     pub working_mode: WorkingMode,

@@ -2,17 +2,10 @@ use std::{fmt::Debug, fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::{series::Series, working_mode::WorkingMode},
-    prelude::*,
-    units::energy::KilowattHours,
-};
+use crate::{core::series::Series, prelude::*, units::energy::KilowattHours};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Cache {
-    #[serde(default, rename = "solution")]
-    pub solution: Series<WorkingMode>,
-
     #[serde(default)]
     pub total_usage: Series<KilowattHours>,
 }

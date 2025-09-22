@@ -84,7 +84,7 @@ pub struct HuntArgs {
     pub home_assistant: HomeAssistantArgs,
 }
 
-#[derive(Parser)]
+#[derive(Copy, Clone, Parser)]
 pub struct ConsumptionArgs {
     /// Default average stand-by household usage in kilowatts for when actual statistic is unavailable.
     #[clap(

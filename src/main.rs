@@ -16,8 +16,8 @@ use crate::{
     core::{
         cache::Cache,
         metrics::Metrics,
-        optimizer::Optimizer,
         series::Series,
+        solver::Solver,
         working_mode::WorkingMode,
     },
     prelude::*,
@@ -110,32 +110,22 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         .collect::<Series<Kilowatts>>()
         .average_hourly();
 
-    // Build the initial schedule from the cached one: drop the old entries and fill the future
-    // entries in with the default mode:
-    let initial_schedule: Series<WorkingMode> = metrics
-        .zip_right_or(&cache.solution, |mode| *mode, WorkingMode::default())
-        .map(|(time, (_, mode))| (*time, mode))
-        .collect();
-
     let start_time = Utc::now();
-    let (n_mutations_succeeded, solution) = Optimizer::builder()
+    let solution = Solver::builder()
         .metrics(&metrics)
         .pv_surface_area(hunt_args.solar.pv_surface)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery(hunt_args.battery)
         .consumption(hunt_args.consumption)
-        .n_steps(hunt_args.n_optimization_steps)
         .stand_by_power(stand_by_power)
-        .build()
-        .run(initial_schedule)?;
+        .solve();
     let run_duration = Utc::now() - start_time;
 
     let profit = solution.summary.profit();
     info!(
         "Optimized",
         run_duration = format!("{:.1}s", run_duration.as_seconds_f64()),
-        n_mutations_succeeded = n_mutations_succeeded,
         net_loss = format!("¢{:.0}", solution.summary.net_loss * 100.0),
         without_battery = format!("¢{:.0}", solution.summary.net_loss_without_battery * 100.0),
         profit = format!("¢{:.0}", profit * 100.0),
@@ -148,9 +138,6 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     let time_slot_sequence =
         foxess::TimeSlotSequence::from_schedule(&schedule, &hunt_args.battery)?;
     println!("{}", render_time_slot_sequence(&time_slot_sequence));
-
-    // Update the cache:
-    cache.solution = schedule;
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, time_slot_sequence.as_ref()).await?;

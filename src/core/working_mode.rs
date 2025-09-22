@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum WorkingMode {
     /// Do not do anything.
-    #[default]
     #[serde(alias = "I", alias = "M", alias = "R")]
     Idle,
 
@@ -16,6 +15,7 @@ pub enum WorkingMode {
     Discharging,
 
     /// Charge on excess PV power, discharge on insufficient PV power.
+    #[default]
     #[serde(alias = "B")]
     Balancing,
 }

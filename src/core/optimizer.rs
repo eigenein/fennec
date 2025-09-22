@@ -24,6 +24,7 @@ use crate::{
     },
 };
 
+#[allow(dead_code)]
 #[derive(Builder)]
 pub struct Optimizer<'a> {
     metrics: &'a Series<Metrics>,
@@ -37,6 +38,7 @@ pub struct Optimizer<'a> {
 }
 
 impl Optimizer<'_> {
+    #[expect(dead_code)]
     #[instrument(
         name = "Optimising…",
         fields(residual_energy = %self.residual_energy, n_steps = self.n_steps),
@@ -62,6 +64,7 @@ impl Optimizer<'_> {
         Ok((n_mutations_succeeded, best_solution))
     }
 
+    #[allow(dead_code)]
     fn step(
         &self,
         schedule: &mut Series<WorkingMode>,
@@ -88,6 +91,7 @@ impl Optimizer<'_> {
     }
 
     /// Simulate the schedule.
+    #[allow(dead_code)]
     fn simulate(
         &self,
         schedule: &Series<WorkingMode>,
@@ -177,6 +181,7 @@ impl Optimizer<'_> {
         Ok(Summary { net_loss, net_loss_without_battery })
     }
 
+    #[allow(dead_code)]
     fn loss(&self, grid_rate: KilowattHourRate, consumption: KilowattHours) -> Cost {
         if consumption >= KilowattHours::ZERO {
             consumption * grid_rate

@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use chrono::{DateTime, DurationRound, Local, NaiveDate, TimeDelta, Timelike};
+use chrono::{DateTime, DurationRound, Local, NaiveDate, TimeDelta};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
@@ -20,21 +20,35 @@ impl Api {
         &self,
         since: DateTime<Local>,
     ) -> Result<Series<KilowattHourRate>> {
-        let mut grid_rates = self.get_hourly_rates(since).await?;
+        // Round down to the closest hour:
+        let since = since.duration_trunc(TimeDelta::hours(1))?;
         let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-        grid_rates.try_extend(self.get_hourly_rates(next_day).await?.into_iter())?;
-        Ok(grid_rates)
+
+        let this_day_rates = self.get_hourly_rates(since.date_naive()).await?;
+
+        // The next-day rates may be yet unavailable:
+        let mut next_day_rates = self.get_hourly_rates(next_day.date_naive()).await?;
+        if next_day_rates.is_empty() {
+            warn!("Next-day rates are unavailable, using the earlier rates");
+            next_day_rates.try_extend(
+                this_day_rates.iter().map(|(timestamp, rate)| {
+                    (next_day.with_time(timestamp.time()).unwrap(), *rate)
+                }),
+            )?;
+        }
+
+        Ok(this_day_rates
+            .into_iter()
+            .filter(|(timestamp, _)| *timestamp >= since)
+            .chain(next_day_rates)
+            .collect())
     }
 
-    #[instrument(name = "Fetching energy prices…", fields(since = ?since), skip_all)]
-    pub async fn get_hourly_rates(
-        &self,
-        since: DateTime<Local>,
-    ) -> Result<Series<KilowattHourRate>> {
-        let since = since.duration_trunc(TimeDelta::hours(1))?;
-        self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
+    #[instrument(name = "Fetching energy prices…", fields(on = ?on), skip_all)]
+    pub async fn get_hourly_rates(&self, on: NaiveDate) -> Result<Series<KilowattHourRate>> {
+        Ok(self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
-            .json(&GetDataPointsRequest::new(since.date_naive()))
+            .json(&GetDataPointsRequest::new(on))
             .send()
             .await
             .context("failed to call")?
@@ -47,9 +61,8 @@ impl Api {
             .points
             .list
             .into_iter()
-            .filter(|point| point.hour >= since.hour())
-            .map(|point| Ok((since.with_hour(point.hour).context("invalid hour")?, point.value)))
-            .collect()
+            .map(|point| (on.and_hms_opt(point.hour, 0, 0).context("invalid timestamp").unwrap().and_local_timezone(Local).unwrap(), point.value))
+            .collect())
     }
 }
 
@@ -152,13 +165,13 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "makes the API request"]
-    async fn test_get_hourly_rates_ok() -> Result {
+    async fn test_get_hourly_rates_48h_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new()?.get_hourly_rates(now).await?;
-        let (time, _) = series.iter().next().unwrap();
-        assert_eq!(time.hour(), now.hour());
-        assert!(!series.is_empty());
-        assert!(series.len() <= 24);
+        let series = Api::try_new()?.get_hourly_rates_48h(now).await?;
+        assert!(series.len() >= 24);
+        assert!(series.len() <= 48);
+        let (timestamp, _) = series.iter().next().unwrap();
+        assert_eq!(timestamp.hour(), now.hour());
         Ok(())
     }
 }

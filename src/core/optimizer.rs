@@ -50,6 +50,7 @@ impl Optimizer<'_> {
             summary: self.simulate(&best_schedule, &mut step_buffer)?,
             steps: step_buffer.clone(),
         };
+        info!("Started", initial_loss = format!("€{:.2}", best_solution.summary.net_loss));
         (0..self.n_steps).progress().try_for_each(|_| {
             self.step(
                 &mut best_schedule,

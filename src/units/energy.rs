@@ -12,7 +12,7 @@ pub type KilowattHours = Quantity<f64, 1, 0, 1, 0>;
 
 impl KilowattHours {
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
-        Self(watt_hours as f64 * 0.001)
+        Self(f64::from(watt_hours) * 0.001)
     }
 }
 

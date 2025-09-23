@@ -1,6 +1,8 @@
 use crate::units::energy::KilowattHours;
 
-/// Quantized energy units for the solver's dynamic programming state space.
+/// Quantized energy in [decawatts][1] for the solver's dynamic programming state space.
+///
+/// [1]: https://en.wiktionary.org/wiki/decawatt
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct DecawattHours(pub u16);
 

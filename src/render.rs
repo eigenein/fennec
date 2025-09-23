@@ -22,14 +22,14 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
     table.enforce_styling();
     table.set_header(vec![
         "Time",
-        "Grid rate\n€/kWh",
-        "Stand-by\nkW",
-        "Solar\nW/m²",
-        "Before\nkWh",
+        "Grid rate",
+        "Stand-by",
+        "Solar",
         "Mode",
-        "After\nkWh",
-        "Grid usage\nkWh",
-        "Loss\n€",
+        "Before",
+        "After",
+        "Grid usage",
+        "Loss",
     ]);
     for ((time, metrics), (right_time, step)) in metrics.iter().zip(steps) {
         ensure!(time == right_time);
@@ -39,25 +39,26 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
             Some(_) => Color::Red,
             _ => Color::Reset,
         };
-        let solar_content = metrics
-            .solar_power_density
-            .map_or_else(|| "unknown".to_string(), |value| format!("{:.0}", value.0 * 1000.0));
+        let solar_content = metrics.solar_power_density.map_or_else(
+            || "unknown".to_string(),
+            |value| format!("{:>3.0} W/m²", value.0 * 1000.0),
+        );
         table.add_row(vec![
             Cell::new(time.format("%H:%M").to_string()),
-            Cell::new(format!("{:.2}", metrics.grid_rate))
+            Cell::new(format!("{:.2} €/kWh", metrics.grid_rate))
                 .fg(if metrics.grid_rate.0 >= average_rate { Color::Red } else { Color::Green }),
-            Cell::new(format!("{:.2}", step.stand_by_power)),
+            Cell::new(format!("{:.2} kW", step.stand_by_power)),
             Cell::new(solar_content).fg(solar_color),
-            Cell::new(format!("{:.2}", step.residual_energy_before)),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,
                 CoreWorkingMode::Balancing => Color::DarkYellow,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
-            Cell::new(format!("{:.2}", step.residual_energy_after)),
-            Cell::new(format!("{:+.2}", step.grid_consumption)),
-            Cell::new(format!("{:+.2}", step.loss)).fg(if step.loss > Cost::ZERO {
+            Cell::new(format!("{:.2} kWh", step.residual_energy_before)),
+            Cell::new(format!("{:.2} kWh", step.residual_energy_after)),
+            Cell::new(format!("{:+.2} kWh", step.grid_consumption)),
+            Cell::new(format!("{:+.2} €", step.loss)).fg(if step.loss > Cost::ZERO {
                 Color::Red
             } else {
                 Color::Green
@@ -72,7 +73,7 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
     table.enforce_styling();
-    table.set_header(vec!["Start", "End", "Mode", "Power, W"]);
+    table.set_header(vec!["Start", "End", "Mode", "Power"]);
     for time_slot in sequence {
         let mode_color = match time_slot.working_mode {
             FoxEssWorkingMode::ForceDischarge if time_slot.feed_power_watts != 0 => Color::Red,
@@ -84,7 +85,7 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
             Cell::new(time_slot.start_time.to_string()),
             Cell::new(time_slot.end_time.to_string()),
             Cell::new(format!("{:?}", time_slot.working_mode)).fg(mode_color),
-            Cell::new(time_slot.feed_power_watts.to_string()),
+            Cell::new(format!("{:>4} W", time_slot.feed_power_watts)),
         ]);
     }
     table

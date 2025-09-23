@@ -3,6 +3,8 @@ pub mod solution;
 pub mod step;
 pub mod summary;
 
+use std::{iter::from_fn, rc::Rc};
+
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, Timelike};
 use ordered_float::OrderedFloat;
@@ -48,17 +50,44 @@ impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
 #[bon]
 impl Solver<'_> {
     /// Find the optimal battery schedule.
+    ///
+    /// Works backwards from future to present, computing the minimum cost at each
+    /// `(timestamp, residual_energy)` state. Cost is money lost or gained to grid import or export.
+    ///
+    /// The [DP][1] state space:
+    ///
+    /// - Time dimension: each hour in the forecast period
+    /// - Energy dimension: quantized to 10 Wh increments (decawatt-hours)
+    ///
+    /// For each state, we pick the battery mode that minimizes total cost including future consequences.
+    ///
+    /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all, name = "Solving…", fields(residual_energy = %self.residual_energy))]
     fn solve(self) -> Solution {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
         let max_energy = DecawattHours::from(self.residual_energy.max(self.capacity));
         let n_energy_states = usize::from(max_energy) + 1;
 
+        // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
-        let mut next_hour_losses = vec![Cost::ZERO; n_energy_states];
-        let mut backtracks = Vec::with_capacity(self.metrics.len());
 
+        // Since we're going backwards in time, we only need to store the next hour's partial solutions
+        // to find the current hour's solutions.
+        //
+        // They are wrapped in `Rc`, because the vector is going to be replaced every hour,
+        // but we still need to backtrack the entire solution path.
+        //
+        // They're initialized to zeroes at the end of the forecast period:
+        #[allow(clippy::rc_clone_in_vec_init)]
+        let mut next_partial_solutions =
+            vec![
+                Rc::new(PartialSolution { net_loss: Cost::ZERO, next: None, step: None });
+                n_energy_states
+            ];
+
+        // Going backwards:
         for (timestamp, metrics) in self.metrics.into_iter().rev() {
+            // Average stand-by power at this hour of day:
             let stand_by_power =
                 self.stand_by_power[timestamp.hour() as usize].unwrap_or(self.consumption.stand_by);
 
@@ -72,49 +101,51 @@ impl Solver<'_> {
             // Subtracting because we benefit from positive power balance:
             net_loss_without_battery -= self.loss(metrics.grid_rate, power_balance * Hours::ONE);
 
-            let mut net_losses = Vec::with_capacity(n_energy_states);
-            let mut linked_steps = Vec::with_capacity(n_energy_states);
-
-            for decawatt_hours in 0..=max_energy.0 {
-                let initial_residual_energy = KilowattHours::from(DecawattHours(decawatt_hours));
-                let partial_solution = self
-                    .optimise_hour()
-                    .stand_by_power(stand_by_power)
-                    .power_balance(power_balance)
-                    .grid_rate(metrics.grid_rate)
-                    .initial_residual_energy(initial_residual_energy)
-                    .min_residual_energy(min_residual_energy)
-                    .next_hour_losses(&next_hour_losses)
-                    .max_energy(max_energy)
-                    .call();
-                net_losses.push(partial_solution.net_loss);
-                // FIXME: introduce some kind of `LinkedStep` type:
-                linked_steps.push((partial_solution.next_energy, partial_solution.step));
-            }
-            next_hour_losses = net_losses;
-            // FIXME: introduce some kind of `Backtrack` type:
-            backtracks.push((*timestamp, linked_steps));
+            // Calculate partial solutions for the current hour:
+            next_partial_solutions = (0..=max_energy.0)
+                .map(|initial_residual_energy_dawh| {
+                    Rc::new(
+                        self.optimise_hour()
+                            .timestamp(*timestamp)
+                            .stand_by_power(stand_by_power)
+                            .power_balance(power_balance)
+                            .grid_rate(metrics.grid_rate)
+                            .initial_residual_energy(KilowattHours::from(DecawattHours(
+                                initial_residual_energy_dawh,
+                            )))
+                            .min_residual_energy(min_residual_energy)
+                            .next_partial_solutions(&next_partial_solutions)
+                            .max_energy(max_energy)
+                            .call(),
+                    )
+                })
+                .collect();
         }
 
-        // By this moment, «next hour losses» is actually the upcoming hour, so our solution is:
+        // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
         let initial_energy = DecawattHours::from(self.residual_energy);
-        let net_loss = next_hour_losses[usize::from(initial_energy)];
+        let initial_partial_solution =
+            next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap();
 
         Solution {
-            summary: Summary { net_loss, net_loss_without_battery },
-            steps: Self::backtrack(initial_energy, backtracks),
+            summary: Summary {
+                net_loss: initial_partial_solution.net_loss,
+                net_loss_without_battery,
+            },
+            steps: Self::backtrack(initial_partial_solution),
         }
     }
 
     #[builder]
     fn optimise_hour(
         &self,
+        timestamp: DateTime<Local>,
         stand_by_power: Kilowatts,
         power_balance: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
-        next_hour_losses: &[Cost],
+        next_partial_solutions: &[Rc<PartialSolution>],
         max_energy: DecawattHours,
     ) -> PartialSolution {
         [WorkingMode::Idle, WorkingMode::Discharging, WorkingMode::Balancing, WorkingMode::Charging]
@@ -131,8 +162,14 @@ impl Solver<'_> {
                     .call();
 
                 let next_energy = DecawattHours::from(step.residual_energy_after).min(max_energy);
-                let net_loss = step.loss + next_hour_losses[usize::from(next_energy)];
-                PartialSolution { net_loss, next_energy, step: Some(step) }
+                let next_partial_solution =
+                    next_partial_solutions[usize::from(next_energy)].clone();
+                let net_loss = step.loss + next_partial_solution.net_loss;
+                PartialSolution {
+                    net_loss,
+                    next: Some(next_partial_solution),
+                    step: Some((timestamp, step)),
+                }
             })
             .min_by_key(|partial_solution| OrderedFloat(partial_solution.net_loss.0))
             .unwrap()
@@ -218,27 +255,25 @@ impl Solver<'_> {
         }
     }
 
-    #[expect(clippy::type_complexity)] // FIXME
-    fn backtrack(
-        initial_energy: DecawattHours,
-        backtracks: Vec<(DateTime<Local>, Vec<(DecawattHours, Option<Step>)>)>,
-    ) -> Series<Step> {
-        let mut energy = initial_energy;
-        backtracks
-            .into_iter()
-            .rev()
-            .map(|(timestamp, linked_steps)| {
-                let (next_energy, step) = linked_steps[usize::from(energy)];
-                energy = next_energy;
-                (timestamp, step.unwrap())
-            })
-            .collect()
+    /// Track the optimal solution starting with the initial conditions.
+    fn backtrack(initial_partial_solution: Rc<PartialSolution>) -> Series<Step> {
+        let mut partial_solution = Some(initial_partial_solution);
+        from_fn(move || {
+            let current_partial_solution = partial_solution.clone()?;
+            partial_solution.clone_from(&current_partial_solution.next);
+            current_partial_solution.step
+        })
+        .collect()
     }
 }
 
-#[derive(Copy, Clone)]
 struct PartialSolution {
+    /// Net loss so far – our optimization target.
     net_loss: Cost,
-    next_energy: DecawattHours,
-    step: Option<Step>,
+
+    /// Next partial solution – allows backtracking the entire sequence.
+    next: Option<Rc<PartialSolution>>,
+
+    /// The current step metrics.
+    step: Option<(DateTime<Local>, Step)>,
 }

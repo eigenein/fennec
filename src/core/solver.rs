@@ -1,4 +1,4 @@
-use bon::{Builder, builder};
+use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, Timelike};
 use ordered_float::OrderedFloat;
 
@@ -42,6 +42,7 @@ impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
     }
 }
 
+#[bon]
 impl Solver<'_> {
     /// Find the optimal battery schedule.
     #[instrument(skip_all, name = "Solving…", fields(residual_energy = %self.residual_energy))]
@@ -49,36 +50,38 @@ impl Solver<'_> {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
         let n_energy_states = Self::discretize(self.residual_energy.max(self.capacity)) + 1;
 
-        let mut future_losses = vec![Cost::ZERO; n_energy_states];
+        let mut next_hour_losses = vec![Cost::ZERO; n_energy_states];
         let mut backtracks = Vec::with_capacity(self.metrics.len());
 
         for (timestamp, metrics) in self.metrics.into_iter().rev() {
             let stand_by_power =
                 self.stand_by_power[timestamp.hour() as usize].unwrap_or(self.consumption.stand_by);
 
-            let mut losses = Vec::with_capacity(n_energy_states);
+            let mut net_losses = Vec::with_capacity(n_energy_states);
             let mut linked_steps = Vec::with_capacity(n_energy_states);
 
             for energy_state in 0..=n_energy_states {
                 let initial_residual_energy = Self::undiscretize(energy_state);
-                let (loss, next_energy_state, step) = self.optimise_hour(
-                    stand_by_power,
-                    metrics,
-                    initial_residual_energy,
-                    min_residual_energy,
-                    &future_losses,
-                );
-                losses.push(loss);
+                let partial_solution = self
+                    .optimise_hour()
+                    .stand_by_power(stand_by_power)
+                    .metrics(metrics)
+                    .initial_residual_energy(initial_residual_energy)
+                    .min_residual_energy(min_residual_energy)
+                    .next_hour_losses(&next_hour_losses)
+                    .call();
+                net_losses.push(partial_solution.net_loss);
                 // FIXME: introduce some kind of `LinkedStep` type:
-                linked_steps.push((next_energy_state, step));
+                linked_steps.push((partial_solution.next_energy_state, partial_solution.step));
             }
-            future_losses = losses;
+            next_hour_losses = net_losses;
             // FIXME: introduce some kind of `Backtrack` type:
             backtracks.push((*timestamp, linked_steps));
         }
 
+        // By this moment, «next hour losses» is actually the upcoming hour, so our solution is:
         let initial_energy_state = Self::discretize(self.residual_energy);
-        let net_loss = future_losses[initial_energy_state];
+        let net_loss = next_hour_losses[initial_energy_state];
 
         Solution {
             summary: Summary { net_loss, net_loss_without_battery: Quantity(0.0) }, // FIXME
@@ -86,6 +89,7 @@ impl Solver<'_> {
         }
     }
 
+    #[builder]
     fn optimise_hour(
         &self,
         stand_by_power: Kilowatts,
@@ -93,28 +97,39 @@ impl Solver<'_> {
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         next_hour_losses: &[Cost],
-    ) -> (Cost, usize, Step) {
+    ) -> PartialSolution {
         [WorkingMode::Idle, WorkingMode::Discharging, WorkingMode::Balancing, WorkingMode::Charging]
             .into_iter()
             .map(|working_mode| {
-                let step = self.simulate_hour(
-                    stand_by_power,
-                    metrics,
-                    initial_residual_energy,
-                    min_residual_energy,
-                    working_mode,
-                );
+                // For missing weather forecast, assume none solar power:
+                let solar_production =
+                    metrics.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
+
+                // Positive is excess, negative is deficit:
+                let power_balance = solar_production - stand_by_power;
+
+                let step = self
+                    .simulate_hour()
+                    .stand_by_power(stand_by_power)
+                    .metrics(metrics)
+                    .initial_residual_energy(initial_residual_energy)
+                    .min_residual_energy(min_residual_energy)
+                    .working_mode(working_mode)
+                    .power_balance(power_balance)
+                    .call();
+
                 let next_energy_state =
                     Self::discretize(step.residual_energy_after).min(next_hour_losses.len());
                 let net_loss = step.loss + next_hour_losses[next_energy_state];
-                (net_loss, next_energy_state, step)
+                PartialSolution { net_loss, next_energy_state, step }
             })
-            .min_by_key(|(net_loss, _, _)| OrderedFloat(net_loss.0))
+            .min_by_key(|partial_solution| OrderedFloat(partial_solution.net_loss.0))
             .unwrap()
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions,
     /// and return the loss and new residual energy.
+    #[builder]
     fn simulate_hour(
         &self,
         stand_by_power: Kilowatts,
@@ -122,15 +137,9 @@ impl Solver<'_> {
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         working_mode: WorkingMode,
+        power_balance: Kilowatts,
     ) -> Step {
         let mut current_residual_energy = initial_residual_energy;
-
-        // TODO: move these out:
-        // For missing weather forecast, assume none solar power:
-        let solar_production =
-            metrics.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
-        // Positive is excess, negative is deficit:
-        let power_balance = solar_production - stand_by_power;
 
         // Power flow to the battery (negative is directed from the battery):
         let battery_external_power = match working_mode {
@@ -228,6 +237,12 @@ impl Solver<'_> {
     fn undiscretize(energy_state: usize) -> KilowattHours {
         KilowattHours::from(energy_state as f64 / 100.0)
     }
+}
+
+struct PartialSolution {
+    net_loss: Cost,
+    next_energy_state: usize,
+    step: Step,
 }
 
 #[cfg(test)]

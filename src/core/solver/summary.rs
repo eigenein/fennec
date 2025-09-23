@@ -1,6 +1,6 @@
 use crate::units::currency::Cost;
 
-/// Optimization summary.
+/// Solution summary.
 #[derive(Copy, Clone)]
 pub struct Summary {
     pub net_loss: Cost,

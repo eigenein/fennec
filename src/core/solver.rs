@@ -1,3 +1,7 @@
+pub mod solution;
+pub mod step;
+pub mod summary;
+
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, Timelike};
 use ordered_float::OrderedFloat;
@@ -7,9 +11,7 @@ use crate::{
     core::{
         metrics::Metrics,
         series::Series,
-        solution::Solution,
-        step::Step,
-        summary::Summary,
+        solver::{solution::Solution, step::Step, summary::Summary},
         working_mode::WorkingMode,
     },
     prelude::*,
@@ -245,6 +247,7 @@ impl Solver<'_> {
     }
 }
 
+#[derive(Copy, Clone)]
 struct PartialSolution {
     net_loss: Cost,
     next_energy_state: usize,

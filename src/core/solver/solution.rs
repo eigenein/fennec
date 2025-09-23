@@ -1,4 +1,7 @@
-use crate::core::{series::Series, step::Step, summary::Summary};
+use crate::core::{
+    series::Series,
+    solver::{step::Step, summary::Summary},
+};
 
 pub struct Solution {
     pub summary: Summary,

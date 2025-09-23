@@ -1,3 +1,4 @@
+mod energy;
 pub mod solution;
 pub mod step;
 pub mod summary;
@@ -11,7 +12,7 @@ use crate::{
     core::{
         metrics::Metrics,
         series::Series,
-        solver::{solution::Solution, step::Step, summary::Summary},
+        solver::{energy::DecawattHours, solution::Solution, step::Step, summary::Summary},
         working_mode::WorkingMode,
     },
     prelude::*,
@@ -50,7 +51,8 @@ impl Solver<'_> {
     #[instrument(skip_all, name = "Solving…", fields(residual_energy = %self.residual_energy))]
     fn solve(self) -> Solution {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
-        let n_energy_states = Self::discretize(self.residual_energy.max(self.capacity)) + 1;
+        let max_energy = DecawattHours::from(self.residual_energy.max(self.capacity));
+        let n_energy_states = usize::from(max_energy) + 1;
 
         let mut net_loss_without_battery = Cost::ZERO;
         let mut next_hour_losses = vec![Cost::ZERO; n_energy_states];
@@ -73,8 +75,8 @@ impl Solver<'_> {
             let mut net_losses = Vec::with_capacity(n_energy_states);
             let mut linked_steps = Vec::with_capacity(n_energy_states);
 
-            for energy_state in 0..=n_energy_states {
-                let initial_residual_energy = Self::undiscretize(energy_state);
+            for decawatt_hours in 0..=max_energy.0 {
+                let initial_residual_energy = KilowattHours::from(DecawattHours(decawatt_hours));
                 let partial_solution = self
                     .optimise_hour()
                     .stand_by_power(stand_by_power)
@@ -83,10 +85,11 @@ impl Solver<'_> {
                     .initial_residual_energy(initial_residual_energy)
                     .min_residual_energy(min_residual_energy)
                     .next_hour_losses(&next_hour_losses)
+                    .max_energy(max_energy)
                     .call();
                 net_losses.push(partial_solution.net_loss);
                 // FIXME: introduce some kind of `LinkedStep` type:
-                linked_steps.push((partial_solution.next_energy_state, partial_solution.step));
+                linked_steps.push((partial_solution.next_energy, partial_solution.step));
             }
             next_hour_losses = net_losses;
             // FIXME: introduce some kind of `Backtrack` type:
@@ -94,12 +97,12 @@ impl Solver<'_> {
         }
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution is:
-        let initial_energy_state = Self::discretize(self.residual_energy);
-        let net_loss = next_hour_losses[initial_energy_state];
+        let initial_energy = DecawattHours::from(self.residual_energy);
+        let net_loss = next_hour_losses[usize::from(initial_energy)];
 
         Solution {
             summary: Summary { net_loss, net_loss_without_battery },
-            steps: Self::backtrack(initial_energy_state, backtracks),
+            steps: Self::backtrack(initial_energy, backtracks),
         }
     }
 
@@ -112,6 +115,7 @@ impl Solver<'_> {
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         next_hour_losses: &[Cost],
+        max_energy: DecawattHours,
     ) -> PartialSolution {
         [WorkingMode::Idle, WorkingMode::Discharging, WorkingMode::Balancing, WorkingMode::Charging]
             .into_iter()
@@ -127,9 +131,9 @@ impl Solver<'_> {
                     .call();
 
                 let next_energy_state =
-                    Self::discretize(step.residual_energy_after).min(next_hour_losses.len());
-                let net_loss = step.loss + next_hour_losses[next_energy_state];
-                PartialSolution { net_loss, next_energy_state, step }
+                    DecawattHours::from(step.residual_energy_after).min(max_energy);
+                let net_loss = step.loss + next_hour_losses[usize::from(next_energy_state)];
+                PartialSolution { net_loss, next_energy: next_energy_state, step }
             })
             .min_by_key(|partial_solution| OrderedFloat(partial_solution.net_loss.0))
             .unwrap()
@@ -217,59 +221,25 @@ impl Solver<'_> {
 
     #[expect(clippy::type_complexity)] // FIXME
     fn backtrack(
-        initial_energy_state: usize,
-        backtracks: Vec<(DateTime<Local>, Vec<(usize, Step)>)>,
+        initial_energy: DecawattHours,
+        backtracks: Vec<(DateTime<Local>, Vec<(DecawattHours, Step)>)>,
     ) -> Series<Step> {
-        let mut energy_state = initial_energy_state;
+        let mut energy = initial_energy;
         backtracks
             .into_iter()
             .rev()
             .map(|(timestamp, linked_steps)| {
-                let (next_energy_state, step) = linked_steps[energy_state];
-                energy_state = next_energy_state;
+                let (next_energy_state, step) = linked_steps[usize::from(energy)];
+                energy = next_energy_state;
                 (timestamp, step)
             })
             .collect()
-    }
-
-    /// Express the energy in 10s of watt-hours.
-    ///
-    /// TODO: introduce `EnergyLevel` with fallible conversions (and it probably should be `u16`).
-    #[expect(clippy::cast_possible_truncation)]
-    #[expect(clippy::cast_sign_loss)]
-    fn discretize(energy: KilowattHours) -> usize {
-        (energy.0.max(0.0) * 100.0).round() as usize
-    }
-
-    #[expect(clippy::cast_precision_loss)]
-    fn undiscretize(energy_state: usize) -> KilowattHours {
-        KilowattHours::from(energy_state as f64 / 100.0)
     }
 }
 
 #[derive(Copy, Clone)]
 struct PartialSolution {
     net_loss: Cost,
-    next_energy_state: usize,
+    next_energy: DecawattHours,
     step: Step,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_discretize_positive() {
-        assert_eq!(Solver::discretize(Quantity(1.0)), 100);
-    }
-
-    #[test]
-    fn test_discretize_negative() {
-        assert_eq!(Solver::discretize(Quantity(-1.0)), 0);
-    }
-
-    #[test]
-    fn test_undiscretize() {
-        assert_eq!(Solver::undiscretize(100), Quantity(1.0));
-    }
 }

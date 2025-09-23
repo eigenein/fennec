@@ -38,8 +38,6 @@ anyhow = "=1.0.100"
 bon = "=3.7.2"
 comfy-table = "=7.2.1"
 derive_more = { version = "=2.0.1", features = ["full"] }
-fastrand = "=2.3.0"
-indicatif = "=0.18.0"
 itertools = "=0.14.0"
 logfire = "=0.8.2"
 md5 = "=0.8.0"

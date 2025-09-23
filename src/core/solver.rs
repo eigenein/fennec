@@ -50,12 +50,23 @@ impl Solver<'_> {
         let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
         let n_energy_states = Self::discretize(self.residual_energy.max(self.capacity)) + 1;
 
+        let mut net_loss_without_battery = Cost::ZERO;
         let mut next_hour_losses = vec![Cost::ZERO; n_energy_states];
         let mut backtracks = Vec::with_capacity(self.metrics.len());
 
         for (timestamp, metrics) in self.metrics.into_iter().rev() {
             let stand_by_power =
                 self.stand_by_power[timestamp.hour() as usize].unwrap_or(self.consumption.stand_by);
+
+            // For missing weather forecast, assume none solar power:
+            let solar_production =
+                metrics.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
+
+            // Positive is excess, negative is deficit:
+            let power_balance = solar_production - stand_by_power;
+
+            // Subtracting because we benefit from positive power balance:
+            net_loss_without_battery -= self.loss(metrics.grid_rate, power_balance * Hours::ONE);
 
             let mut net_losses = Vec::with_capacity(n_energy_states);
             let mut linked_steps = Vec::with_capacity(n_energy_states);
@@ -65,7 +76,8 @@ impl Solver<'_> {
                 let partial_solution = self
                     .optimise_hour()
                     .stand_by_power(stand_by_power)
-                    .metrics(metrics)
+                    .power_balance(power_balance)
+                    .grid_rate(metrics.grid_rate)
                     .initial_residual_energy(initial_residual_energy)
                     .min_residual_energy(min_residual_energy)
                     .next_hour_losses(&next_hour_losses)
@@ -84,7 +96,7 @@ impl Solver<'_> {
         let net_loss = next_hour_losses[initial_energy_state];
 
         Solution {
-            summary: Summary { net_loss, net_loss_without_battery: Quantity(0.0) }, // FIXME
+            summary: Summary { net_loss, net_loss_without_battery },
             steps: Self::backtrack(initial_energy_state, backtracks),
         }
     }
@@ -93,7 +105,8 @@ impl Solver<'_> {
     fn optimise_hour(
         &self,
         stand_by_power: Kilowatts,
-        metrics: &Metrics,
+        power_balance: Kilowatts,
+        grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         next_hour_losses: &[Cost],
@@ -101,17 +114,10 @@ impl Solver<'_> {
         [WorkingMode::Idle, WorkingMode::Discharging, WorkingMode::Balancing, WorkingMode::Charging]
             .into_iter()
             .map(|working_mode| {
-                // For missing weather forecast, assume none solar power:
-                let solar_production =
-                    metrics.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
-
-                // Positive is excess, negative is deficit:
-                let power_balance = solar_production - stand_by_power;
-
                 let step = self
                     .simulate_hour()
                     .stand_by_power(stand_by_power)
-                    .metrics(metrics)
+                    .grid_rate(grid_rate)
                     .initial_residual_energy(initial_residual_energy)
                     .min_residual_energy(min_residual_energy)
                     .working_mode(working_mode)
@@ -133,7 +139,7 @@ impl Solver<'_> {
     fn simulate_hour(
         &self,
         stand_by_power: Kilowatts,
-        metrics: &Metrics,
+        grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         working_mode: WorkingMode,
@@ -193,7 +199,7 @@ impl Solver<'_> {
             residual_energy_after: current_residual_energy,
             stand_by_power,
             grid_consumption,
-            loss: self.loss(metrics.grid_rate, grid_consumption),
+            loss: self.loss(grid_rate, grid_consumption),
         }
     }
 
@@ -226,7 +232,7 @@ impl Solver<'_> {
 
     /// Express the energy in 10s of watt-hours.
     ///
-    /// TODO: introduce `EnergyLevel` with fallible conversions.
+    /// TODO: introduce `EnergyLevel` with fallible conversions (and it probably should be `u16`).
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     fn discretize(energy: KilowattHours) -> usize {

@@ -1,11 +1,7 @@
 pub mod consumption;
 mod serde;
-pub mod working_mode;
 
-use std::{
-    fmt::Debug,
-    ops::{Index, IndexMut},
-};
+use std::fmt::Debug;
 
 use chrono::{DateTime, Local};
 use itertools::{EitherOrBoth, Itertools};
@@ -32,33 +28,10 @@ impl<V, I: Ord> FromIterator<(I, V)> for Series<V, I> {
     }
 }
 
-impl<V, I> Index<usize> for Series<V, I> {
-    type Output = V;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index].1
-    }
-}
-
-impl<V, I> IndexMut<usize> for Series<V, I> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index].1
-    }
-}
-
 impl<V, I> Series<V, I> {
     #[must_use]
     pub const fn len(&self) -> usize {
         self.0.len()
-    }
-
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.0.clear();
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &(I, V)> {

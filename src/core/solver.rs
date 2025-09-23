@@ -130,10 +130,9 @@ impl Solver<'_> {
                     .power_balance(power_balance)
                     .call();
 
-                let next_energy_state =
-                    DecawattHours::from(step.residual_energy_after).min(max_energy);
-                let net_loss = step.loss + next_hour_losses[usize::from(next_energy_state)];
-                PartialSolution { net_loss, next_energy: next_energy_state, step }
+                let next_energy = DecawattHours::from(step.residual_energy_after).min(max_energy);
+                let net_loss = step.loss + next_hour_losses[usize::from(next_energy)];
+                PartialSolution { net_loss, next_energy, step: Some(step) }
             })
             .min_by_key(|partial_solution| OrderedFloat(partial_solution.net_loss.0))
             .unwrap()
@@ -222,16 +221,16 @@ impl Solver<'_> {
     #[expect(clippy::type_complexity)] // FIXME
     fn backtrack(
         initial_energy: DecawattHours,
-        backtracks: Vec<(DateTime<Local>, Vec<(DecawattHours, Step)>)>,
+        backtracks: Vec<(DateTime<Local>, Vec<(DecawattHours, Option<Step>)>)>,
     ) -> Series<Step> {
         let mut energy = initial_energy;
         backtracks
             .into_iter()
             .rev()
             .map(|(timestamp, linked_steps)| {
-                let (next_energy_state, step) = linked_steps[usize::from(energy)];
-                energy = next_energy_state;
-                (timestamp, step)
+                let (next_energy, step) = linked_steps[usize::from(energy)];
+                energy = next_energy;
+                (timestamp, step.unwrap())
             })
             .collect()
     }
@@ -241,5 +240,5 @@ impl Solver<'_> {
 struct PartialSolution {
     net_loss: Cost,
     next_energy: DecawattHours,
-    step: Step,
+    step: Option<Step>,
 }

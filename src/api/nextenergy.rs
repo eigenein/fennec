@@ -22,20 +22,10 @@ impl Api {
     ) -> Result<Series<KilowattHourRate>> {
         // Round down to the closest hour:
         let since = since.duration_trunc(TimeDelta::hours(1))?;
-        let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-
         let this_day_rates = self.get_hourly_rates(since.date_naive()).await?;
 
-        // The next-day rates may be yet unavailable:
-        let mut next_day_rates = self.get_hourly_rates(next_day.date_naive()).await?;
-        if next_day_rates.is_empty() {
-            warn!("Next-day rates are unavailable, using the earlier rates");
-            next_day_rates.try_extend(
-                this_day_rates.iter().map(|(timestamp, rate)| {
-                    (next_day.with_time(timestamp.time()).unwrap(), *rate)
-                }),
-            )?;
-        }
+        let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
+        let next_day_rates = self.get_hourly_rates(next_day.date_naive()).await?;
 
         Ok(this_day_rates
             .into_iter()

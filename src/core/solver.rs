@@ -212,7 +212,8 @@ impl Solver<'_> {
             .efficiency(self.battery.efficiency)
             .self_discharge(self.battery.self_discharge)
             .build();
-        let battery_active_time = battery.apply_load(battery_external_power);
+        // TODO: I could now potentially use the actual duration for the first iteration:
+        let battery_active_time = battery.apply_load(battery_external_power, Hours::ONE);
 
         // Total household energy balance:
         let production_without_battery = power_balance * Hours::ONE;

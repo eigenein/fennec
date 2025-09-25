@@ -60,6 +60,9 @@ pub struct BatteryArgs {
 
 #[derive(Parser)]
 pub struct HuntArgs {
+    #[clap(long = "mongodb-url", env = "MONGODB_URL")]
+    pub mongodb_url: Url,
+
     /// Do not push the final schedule to FoxESS Cloud (dry run).
     #[expect(clippy::doc_markdown)]
     #[clap(long)]

@@ -1,6 +1,7 @@
 mod api;
 mod cli;
 mod core;
+mod database;
 mod prelude;
 mod render;
 mod units;
@@ -20,6 +21,7 @@ use crate::{
         solver::Solver,
         working_mode::WorkingMode,
     },
+    database::Database,
     prelude::*,
     render::{render_time_slot_sequence, try_render_steps},
     units::{energy::KilowattHours, power::Kilowatts},
@@ -27,6 +29,8 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> Result {
+    let _ = dotenvy::dotenv();
+
     let _logfire_guard = logfire::configure()
         .with_console(Some(
             ConsoleOptions::default()
@@ -56,6 +60,7 @@ async fn main() -> Result {
 
 async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
     let mut cache = Cache::read_from("cache.toml")?;
+    let database = Database::try_new(&hunt_args.mongodb_url).await?;
 
     let total_energy_usage = home_assistant::Api::try_new(
         &hunt_args.home_assistant.access_token,
@@ -63,10 +68,17 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     )?
     .get_total_energy_usage()
     .await?;
+
     cache.total_usage.try_push(
         total_energy_usage.last_reported_at,
         KilowattHours::from(total_energy_usage.value),
     )?;
+    database
+        .log_total_energy_usage(
+            total_energy_usage.last_reported_at,
+            KilowattHours::from(total_energy_usage.value),
+        )
+        .await?;
 
     let metrics: Series<Metrics> = {
         let now = Local::now();

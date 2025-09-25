@@ -115,6 +115,8 @@ spec:
                 value: "..."
               - name: "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_URL"
                 value: "https://.../api/states/sensor.custom_total_energy_usage"
+              - name: "MONGODB_URL"
+                value: "mongodb://..."
               command:
                 - "/fennec"
                 - "hunt"

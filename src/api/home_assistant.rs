@@ -57,7 +57,14 @@ impl Api {
 
     #[instrument(skip_all, name = "Fetching total energy usage…")]
     pub async fn get_total_energy_usage(&self) -> Result<State> {
-        Ok(self.client.get(self.total_energy_usage_url.clone()).send().await?.json().await?)
+        Ok(self
+            .client
+            .get(self.total_energy_usage_url.clone())
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
     }
 }
 

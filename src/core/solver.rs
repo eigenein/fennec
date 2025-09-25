@@ -1,3 +1,4 @@
+mod battery;
 mod energy;
 pub mod solution;
 pub mod step;
@@ -14,7 +15,13 @@ use crate::{
     core::{
         metrics::Metrics,
         series::Series,
-        solver::{energy::DecawattHours, solution::Solution, step::Step, summary::Summary},
+        solver::{
+            battery::Battery,
+            energy::DecawattHours,
+            solution::Solution,
+            step::Step,
+            summary::Summary,
+        },
         working_mode::WorkingMode,
     },
     prelude::*,
@@ -187,10 +194,8 @@ impl Solver<'_> {
         working_mode: WorkingMode,
         power_balance: Kilowatts,
     ) -> Step {
-        let mut current_residual_energy = initial_residual_energy;
-
         // Requested external power flow to or from the battery (negative is directed from the battery):
-        let battery_requested_power = match working_mode {
+        let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Charging => self.battery.charging_power,
             WorkingMode::Discharging => -self.battery.discharging_power,
@@ -199,20 +204,17 @@ impl Solver<'_> {
             }
         };
 
-        // Calculate actual battery external power and the active time:
-        let (battery_external_power, battery_active_time) = self.calculate_external_power(
-            initial_residual_energy,
-            battery_requested_power,
-            &mut current_residual_energy,
-            min_residual_energy,
-        );
+        // Apply the load to the battery:
+        let mut battery = Battery::builder()
+            .residual_energy(initial_residual_energy)
+            .min_residual_energy(min_residual_energy)
+            .capacity(self.capacity)
+            .efficiency(self.battery.efficiency)
+            .self_discharge(self.battery.self_discharge)
+            .build();
+        let battery_active_time = battery.apply_load(battery_external_power);
 
-        // Self-discharging:
-        current_residual_energy = (current_residual_energy
-            - self.battery.self_discharge * (Hours::ONE - battery_active_time))
-            .max(KilowattHours::ZERO);
-
-        // Finally, total household energy balance:
+        // Total household energy balance:
         let production_without_battery = power_balance * Hours::ONE;
         let grid_consumption =
             battery_external_power * battery_active_time - production_without_battery;
@@ -220,43 +222,10 @@ impl Solver<'_> {
         Step {
             working_mode,
             residual_energy_before: initial_residual_energy,
-            residual_energy_after: current_residual_energy,
+            residual_energy_after: battery.residual_energy(),
             stand_by_power,
             grid_consumption,
             loss: self.loss(grid_rate, grid_consumption),
-        }
-    }
-
-    /// Calculate actual battery external power and the active time, and update the residual energy.
-    fn calculate_external_power(
-        &self,
-        initial_residual_energy: KilowattHours,
-        requested_power: Kilowatts,
-        current_residual_energy: &mut KilowattHours,
-        min_residual_energy: KilowattHours,
-    ) -> (Kilowatts, Hours) {
-        if requested_power > Kilowatts::ZERO {
-            // While charging, the residual energy grows slower:
-            let internal_power = requested_power * self.battery.efficiency;
-            *current_residual_energy = (*current_residual_energy + internal_power * Hours::ONE)
-                .min(self.capacity.max(initial_residual_energy));
-            let time_charging =
-                (*current_residual_energy - initial_residual_energy) / internal_power;
-            assert!(time_charging >= Hours::ZERO);
-            (requested_power, time_charging)
-        } else if requested_power < Kilowatts::ZERO {
-            // While discharging, the residual energy is spent faster:
-            let internal_power = requested_power / self.battery.efficiency;
-            // Remember that the power here is negative, hence the `+`:
-            *current_residual_energy = (*current_residual_energy + internal_power * Hours::ONE)
-                .max(min_residual_energy.min(initial_residual_energy));
-            let time_discharging =
-                (*current_residual_energy - initial_residual_energy) / internal_power;
-            assert!(time_discharging >= Hours::ZERO);
-            (requested_power, time_discharging)
-        } else {
-            // Idle:
-            (Kilowatts::ZERO, Hours::ZERO)
         }
     }
 

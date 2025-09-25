@@ -148,7 +148,7 @@ impl Solver<'_> {
         next_partial_solutions: &[Rc<PartialSolution>],
         max_energy: DecawattHours,
     ) -> PartialSolution {
-        [WorkingMode::Idle, WorkingMode::Discharging, WorkingMode::Balancing, WorkingMode::Charging]
+        [WorkingMode::Idle, WorkingMode::Balancing, WorkingMode::Balancing, WorkingMode::Charging]
             .into_iter()
             .map(|working_mode| {
                 let step = self

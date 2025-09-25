@@ -1,7 +1,7 @@
 use crate::units::{energy::KilowattHours, power::Kilowatts, time::Hours};
 
 /// Battery simulator.
-#[derive(bon::Builder)]
+#[derive(Clone, bon::Builder)]
 pub struct Battery {
     capacity: KilowattHours,
 

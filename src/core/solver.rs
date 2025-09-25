@@ -155,6 +155,13 @@ impl Solver<'_> {
         next_partial_solutions: &[Rc<PartialSolution>],
         max_energy: DecawattHours,
     ) -> PartialSolution {
+        let battery = Battery::builder()
+            .residual_energy(initial_residual_energy)
+            .min_residual_energy(min_residual_energy)
+            .capacity(self.capacity)
+            .efficiency(self.battery.efficiency)
+            .self_discharge(self.battery.self_discharge)
+            .build();
         [WorkingMode::Idle, WorkingMode::Balancing, WorkingMode::Balancing, WorkingMode::Charging]
             .into_iter()
             .map(|working_mode| {
@@ -163,14 +170,15 @@ impl Solver<'_> {
                     .stand_by_power(stand_by_power)
                     .grid_rate(grid_rate)
                     .initial_residual_energy(initial_residual_energy)
-                    .min_residual_energy(min_residual_energy)
+                    .battery(battery.clone())
                     .working_mode(working_mode)
                     .power_balance(power_balance)
                     .call();
-
-                let next_energy = DecawattHours::from(step.residual_energy_after).min(max_energy);
-                let next_partial_solution =
-                    next_partial_solutions[usize::from(next_energy)].clone();
+                let next_partial_solution = {
+                    let next_energy =
+                        DecawattHours::from(step.residual_energy_after).min(max_energy);
+                    next_partial_solutions[usize::from(next_energy)].clone()
+                };
                 let net_loss = step.loss + next_partial_solution.net_loss;
                 PartialSolution {
                     net_loss,
@@ -187,10 +195,10 @@ impl Solver<'_> {
     #[builder]
     fn simulate_hour(
         &self,
+        mut battery: Battery,
         stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
-        min_residual_energy: KilowattHours,
         working_mode: WorkingMode,
         power_balance: Kilowatts,
     ) -> Step {
@@ -205,13 +213,6 @@ impl Solver<'_> {
         };
 
         // Apply the load to the battery:
-        let mut battery = Battery::builder()
-            .residual_energy(initial_residual_energy)
-            .min_residual_energy(min_residual_energy)
-            .capacity(self.capacity)
-            .efficiency(self.battery.efficiency)
-            .self_discharge(self.battery.self_discharge)
-            .build();
         // TODO: I could now potentially use the actual duration for the first iteration:
         let battery_active_time = battery.apply_load(battery_external_power, Hours::ONE);
 

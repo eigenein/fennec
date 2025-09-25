@@ -18,6 +18,7 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 
 - Current battery charge
 - Battery charging and discharging efficiency
+- Battery self-discharge
 - Energy price chart for upcoming hours
 - Solar power forecast for upcoming hours
 - Average household standby power consumption from Home Assistant
@@ -59,9 +60,11 @@ Fennec is designed to run as a cron job, continuously refining and updating the 
 ╰───────┴────────────┴──────────┴──────────┴─────────────┴──────────┴──────────┴────────────┴─────────╯
 ```
 
-## Caveats
+## Notes
 
 - [FoxESS Cloud](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20time20segment20information0a3ca20id3dset20the20time20segment20information7193e203ca3e) only allows up to 8 schedule slots. It might happen that Fennec would build a schedule with more slots. In that case, only the upcoming 8 slots will be pushed. So, make sure to run Fennec periodically.
+- When solar power forecast is not available, it is treated as 0 W/m².
+- It is possible to run it without the Home Assistant integration – then, the stand-by power option value will be used for the calculations.
 
 ## Example Kubernetes job
 

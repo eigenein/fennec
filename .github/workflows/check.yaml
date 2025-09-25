@@ -6,6 +6,13 @@ on:
       - main
     tags-ignore:
       - '**'
+    paths-ignore:
+      - "README.md"
+      - ".dockerignore"
+      - ".gitignore"
+      - "renovate.json"
+      - "rustfmt.toml"
+      - ".goreleaser.yaml"
   pull_request:
     branches:
       - main

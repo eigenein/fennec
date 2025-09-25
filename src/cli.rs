@@ -86,14 +86,6 @@ pub struct HuntArgs {
 
 #[derive(Copy, Clone, Parser)]
 pub struct ConsumptionArgs {
-    /// Default average stand-by household usage in kilowatts for when actual statistic is unavailable.
-    #[clap(
-        long = "stand-by-consumption-kilowatts",
-        default_value = "0.5",
-        env = "STAND_BY_CONSUMPTION_KILOWATTS"
-    )]
-    pub stand_by: Kilowatts,
-
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fees-per-kwh", default_value = "0.021", env = "PURCHASE_FEES_PER_KWH")]
     pub purchase_fees: KilowattHourRate,
@@ -116,25 +108,14 @@ pub struct SolarArgs {
 
 #[derive(Parser)]
 pub struct HomeAssistantArgs {
-    #[clap(
-        long = "home-assistant-access-token",
-        env = "HOME_ASSISTANT_ACCESS_TOKEN",
-        requires = "total_energy_usage_url"
-    )]
-    pub access_token: Option<String>,
+    #[clap(long = "home-assistant-access-token", env = "HOME_ASSISTANT_ACCESS_TOKEN")]
+    pub access_token: String,
 
     #[clap(
         long = "home-assistant-total-energy-usage-url",
-        env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_URL",
-        requires = "access_token"
+        env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_URL"
     )]
-    pub total_energy_usage_url: Option<Url>,
-}
-
-impl HomeAssistantArgs {
-    pub fn into_tuple(self) -> Option<(String, Url)> {
-        self.access_token.zip(self.total_energy_usage_url)
-    }
+    pub total_energy_usage_url: Url,
 }
 
 #[derive(Parser)]

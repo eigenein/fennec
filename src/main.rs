@@ -55,21 +55,18 @@ async fn main() -> Result {
 }
 
 async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
-    ensure!(
-        hunt_args.consumption.stand_by >= Kilowatts::ZERO,
-        "stand-by consumption must be non-negative",
-    );
-
     let mut cache = Cache::read_from("cache.toml")?;
 
-    if let Some((ha_token, ha_url)) = hunt_args.home_assistant.into_tuple() {
-        let total_energy_usage =
-            home_assistant::Api::try_new(&ha_token, ha_url)?.get_total_energy_usage().await?;
-        cache.total_usage.try_push(
-            total_energy_usage.last_reported_at,
-            KilowattHours::from(total_energy_usage.value),
-        )?;
-    }
+    let total_energy_usage = home_assistant::Api::try_new(
+        &hunt_args.home_assistant.access_token,
+        hunt_args.home_assistant.total_energy_usage_url,
+    )?
+    .get_total_energy_usage()
+    .await?;
+    cache.total_usage.try_push(
+        total_energy_usage.last_reported_at,
+        KilowattHours::from(total_energy_usage.value),
+    )?;
 
     let metrics: Series<Metrics> = {
         let now = Local::now();

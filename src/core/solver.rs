@@ -96,7 +96,7 @@ impl Solver<'_> {
         for (timestamp, metrics) in self.metrics.into_iter().rev() {
             // Average stand-by power at this hour of day:
             let stand_by_power =
-                self.stand_by_power[timestamp.hour() as usize].unwrap_or(self.consumption.stand_by);
+                self.stand_by_power[timestamp.hour() as usize].unwrap_or(Kilowatts::ZERO);
 
             // For missing weather forecast, assume none solar power:
             let solar_production =

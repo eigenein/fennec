@@ -83,9 +83,17 @@ spec:
       template:
         spec:
           restartPolicy: "OnFailure"
+          volumes:
+            - name: "cache"
+              hostPath:
+                path: "/Users/eigenein/.fennec/cache.toml"
+                type: "FileOrCreate"
           containers:
             - name: "fennec-job"
               image: "ghcr.io/eigenein/fennec:0.17.2"
+              volumeMounts:
+                - mountPath: "/cache.toml"
+                  name: "cache"
               env:
               - name: "TZ"
                 value: "Europe/Amsterdam"

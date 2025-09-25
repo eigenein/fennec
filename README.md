@@ -85,10 +85,12 @@ spec:
           restartPolicy: "OnFailure"
           containers:
             - name: "fennec-job"
-              image: "ghcr.io/eigenein/fennec:0.1.5"
+              image: "ghcr.io/eigenein/fennec:0.17.2"
               env:
               - name: "TZ"
                 value: "Europe/Amsterdam"
+              - name: "PV_SURFACE_M2"
+                value: "2.4"
               - name: "WEERLIVE_API_KEY"
                 value: "..."
               - name: "FOX_ESS_SERIAL_NUMBER"
@@ -97,6 +99,12 @@ spec:
                 value: "..."
               - name: "LOGFIRE_TOKEN"
                 value: "..."
+              - name: "HEARTBEAT_URL"
+                value: "https://uptime.betterstack.com/api/v1/heartbeat/..."
+              - name: "HOME_ASSISTANT_ACCESS_TOKEN"
+                value: "..."
+              - name: "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_URL"
+                value: "https://.../api/states/sensor.custom_total_energy_usage"
               command:
                 - "/fennec"
                 - "hunt"

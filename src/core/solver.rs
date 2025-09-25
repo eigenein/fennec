@@ -162,7 +162,7 @@ impl Solver<'_> {
             .efficiency(self.battery.efficiency)
             .self_discharge(self.battery.self_discharge)
             .build();
-        [WorkingMode::Idle, WorkingMode::Balancing, WorkingMode::Balancing, WorkingMode::Charging]
+        [WorkingMode::Idle, WorkingMode::Balancing, WorkingMode::Discharging, WorkingMode::Charging]
             .into_iter()
             .map(|working_mode| {
                 let step = self

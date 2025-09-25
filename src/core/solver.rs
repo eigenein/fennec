@@ -189,8 +189,8 @@ impl Solver<'_> {
     ) -> Step {
         let mut current_residual_energy = initial_residual_energy;
 
-        // Power flow to the battery (negative is directed from the battery):
-        let battery_external_power = match working_mode {
+        // Requested external power flow to or from the battery (negative is directed from the battery):
+        let battery_requested_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Charging => self.battery.charging_power,
             WorkingMode::Discharging => -self.battery.discharging_power,
@@ -199,31 +199,13 @@ impl Solver<'_> {
             }
         };
 
-        // Power flow inside the battery corrected by the round-trip efficiency:
-        let (battery_external_power, battery_active_time) =
-            if battery_external_power > Kilowatts::ZERO {
-                // While charging, the residual energy grows slower:
-                let internal_power = battery_external_power * self.battery.efficiency;
-                current_residual_energy = (current_residual_energy + internal_power * Hours::ONE)
-                    .min(self.capacity.max(initial_residual_energy));
-                let time_charging =
-                    (current_residual_energy - initial_residual_energy) / internal_power;
-                assert!(time_charging >= Hours::ZERO);
-                (battery_external_power, time_charging)
-            } else if battery_external_power < Kilowatts::ZERO {
-                // While discharging, the residual energy is spent faster:
-                let internal_power = battery_external_power / self.battery.efficiency;
-                // Remember that the power here is negative, hence the `+`:
-                current_residual_energy = (current_residual_energy + internal_power * Hours::ONE)
-                    .max(min_residual_energy.min(initial_residual_energy));
-                let time_discharging =
-                    (current_residual_energy - initial_residual_energy) / internal_power;
-                assert!(time_discharging >= Hours::ZERO);
-                (battery_external_power, time_discharging)
-            } else {
-                // Idle:
-                (Kilowatts::ZERO, Hours::ZERO)
-            };
+        // Calculate actual battery external power and the active time:
+        let (battery_external_power, battery_active_time) = self.calculate_external_power(
+            initial_residual_energy,
+            battery_requested_power,
+            &mut current_residual_energy,
+            min_residual_energy,
+        );
 
         // Self-discharging:
         current_residual_energy = (current_residual_energy
@@ -245,6 +227,39 @@ impl Solver<'_> {
         }
     }
 
+    /// Calculate actual battery external power and the active time, and update the residual energy.
+    fn calculate_external_power(
+        &self,
+        initial_residual_energy: KilowattHours,
+        requested_power: Kilowatts,
+        current_residual_energy: &mut KilowattHours,
+        min_residual_energy: KilowattHours,
+    ) -> (Kilowatts, Hours) {
+        if requested_power > Kilowatts::ZERO {
+            // While charging, the residual energy grows slower:
+            let internal_power = requested_power * self.battery.efficiency;
+            *current_residual_energy = (*current_residual_energy + internal_power * Hours::ONE)
+                .min(self.capacity.max(initial_residual_energy));
+            let time_charging =
+                (*current_residual_energy - initial_residual_energy) / internal_power;
+            assert!(time_charging >= Hours::ZERO);
+            (requested_power, time_charging)
+        } else if requested_power < Kilowatts::ZERO {
+            // While discharging, the residual energy is spent faster:
+            let internal_power = requested_power / self.battery.efficiency;
+            // Remember that the power here is negative, hence the `+`:
+            *current_residual_energy = (*current_residual_energy + internal_power * Hours::ONE)
+                .max(min_residual_energy.min(initial_residual_energy));
+            let time_discharging =
+                (*current_residual_energy - initial_residual_energy) / internal_power;
+            assert!(time_discharging >= Hours::ZERO);
+            (requested_power, time_discharging)
+        } else {
+            // Idle:
+            (Kilowatts::ZERO, Hours::ZERO)
+        }
+    }
+
     /// Calculate the grid consumption or production loss.
     fn loss(&self, grid_rate: KilowattHourRate, consumption: KilowattHours) -> Cost {
         if consumption >= KilowattHours::ZERO {
@@ -259,7 +274,9 @@ impl Solver<'_> {
     fn backtrack(initial_partial_solution: Rc<PartialSolution>) -> Series<Step> {
         let mut partial_solution = Some(initial_partial_solution);
         from_fn(move || {
+            // I'll need to yield the current step, so clone:
             let current_partial_solution = partial_solution.clone()?;
+            // …and advance:
             partial_solution.clone_from(&current_partial_solution.next);
             current_partial_solution.step
         })
@@ -268,12 +285,21 @@ impl Solver<'_> {
 }
 
 struct PartialSolution {
-    /// Net loss so far – our optimization target.
+    /// Net loss from the current state till the forecast period end – our optimization target.
     net_loss: Cost,
 
     /// Next partial solution – allows backtracking the entire sequence.
+    ///
+    /// I use [`Rc`] here to avoid storing the entire state matrix. That way, I calculate hour by
+    /// hour, while moving from the future to the present. When all the states for the current hour
+    /// are calculated, I can safely drop the previous hour states, because I keep the relevant
+    /// links via [`Rc`].
     next: Option<Rc<PartialSolution>>,
 
     /// The current step metrics.
+    ///
+    /// Technically, it is not needed to store the timestamp here because I could always zip
+    /// the back track with the original metrics, but having it here makes it much easier to work with
+    /// (and to ensure it is working properly).
     step: Option<(DateTime<Local>, Step)>,
 }

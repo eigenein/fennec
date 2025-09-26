@@ -86,10 +86,9 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     )?;
     let total_energy_usage = home_assistant.get_total_energy_usage().await?;
 
-    cache.total_usage.try_push(
-        total_energy_usage.last_reported_at,
-        KilowattHours::from(total_energy_usage.value),
-    )?;
+    cache
+        .total_usage
+        .push(total_energy_usage.last_reported_at, KilowattHours::from(total_energy_usage.value));
     database
         .log_total_energy_usage(
             total_energy_usage.last_reported_at,

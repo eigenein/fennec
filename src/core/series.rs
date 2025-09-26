@@ -1,7 +1,7 @@
 pub mod consumption;
 mod serde;
 
-use std::fmt::Debug;
+use std::{collections::BTreeMap, fmt::Debug};
 
 use chrono::{DateTime, Local};
 use itertools::{EitherOrBoth, Itertools};
@@ -9,58 +9,56 @@ use itertools::{EitherOrBoth, Itertools};
 use crate::prelude::*;
 
 /// Series of values sorted by index.
+///
+/// Technically, I could implement it using a [`Vec`] while carefully maintaining the invariant,
+/// but [`BTreeMap`] makes it much easier without a big performance penalty.
 #[must_use]
 #[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator)]
-pub struct Series<V, I = DateTime<Local>>(#[into_iterator(owned, ref)] Vec<(I, V)>);
+pub struct Series<V, I = DateTime<Local>>(#[into_iterator(owned, ref)] BTreeMap<I, V>);
 
 impl<V, I> Default for Series<V, I> {
     fn default() -> Self {
-        Self(Vec::new())
+        Self(BTreeMap::new())
     }
 }
 
 impl<V, I: Ord> FromIterator<(I, V)> for Series<V, I> {
     fn from_iter<Iter: IntoIterator<Item = (I, V)>>(iter: Iter) -> Self {
-        let mut this = Self(iter.into_iter().collect());
-        // FIXME: `try_collect` isn't stable, so for now, just sort it to ensure the ordering:
-        this.0.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
-        this
+        Self(iter.into_iter().collect())
     }
 }
 
 impl<V, I> Series<V, I> {
     #[must_use]
-    pub const fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
     #[must_use]
-    pub const fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &(I, V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&I, &V)> {
         self.into_iter()
     }
 
-    pub fn try_extend(&mut self, other: impl IntoIterator<Item = (I, V)>) -> Result
+    pub fn extend(&mut self, other: impl IntoIterator<Item = (I, V)>)
     where
-        I: PartialOrd,
+        I: Ord,
     {
-        self.0.extend(other);
-        self.assert_sorted()
+        // TODO: I'm wondering whether there is a better way.
+        for (key, value) in other {
+            self.0.insert(key, value);
+        }
     }
 
     /// Attempt to push a point.
-    ///
-    /// The function fails if the point violates the ordering.
-    pub fn try_push(&mut self, index: I, value: V) -> Result
+    pub fn push(&mut self, index: I, value: V)
     where
-        I: PartialOrd,
+        I: Ord,
     {
-        ensure!(self.0.last().is_none_or(|(last_index, _)| last_index < &index));
-        self.0.push((index, value));
-        Ok(())
+        self.0.insert(index, value);
     }
 
     /// Zip the series by the indices.
@@ -88,14 +86,6 @@ impl<V, I> Series<V, I> {
                 EitherOrBoth::Right(_) => None,
             },
         )
-    }
-
-    fn assert_sorted(&self) -> Result
-    where
-        I: PartialOrd,
-    {
-        ensure!(self.0.is_sorted_by_key(|(index, _)| index));
-        Ok(())
     }
 
     /// Zip the series by the indices.
@@ -148,16 +138,5 @@ mod tests {
             lhs.zip_right_or(&rhs, |rhs| Some(*rhs), None).collect_vec(),
             [(&42, (&2, Some(3))), (&43, (&4, None))]
         );
-    }
-
-    #[test]
-    fn test_extend_ok() -> Result {
-        Series::from_iter([(1, 1)]).try_extend(Series::from_iter([(2, 2)]))?;
-        Ok(())
-    }
-
-    #[test]
-    fn test_extend_error() {
-        assert!(Series::from_iter([(3, 3)]).try_extend(Series::from_iter([(2, 2)])).is_err());
     }
 }

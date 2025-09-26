@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{collections::BTreeMap, marker::PhantomData};
 
 use serde::{
     Deserialize,
     Deserializer,
     Serialize,
-    de::{DeserializeOwned, Error, Visitor},
+    de::{DeserializeOwned, Visitor},
     ser::SerializeMap,
 };
 
@@ -32,7 +32,7 @@ impl<'de, V: DeserializeOwned, I: Ord + DeserializeOwned> Deserialize<'de> for S
         struct SeriesVisitor<V, I>(PhantomData<V>, PhantomData<I>);
 
         impl<'de, V: DeserializeOwned, I: Ord + DeserializeOwned> Visitor<'de> for SeriesVisitor<V, I> {
-            type Value = Vec<(I, V)>;
+            type Value = BTreeMap<I, V>;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(formatter, "an ordered map of indices to values")
@@ -45,18 +45,14 @@ impl<'de, V: DeserializeOwned, I: Ord + DeserializeOwned> Deserialize<'de> for S
             where
                 MA: serde::de::MapAccess<'de>,
             {
-                let mut inner = Vec::with_capacity(map_access.size_hint().unwrap_or_default());
-                while let Some(tuple) = map_access.next_entry()? {
-                    inner.push(tuple);
+                let mut inner = BTreeMap::new();
+                while let Some((key, value)) = map_access.next_entry()? {
+                    inner.insert(key, value);
                 }
                 Ok(inner)
             }
         }
 
-        let this = Self(deserializer.deserialize_map(SeriesVisitor(PhantomData, PhantomData))?);
-        match this.assert_sorted() {
-            Ok(()) => Ok(this),
-            Err(error) => Err(D::Error::custom(format!("the map is not sorted: {error:#}"))),
-        }
+        Ok(Self(deserializer.deserialize_map(SeriesVisitor(PhantomData, PhantomData))?))
     }
 }

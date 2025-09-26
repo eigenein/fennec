@@ -8,7 +8,7 @@ use crate::quantity::{
     time::Hours,
 };
 
-pub type KilowattHours = Quantity<f64, 1, 0, 1, 0>;
+pub type KilowattHours = Quantity<f64, 1, 1, 0>;
 
 impl KilowattHours {
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {

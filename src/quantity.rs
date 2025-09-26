@@ -28,15 +28,12 @@ use serde::{Deserialize, Serialize};
     derive_more::SubAssign,
     derive_more::Sum,
 )]
-pub struct Quantity<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize>(
-    pub T,
-);
+pub struct Quantity<T, const POWER: isize, const TIME: isize, const COST: isize>(pub T);
 
 #[allow(dead_code)]
-pub type Bare<T> = Quantity<T, 0, 0, 0, 0>;
+pub type Bare<T> = Quantity<T, 0, 0, 0>;
 
-impl<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize>
-    Quantity<T, POWER, AREA, TIME, COST>
+impl<T, const POWER: isize, const TIME: isize, const COST: isize> Quantity<T, POWER, TIME, COST>
 where
     Self: PartialOrd,
 {
@@ -65,9 +62,7 @@ where
     }
 }
 
-impl<const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize>
-    Quantity<f64, POWER, AREA, TIME, COST>
-{
+impl<const POWER: isize, const TIME: isize, const COST: isize> Quantity<f64, POWER, TIME, COST> {
     pub const ZERO: Self = Self(0.0);
     pub const ONE: Self = Self(1.0);
 
@@ -76,32 +71,20 @@ impl<const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize
     }
 }
 
-impl<L, R, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Mul<R>
-    for Quantity<L, POWER, AREA, TIME, COST>
+impl<L, R, const POWER: isize, const TIME: isize, const COST: isize> Mul<R>
+    for Quantity<L, POWER, TIME, COST>
 where
     L: Mul<R>,
 {
-    type Output = Quantity<L::Output, POWER, AREA, TIME, COST>;
+    type Output = Quantity<L::Output, POWER, TIME, COST>;
 
     fn mul(self, rhs: R) -> Self::Output {
         Quantity(self.0 * rhs)
     }
 }
 
-impl<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Div<Self>
-    for Quantity<T, POWER, AREA, TIME, COST>
-where
-    T: Div<T, Output = T>,
-{
-    type Output = Bare<T>;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        Quantity(self.0 / rhs.0)
-    }
-}
-
-impl<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize> Div<T>
-    for Quantity<T, POWER, AREA, TIME, COST>
+impl<T, const POWER: isize, const TIME: isize, const COST: isize> Div<T>
+    for Quantity<T, POWER, TIME, COST>
 where
     T: Div<T, Output = T>,
 {
@@ -112,12 +95,12 @@ where
     }
 }
 
-impl<T, const POWER: isize, const AREA: isize, const TIME: isize, const COST: isize>
-    From<Quantity<T, POWER, AREA, TIME, COST>> for opentelemetry::Value
+impl<T, const POWER: isize, const TIME: isize, const COST: isize>
+    From<Quantity<T, POWER, TIME, COST>> for opentelemetry::Value
 where
     T: Into<Self>,
 {
-    fn from(quantity: Quantity<T, POWER, AREA, TIME, COST>) -> Self {
+    fn from(quantity: Quantity<T, POWER, TIME, COST>) -> Self {
         quantity.0.into()
     }
 }

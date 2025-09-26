@@ -80,12 +80,11 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let mut cache = Cache::read_from("cache.toml")?;
     let database = Database::try_new(&hunt_args.mongodb_url).await?;
 
-    let total_energy_usage = home_assistant::Api::try_new(
+    let home_assistant = home_assistant::Api::try_new(
         &hunt_args.home_assistant.access_token,
         hunt_args.home_assistant.total_energy_usage_url,
-    )?
-    .get_total_energy_usage()
-    .await?;
+    )?;
+    let total_energy_usage = home_assistant.get_total_energy_usage().await?;
 
     cache.total_usage.try_push(
         total_energy_usage.last_reported_at,
@@ -98,16 +97,13 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         )
         .await?;
 
-    let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(Local::now()).await?;
+    let now = Local::now();
+    let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
     ensure!(!grid_rates.is_empty());
     info!("Fetched energy rates", len = grid_rates.len());
 
-    let (residual_energy, total_capacity) = {
-        (
-            fox_ess.get_device_variables(serial_number).await?.residual_energy,
-            fox_ess.get_device_details(serial_number).await?.total_capacity(),
-        )
-    };
+    let residual_energy = fox_ess.get_device_variables(serial_number).await?.residual_energy;
+    let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
     // Calculate the stand-by consumption:

@@ -91,25 +91,34 @@ impl Solver<'_> {
 
         // Going backwards:
         for (timestamp, grid_rate) in self.grid_rates.into_iter().rev() {
+            // FIXME: I don't like this…
+            let step_duration = if *timestamp <= self.now {
+                // This hour has already begun:
+                Hours::from(1.0 - (self.now - *timestamp).as_seconds_f64() / 3600.0)
+            } else {
+                Hours::ONE
+            };
+
             // Average stand-by power at this hour of day:
             let stand_by_power =
                 self.stand_by_power[timestamp.hour() as usize].unwrap_or(Kilowatts::ZERO);
-            net_loss_without_battery += self.loss(*grid_rate, stand_by_power * Hours::ONE);
+            net_loss_without_battery += self.loss(*grid_rate, stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:
             next_partial_solutions = (0..=max_energy.0)
-                .map(|initial_residual_energy_dawh| {
+                .map(|initial_residual_energy_decawatt_hours| {
                     Rc::new(
-                        self.optimise_hour()
+                        self.optimise_step()
                             .timestamp(*timestamp)
                             .stand_by_power(stand_by_power)
                             .grid_rate(*grid_rate)
                             .initial_residual_energy(KilowattHours::from(DecawattHours(
-                                initial_residual_energy_dawh,
+                                initial_residual_energy_decawatt_hours,
                             )))
                             .min_residual_energy(min_residual_energy)
                             .next_partial_solutions(&next_partial_solutions)
                             .max_energy(max_energy)
+                            .duration(step_duration)
                             .call(),
                     )
                 })
@@ -131,7 +140,7 @@ impl Solver<'_> {
     }
 
     #[builder]
-    fn optimise_hour(
+    fn optimise_step(
         &self,
         timestamp: DateTime<Local>,
         stand_by_power: Kilowatts,
@@ -140,6 +149,7 @@ impl Solver<'_> {
         min_residual_energy: KilowattHours,
         next_partial_solutions: &[Rc<PartialSolution>],
         max_energy: DecawattHours,
+        duration: Hours,
     ) -> PartialSolution {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
@@ -152,12 +162,13 @@ impl Solver<'_> {
             .into_iter()
             .map(|working_mode| {
                 let step = self
-                    .simulate_hour()
+                    .simulate_step()
                     .stand_by_power(stand_by_power)
                     .grid_rate(grid_rate)
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery.clone())
                     .working_mode(working_mode)
+                    .duration(duration)
                     .call();
                 let next_partial_solution = {
                     let next_energy =
@@ -178,13 +189,14 @@ impl Solver<'_> {
     /// Simulate the battery working in the specified mode given the initial conditions,
     /// and return the loss and new residual energy.
     #[builder]
-    fn simulate_hour(
+    fn simulate_step(
         &self,
         mut battery: Battery,
         stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
+        duration: Hours,
     ) -> Step {
         // Requested external power flow to or from the battery (negative is directed from the battery):
         let battery_external_power = match working_mode {
@@ -196,13 +208,11 @@ impl Solver<'_> {
         };
 
         // Apply the load to the battery:
-        // TODO: I could now potentially use the actual duration for the first iteration:
-        let battery_active_time = battery.apply_load(battery_external_power, Hours::ONE);
+        let battery_active_time = battery.apply_load(battery_external_power, duration);
 
         // Total household energy balance:
         let grid_consumption =
-            // TODO: change `Hours::ONE` here, too.
-            battery_external_power * battery_active_time + stand_by_power * Hours::ONE;
+            battery_external_power * battery_active_time + stand_by_power * duration;
 
         Step {
             working_mode,

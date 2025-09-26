@@ -53,7 +53,6 @@ impl<V, I> Series<V, I> {
         }
     }
 
-    /// Attempt to push a point.
     pub fn push(&mut self, index: I, value: V)
     where
         I: Ord,

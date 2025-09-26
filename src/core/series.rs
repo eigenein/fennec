@@ -34,13 +34,19 @@ impl<V, I> Series<V, I> {
         self.0.len()
     }
 
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &(I, V)> {
         self.into_iter()
     }
-}
 
-impl<V, I: Ord> Series<V, I> {
-    pub fn try_extend(&mut self, other: impl IntoIterator<Item = (I, V)>) -> Result {
+    pub fn try_extend(&mut self, other: impl IntoIterator<Item = (I, V)>) -> Result
+    where
+        I: PartialOrd,
+    {
         self.0.extend(other);
         self.assert_sorted()
     }
@@ -48,7 +54,10 @@ impl<V, I: Ord> Series<V, I> {
     /// Attempt to push a point.
     ///
     /// The function fails if the point violates the ordering.
-    pub fn try_push(&mut self, index: I, value: V) -> Result {
+    pub fn try_push(&mut self, index: I, value: V) -> Result
+    where
+        I: PartialOrd,
+    {
         ensure!(self.0.last().is_none_or(|(last_index, _)| last_index < &index));
         self.0.push((index, value));
         Ok(())
@@ -64,7 +73,10 @@ impl<V, I: Ord> Series<V, I> {
         rhs: &Series<R, I>,
         map: fn(&R) -> T,
         default: T,
-    ) -> impl Iterator<Item = (&I, (&V, T))> {
+    ) -> impl Iterator<Item = (&I, (&V, T))>
+    where
+        I: Ord,
+    {
         self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).filter_map(
             move |pair| match pair {
                 EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
@@ -78,20 +90,24 @@ impl<V, I: Ord> Series<V, I> {
         )
     }
 
-    fn assert_sorted(&self) -> Result {
+    fn assert_sorted(&self) -> Result
+    where
+        I: PartialOrd,
+    {
         ensure!(self.0.is_sorted_by_key(|(index, _)| index));
         Ok(())
     }
-}
 
-impl<V, I: Debug + Ord> Series<V, I> {
     /// Zip the series by the indices.
     ///
     /// It returns an error when the indices do not match.
     pub fn try_zip_exactly<'l, 'r, R>(
         &'l self,
         rhs: &'r Series<R, I>,
-    ) -> impl Iterator<Item = Result<(&'l I, (&'l V, &'r R))>> {
+    ) -> impl Iterator<Item = Result<(&'l I, (&'l V, &'r R))>>
+    where
+        I: Debug + Ord,
+    {
         self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).map(
             |pair| match pair {
                 EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
@@ -102,12 +118,6 @@ impl<V, I: Debug + Ord> Series<V, I> {
                 }
             },
         )
-    }
-}
-
-impl<V, I> Series<V, I> {
-    pub fn index_at(&self, i: usize) -> &I {
-        &self.0[i].0
     }
 }
 

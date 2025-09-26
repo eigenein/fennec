@@ -84,6 +84,7 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         let now = Local::now();
 
         let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
+        ensure!(!grid_rates.is_empty());
         info!("Fetched energy rates", len = grid_rates.len());
 
         let solar_power_density = weerlive::Api::new(

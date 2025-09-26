@@ -2,20 +2,19 @@ use comfy_table::{Cell, Color, Table, modifiers, presets};
 
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
-    core::{
-        metrics::Metrics,
-        series::Series,
-        solver::step::Step,
-        working_mode::WorkingMode as CoreWorkingMode,
-    },
+    core::{series::Series, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
-    units::currency::Cost,
+    units::{currency::Cost, rate::KilowattHourRate},
 };
 
-pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Result<Table> {
+pub fn try_render_steps(
+    grid_rates: &Series<KilowattHourRate>,
+    steps: &Series<Step>,
+) -> Result<Table> {
+    // TODO: extract to a method in `Series`:
     #[allow(clippy::cast_precision_loss)]
     let average_rate =
-        metrics.iter().map(|(_, metrics)| metrics.grid_rate.0).sum::<f64>() / metrics.len() as f64;
+        grid_rates.iter().map(|(_, grid_rate)| grid_rate.0).sum::<f64>() / grid_rates.len() as f64;
 
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
@@ -24,31 +23,23 @@ pub fn try_render_steps(metrics: &Series<Metrics>, steps: &Series<Step>) -> Resu
         "Time",
         "Grid rate",
         "Stand-by",
-        "Solar",
         "Mode",
         "Before",
         "After",
         "Grid usage",
         "Loss",
     ]);
-    for ((time, metrics), (right_time, step)) in metrics.iter().zip(steps) {
+    for ((time, grid_rate), (right_time, step)) in grid_rates.iter().zip(steps) {
         ensure!(time == right_time);
-        let solar_color = match metrics.solar_power_density {
-            Some(density) if density.0 > 0.5 => Color::Green,
-            Some(density) if density.0 > 0.25 => Color::DarkYellow,
-            Some(_) => Color::Red,
-            _ => Color::Reset,
-        };
-        let solar_content = metrics.solar_power_density.map_or_else(
-            || "unknown".to_string(),
-            |value| format!("{:>3.0} W/m²", value.0 * 1000.0),
-        );
+        // TODO: extract all formatting into `impl Display` for the units:
         table.add_row(vec![
             Cell::new(time.format("%H:%M").to_string()),
-            Cell::new(format!("{:.2} €/kWh", metrics.grid_rate))
-                .fg(if metrics.grid_rate.0 >= average_rate { Color::Red } else { Color::Green }),
+            Cell::new(format!("{grid_rate:.2} €/kWh")).fg(if grid_rate.0 >= average_rate {
+                Color::Red
+            } else {
+                Color::Green
+            }),
             Cell::new(format!("{:.2} kW", step.stand_by_power)),
-            Cell::new(solar_content).fg(solar_color),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,

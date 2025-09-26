@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use reqwest::Url;
 
-use crate::units::{power::Kilowatts, rate::KilowattHourRate, surface_area::SquareMetres};
+use crate::units::{power::Kilowatts, rate::KilowattHourRate};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]
@@ -82,9 +82,6 @@ pub struct HuntArgs {
     pub battery: BatteryArgs,
 
     #[clap(flatten)]
-    pub solar: SolarArgs,
-
-    #[clap(flatten)]
     pub consumption: ConsumptionArgs,
 
     #[clap(flatten)]
@@ -96,21 +93,6 @@ pub struct ConsumptionArgs {
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fees-per-kwh", default_value = "0.021", env = "PURCHASE_FEES_PER_KWH")]
     pub purchase_fees: KilowattHourRate,
-}
-
-#[derive(Parser)]
-pub struct SolarArgs {
-    #[clap(long = "latitude", default_value = "52.349605", env = "LATITUDE")]
-    pub latitude: f64,
-
-    #[clap(long = "longitude", default_value = "4.677388", env = "LONGITUDE")]
-    pub longitude: f64,
-
-    #[clap(long = "pv-surface-m2", default_value = "2", env = "PV_SURFACE_M2")]
-    pub pv_surface: SquareMetres,
-
-    #[clap(long = "weerlive-api-key", env = "WEERLIVE_API_KEY")]
-    pub weerlive_api_key: String,
 }
 
 #[derive(Parser)]

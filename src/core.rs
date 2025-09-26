@@ -1,5 +1,4 @@
 pub mod cache;
-pub mod metrics;
 pub mod point;
 pub mod series;
 pub mod solver;

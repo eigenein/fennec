@@ -13,7 +13,6 @@ use ordered_float::OrderedFloat;
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     core::{
-        metrics::Metrics,
         series::Series,
         solver::{
             battery::Battery,
@@ -29,9 +28,7 @@ use crate::{
         currency::Cost,
         energy::KilowattHours,
         power::Kilowatts,
-        quantity::Quantity,
         rate::KilowattHourRate,
-        surface_area::SquareMetres,
         time::Hours,
     },
 };
@@ -39,8 +36,7 @@ use crate::{
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
-    metrics: &'a Series<Metrics>,
-    pv_surface_area: SquareMetres,
+    grid_rates: &'a Series<KilowattHourRate>,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery: BatteryArgs,
@@ -93,20 +89,11 @@ impl Solver<'_> {
             ];
 
         // Going backwards:
-        for (timestamp, metrics) in self.metrics.into_iter().rev() {
+        for (timestamp, grid_rate) in self.grid_rates.into_iter().rev() {
             // Average stand-by power at this hour of day:
             let stand_by_power =
                 self.stand_by_power[timestamp.hour() as usize].unwrap_or(Kilowatts::ZERO);
-
-            // For missing weather forecast, assume none solar power:
-            let solar_production =
-                metrics.solar_power_density.unwrap_or(Quantity::ZERO) * self.pv_surface_area;
-
-            // Positive is excess, negative is deficit:
-            let power_balance = solar_production - stand_by_power;
-
-            // Subtracting because we benefit from positive power balance:
-            net_loss_without_battery -= self.loss(metrics.grid_rate, power_balance * Hours::ONE);
+            net_loss_without_battery += self.loss(*grid_rate, stand_by_power * Hours::ONE);
 
             // Calculate partial solutions for the current hour:
             next_partial_solutions = (0..=max_energy.0)
@@ -115,8 +102,7 @@ impl Solver<'_> {
                         self.optimise_hour()
                             .timestamp(*timestamp)
                             .stand_by_power(stand_by_power)
-                            .power_balance(power_balance)
-                            .grid_rate(metrics.grid_rate)
+                            .grid_rate(*grid_rate)
                             .initial_residual_energy(KilowattHours::from(DecawattHours(
                                 initial_residual_energy_dawh,
                             )))
@@ -148,7 +134,6 @@ impl Solver<'_> {
         &self,
         timestamp: DateTime<Local>,
         stand_by_power: Kilowatts,
-        power_balance: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
@@ -172,7 +157,6 @@ impl Solver<'_> {
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery.clone())
                     .working_mode(working_mode)
-                    .power_balance(power_balance)
                     .call();
                 let next_partial_solution = {
                     let next_energy =
@@ -200,16 +184,14 @@ impl Solver<'_> {
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
-        power_balance: Kilowatts,
     ) -> Step {
         // Requested external power flow to or from the battery (negative is directed from the battery):
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Charging => self.battery.charging_power,
             WorkingMode::Discharging => -self.battery.discharging_power,
-            WorkingMode::Balancing => {
-                power_balance.clamp(-self.battery.discharging_power, self.battery.charging_power)
-            }
+            WorkingMode::Balancing => (-stand_by_power)
+                .clamp(-self.battery.discharging_power, self.battery.charging_power),
         };
 
         // Apply the load to the battery:
@@ -217,9 +199,9 @@ impl Solver<'_> {
         let battery_active_time = battery.apply_load(battery_external_power, Hours::ONE);
 
         // Total household energy balance:
-        let production_without_battery = power_balance * Hours::ONE;
         let grid_consumption =
-            battery_external_power * battery_active_time - production_without_battery;
+            // TODO: change `Hours::ONE` here, too.
+            battery_external_power * battery_active_time + stand_by_power * Hours::ONE;
 
         Step {
             working_mode,

@@ -12,11 +12,10 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{foxess, heartbeat, home_assistant, nextenergy, weerlive},
+    api::{foxess, heartbeat, home_assistant, nextenergy},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     core::{
         cache::Cache,
-        metrics::Metrics,
         series::Series,
         solver::Solver,
         working_mode::WorkingMode as CoreWorkingMode,
@@ -99,26 +98,9 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         )
         .await?;
 
-    let metrics: Series<Metrics> = {
-        let now = Local::now();
-
-        let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
-        ensure!(!grid_rates.is_empty());
-        info!("Fetched energy rates", len = grid_rates.len());
-
-        let location =
-            weerlive::Location::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude);
-        let solar_power_density =
-            weerlive::Api::new(&hunt_args.solar.weerlive_api_key, &location).get(now).await?;
-        info!("Fetched solar power forecast", len = solar_power_density.len());
-
-        grid_rates
-            .zip_right_or(&solar_power_density, |power_density| Some(*power_density), None)
-            .map(|(time, (grid_rate, solar_power_density))| {
-                (*time, Metrics { grid_rate: *grid_rate, solar_power_density })
-            })
-            .collect()
-    };
+    let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(Local::now()).await?;
+    ensure!(!grid_rates.is_empty());
+    info!("Fetched energy rates", len = grid_rates.len());
 
     let (residual_energy, total_capacity) = {
         (
@@ -138,8 +120,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .average_hourly();
 
     let solution = Solver::builder()
-        .metrics(&metrics)
-        .pv_surface_area(hunt_args.solar.pv_surface)
+        .grid_rates(&grid_rates)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery(hunt_args.battery)
@@ -154,7 +135,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         without_battery = format!("¢{:.0}", solution.summary.net_loss_without_battery * 100.0),
         profit = format!("¢{:.0}", profit * 100.0),
     );
-    println!("{}", try_render_steps(&metrics, &solution.steps)?);
+    println!("{}", try_render_steps(&grid_rates, &solution.steps)?);
 
     let schedule: Series<CoreWorkingMode> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();

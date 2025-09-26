@@ -42,6 +42,7 @@ pub struct Solver<'a> {
     battery: BatteryArgs,
     consumption: ConsumptionArgs,
     stand_by_power: [Option<Kilowatts>; 24],
+    now: DateTime<Local>,
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {

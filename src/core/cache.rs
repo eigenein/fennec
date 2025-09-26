@@ -2,7 +2,7 @@ use std::{fmt::Debug, fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{core::series::Series, prelude::*, units::energy::KilowattHours};
+use crate::{core::series::Series, prelude::*, quantity::energy::KilowattHours};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Cache {

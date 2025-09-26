@@ -1,3 +1,9 @@
+pub mod currency;
+pub mod energy;
+pub mod power;
+pub mod rate;
+pub mod time;
+
 use std::ops::{Div, Mul};
 
 use serde::{Deserialize, Serialize};

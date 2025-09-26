@@ -3,8 +3,8 @@ mod cli;
 mod core;
 mod database;
 mod prelude;
+mod quantity;
 mod render;
-mod units;
 
 use chrono::Local;
 use clap::Parser;
@@ -22,8 +22,8 @@ use crate::{
     },
     database::Database,
     prelude::*,
+    quantity::{energy::KilowattHours, power::Kilowatts},
     render::{render_time_slot_sequence, try_render_steps},
-    units::{energy::KilowattHours, power::Kilowatts},
 };
 
 #[tokio::main]

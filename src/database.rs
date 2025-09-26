@@ -2,7 +2,7 @@ use chrono::Local;
 use mongodb::Client;
 use reqwest::Url;
 
-use crate::{prelude::*, units::energy::KilowattHours};
+use crate::{prelude::*, quantity::energy::KilowattHours};
 
 pub struct Database(mongodb::Database);
 

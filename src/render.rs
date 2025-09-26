@@ -4,7 +4,7 @@ use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     core::{series::Series, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
-    units::{currency::Cost, rate::KilowattHourRate},
+    quantity::{currency::Cost, rate::KilowattHourRate},
 };
 
 pub fn try_render_steps(
@@ -31,7 +31,7 @@ pub fn try_render_steps(
     ]);
     for ((time, grid_rate), (right_time, step)) in grid_rates.iter().zip(steps) {
         ensure!(time == right_time);
-        // TODO: extract all formatting into `impl Display` for the units:
+        // TODO: extract all formatting into `impl Display` for the quantity:
         table.add_row(vec![
             Cell::new(time.format("%H:%M").to_string()),
             Cell::new(format!("{grid_rate:.2} €/kWh")).fg(if grid_rate.0 >= average_rate {

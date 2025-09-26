@@ -24,7 +24,7 @@ use crate::{
         working_mode::WorkingMode,
     },
     prelude::*,
-    units::{
+    quantity::{
         currency::Cost,
         energy::KilowattHours,
         power::Kilowatts,

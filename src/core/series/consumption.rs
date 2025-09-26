@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::{
     core::{point::Point, series::Series},
-    units::{energy::KilowattHours, power::Kilowatts, time::Hours},
+    quantity::{energy::KilowattHours, power::Kilowatts, time::Hours},
 };
 
 impl<V> Series<V> {

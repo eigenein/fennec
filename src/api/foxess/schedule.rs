@@ -9,7 +9,7 @@ use crate::{
     cli::BatteryArgs,
     core::working_mode::WorkingMode as CoreWorkingMode,
     prelude::*,
-    units::power::Kilowatts,
+    quantity::power::Kilowatts,
 };
 
 #[serde_as]

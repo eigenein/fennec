@@ -1,9 +1,9 @@
 use std::ops::{Div, Mul};
 
-use crate::units::{
+use crate::quantity::{
+    Quantity,
     currency::Cost,
     power::Kilowatts,
-    quantity::Quantity,
     rate::KilowattHourRate,
     time::Hours,
 };

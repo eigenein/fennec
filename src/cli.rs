@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use reqwest::Url;
 
-use crate::units::{power::Kilowatts, rate::KilowattHourRate};
+use crate::quantity::{power::Kilowatts, rate::KilowattHourRate};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about, propagate_version = true)]

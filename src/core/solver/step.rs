@@ -1,6 +1,6 @@
 use crate::{
     core::working_mode::WorkingMode,
-    units::{currency::Cost, energy::KilowattHours, power::Kilowatts},
+    quantity::{currency::Cost, energy::KilowattHours, power::Kilowatts},
 };
 
 /// Single-hour working plan step.

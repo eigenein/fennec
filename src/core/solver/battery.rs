@@ -1,4 +1,4 @@
-use crate::units::{energy::KilowattHours, power::Kilowatts, time::Hours};
+use crate::quantity::{energy::KilowattHours, power::Kilowatts, time::Hours};
 
 /// Battery simulator.
 #[derive(Clone, bon::Builder)]

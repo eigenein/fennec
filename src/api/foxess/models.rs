@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::units::energy::KilowattHours;
+use crate::quantity::energy::KilowattHours;
 
 #[derive(Deserialize)]
 pub struct RealTimeRawVariable {

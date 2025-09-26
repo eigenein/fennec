@@ -1,4 +1,4 @@
-use crate::units::energy::KilowattHours;
+use crate::quantity::energy::KilowattHours;
 
 /// Quantized energy in [decawatts][1] for the solver's dynamic programming state space.
 ///
@@ -29,7 +29,7 @@ impl From<DecawattHours> for usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::units::quantity::Quantity;
+    use crate::quantity::Quantity;
 
     #[test]
     fn test_from_positive_kilowatt_hours() {

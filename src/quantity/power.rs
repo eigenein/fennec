@@ -1,8 +1,8 @@
 use std::ops::Mul;
 
-use crate::units::{
+use crate::quantity::{
+    Quantity,
     energy::KilowattHours,
-    quantity::Quantity,
     rate::{HourRate, KilowattHourRate},
     time::Hours,
 };

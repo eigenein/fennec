@@ -58,6 +58,13 @@ pub struct BatteryArgs {
     pub self_discharge: Kilowatts,
 }
 
+impl BatteryArgs {
+    pub fn max_feed_power_watts(&self) -> u32 {
+        // FIXME: maybe, it's better to have the options as `u32` and convert them later.
+        self.charging_power.max(self.discharging_power).into_watts_u32()
+    }
+}
+
 #[derive(Parser)]
 pub struct HuntArgs {
     #[clap(long = "mongodb-url", env = "MONGODB_URL")]

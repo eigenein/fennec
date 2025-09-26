@@ -12,10 +12,10 @@ use reqwest::{
 use response::Response;
 use serde::{Serialize, de::DeserializeOwned};
 
-pub use self::schedule::{TimeSlotSequence, WorkingMode};
+pub use self::schedule::{EndTime, StartTime, TimeSlot, TimeSlotSequence, WorkingMode};
 use self::{
     models::{DeviceRealTimeData, DeviceVariables},
-    schedule::{Schedule, TimeSlot},
+    schedule::Schedule,
 };
 use crate::prelude::*;
 

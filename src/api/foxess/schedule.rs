@@ -73,6 +73,8 @@ impl Display for StartTime {
 }
 
 impl StartTime {
+    pub const MIDNIGHT: Self = Self { hour: 0, minute: 0 };
+
     pub const fn from_hour(hour: u32) -> Self {
         Self { hour, minute: 0 }
     }
@@ -94,6 +96,8 @@ impl Display for EndTime {
 }
 
 impl EndTime {
+    pub const MIDNIGHT: Self = Self { hour: 23, minute: 59 };
+
     pub const fn from_hour(hour_inclusive: u32) -> Self {
         // End time is exclusive, but FoxESS Cloud won't accept `00:00`…
         let (hour, minute) = if hour_inclusive == 23 { (23, 59) } else { (hour_inclusive + 1, 0) };

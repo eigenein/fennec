@@ -19,7 +19,7 @@ use crate::{
         metrics::Metrics,
         series::Series,
         solver::Solver,
-        working_mode::WorkingMode,
+        working_mode::WorkingMode as CoreWorkingMode,
     },
     database::Database,
     prelude::*,
@@ -47,10 +47,29 @@ async fn main() -> Result {
 
     match args.command {
         Command::Hunt(hunt_args) => {
-            hunt(fox_ess, &args.fox_ess_api.serial_number, *hunt_args).await?;
+            let battery_args = hunt_args.battery;
+
+            #[allow(clippy::literal_string_with_formatting_args)]
+            if let Err(error) = hunt(&fox_ess, &args.fox_ess_api.serial_number, *hunt_args).await {
+                error!("Hunting failed: {error:#}");
+
+                // Setting the default self-use schedule:
+                let time_slot = foxess::TimeSlot {
+                    is_enabled: true,
+                    start_time: foxess::StartTime::MIDNIGHT,
+                    end_time: foxess::EndTime::MIDNIGHT,
+                    max_soc: 100,
+                    min_soc_on_grid: battery_args.min_soc_percent,
+                    feed_soc: battery_args.min_soc_percent,
+                    feed_power_watts: battery_args.max_feed_power_watts(),
+                    working_mode: foxess::WorkingMode::SelfUse,
+                };
+                fox_ess.set_schedule(&args.fox_ess_api.serial_number, &[time_slot]).await?;
+            }
         }
+
         Command::Burrow(burrow_args) => {
-            burrow(fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
+            burrow(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
         }
     }
 
@@ -58,7 +77,7 @@ async fn main() -> Result {
     Ok(())
 }
 
-async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
+async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
     let mut cache = Cache::read_from("cache.toml")?;
     let database = Database::try_new(&hunt_args.mongodb_url).await?;
 
@@ -87,12 +106,10 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
         ensure!(!grid_rates.is_empty());
         info!("Fetched energy rates", len = grid_rates.len());
 
-        let solar_power_density = weerlive::Api::new(
-            &hunt_args.solar.weerlive_api_key,
-            &weerlive::Location::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude),
-        )
-        .get(now)
-        .await?;
+        let location =
+            weerlive::Location::coordinates(hunt_args.solar.latitude, hunt_args.solar.longitude);
+        let solar_power_density =
+            weerlive::Api::new(&hunt_args.solar.weerlive_api_key, &location).get(now).await?;
         info!("Fetched solar power forecast", len = solar_power_density.len());
 
         grid_rates
@@ -139,9 +156,8 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     );
     println!("{}", try_render_steps(&metrics, &solution.steps)?);
 
-    let schedule: Series<WorkingMode> =
+    let schedule: Series<CoreWorkingMode> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
-
     let time_slot_sequence =
         foxess::TimeSlotSequence::from_schedule(&schedule, &hunt_args.battery)?;
     println!("{}", render_time_slot_sequence(&time_slot_sequence));
@@ -153,12 +169,16 @@ async fn hunt(fox_ess: foxess::Api, serial_number: &str, hunt_args: HuntArgs) ->
     if let Some(heartbeat_url) = hunt_args.heartbeat_url {
         heartbeat::send(heartbeat_url).await;
     }
-    cache.write_to("cache.toml")?;
+
+    #[allow(clippy::literal_string_with_formatting_args)]
+    if let Err(error) = cache.write_to("cache.toml") {
+        warn!("Failed to save the cache: {error:#}");
+    }
 
     Ok(())
 }
 
-async fn burrow(fox_ess: foxess::Api, serial_number: &str, args: BurrowArgs) -> Result {
+async fn burrow(fox_ess: &foxess::Api, serial_number: &str, args: BurrowArgs) -> Result {
     match args.command {
         BurrowCommand::DeviceDetails => {
             let details = fox_ess.get_device_details(serial_number).await?;

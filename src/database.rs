@@ -20,12 +20,10 @@ impl Database {
         timestamp: chrono::DateTime<Local>,
         value: KilowattHours,
     ) -> Result {
+        let timestamp = mongodb::bson::DateTime::from_millis(timestamp.timestamp_millis());
         self.0
             .collection::<TotalEnergyUsageReading>("totalEnergyUsage")
-            .insert_one(&TotalEnergyUsageReading {
-                timestamp: mongodb::bson::DateTime::from_millis(timestamp.timestamp_millis()),
-                value,
-            })
+            .insert_one(&TotalEnergyUsageReading { timestamp, value })
             .await?;
         Ok(())
     }

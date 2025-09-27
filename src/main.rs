@@ -46,27 +46,8 @@ async fn main() -> Result {
 
     match args.command {
         Command::Hunt(hunt_args) => {
-            let battery_args = hunt_args.battery;
-
-            #[allow(clippy::literal_string_with_formatting_args)]
-            if let Err(error) = hunt(&fox_ess, &args.fox_ess_api.serial_number, *hunt_args).await {
-                error!("Hunting failed: {error:#}");
-
-                // Setting the default self-use schedule:
-                let time_slot = foxess::TimeSlot {
-                    is_enabled: true,
-                    start_time: foxess::StartTime::MIDNIGHT,
-                    end_time: foxess::EndTime::MIDNIGHT,
-                    max_soc: 100,
-                    min_soc_on_grid: battery_args.min_soc_percent,
-                    feed_soc: battery_args.min_soc_percent,
-                    feed_power_watts: battery_args.max_feed_power_watts(),
-                    working_mode: foxess::WorkingMode::SelfUse,
-                };
-                fox_ess.set_schedule(&args.fox_ess_api.serial_number, &[time_slot]).await?;
-            }
+            hunt(&fox_ess, &args.fox_ess_api.serial_number, *hunt_args).await?;
         }
-
         Command::Burrow(burrow_args) => {
             burrow(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
         }

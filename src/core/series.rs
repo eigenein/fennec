@@ -1,5 +1,4 @@
 pub mod consumption;
-mod serde;
 
 use std::{collections::BTreeMap, fmt::Debug};
 
@@ -13,10 +12,12 @@ use crate::prelude::*;
 /// Technically, I could implement it using a [`Vec`] while carefully maintaining the invariant,
 /// but [`BTreeMap`] makes it much easier without a big performance penalty.
 #[must_use]
-#[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator)]
-pub struct Series<V, I = DateTime<Local>>(#[into_iterator(owned, ref)] BTreeMap<I, V>);
+#[derive(
+    Clone, Debug, PartialEq, Eq, derive_more::IntoIterator, serde::Serialize, serde::Deserialize,
+)]
+pub struct Series<V, I: Ord = DateTime<Local>>(#[into_iterator(owned, ref)] BTreeMap<I, V>);
 
-impl<V, I> Default for Series<V, I> {
+impl<V, I: Ord> Default for Series<V, I> {
     fn default() -> Self {
         Self(BTreeMap::new())
     }
@@ -28,7 +29,7 @@ impl<V, I: Ord> FromIterator<(I, V)> for Series<V, I> {
     }
 }
 
-impl<V, I> Series<V, I> {
+impl<V, I: Ord> Series<V, I> {
     #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
@@ -43,20 +44,14 @@ impl<V, I> Series<V, I> {
         self.into_iter()
     }
 
-    pub fn extend(&mut self, other: impl IntoIterator<Item = (I, V)>)
-    where
-        I: Ord,
-    {
+    pub fn extend(&mut self, other: impl IntoIterator<Item = (I, V)>) {
         // TODO: I'm wondering whether there is a better way.
         for (key, value) in other {
             self.0.insert(key, value);
         }
     }
 
-    pub fn push(&mut self, index: I, value: V)
-    where
-        I: Ord,
-    {
+    pub fn push(&mut self, index: I, value: V) {
         self.0.insert(index, value);
     }
 
@@ -70,10 +65,7 @@ impl<V, I> Series<V, I> {
         rhs: &Series<R, I>,
         map: fn(&R) -> T,
         default: T,
-    ) -> impl Iterator<Item = (&I, (&V, T))>
-    where
-        I: Ord,
-    {
+    ) -> impl Iterator<Item = (&I, (&V, T))> {
         self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).filter_map(
             move |pair| match pair {
                 EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
@@ -95,7 +87,7 @@ impl<V, I> Series<V, I> {
         rhs: &'r Series<R, I>,
     ) -> impl Iterator<Item = Result<(&'l I, (&'l V, &'r R))>>
     where
-        I: Debug + Ord,
+        I: Debug,
     {
         self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).map(
             |pair| match pair {

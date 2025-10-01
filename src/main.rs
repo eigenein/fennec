@@ -1,12 +1,11 @@
 mod api;
 mod cli;
 mod core;
-mod database;
 mod prelude;
 mod quantity;
 mod render;
 
-use chrono::Local;
+use chrono::{Local, TimeDelta};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
@@ -14,13 +13,7 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{foxess, heartbeat, home_assistant, nextenergy},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
-    core::{
-        cache::Cache,
-        series::Series,
-        solver::Solver,
-        working_mode::WorkingMode as CoreWorkingMode,
-    },
-    database::Database,
+    core::{series::Series, solver::Solver, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
     render::{render_time_slot_sequence, try_render_steps},
@@ -58,25 +51,10 @@ async fn main() -> Result {
 }
 
 async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
-    let mut cache = Cache::read_from("cache.toml")?;
-    let database = Database::try_new(&hunt_args.mongodb_url).await?;
-
     let home_assistant = home_assistant::Api::try_new(
         &hunt_args.home_assistant.access_token,
         hunt_args.home_assistant.base_url,
     )?;
-    let total_energy_usage =
-        home_assistant.get_state(&hunt_args.home_assistant.total_energy_usage_entity_id).await?;
-
-    cache
-        .total_usage
-        .push(total_energy_usage.last_reported_at, KilowattHours::from(total_energy_usage.value));
-    database
-        .log_total_energy_usage(
-            total_energy_usage.last_reported_at,
-            KilowattHours::from(total_energy_usage.value),
-        )
-        .await?;
 
     let now = Local::now();
     let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
@@ -88,8 +66,20 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     info!("Fetched battery details", residual_energy, total_capacity);
 
     // Calculate the stand-by consumption:
-    let stand_by_power = cache
-        .total_usage
+    let total_energy_usage_history: Series<KilowattHours> = home_assistant
+        .get_history(
+            &hunt_args.home_assistant.total_energy_usage_entity_id,
+            now - TimeDelta::days(hunt_args.home_assistant.n_history_days),
+            now,
+        )
+        .await?
+        .into_iter()
+        .next()
+        .context("total energy usage entity ID is not found")?
+        .into_iter()
+        .map(|state| (state.last_updated_at, KilowattHours::from(state.value)))
+        .collect();
+    let stand_by_power = total_energy_usage_history
         .resample_hourly()
         .collect::<Series<KilowattHours>>()
         .differentiate()
@@ -127,11 +117,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
 
     if let Some(heartbeat_url) = hunt_args.heartbeat_url {
         heartbeat::send(heartbeat_url).await;
-    }
-
-    #[allow(clippy::literal_string_with_formatting_args)]
-    if let Err(error) = cache.write_to("cache.toml") {
-        warn!("Failed to save the cache: {error:#}");
     }
 
     Ok(())

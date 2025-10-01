@@ -60,9 +60,6 @@ pub struct BatteryArgs {
 
 #[derive(Parser)]
 pub struct HuntArgs {
-    #[clap(long = "mongodb-url", env = "MONGODB_URL")]
-    pub mongodb_url: Url,
-
     /// Do not push the final schedule to FoxESS Cloud (dry run).
     #[expect(clippy::doc_markdown)]
     #[clap(long)]
@@ -101,13 +98,20 @@ pub struct HomeAssistantArgs {
     /// Home Assistant sensor ID for the household total energy usage in kilowatt-hours.
     /// For example: `sensor.custom_total_energy_usage`.
     ///
-    /// The state must have the `total` or `total_increasing` class and only account for actual household usage:
+    /// The state should have the `total` class and only account for actual household usage:
     /// grid import + solar panels yield + battery export - grid export - battery import.
     #[clap(
         long = "home-assistant-total-energy-usage-entity-id",
         env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_ENTITY_ID"
     )]
     pub total_energy_usage_entity_id: String,
+
+    #[clap(
+        long = "home-assistant-history-days",
+        default_value = "10",
+        env = "HOME_ASSISTANT_HISTORY_DAYS"
+    )]
+    pub n_history_days: i64,
 }
 
 #[derive(Parser)]

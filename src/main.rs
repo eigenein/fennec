@@ -63,9 +63,10 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
 
     let home_assistant = home_assistant::Api::try_new(
         &hunt_args.home_assistant.access_token,
-        hunt_args.home_assistant.total_energy_usage_url,
+        hunt_args.home_assistant.base_url,
     )?;
-    let total_energy_usage = home_assistant.get_total_energy_usage().await?;
+    let total_energy_usage =
+        home_assistant.get_state(&hunt_args.home_assistant.total_energy_usage_entity_id).await?;
 
     cache
         .total_usage

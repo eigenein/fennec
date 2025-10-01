@@ -90,14 +90,24 @@ pub struct ConsumptionArgs {
 
 #[derive(Parser)]
 pub struct HomeAssistantArgs {
+    /// Home Assistant API access token.
     #[clap(long = "home-assistant-access-token", env = "HOME_ASSISTANT_ACCESS_TOKEN")]
     pub access_token: String,
 
+    /// Home Assistant API base URL. For example: `http://localhost:8123/api`.
+    #[clap(long = "home-assistant-api-base-url", env = "HOME_ASSISTANT_API_BASE_URL")]
+    pub base_url: Url,
+
+    /// Home Assistant sensor ID for the household total energy usage in kilowatt-hours.
+    /// For example: `sensor.custom_total_energy_usage`.
+    ///
+    /// The state must have the `total` or `total_increasing` class and only account for actual household usage:
+    /// grid import + solar panels yield + battery export - grid export - battery import.
     #[clap(
-        long = "home-assistant-total-energy-usage-url",
-        env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_URL"
+        long = "home-assistant-total-energy-usage-entity-id",
+        env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_ENTITY_ID"
     )]
-    pub total_energy_usage_url: Url,
+    pub total_energy_usage_entity_id: String,
 }
 
 #[derive(Parser)]

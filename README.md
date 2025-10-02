@@ -25,8 +25,7 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 
 Fennec is designed to run as a cron job, continuously refining and updating the schedule.
 
-<details>
-<summary>Example of a generated schedule</summary>
+### Example of a generated schedule
 
 ```text
 ╭───────┬────────────┬──────────┬─────────────┬──────────┬──────────┬────────────┬─────────╮
@@ -59,7 +58,6 @@ Fennec is designed to run as a cron job, continuously refining and updating the 
 │ 23:00 ┆ 0.24 €/kWh ┆ 0.55 kW  ┆ Discharging ┆ 1.48 kWh ┆ 0.84 kWh ┆ -0.04 kWh  ┆ -0.01 € │
 ╰───────┴────────────┴──────────┴─────────────┴──────────┴──────────┴────────────┴─────────╯
 ```
-</details>
 
 ## Usage
 

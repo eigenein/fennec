@@ -5,13 +5,10 @@ use reqwest::{
     Url,
     header::{HeaderMap, HeaderName, HeaderValue},
 };
-use serde::Deserialize;
+use serde::{Deserialize, de::DeserializeOwned};
 use serde_with::serde_as;
 
-use crate::{
-    prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
-};
+use crate::{prelude::*, quantity::energy::KilowattHours};
 
 pub struct Api {
     client: Client,
@@ -34,12 +31,12 @@ impl Api {
 
     #[instrument(skip_all, name = "Fetching the entity state changes…", fields(entity_id = entity_id
     ))]
-    pub async fn get_history(
+    pub async fn get_history<A: DeserializeOwned>(
         &self,
         entity_id: &str,
         from: DateTime<Local>,
         until: DateTime<Local>,
-    ) -> Result<EntityHistory> {
+    ) -> Result<EntityHistory<A>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut()
             .map_err(|()| anyhow!("invalid base URL"))?
@@ -49,7 +46,7 @@ impl Api {
         url.query_pairs_mut()
             .append_pair("filter_entity_id", entity_id)
             .append_pair("end_time", &until.to_rfc3339());
-        let entities_history: EntitiesHistory =
+        let entities_history: EntitiesHistory<A> =
             self.client.get(url).send().await?.error_for_status()?.json().await?;
         let entity_history = entities_history
             .into_iter()
@@ -62,17 +59,23 @@ impl Api {
 
 #[must_use]
 #[derive(Deserialize, derive_more::IntoIterator)]
-struct EntitiesHistory(pub Vec<EntityHistory>);
+struct EntitiesHistory<A>(
+    #[serde(bound(deserialize = "A: DeserializeOwned"))] pub Vec<EntityHistory<A>>,
+);
 
 #[must_use]
 #[serde_as]
 #[derive(Deserialize, derive_more::Index, derive_more::IntoIterator)]
-pub struct EntityHistory(#[serde_as(as = "serde_with::VecSkipError<_>")] pub Vec<State>);
+pub struct EntityHistory<A>(
+    #[serde_as(as = "serde_with::VecSkipError<_>")]
+    #[serde(bound(deserialize = "A: DeserializeOwned"))]
+    pub Vec<State<A>>,
+);
 
 #[must_use]
 #[serde_as]
 #[derive(serde::Deserialize)]
-pub struct State {
+pub struct State<A> {
     #[serde(rename = "last_changed")]
     pub last_changed_at: DateTime<Local>,
 
@@ -80,17 +83,20 @@ pub struct State {
     #[serde(rename = "state")]
     pub value: f64,
 
-    pub attributes: StateAttributes,
+    pub attributes: A,
 }
 
 #[must_use]
 #[derive(serde::Deserialize)]
-pub struct StateAttributes {
+pub struct BatteryStateAttributes {
     #[serde(rename = "custom_battery_residual_energy")]
-    pub battery_residual_energy: KilowattHours,
+    pub residual_energy: KilowattHours,
 
-    #[serde(rename = "custom_battery_net_energy_usage")]
-    pub battery_net_energy_usage: Kilowatts,
+    #[serde(rename = "custom_battery_energy_import")]
+    pub total_import: KilowattHours,
+
+    #[serde(rename = "custom_battery_energy_export")]
+    pub total_export: KilowattHours,
 }
 
 #[cfg(test)]
@@ -106,38 +112,40 @@ mod tests {
         const RESPONSE: &str = r#"
             [
                 [
-                     {
+                    {
                         "entity_id": "sensor.custom_fennec_sensor",
                         "state": "unavailable",
                         "attributes": {
                             "state_class": "total",
-                            "custom_battery_residual_energy": 5.35,
-                            "custom_battery_net_energy_usage": 35.61700000000002,
+                            "custom_battery_residual_energy": 5.62,
+                            "custom_battery_energy_import": 198.52,
+                            "custom_battery_energy_export": 162.646,
                             "unit_of_measurement": "kWh",
                             "icon": "mdi:flash",
                             "friendly_name": "Fennec sensor"
                         },
-                        "last_changed": "2025-10-02T14:47:11.640927+00:00",
-                        "last_updated": "2025-10-02T14:47:11.640927+00:00"
+                        "last_changed": "2025-10-02T15:17:17.713307+00:00",
+                        "last_updated": "2025-10-02T15:17:17.713307+00:00"
                     },
-                     {
+                    {
                         "entity_id": "sensor.custom_fennec_sensor",
-                        "state": "39790.284",
+                        "state": "39790.578",
                         "attributes": {
                             "state_class": "total",
-                            "custom_battery_residual_energy": 5.35,
-                            "custom_battery_net_energy_usage": 35.617,
+                            "custom_battery_residual_energy": 5.62,
+                            "custom_battery_energy_import": 198.52,
+                            "custom_battery_energy_export": 162.646,
                             "unit_of_measurement": "kWh",
                             "icon": "mdi:flash",
                             "friendly_name": "Fennec sensor"
                         },
-                        "last_changed": "2025-10-02T14:47:11.640927+00:00",
-                        "last_updated": "2025-10-02T14:47:11.640927+00:00"
+                        "last_changed": "2025-10-02T15:17:17.713307+00:00",
+                        "last_updated": "2025-10-02T15:17:17.713307+00:00"
                     }
                 ]
             ]
         "#;
-        let history = serde_json::from_str::<EntitiesHistory>(RESPONSE)?;
+        let history = serde_json::from_str::<EntitiesHistory<BatteryStateAttributes>>(RESPONSE)?;
         let total_energy_usage = history.into_iter().next().unwrap();
         assert_eq!(total_energy_usage.0.len(), 1);
         let state = &total_energy_usage[0];
@@ -145,14 +153,15 @@ mod tests {
             state.last_changed_at,
             NaiveDate::from_ymd_opt(2025, 10, 2)
                 .unwrap()
-                .and_hms_micro_opt(16, 47, 11, 640927)
+                .and_hms_micro_opt(17, 17, 17, 713307)
                 .unwrap()
                 .and_local_timezone(Local)
                 .unwrap()
         );
-        assert_abs_diff_eq!(state.value, 39790.284);
-        assert_abs_diff_eq!(state.attributes.battery_net_energy_usage.0, 35.617);
-        assert_abs_diff_eq!(state.attributes.battery_residual_energy.0, 5.35);
+        assert_abs_diff_eq!(state.value, 39790.578);
+        assert_abs_diff_eq!(state.attributes.residual_energy.0, 5.62);
+        assert_abs_diff_eq!(state.attributes.total_import.0, 198.52);
+        assert_abs_diff_eq!(state.attributes.total_export.0, 162.646);
         Ok(())
     }
 }

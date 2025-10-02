@@ -1,3 +1,4 @@
+#![allow(clippy::doc_markdown)]
 #![doc = include_str!("../README.md")]
 
 mod api;
@@ -13,7 +14,7 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{foxess, heartbeat, home_assistant, nextenergy},
+    api::{foxess, heartbeat, home_assistant, home_assistant::BatteryStateAttributes, nextenergy},
     cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
@@ -69,7 +70,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
 
     // Calculate the stand-by consumption:
     let total_energy_usage_history: Series<KilowattHours> = home_assistant
-        .get_history(
+        .get_history::<BatteryStateAttributes>(
             &hunt_args.home_assistant.total_energy_usage_entity_id,
             now - TimeDelta::days(hunt_args.home_assistant.n_history_days),
             now,

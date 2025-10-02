@@ -130,10 +130,13 @@ Fennec needs an entity configured in Home Assistant to:
 
 ### Attributes
 
-| Attribute name                    | Type  | Unit           |                                             |
-|-----------------------------------|-------|----------------|---------------------------------------------|
-| `custom_residual_energy`          | Float | Kilowatt-hours | The battery residual charge                 |
-| `custom_battery_net_energy_usage` | Float | Kilowatt-hours | Net **external** energy flow to the battery |
+The entity must have the following attributes:
+
+| Attribute name                   | Unit |                                                            |
+|----------------------------------|------|------------------------------------------------------------|
+| `custom_battery_residual_energy` | kWh  | **Internally measured** battery residual charge            |
+| `custom_battery_energy_import`   | kWh  | **Externally measured** total energy import by the battery |
+| `custom_battery_energy_export`   | kWh  | **Externally measured** total energy export by the battery |
 
 ### Example
 
@@ -158,11 +161,7 @@ template:
             - states('sensor.battery_socket_energy_import') | float
           }}
         attributes:
-          custom_battery_residual_energy: |
-            {{ states('sensor.foxess_residual_energy') | float }}
-          custom_battery_net_energy_usage: |
-            {{
-                states('sensor.battery_socket_energy_import') | float
-              - states('sensor.battery_socket_energy_export') | float
-            }}
+          custom_battery_residual_energy: "{{ states('sensor.foxess_residual_energy') }}"
+          custom_battery_energy_import: "{{ states('sensor.battery_socket_energy_import') }}"
+          custom_battery_energy_export: "{{ states('sensor.battery_socket_energy_export') }}"
 ```

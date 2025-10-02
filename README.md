@@ -25,8 +25,8 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 
 Fennec is designed to run as a cron job, continuously refining and updating the schedule.
 
-## Example prognosis
-
+<details>
+<summary>Example of a generated schedule</summary>
 ```text
 ╭───────┬────────────┬──────────┬─────────────┬──────────┬──────────┬────────────┬─────────╮
 │ Time  ┆ Grid rate  ┆ Stand-by ┆ Mode        ┆ Before   ┆ After    ┆ Grid usage ┆ Loss    │
@@ -58,13 +58,14 @@ Fennec is designed to run as a cron job, continuously refining and updating the 
 │ 23:00 ┆ 0.24 €/kWh ┆ 0.55 kW  ┆ Discharging ┆ 1.48 kWh ┆ 0.84 kWh ┆ -0.04 kWh  ┆ -0.01 € │
 ╰───────┴────────────┴──────────┴─────────────┴──────────┴──────────┴────────────┴─────────╯
 ```
+</details>
 
-## Notes
+## Usage
 
-- [FoxESS Cloud](https://www.foxesscloud.com/public/i18n/en/OpenApiDocument.html#set20the20time20segment20information0a3ca20id3dset20the20time20segment20information7193e203ca3e) only allows up to 8 schedule slots. It might happen that Fennec would build a schedule with more slots. In that case, only the upcoming 8 slots will be pushed. So, make sure to run Fennec periodically.
-- When solar power forecast is not available, it is treated as 0 W/m².
+### Running as a Kubernetes job
 
-## Example Kubernetes job
+> [!IMPORTANT]
+> At the moment, I only have `aarch64-unknown-linux-gnu` builds.
 
 ```yaml
 apiVersion: "batch/v1"
@@ -73,7 +74,7 @@ metadata:
   name: "fennec"
 spec:
   timeZone: "Europe/Amsterdam"
-  schedule: "5 * * * *"
+  schedule: "1 * * * *"
   startingDeadlineSeconds: 600
   concurrencyPolicy: "Replace"
   successfulJobsHistoryLimit: 1
@@ -108,3 +109,39 @@ spec:
                 - "/fennec"
                 - "hunt"
 ```
+
+## Notes on Home Assistant integration
+
+### Total energy usage sensor
+
+This sensor is used to:
+
+- estimate average hourly energy consumption;
+- estimate the battery charging and discharging efficiency as well as the parasitic load.
+
+It is recommended to update the sensor whenever the battery residual charge changes:
+
+```yaml
+template:
+  - triggers:
+      - trigger: "state"
+        entity_id: "sensor.foxess_residual_energy"
+    sensor:
+      - name: "Total energy usage (triggered)"
+        unit_of_measurement: "kWh"
+        unique_id: "custom_triggered_total_energy_usage"
+        default_entity_id: "sensor.custom_triggered_total_energy_usage"
+        icon: "mdi:flash"
+        state_class: "total"
+        state: |
+          {{
+              states('sensor.p1_meter_energy_import') | float
+            + states('sensor.sb2_5_1vl_40_555_total_yield') | float
+            + states('sensor.battery_socket_energy_export') | float
+            - states('sensor.p1_meter_energy_export') | float
+            - states('sensor.battery_socket_energy_import') | float
+          }}
+```
+
+> [!IMPORTANT]
+> While a more frequently updated sensor would technically work, it would take much more time for Fennec to fetch the state history without having any additional benefits.

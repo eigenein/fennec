@@ -158,7 +158,8 @@ template:
             - states('sensor.battery_socket_energy_import') | float
           }}
         attributes:
-          custom_battery_residual_energy: "{{ states('sensor.foxess_residual_energy') | float }}"
+          custom_battery_residual_energy: |
+            {{ states('sensor.foxess_residual_energy') | float }}
           custom_battery_net_energy_usage: |
             {{
                 states('sensor.battery_socket_energy_import') | float

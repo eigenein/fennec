@@ -77,7 +77,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .next()
         .context("total energy usage entity ID is not found")?
         .into_iter()
-        .map(|state| (state.last_updated_at, KilowattHours::from(state.value)))
+        .map(|state| (state.last_changed_at, KilowattHours::from(state.value)))
         .collect();
     let stand_by_power = total_energy_usage_history
         .resample_hourly()

@@ -42,10 +42,12 @@ impl Api {
             .push("history")
             .push("period")
             .push(&from.to_rfc3339());
+        // TODO: use `serde-qs` to build the query:
         url.query_pairs_mut()
             .append_pair("filter_entity_id", entity_id)
             .append_pair("end_time", &until.to_rfc3339())
-            .append_pair("no_attributes", "true");
+            .append_pair("no_attributes", "true")
+            .append_pair("minimal_response", "true");
         let entities_history: EntitiesHistory =
             self.client.get(url).send().await?.error_for_status()?.json().await?;
         info!("Fetched", n_entities = entities_history.0.len());
@@ -66,8 +68,8 @@ pub struct EntityHistory(#[serde_as(as = "serde_with::VecSkipError<_>")] pub Vec
 #[serde_as]
 #[derive(serde::Deserialize)]
 pub struct State {
-    #[serde(rename = "last_updated")]
-    pub last_updated_at: DateTime<Local>,
+    #[serde(rename = "last_changed")]
+    pub last_changed_at: DateTime<Local>,
 
     #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "state")]
@@ -87,27 +89,18 @@ mod tests {
             [
                 [
                     {
-                        "entity_id": "sensor.custom_total_energy_usage",
                         "state": "invalid",
-                        "attributes": {},
-                        "last_changed": "2025-10-01T17:08:40.326747+00:00",
-                        "last_updated": "2025-10-01T17:08:40.326747+00:00"
+                        "last_changed": "2025-10-01T17:08:40.326747+00:00"
                     },
                     {
-                        "entity_id": "sensor.custom_total_energy_usage",
                         "state": "39775.108",
-                        "attributes": {},
-                        "last_changed": "2025-10-01T17:08:40.326747+00:00",
-                        "last_updated": "2025-10-01T17:08:40.326747+00:00"
+                        "last_changed": "2025-10-01T17:08:40.326747+00:00"
                     }
                 ],
                 [
                     {
-                        "entity_id": "sensor.foxess_residual_energy",
                         "state": "5.65",
-                        "attributes": {},
-                        "last_changed": "2025-10-01T17:08:21.473819+00:00",
-                        "last_updated": "2025-10-01T17:08:21.473819+00:00"
+                        "last_changed": "2025-10-01T17:08:21.473819+00:00"
                     }
                 ]
             ]
@@ -118,7 +111,7 @@ mod tests {
         assert_eq!(total_energy_usage.0.len(), 1);
         assert_eq!(total_energy_usage[0].value, 39775.108);
         assert_eq!(
-            total_energy_usage[0].last_updated_at,
+            total_energy_usage[0].last_changed_at,
             Local.timestamp_micros(1_759_338_520_326_747).unwrap()
         );
         Ok(())

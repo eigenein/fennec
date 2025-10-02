@@ -27,6 +27,7 @@ Fennec is designed to run as a cron job, continuously refining and updating the 
 
 <details>
 <summary>Example of a generated schedule</summary>
+
 ```text
 ╭───────┬────────────┬──────────┬─────────────┬──────────┬──────────┬────────────┬─────────╮
 │ Time  ┆ Grid rate  ┆ Stand-by ┆ Mode        ┆ Before   ┆ After    ┆ Grid usage ┆ Loss    │
@@ -121,6 +122,9 @@ This sensor is used to:
 
 It is recommended to update the sensor whenever the battery residual charge changes:
 
+> [!IMPORTANT]
+> While a more frequently updated sensor would technically work, it would take much more time for Fennec to fetch the state history without having any additional benefits.
+
 ```yaml
 template:
   - triggers:
@@ -142,6 +146,3 @@ template:
             - states('sensor.battery_socket_energy_import') | float
           }}
 ```
-
-> [!IMPORTANT]
-> While a more frequently updated sensor would technically work, it would take much more time for Fennec to fetch the state history without having any additional benefits.

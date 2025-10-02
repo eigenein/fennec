@@ -2,7 +2,6 @@ pub mod currency;
 pub mod energy;
 pub mod power;
 pub mod rate;
-pub mod time;
 
 use std::ops::{Div, Mul};
 
@@ -71,14 +70,14 @@ impl<const POWER: isize, const TIME: isize, const COST: isize> Quantity<f64, POW
     }
 }
 
-impl<L, R, const POWER: isize, const TIME: isize, const COST: isize> Mul<R>
-    for Quantity<L, POWER, TIME, COST>
+impl<T, const POWER: isize, const TIME: isize, const COST: isize> Mul<T>
+    for Quantity<T, POWER, TIME, COST>
 where
-    L: Mul<R>,
+    T: Mul<T>,
 {
-    type Output = Quantity<L::Output, POWER, TIME, COST>;
+    type Output = Quantity<T::Output, POWER, TIME, COST>;
 
-    fn mul(self, rhs: R) -> Self::Output {
+    fn mul(self, rhs: T) -> Self::Output {
         Quantity(self.0 * rhs)
     }
 }

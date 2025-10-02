@@ -1,12 +1,8 @@
 use std::ops::{Div, Mul};
 
-use crate::quantity::{
-    Quantity,
-    currency::Cost,
-    power::Kilowatts,
-    rate::KilowattHourRate,
-    time::Hours,
-};
+use chrono::TimeDelta;
+
+use crate::quantity::{Quantity, currency::Cost, power::Kilowatts, rate::KilowattHourRate};
 
 pub type KilowattHours = Quantity<f64, 1, 1, 0>;
 
@@ -25,17 +21,21 @@ impl Mul<KilowattHourRate> for KilowattHours {
 }
 
 impl Div<Kilowatts> for KilowattHours {
-    type Output = Hours;
+    type Output = TimeDelta;
 
     fn div(self, rhs: Kilowatts) -> Self::Output {
-        Quantity(self.0 / rhs.0)
+        let hours = self.0 / rhs.0;
+
+        #[allow(clippy::cast_possible_truncation)]
+        TimeDelta::seconds((hours * 3600.0) as i64)
     }
 }
 
-impl Div<Hours> for KilowattHours {
+impl Div<TimeDelta> for KilowattHours {
     type Output = Kilowatts;
 
-    fn div(self, rhs: Hours) -> Self::Output {
-        Quantity(self.0 / rhs.0)
+    fn div(self, rhs: TimeDelta) -> Self::Output {
+        let hours = rhs.as_seconds_f64() / 3600.0;
+        Quantity(self.0 / hours)
     }
 }

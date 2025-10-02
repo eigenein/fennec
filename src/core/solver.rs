@@ -7,7 +7,7 @@ pub mod summary;
 use std::{iter::from_fn, rc::Rc};
 
 use bon::{Builder, bon, builder};
-use chrono::{DateTime, Local, Timelike};
+use chrono::{DateTime, Local, TimeDelta, Timelike};
 use ordered_float::OrderedFloat;
 
 use crate::{
@@ -24,13 +24,7 @@ use crate::{
         working_mode::WorkingMode,
     },
     prelude::*,
-    quantity::{
-        currency::Cost,
-        energy::KilowattHours,
-        power::Kilowatts,
-        rate::KilowattHourRate,
-        time::Hours,
-    },
+    quantity::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
 #[derive(Builder)]
@@ -94,9 +88,9 @@ impl Solver<'_> {
             // FIXME: I don't like this…
             let step_duration = if *timestamp <= self.now {
                 // This hour has already begun:
-                Hours::from(1.0 - (self.now - *timestamp).as_seconds_f64() / 3600.0)
+                TimeDelta::hours(1) - (self.now - *timestamp)
             } else {
-                Hours::ONE
+                TimeDelta::hours(1)
             };
 
             // Average stand-by power at this hour of day:
@@ -149,7 +143,7 @@ impl Solver<'_> {
         min_residual_energy: KilowattHours,
         next_partial_solutions: &[Rc<PartialSolution>],
         max_energy: DecawattHours,
-        duration: Hours,
+        duration: TimeDelta,
     ) -> PartialSolution {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
@@ -196,7 +190,7 @@ impl Solver<'_> {
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
-        duration: Hours,
+        duration: TimeDelta,
     ) -> Step {
         // Requested external power flow to or from the battery (negative is directed from the battery):
         let battery_external_power = match working_mode {

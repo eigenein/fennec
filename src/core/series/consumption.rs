@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::{
     core::{point::Point, series::Series},
-    quantity::{energy::KilowattHours, power::Kilowatts, time::Hours},
+    quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
 impl<V> Series<V> {
@@ -63,13 +63,10 @@ impl<V> Series<V> {
 }
 
 impl Series<KilowattHours> {
+    /// TODO: make generic.
     pub fn differentiate(&self) -> impl Iterator<Item = (DateTime<Local>, Kilowatts)> {
         self.0.iter().tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
-            (
-                *from_index,
-                (*to_value - *from_value)
-                    / Hours::from((*to_index - *from_index).as_seconds_f64() / 3600.0),
-            )
+            (*from_index, (*to_value - *from_value) / (*to_index - *from_index))
         })
     }
 }

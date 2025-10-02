@@ -1,4 +1,6 @@
-use crate::quantity::{energy::KilowattHours, power::Kilowatts, time::Hours};
+use chrono::TimeDelta;
+
+use crate::quantity::{energy::KilowattHours, power::Kilowatts};
 
 /// Battery simulator.
 #[derive(Clone, bon::Builder)]
@@ -29,7 +31,7 @@ impl Battery {
     ///
     /// Battery active time.
     #[must_use]
-    pub fn apply_load(&mut self, power: Kilowatts, for_: Hours) -> Hours {
+    pub fn apply_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
         let initial_residual_energy = self.residual_energy;
 
         let active_time = if power > Kilowatts::ZERO {
@@ -38,7 +40,7 @@ impl Battery {
             self.residual_energy = (self.residual_energy + internal_power * for_)
                 .min(self.capacity.max(self.residual_energy));
             let time_charging = (self.residual_energy - initial_residual_energy) / internal_power;
-            assert!(time_charging >= Hours::ZERO);
+            assert!(time_charging >= TimeDelta::zero());
             time_charging
         } else if power < Kilowatts::ZERO {
             // While discharging, the residual energy is spent faster:
@@ -48,11 +50,11 @@ impl Battery {
                 .max(self.min_residual_energy.min(initial_residual_energy));
             let time_discharging =
                 (self.residual_energy - initial_residual_energy) / internal_power;
-            assert!(time_discharging >= Hours::ZERO);
+            assert!(time_discharging >= TimeDelta::zero());
             time_discharging
         } else {
             // Idle:
-            Hours::ZERO
+            TimeDelta::zero()
         };
 
         self.apply_self_discharge(for_ - active_time);
@@ -60,7 +62,7 @@ impl Battery {
         active_time
     }
 
-    fn apply_self_discharge(&mut self, idle_time: Hours) {
+    fn apply_self_discharge(&mut self, idle_time: TimeDelta) {
         self.residual_energy =
             (self.residual_energy - self.self_discharge * idle_time).max(KilowattHours::ZERO);
     }

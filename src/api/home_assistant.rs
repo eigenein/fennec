@@ -8,7 +8,10 @@ use reqwest::{
 use serde::Deserialize;
 use serde_with::serde_as;
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    quantity::{energy::KilowattHours, power::Kilowatts},
+};
 
 pub struct Api {
     client: Client,
@@ -29,35 +32,37 @@ impl Api {
         Ok(Self { client, base_url })
     }
 
-    #[instrument(skip_all, name = "Fetching the entity state changes…", fields(entity_id = entity_id))]
+    #[instrument(skip_all, name = "Fetching the entity state changes…", fields(entity_id = entity_id
+    ))]
     pub async fn get_history(
         &self,
         entity_id: &str,
         from: DateTime<Local>,
         until: DateTime<Local>,
-    ) -> Result<EntitiesHistory> {
+    ) -> Result<EntityHistory> {
         let mut url = self.base_url.clone();
         url.path_segments_mut()
             .map_err(|()| anyhow!("invalid base URL"))?
             .push("history")
             .push("period")
             .push(&from.to_rfc3339());
-        // TODO: use `serde-qs` to build the query:
         url.query_pairs_mut()
             .append_pair("filter_entity_id", entity_id)
-            .append_pair("end_time", &until.to_rfc3339())
-            .append_pair("no_attributes", "true")
-            .append_pair("minimal_response", "true");
+            .append_pair("end_time", &until.to_rfc3339());
         let entities_history: EntitiesHistory =
             self.client.get(url).send().await?.error_for_status()?.json().await?;
-        info!("Fetched", n_entities = entities_history.0.len());
-        Ok(entities_history)
+        let entity_history = entities_history
+            .into_iter()
+            .next()
+            .with_context(|| format!("the API returned no data for `{entity_id}`"))?;
+        info!("Fetched", len = entity_history.0.len());
+        Ok(entity_history)
     }
 }
 
 #[must_use]
-#[derive(Deserialize, derive_more::Index, derive_more::IntoIterator)]
-pub struct EntitiesHistory(pub Vec<EntityHistory>);
+#[derive(Deserialize, derive_more::IntoIterator)]
+struct EntitiesHistory(pub Vec<EntityHistory>);
 
 #[must_use]
 #[serde_as]
@@ -74,11 +79,24 @@ pub struct State {
     #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "state")]
     pub value: f64,
+
+    pub attributes: StateAttributes,
+}
+
+#[must_use]
+#[derive(serde::Deserialize)]
+pub struct StateAttributes {
+    #[serde(rename = "custom_battery_residual_energy")]
+    pub battery_residual_energy: KilowattHours,
+
+    #[serde(rename = "custom_battery_net_energy_usage")]
+    pub battery_net_energy_usage: Kilowatts,
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use approx::assert_abs_diff_eq;
+    use chrono::NaiveDate;
 
     use super::*;
 
@@ -88,32 +106,53 @@ mod tests {
         const RESPONSE: &str = r#"
             [
                 [
-                    {
-                        "state": "invalid",
-                        "last_changed": "2025-10-01T17:08:40.326747+00:00"
+                     {
+                        "entity_id": "sensor.custom_fennec_sensor",
+                        "state": "unavailable",
+                        "attributes": {
+                            "state_class": "total",
+                            "custom_battery_residual_energy": 5.35,
+                            "custom_battery_net_energy_usage": 35.61700000000002,
+                            "unit_of_measurement": "kWh",
+                            "icon": "mdi:flash",
+                            "friendly_name": "Fennec sensor"
+                        },
+                        "last_changed": "2025-10-02T14:47:11.640927+00:00",
+                        "last_updated": "2025-10-02T14:47:11.640927+00:00"
                     },
-                    {
-                        "state": "39775.108",
-                        "last_changed": "2025-10-01T17:08:40.326747+00:00"
-                    }
-                ],
-                [
-                    {
-                        "state": "5.65",
-                        "last_changed": "2025-10-01T17:08:21.473819+00:00"
+                     {
+                        "entity_id": "sensor.custom_fennec_sensor",
+                        "state": "39790.284",
+                        "attributes": {
+                            "state_class": "total",
+                            "custom_battery_residual_energy": 5.35,
+                            "custom_battery_net_energy_usage": 35.617,
+                            "unit_of_measurement": "kWh",
+                            "icon": "mdi:flash",
+                            "friendly_name": "Fennec sensor"
+                        },
+                        "last_changed": "2025-10-02T14:47:11.640927+00:00",
+                        "last_updated": "2025-10-02T14:47:11.640927+00:00"
                     }
                 ]
             ]
         "#;
         let history = serde_json::from_str::<EntitiesHistory>(RESPONSE)?;
-        assert_eq!(history.0.len(), 2);
-        let total_energy_usage = &history[0];
+        let total_energy_usage = history.into_iter().next().unwrap();
         assert_eq!(total_energy_usage.0.len(), 1);
-        assert_eq!(total_energy_usage[0].value, 39775.108);
+        let state = &total_energy_usage[0];
         assert_eq!(
-            total_energy_usage[0].last_changed_at,
-            Local.timestamp_micros(1_759_338_520_326_747).unwrap()
+            state.last_changed_at,
+            NaiveDate::from_ymd_opt(2025, 10, 2)
+                .unwrap()
+                .and_hms_micro_opt(16, 47, 11, 640927)
+                .unwrap()
+                .and_local_timezone(Local)
+                .unwrap()
         );
+        assert_abs_diff_eq!(state.value, 39790.284);
+        assert_abs_diff_eq!(state.attributes.battery_net_energy_usage.0, 35.617);
+        assert_abs_diff_eq!(state.attributes.battery_residual_energy.0, 5.35);
         Ok(())
     }
 }

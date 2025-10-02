@@ -5,6 +5,10 @@ use crate::quantity::{Quantity, energy::KilowattHours, time::Hours};
 pub type Kilowatts = Quantity<f64, 1, 0, 0>;
 
 impl Kilowatts {
+    pub fn from_watts(watts: f64) -> Self {
+        Self(watts / 1000.0)
+    }
+
     #[expect(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     pub fn into_watts_u32(self) -> u32 {
         (self.0 * 1000.0).round() as u32

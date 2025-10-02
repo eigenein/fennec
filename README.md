@@ -25,7 +25,7 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 
 Fennec is designed to run as a cron job, continuously refining and updating the schedule.
 
-### Example of a generated schedule
+## Example of a generated schedule
 
 ```text
 ╭───────┬────────────┬──────────┬─────────────┬──────────┬──────────┬────────────┬─────────╮
@@ -109,19 +109,33 @@ spec:
                 - "hunt"
 ```
 
-## Notes on Home Assistant integration
+## Home Assistant integration
 
-### Total energy usage sensor
-
-This sensor is used to:
+Fennec needs an entity configured in Home Assistant to:
 
 - estimate average hourly energy consumption;
 - estimate the battery charging and discharging efficiency as well as the parasitic load.
 
-It is recommended to update the sensor whenever the battery residual charge changes:
+> [!IMPORTANT]
+> It is recommended to update the entity whenever the battery residual charge changes.
+> While a more frequently updated entity would technically work,
+> it would take much more time for Fennec to fetch the state history – without having any additional benefits.
+
+### State
 
 > [!IMPORTANT]
-> While a more frequently updated sensor would technically work, it would take much more time for Fennec to fetch the state history without having any additional benefits.
+> The net energy usage meter must represent the household energy consumption only,
+> excluding all the energy systems usage. Hence, one should sum the grid import, PV yield, and battery export,
+> but subtract the grid export and battery import.
+
+### Attributes
+
+| Attribute name                    | Type  | Unit           |                                             |
+|-----------------------------------|-------|----------------|---------------------------------------------|
+| `custom_residual_energy`          | Float | Kilowatt-hours | The battery residual charge                 |
+| `custom_battery_net_energy_usage` | Float | Kilowatt-hours | Net **external** energy flow to the battery |
+
+### Example
 
 ```yaml
 template:
@@ -129,10 +143,10 @@ template:
       - trigger: "state"
         entity_id: "sensor.foxess_residual_energy"
     sensor:
-      - name: "Total energy usage (triggered)"
+      - name: "Fennec sensor"
         unit_of_measurement: "kWh"
-        unique_id: "custom_triggered_total_energy_usage"
-        default_entity_id: "sensor.custom_triggered_total_energy_usage"
+        unique_id: "custom_fennec_sensor"
+        default_entity_id: "sensor.custom_fennec_sensor"
         icon: "mdi:flash"
         state_class: "total"
         state: |
@@ -143,4 +157,11 @@ template:
             - states('sensor.p1_meter_energy_export') | float
             - states('sensor.battery_socket_energy_import') | float
           }}
+        attributes:
+          custom_battery_residual_energy: "{{ states('sensor.foxess_residual_energy') | float }}"
+          custom_battery_net_energy_usage: |
+            {{
+                states('sensor.battery_socket_energy_import') | float
+              - states('sensor.battery_socket_energy_export') | float
+            }}
 ```

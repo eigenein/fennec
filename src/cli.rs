@@ -108,7 +108,7 @@ pub struct HomeAssistantArgs {
 
     #[clap(
         long = "home-assistant-history-days",
-        default_value = "10",
+        default_value = "14",
         env = "HOME_ASSISTANT_HISTORY_DAYS"
     )]
     pub n_history_days: i64,

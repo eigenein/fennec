@@ -29,9 +29,6 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct Quantity<T, const POWER: isize, const TIME: isize, const COST: isize>(pub T);
 
-#[allow(dead_code)]
-pub type Bare<T> = Quantity<T, 0, 0, 0>;
-
 impl<T, const POWER: isize, const TIME: isize, const COST: isize> Quantity<T, POWER, TIME, COST>
 where
     Self: PartialOrd,
@@ -85,12 +82,12 @@ where
 impl<T, const POWER: isize, const TIME: isize, const COST: isize> Div<T>
     for Quantity<T, POWER, TIME, COST>
 where
-    T: Div<T, Output = T>,
+    T: Div<T>,
 {
-    type Output = Self;
+    type Output = Quantity<T::Output, POWER, TIME, COST>;
 
     fn div(self, rhs: T) -> Self::Output {
-        Self(self.0 / rhs)
+        Quantity(self.0 / rhs)
     }
 }
 
@@ -107,6 +104,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    pub type Bare<T> = Quantity<T, 0, 0, 0>;
 
     #[test]
     fn test_min() {

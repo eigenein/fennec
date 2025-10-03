@@ -99,9 +99,9 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let profit = solution.summary.profit();
     info!(
         "Optimized",
-        net_loss = format!("¢{:.0}", solution.summary.net_loss * 100.0),
-        without_battery = format!("¢{:.0}", solution.summary.net_loss_without_battery * 100.0),
-        profit = format!("¢{:.0}", profit * 100.0),
+        net_loss = solution.summary.net_loss,
+        without_battery = solution.summary.net_loss_without_battery,
+        profit = profit,
     );
     println!("{}", try_render_steps(&grid_rates, &solution.steps)?);
 

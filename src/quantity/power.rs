@@ -1,4 +1,7 @@
-use std::ops::Mul;
+use std::{
+    fmt::{Display, Formatter},
+    ops::Mul,
+};
 
 use chrono::TimeDelta;
 
@@ -14,6 +17,12 @@ impl Kilowatts {
     #[expect(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     pub fn into_watts_u32(self) -> u32 {
         (self.0 * 1000.0).round() as u32
+    }
+}
+
+impl Display for Kilowatts {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.2} kW", self.0)
     }
 }
 

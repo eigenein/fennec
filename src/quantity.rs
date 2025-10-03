@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 #[derive(
     Clone,
     Copy,
-    Debug,
     Deserialize,
     Eq,
     Ord,
@@ -19,7 +18,6 @@ use serde::{Deserialize, Serialize};
     Serialize,
     derive_more::Add,
     derive_more::AddAssign,
-    derive_more::Display,
     derive_more::From,
     derive_more::FromStr,
     derive_more::Neg,
@@ -88,16 +86,6 @@ where
 
     fn div(self, rhs: T) -> Self::Output {
         Quantity(self.0 / rhs)
-    }
-}
-
-impl<T, const POWER: isize, const TIME: isize, const COST: isize>
-    From<Quantity<T, POWER, TIME, COST>> for opentelemetry::Value
-where
-    T: Into<Self>,
-{
-    fn from(quantity: Quantity<T, POWER, TIME, COST>) -> Self {
-        quantity.0.into()
     }
 }
 

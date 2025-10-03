@@ -1,4 +1,7 @@
-use std::ops::{Div, Mul};
+use std::{
+    fmt::{Debug, Display, Formatter},
+    ops::{Div, Mul},
+};
 
 use chrono::TimeDelta;
 
@@ -9,6 +12,24 @@ pub type KilowattHours = Quantity<f64, 1, 1, 0>;
 impl KilowattHours {
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
         Self(f64::from(watt_hours) * 0.001)
+    }
+}
+
+impl Display for KilowattHours {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.2} kWh", self.0)
+    }
+}
+
+impl Debug for KilowattHours {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.2}kWh", self.0)
+    }
+}
+
+impl From<KilowattHours> for opentelemetry::Value {
+    fn from(value: KilowattHours) -> Self {
+        format!("{value:?}").into()
     }
 }
 

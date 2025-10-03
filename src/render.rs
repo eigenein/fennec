@@ -31,25 +31,24 @@ pub fn try_render_steps(
     ]);
     for ((time, grid_rate), (right_time, step)) in grid_rates.iter().zip(steps) {
         ensure!(time == right_time);
-        // TODO: extract all formatting into `impl Display` for the quantity:
         table.add_row(vec![
             Cell::new(time.format("%H:%M").to_string()),
-            Cell::new(format!("{grid_rate:.2} €/kWh")).fg(if grid_rate.0 >= average_rate {
+            Cell::new(grid_rate.to_string()).fg(if grid_rate.0 >= average_rate {
                 Color::Red
             } else {
                 Color::Green
             }),
-            Cell::new(format!("{:.2} kW", step.stand_by_power)),
+            Cell::new(step.stand_by_power.to_string()),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,
                 CoreWorkingMode::Balancing => Color::DarkYellow,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
-            Cell::new(format!("{:.2} kWh", step.residual_energy_before)),
-            Cell::new(format!("{:.2} kWh", step.residual_energy_after)),
-            Cell::new(format!("{:+.2} kWh", step.grid_consumption)),
-            Cell::new(format!("{:+.2} €", step.loss)).fg(if step.loss > Cost::ZERO {
+            Cell::new(step.residual_energy_before.to_string()),
+            Cell::new(step.residual_energy_after.to_string()),
+            Cell::new(step.grid_consumption.to_string()),
+            Cell::new(step.loss.to_string()).fg(if step.loss > Cost::ZERO {
                 Color::Red
             } else {
                 Color::Green

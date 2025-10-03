@@ -4,7 +4,7 @@ use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     core::{series::Series, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
-    quantity::{cost::Cost, rate::KilowattHourRate},
+    quantity::{cost::Cost, power::Watts, rate::KilowattHourRate},
 };
 
 pub fn try_render_steps(
@@ -66,8 +66,8 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
     table.set_header(vec!["Start", "End", "Mode", "Power"]);
     for time_slot in sequence {
         let mode_color = match time_slot.working_mode {
-            FoxEssWorkingMode::ForceDischarge if time_slot.feed_power_watts != 0 => Color::Red,
-            FoxEssWorkingMode::ForceCharge if time_slot.feed_power_watts != 0 => Color::Green,
+            FoxEssWorkingMode::ForceDischarge if time_slot.feed_power != Watts(0) => Color::Red,
+            FoxEssWorkingMode::ForceCharge if time_slot.feed_power != Watts(0) => Color::Green,
             FoxEssWorkingMode::SelfUse => Color::DarkYellow,
             _ => Color::Reset,
         };
@@ -75,7 +75,7 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
             Cell::new(time_slot.start_time.to_string()),
             Cell::new(time_slot.end_time.to_string()),
             Cell::new(format!("{:?}", time_slot.working_mode)).fg(mode_color),
-            Cell::new(format!("{:>4} W", time_slot.feed_power_watts)),
+            Cell::new(time_slot.feed_power.to_string()),
         ]);
     }
     table

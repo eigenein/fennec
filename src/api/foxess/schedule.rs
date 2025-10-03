@@ -9,7 +9,7 @@ use crate::{
     cli::BatteryArgs,
     core::working_mode::WorkingMode as CoreWorkingMode,
     prelude::*,
-    quantity::power::Kilowatts,
+    quantity::power::{Kilowatts, Watts},
 };
 
 #[serde_as]
@@ -24,7 +24,7 @@ pub struct Schedule {
 }
 
 #[serde_as]
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Serialize, Deserialize)]
 pub struct TimeSlot {
     #[serde_as(as = "serde_with::BoolFromInt")]
     #[serde(rename = "enable")]
@@ -51,7 +51,7 @@ pub struct TimeSlot {
 
     /// The maximum discharge power value (but also, maximum charge power?).
     #[serde(rename = "fdPwr")]
-    pub feed_power_watts: u32,
+    pub feed_power: Watts,
 
     #[serde(rename = "workMode")]
     pub working_mode: WorkingMode,
@@ -145,7 +145,7 @@ impl TimeSlotSequence {
                     max_soc: 100,
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,
-                    feed_power_watts: feed_power.into_watts_u32(),
+                    feed_power: feed_power.into(),
                     working_mode,
                 };
                 Ok(time_slot)

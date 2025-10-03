@@ -12,6 +12,6 @@ impl Display for Cost {
 
 impl From<Cost> for opentelemetry::Value {
     fn from(value: Cost) -> Self {
-        format!("{:+.2}€", value.0).into()
+        format!("{:.2}€", value.0).into()
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     core::{series::Series, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
-    quantity::{currency::Cost, rate::KilowattHourRate},
+    quantity::{cost::Cost, rate::KilowattHourRate},
 };
 
 pub fn try_render_steps(

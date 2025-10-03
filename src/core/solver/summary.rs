@@ -1,4 +1,4 @@
-use crate::quantity::currency::Cost;
+use crate::quantity::cost::Cost;
 
 /// Solution summary.
 #[derive(Copy, Clone)]

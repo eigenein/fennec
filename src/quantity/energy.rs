@@ -5,7 +5,7 @@ use std::{
 
 use chrono::TimeDelta;
 
-use crate::quantity::{Quantity, currency::Cost, power::Kilowatts, rate::KilowattHourRate};
+use crate::quantity::{Quantity, cost::Cost, power::Kilowatts, rate::KilowattHourRate};
 
 pub type KilowattHours = Quantity<f64, 1, 1, 0>;
 

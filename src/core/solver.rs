@@ -24,7 +24,7 @@ use crate::{
         working_mode::WorkingMode,
     },
     prelude::*,
-    quantity::{currency::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
 #[derive(Builder)]

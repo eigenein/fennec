@@ -59,10 +59,6 @@ where
 impl<const POWER: isize, const TIME: isize, const COST: isize> Quantity<f64, POWER, TIME, COST> {
     pub const ZERO: Self = Self(0.0);
     pub const ONE: Self = Self(1.0);
-
-    pub const fn abs(self) -> Self {
-        Self(self.0.abs())
-    }
 }
 
 impl<T, const POWER: isize, const TIME: isize, const COST: isize> Mul<T>

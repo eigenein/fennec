@@ -17,8 +17,8 @@ impl<V> Series<V> {
         V: Copy,
         V: Add<V, Output = V>,
         V: Sub<V, Output = V>,
-        V: Mul<f64, Output = V>,
-        V: Div<f64, Output = V>,
+        V: Div<TimeDelta>,
+        <V as Div<TimeDelta>>::Output: Mul<TimeDelta, Output = V>,
     {
         const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
 

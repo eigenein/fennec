@@ -1,6 +1,6 @@
 use std::ops::{Div, Mul};
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeDelta};
 use reqwest::{
     Client,
     ClientBuilder,
@@ -10,7 +10,10 @@ use reqwest::{
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_with::serde_as;
 
-use crate::{prelude::*, quantity::energy::KilowattHours};
+use crate::{
+    prelude::*,
+    quantity::{energy::KilowattHours, power::Kilowatts},
+};
 
 pub struct Api {
     client: Client,
@@ -90,34 +93,22 @@ pub struct State<A> {
 
 #[must_use]
 #[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Deserialize)]
-pub struct BatteryStateAttributes {
+pub struct BatteryStateAttributes<T> {
     #[serde(rename = "custom_battery_residual_energy")]
-    pub residual_energy: KilowattHours,
+    pub residual_energy: T,
 
     #[serde(rename = "custom_battery_energy_import")]
-    pub total_import: KilowattHours,
+    pub total_import: T,
 
     #[serde(rename = "custom_battery_energy_export")]
-    pub total_export: KilowattHours,
+    pub total_export: T,
 }
 
-impl Mul<f64> for BatteryStateAttributes {
-    type Output = Self;
+impl Div<TimeDelta> for BatteryStateAttributes<KilowattHours> {
+    type Output = BatteryStateAttributes<Kilowatts>;
 
-    fn mul(self, rhs: f64) -> Self::Output {
-        Self {
-            residual_energy: self.residual_energy * rhs,
-            total_import: self.total_import * rhs,
-            total_export: self.total_export * rhs,
-        }
-    }
-}
-
-impl Div<f64> for BatteryStateAttributes {
-    type Output = Self;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        Self {
+    fn div(self, rhs: TimeDelta) -> Self::Output {
+        BatteryStateAttributes {
             residual_energy: self.residual_energy / rhs,
             total_import: self.total_import / rhs,
             total_export: self.total_export / rhs,
@@ -125,41 +116,56 @@ impl Div<f64> for BatteryStateAttributes {
     }
 }
 
-#[must_use]
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sub)]
-pub struct EnergyState {
-    /// Net household energy usage excluding the energy systems.
-    pub total_energy_usage: KilowattHours,
+impl Mul<TimeDelta> for BatteryStateAttributes<Kilowatts> {
+    type Output = BatteryStateAttributes<KilowattHours>;
 
-    pub battery: BatteryStateAttributes,
+    fn mul(self, rhs: TimeDelta) -> Self::Output {
+        BatteryStateAttributes {
+            residual_energy: self.residual_energy * rhs,
+            total_import: self.total_import * rhs,
+            total_export: self.total_export * rhs,
+        }
+    }
 }
 
-impl From<State<BatteryStateAttributes>> for (DateTime<Local>, EnergyState) {
+#[must_use]
+#[derive(Copy, Clone, derive_more::Add, derive_more::Sub)]
+pub struct EnergyState<T> {
+    /// Net household energy usage excluding the energy systems.
+    pub total_energy_usage: T,
+
+    pub battery: BatteryStateAttributes<T>,
+}
+
+impl<V: From<f64>> From<State<BatteryStateAttributes<V>>> for (DateTime<Local>, EnergyState<V>) {
     /// Unpack the state for collection into a series.
-    fn from(state: State<BatteryStateAttributes>) -> Self {
+    fn from(state: State<BatteryStateAttributes<V>>) -> Self {
         (
             state.last_changed_at,
-            EnergyState {
-                total_energy_usage: KilowattHours::from(state.value),
-                battery: state.attributes,
-            },
+            EnergyState { total_energy_usage: state.value.into(), battery: state.attributes },
         )
     }
 }
 
-impl Mul<f64> for EnergyState {
-    type Output = Self;
+impl Div<TimeDelta> for EnergyState<KilowattHours> {
+    type Output = EnergyState<Kilowatts>;
 
-    fn mul(self, rhs: f64) -> Self::Output {
-        Self { total_energy_usage: self.total_energy_usage * rhs, battery: self.battery * rhs }
+    fn div(self, rhs: TimeDelta) -> Self::Output {
+        EnergyState {
+            total_energy_usage: self.total_energy_usage / rhs,
+            battery: self.battery / rhs,
+        }
     }
 }
 
-impl Div<f64> for EnergyState {
-    type Output = Self;
+impl Mul<TimeDelta> for EnergyState<Kilowatts> {
+    type Output = EnergyState<KilowattHours>;
 
-    fn div(self, rhs: f64) -> Self::Output {
-        Self { total_energy_usage: self.total_energy_usage / rhs, battery: self.battery / rhs }
+    fn mul(self, rhs: TimeDelta) -> Self::Output {
+        EnergyState {
+            total_energy_usage: self.total_energy_usage * rhs,
+            battery: self.battery * rhs,
+        }
     }
 }
 
@@ -209,7 +215,9 @@ mod tests {
                 ]
             ]
         "#;
-        let history = serde_json::from_str::<EntitiesHistory<BatteryStateAttributes>>(RESPONSE)?;
+        let history = serde_json::from_str::<EntitiesHistory<BatteryStateAttributes<KilowattHours>>>(
+            RESPONSE,
+        )?;
         let total_energy_usage = history.into_iter().next().unwrap();
         assert_eq!(total_energy_usage.0.len(), 1);
         let state = &total_energy_usage[0];

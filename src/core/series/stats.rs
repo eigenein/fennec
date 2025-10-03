@@ -61,6 +61,10 @@ impl Series<EnergyState<Kilowatts>> {
             parasitic_load = parameters.parasitic_load,
             charge_coefficient = format!("{:.3}", parameters.charge_coefficient),
             discharge_coefficient = format!("{:.3}", parameters.discharge_coefficient),
+            round_trip =
+                format!("{:.2}", parameters.charge_coefficient / parameters.discharge_coefficient),
+            r_squared = format!("{:.2}", model.r_squared),
+            adjusted_r_squared = format!("{:.2}", model.adjusted_r_squared),
         );
         Ok(parameters)
     }

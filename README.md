@@ -18,7 +18,7 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 
 - Current battery charge
 - Battery charging and discharging efficiency
-- Battery self-discharge
+- Battery parasitic load
 - Energy price chart for upcoming hours
 - Average household standby power consumption from Home Assistant
 - Energy feed-in tariff («inkoopvergoeding»)
@@ -73,7 +73,7 @@ metadata:
   name: "fennec"
 spec:
   timeZone: "Europe/Amsterdam"
-  schedule: "1 * * * *"
+  schedule: "1,31 * * * *"
   startingDeadlineSeconds: 600
   concurrencyPolicy: "Replace"
   successfulJobsHistoryLimit: 1
@@ -86,7 +86,7 @@ spec:
           restartPolicy: "OnFailure"
           containers:
             - name: "fennec-job"
-              image: "ghcr.io/eigenein/fennec:0.21.0"
+              image: "ghcr.io/eigenein/fennec:0.22.0"
               env:
                 - name: "TZ"
                   value: "Europe/Amsterdam"
@@ -102,8 +102,8 @@ spec:
                   value: "..."
                 - name: "HOME_ASSISTANT_API_BASE_URL"
                   value: "..."
-                - name: "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_ENTITY_ID"
-                  value: "sensor.custom_total_energy_usage"
+                - name: "HOME_ASSISTANT_ENTITY_ID"
+                  value: "sensor.custom_fennec_sensor"
               command:
                 - "/fennec"
                 - "hunt"
@@ -114,7 +114,7 @@ spec:
 Fennec needs an entity configured in Home Assistant to:
 
 - estimate average hourly energy consumption;
-- estimate the battery charging and discharging efficiency as well as the parasitic load.
+- estimate the battery charging and discharging coefficients as well as the parasitic load.
 
 > [!IMPORTANT]
 > It is recommended to update the entity whenever the battery residual charge changes.
@@ -123,8 +123,10 @@ Fennec needs an entity configured in Home Assistant to:
 
 ### State
 
+Total net energy usage meter.
+
 > [!IMPORTANT]
-> The net energy usage meter must represent the household energy consumption only,
+> The state must represent the household energy consumption only,
 > excluding all the energy systems usage. Hence, one should sum the grid import, PV yield, and battery export,
 > but subtract the grid export and battery import.
 

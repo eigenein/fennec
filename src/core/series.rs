@@ -1,4 +1,5 @@
-pub mod consumption;
+mod consumption;
+pub mod stats;
 
 use std::{collections::BTreeMap, fmt::Debug};
 

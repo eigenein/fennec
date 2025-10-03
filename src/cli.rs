@@ -34,7 +34,7 @@ pub enum Command {
 
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryArgs {
-    /// Maximum external charging power in kilowatts.
+    /// Charging power in kilowatts.
     #[clap(
         long = "charging-power-kilowatts",
         default_value = "1.2",
@@ -42,7 +42,7 @@ pub struct BatteryArgs {
     )]
     pub charging_power: Kilowatts,
 
-    /// Maximum external discharging power in kilowatts, negative.
+    /// Discharging power in kilowatts.
     #[clap(
         long = "discharging-power-kilowatts",
         default_value = "0.8",
@@ -50,15 +50,9 @@ pub struct BatteryArgs {
     )]
     pub discharging_power: Kilowatts,
 
-    #[clap(long = "battery-efficiency", default_value = "0.94", env = "BATTERY_EFFICIENCY")]
-    pub efficiency: f64,
-
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
-
-    #[clap(long = "battery-self-discharge", default_value = "0.02", env = "SELF_DISCHARGE")]
-    pub self_discharge: Kilowatts,
 }
 
 #[derive(Parser)]
@@ -93,16 +87,9 @@ pub struct HomeAssistantArgs {
     #[clap(flatten)]
     pub connection: HomeAssistantConnectionArgs,
 
-    /// Home Assistant sensor ID for the household total energy usage in kilowatt-hours.
-    /// For example: `sensor.custom_total_energy_usage`.
-    ///
-    /// The state should have the `total` class and only account for actual household usage:
-    /// grid import + solar panels yield + battery export - grid export - battery import.
-    #[clap(
-        long = "home-assistant-total-energy-usage-entity-id",
-        env = "HOME_ASSISTANT_TOTAL_ENERGY_USAGE_ENTITY_ID"
-    )]
-    pub total_energy_usage_entity_id: String,
+    /// Home Assistant entity ID – see the `README` for the requirements.
+    #[clap(long = "home-assistant-entity-id", env = "HOME_ASSISTANT_ENTITY_ID")]
+    pub entity_id: String,
 
     #[clap(
         long = "home-assistant-history-days",

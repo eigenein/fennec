@@ -55,7 +55,7 @@ async fn main() -> Result {
                     .connection
                     .try_new_client()?
                     .get_history_differentials::<BatteryStateAttributes<KilowattHours>, _>(
-                        &history_args.home_assistant.total_energy_usage_entity_id,
+                        &history_args.home_assistant.entity_id,
                         now - TimeDelta::days(history_args.home_assistant.n_history_days),
                         now,
                     )
@@ -84,11 +84,13 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     // Fetch the state history and resample it:
     let energy_differentials = home_assistant
         .get_history_differentials::<BatteryStateAttributes<KilowattHours>, _>(
-            &hunt_args.home_assistant.total_energy_usage_entity_id,
+            &hunt_args.home_assistant.entity_id,
             now - TimeDelta::days(hunt_args.home_assistant.n_history_days),
             now,
         )
         .await?;
+    let battery_parameters = energy_differentials.try_estimate_battery_parameters()?;
+
     // Calculate the stand-by consumption:
     let stand_by_power = energy_differentials
         .into_iter()
@@ -100,7 +102,8 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .grid_rates(&grid_rates)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
-        .battery(hunt_args.battery)
+        .battery_args(hunt_args.battery)
+        .battery_parameters(battery_parameters)
         .consumption(hunt_args.consumption)
         .stand_by_power(stand_by_power)
         .now(now)

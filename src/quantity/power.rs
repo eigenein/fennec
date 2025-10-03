@@ -15,6 +15,12 @@ impl Display for Kilowatts {
     }
 }
 
+impl From<Kilowatts> for opentelemetry::Value {
+    fn from(value: Kilowatts) -> Self {
+        format!("{:.2}kW", value.0).into()
+    }
+}
+
 impl Mul<TimeDelta> for Kilowatts {
     type Output = KilowattHours;
 

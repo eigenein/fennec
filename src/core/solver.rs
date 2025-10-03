@@ -13,7 +13,7 @@ use ordered_float::OrderedFloat;
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     core::{
-        series::Series,
+        series::{Series, stats::BatteryParameters},
         solver::{
             battery::Battery,
             energy::DecawattHours,
@@ -33,7 +33,8 @@ pub struct Solver<'a> {
     grid_rates: &'a Series<KilowattHourRate>,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
-    battery: BatteryArgs,
+    battery_args: BatteryArgs,
+    battery_parameters: BatteryParameters,
     consumption: ConsumptionArgs,
     stand_by_power: [Option<Kilowatts>; 24],
     now: DateTime<Local>,
@@ -60,9 +61,10 @@ impl Solver<'_> {
     /// For each state, we pick the battery mode that minimizes total cost including future consequences.
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
-    #[instrument(skip_all, name = "Solving…", fields(residual_energy = ?self.residual_energy))]
+    #[instrument(skip_all, name = "Optimizing the schedule…", fields(residual_energy = ?self.residual_energy))]
     fn solve(self) -> Solution {
-        let min_residual_energy = self.capacity * f64::from(self.battery.min_soc_percent) / 100.0;
+        let min_residual_energy =
+            self.capacity * f64::from(self.battery_args.min_soc_percent) / 100.0;
         let max_energy = DecawattHours::from(self.residual_energy.max(self.capacity));
         let n_energy_states = usize::from(max_energy) + 1;
 
@@ -149,8 +151,7 @@ impl Solver<'_> {
             .residual_energy(initial_residual_energy)
             .min_residual_energy(min_residual_energy)
             .capacity(self.capacity)
-            .efficiency(self.battery.efficiency)
-            .self_discharge(self.battery.self_discharge)
+            .parameters(self.battery_parameters)
             .build();
         [WorkingMode::Idle, WorkingMode::Discharging, WorkingMode::Balancing, WorkingMode::Charging]
             .into_iter()
@@ -195,10 +196,10 @@ impl Solver<'_> {
         // Requested external power flow to or from the battery (negative is directed from the battery):
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
-            WorkingMode::Charging => self.battery.charging_power,
-            WorkingMode::Discharging => -self.battery.discharging_power,
+            WorkingMode::Charging => self.battery_args.charging_power,
+            WorkingMode::Discharging => -self.battery_args.discharging_power,
             WorkingMode::Balancing => (-stand_by_power)
-                .clamp(-self.battery.discharging_power, self.battery.charging_power),
+                .clamp(-self.battery_args.discharging_power, self.battery_args.charging_power),
         };
 
         // Apply the load to the battery:

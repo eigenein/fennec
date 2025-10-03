@@ -35,6 +35,8 @@ pub enum Command {
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryArgs {
     /// Charging power in kilowatts.
+    ///
+    /// TODO: split into «technical» and «actual» (1185 W).
     #[clap(
         long = "charging-power-kilowatts",
         default_value = "1.2",
@@ -43,6 +45,8 @@ pub struct BatteryArgs {
     pub charging_power: Kilowatts,
 
     /// Discharging power in kilowatts.
+    ///
+    /// TODO: split into «technical» and «actual» (825 W).
     #[clap(
         long = "discharging-power-kilowatts",
         default_value = "0.8",

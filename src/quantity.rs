@@ -91,9 +91,17 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::{Debug, Formatter};
+
     use super::*;
 
     pub type Bare<T> = Quantity<T, 0, 0, 0>;
+
+    impl<T: Debug> Debug for Bare<T> {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:?}", self.0)
+        }
+    }
 
     #[test]
     fn test_min() {

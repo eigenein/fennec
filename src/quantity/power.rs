@@ -17,7 +17,7 @@ impl Display for Kilowatts {
 
 impl From<Kilowatts> for opentelemetry::Value {
     fn from(value: Kilowatts) -> Self {
-        format!("{:.2}kW", value.0).into()
+        format!("{:.0}W", value.0 * 1000.0).into()
     }
 }
 
@@ -44,6 +44,6 @@ impl From<Kilowatts> for Watts {
 
 impl Display for Watts {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:>4} W", self.0)
+        write!(f, "{} W", self.0)
     }
 }

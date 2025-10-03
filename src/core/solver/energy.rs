@@ -1,28 +1,26 @@
 use crate::quantity::energy::KilowattHours;
 
-/// Quantized energy in [decawatts][1] for the solver's dynamic programming state space.
-///
-/// [1]: https://en.wiktionary.org/wiki/decawatt
+/// Quantized energy for the solver's dynamic programming state space.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct DecawattHours(pub u16);
+pub struct WattHours(pub u32);
 
-impl From<KilowattHours> for DecawattHours {
+impl From<KilowattHours> for WattHours {
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
     fn from(energy: KilowattHours) -> Self {
-        Self((energy.0 * 100.0).max(0.0) as u16)
+        Self((energy.0 * 1000.0).max(0.0) as u32)
     }
 }
 
-impl From<DecawattHours> for KilowattHours {
-    fn from(energy: DecawattHours) -> Self {
-        Self::from(f64::from(energy.0) / 100.0)
+impl From<WattHours> for KilowattHours {
+    fn from(energy: WattHours) -> Self {
+        Self::from(f64::from(energy.0) / 1000.0)
     }
 }
 
-impl From<DecawattHours> for usize {
-    fn from(energy: DecawattHours) -> Self {
-        Self::from(energy.0)
+impl From<WattHours> for usize {
+    fn from(energy: WattHours) -> Self {
+        Self::try_from(energy.0).expect("the energy level should fit into `usize`")
     }
 }
 
@@ -33,16 +31,16 @@ mod tests {
 
     #[test]
     fn test_from_positive_kilowatt_hours() {
-        assert_eq!(DecawattHours::from(Quantity(1.0)), DecawattHours(100));
+        assert_eq!(WattHours::from(Quantity(1.0)), WattHours(1000));
     }
 
     #[test]
     fn test_from_negative_kilowatt_hours() {
-        assert_eq!(DecawattHours::from(Quantity(-1.0)), DecawattHours(0));
+        assert_eq!(WattHours::from(Quantity(-1.0)), WattHours(0));
     }
 
     #[test]
     fn test_from_decawatt_hours() {
-        assert_eq!(KilowattHours::from(DecawattHours(100)), Quantity(1.0));
+        assert_eq!(KilowattHours::from(WattHours(1000)), Quantity(1.0));
     }
 }

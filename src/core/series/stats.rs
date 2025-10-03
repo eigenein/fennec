@@ -23,6 +23,8 @@ pub struct BatteryParameters {
 }
 
 impl Series<EnergyState<Kilowatts>> {
+    /// Estimate the battery parameters from the time series of
+    /// residual charge, import and export differentials.
     #[instrument(
         name = "Estimating the battery parameters…",
         skip_all,
@@ -56,7 +58,7 @@ impl Series<EnergyState<Kilowatts>> {
 
         info!(
             "Done",
-            parasitic_load = format!("{:.0}W", parameters.parasitic_load.0 * 1000.0),
+            parasitic_load = parameters.parasitic_load,
             charge_coefficient = format!("{:.3}", parameters.charge_coefficient),
             discharge_coefficient = format!("{:.3}", parameters.discharge_coefficient),
         );

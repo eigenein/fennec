@@ -116,7 +116,10 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         without_battery = solution.summary.net_loss_without_battery,
         profit = profit,
     );
-    println!("{}", try_render_steps(&grid_rates, &solution.steps)?);
+    println!(
+        "{}",
+        try_render_steps(&grid_rates, &solution.steps, hunt_args.battery, total_capacity)?
+    );
 
     let schedule: Series<CoreWorkingMode> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();

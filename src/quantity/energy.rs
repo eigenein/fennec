@@ -17,13 +17,13 @@ impl KilowattHours {
 
 impl Display for KilowattHours {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.2} kWh", self.0)
+        write!(f, "{:.0} Wh", self.0 * 1000.0)
     }
 }
 
 impl Debug for KilowattHours {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.2}kWh", self.0)
+        write!(f, "{:.0}Wh", self.0 * 1000.0)
     }
 }
 

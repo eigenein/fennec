@@ -16,7 +16,7 @@ use crate::{
         series::{Series, stats::BatteryParameters},
         solver::{
             battery::Battery,
-            energy::DecawattHours,
+            energy::WattHours,
             solution::Solution,
             step::Step,
             summary::Summary,
@@ -64,8 +64,8 @@ impl Solver<'_> {
     #[instrument(skip_all, name = "Optimizing the schedule…", fields(residual_energy = ?self.residual_energy))]
     fn solve(self) -> Solution {
         let min_residual_energy =
-            self.capacity * f64::from(self.battery_args.min_soc_percent) / 100.0;
-        let max_energy = DecawattHours::from(self.residual_energy.max(self.capacity));
+            self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
+        let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
         let n_energy_states = usize::from(max_energy) + 1;
 
         // This is calculated in order to estimate the net profit:
@@ -102,14 +102,14 @@ impl Solver<'_> {
 
             // Calculate partial solutions for the current hour:
             next_partial_solutions = (0..=max_energy.0)
-                .map(|initial_residual_energy_decawatt_hours| {
+                .map(|initial_residual_energy_watt_hours| {
                     Rc::new(
                         self.optimise_step()
                             .timestamp(*timestamp)
                             .stand_by_power(stand_by_power)
                             .grid_rate(*grid_rate)
-                            .initial_residual_energy(KilowattHours::from(DecawattHours(
-                                initial_residual_energy_decawatt_hours,
+                            .initial_residual_energy(KilowattHours::from(WattHours(
+                                initial_residual_energy_watt_hours,
                             )))
                             .min_residual_energy(min_residual_energy)
                             .next_partial_solutions(&next_partial_solutions)
@@ -122,7 +122,7 @@ impl Solver<'_> {
         }
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
-        let initial_energy = DecawattHours::from(self.residual_energy);
+        let initial_energy = WattHours::from(self.residual_energy);
         let initial_partial_solution =
             next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap();
 
@@ -144,7 +144,7 @@ impl Solver<'_> {
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         next_partial_solutions: &[Rc<PartialSolution>],
-        max_energy: DecawattHours,
+        max_energy: WattHours,
         duration: TimeDelta,
     ) -> PartialSolution {
         let battery = Battery::builder()
@@ -166,8 +166,7 @@ impl Solver<'_> {
                     .duration(duration)
                     .call();
                 let next_partial_solution = {
-                    let next_energy =
-                        DecawattHours::from(step.residual_energy_after).min(max_energy);
+                    let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
                     next_partial_solutions[usize::from(next_energy)].clone()
                 };
                 let net_loss = step.loss + next_partial_solution.net_loss;

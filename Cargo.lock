@@ -560,7 +560,7 @@ dependencies = [
 
 [[package]]
 name = "fennec"
-version = "0.22.0"
+version = "0.22.1"
 dependencies = [
  "anyhow",
  "approx",

@@ -1,20 +1,25 @@
-use comfy_table::{Cell, Color, Table, modifiers, presets};
+use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
+    cli::BatteryArgs,
     core::{series::Series, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
-    quantity::{cost::Cost, power::Watts, rate::KilowattHourRate},
+    quantity::{cost::Cost, energy::KilowattHours, power::Watts, rate::KilowattHourRate},
 };
 
 pub fn try_render_steps(
     grid_rates: &Series<KilowattHourRate>,
     steps: &Series<Step>,
+    battery_args: BatteryArgs,
+    capacity: KilowattHours,
 ) -> Result<Table> {
     // TODO: extract to a method in `Series`:
     #[allow(clippy::cast_precision_loss)]
     let average_rate =
         grid_rates.iter().map(|(_, grid_rate)| grid_rate.0).sum::<f64>() / grid_rates.len() as f64;
+
+    let min_residual_energy = capacity * (f64::from(battery_args.min_soc_percent) / 100.0);
 
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
@@ -38,17 +43,35 @@ pub fn try_render_steps(
             } else {
                 Color::Green
             }),
-            Cell::new(step.stand_by_power.to_string()),
+            Cell::new(step.stand_by_power.to_string()).fg(
+                if step.stand_by_power <= battery_args.discharging_power {
+                    Color::Green
+                } else {
+                    Color::Red
+                },
+            ),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,
                 CoreWorkingMode::Balancing => Color::DarkYellow,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
-            Cell::new(step.residual_energy_before.to_string()),
-            Cell::new(step.residual_energy_after.to_string()),
-            Cell::new(step.grid_consumption.to_string()),
-            Cell::new(step.loss.to_string()).fg(if step.loss > Cost::ZERO {
+            Cell::new(step.residual_energy_before.to_string())
+                .set_alignment(CellAlignment::Right)
+                .fg(if step.residual_energy_before > min_residual_energy {
+                    Color::Reset
+                } else {
+                    Color::Red
+                }),
+            Cell::new(step.residual_energy_after.to_string())
+                .set_alignment(CellAlignment::Right)
+                .fg(if step.residual_energy_after > min_residual_energy {
+                    Color::Reset
+                } else {
+                    Color::Red
+                }),
+            Cell::new(step.grid_consumption.to_string()).set_alignment(CellAlignment::Right),
+            Cell::new(step.loss.to_string()).fg(if step.loss >= Cost::ONE_CENT {
                 Color::Red
             } else {
                 Color::Green
@@ -75,7 +98,7 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
             Cell::new(time_slot.start_time.to_string()),
             Cell::new(time_slot.end_time.to_string()),
             Cell::new(format!("{:?}", time_slot.working_mode)).fg(mode_color),
-            Cell::new(time_slot.feed_power.to_string()),
+            Cell::new(time_slot.feed_power.to_string()).set_alignment(CellAlignment::Right),
         ]);
     }
     table

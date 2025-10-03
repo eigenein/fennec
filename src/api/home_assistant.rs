@@ -2,7 +2,9 @@ pub mod battery;
 pub mod energy;
 pub mod history;
 
-use chrono::{DateTime, Local};
+use std::ops::{Add, Div, Mul, Sub};
+
+use chrono::{DateTime, Local, TimeDelta};
 use reqwest::{
     Client,
     ClientBuilder,
@@ -12,7 +14,8 @@ use reqwest::{
 use serde::de::DeserializeOwned;
 
 use crate::{
-    api::home_assistant::history::{EntitiesHistory, EntityHistory},
+    api::home_assistant::history::{EntitiesHistory, EntityHistory, State},
+    core::series::Series,
     prelude::*,
 };
 
@@ -60,5 +63,32 @@ impl Api {
             .with_context(|| format!("the API returned no data for `{entity_id}`"))?;
         info!("Fetched", len = entity_history.0.len());
         Ok(entity_history)
+    }
+
+    pub async fn get_history_differentials<A, V>(
+        &self,
+        entity_id: &str,
+        from: DateTime<Local>,
+        until: DateTime<Local>,
+    ) -> Result<Series<<V as Div<TimeDelta>>::Output>>
+    where
+        A: DeserializeOwned,
+        State<A>: Into<(DateTime<Local>, V)>,
+        V: Copy,
+        V: Add<Output = V>,
+        V: Sub<Output = V>,
+        V: Div<TimeDelta>,
+        <V as Div<TimeDelta>>::Output: Mul<TimeDelta, Output = V>,
+    {
+        Ok(self
+            .get_history::<A>(entity_id, from, until)
+            .await?
+            .into_iter()
+            .map(State::into)
+            .collect::<Series<_>>()
+            .resample_hourly()
+            .collect::<Series<_>>()
+            .differentiate()
+            .collect::<Series<_>>())
     }
 }

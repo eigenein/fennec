@@ -21,6 +21,9 @@ codegen-units = 1
 debug = "full"
 lto = "thin"
 
+[lints.clippy]
+type_repetition_in_bounds = "allow"
+
 [lints.clippy.pedantic]
 level = "warn"
 priority = -1

@@ -8,7 +8,6 @@ pub struct Point<V, I = DateTime<Local>> {
     pub value: V,
 }
 
-#[allow(clippy::type_repetition_in_bounds)]
 impl<V> Point<V>
 where
     V: Copy,

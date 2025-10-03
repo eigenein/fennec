@@ -11,7 +11,6 @@ use crate::core::{point::Point, series::Series};
 impl<V> Series<V> {
     /// Interpolate the time series and iterate over hours,
     /// yielding the hour timestamp and interpolated value.
-    #[allow(clippy::type_repetition_in_bounds)]
     pub fn resample_hourly(&self) -> impl Iterator<Item = (DateTime<Local>, V)>
     where
         V: Copy,
@@ -33,7 +32,6 @@ impl<V> Series<V> {
     }
 
     /// Group the points by hour and average the values.
-    #[allow(clippy::type_repetition_in_bounds)]
     pub fn average_hourly(&self) -> [Option<V>; 24]
     where
         V: Copy,
@@ -58,7 +56,6 @@ impl<V> Series<V> {
         averages
     }
 
-    #[allow(clippy::type_repetition_in_bounds)]
     pub fn differentiate(
         &self,
     ) -> impl Iterator<Item = (DateTime<Local>, <V as Div<TimeDelta>>::Output)>

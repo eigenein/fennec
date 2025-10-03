@@ -14,13 +14,7 @@ use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{
-        foxess,
-        heartbeat,
-        home_assistant,
-        home_assistant::battery::BatteryStateAttributes,
-        nextenergy,
-    },
+    api::{foxess, heartbeat, home_assistant::battery::BatteryStateAttributes, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
@@ -54,6 +48,20 @@ async fn main() -> Result {
             BurrowCommand::FoxEss(burrow_args) => {
                 burrow(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
             }
+            BurrowCommand::EnergyHistory(history_args) => {
+                let now = Local::now();
+                let energy_differentials = history_args
+                    .home_assistant
+                    .connection
+                    .try_new_client()?
+                    .get_history_differentials::<BatteryStateAttributes<KilowattHours>, _>(
+                        &history_args.home_assistant.total_energy_usage_entity_id,
+                        now - TimeDelta::days(history_args.home_assistant.n_history_days),
+                        now,
+                    )
+                    .await?;
+                println!("{}", serde_json::to_string_pretty(&energy_differentials)?);
+            }
         },
     }
 
@@ -62,10 +70,7 @@ async fn main() -> Result {
 }
 
 async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
-    let home_assistant = home_assistant::Api::try_new(
-        &hunt_args.home_assistant.access_token,
-        hunt_args.home_assistant.base_url,
-    )?;
+    let home_assistant = hunt_args.home_assistant.connection.try_new_client()?;
 
     let now = Local::now();
     let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;

@@ -4,6 +4,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 
 use chrono::{DateTime, Local};
 use itertools::{EitherOrBoth, Itertools};
+use serde_with::serde_as;
 
 use crate::prelude::*;
 
@@ -12,10 +13,14 @@ use crate::prelude::*;
 /// Technically, I could implement it using a [`Vec`] while carefully maintaining the invariant,
 /// but [`BTreeMap`] makes it much easier without a big performance penalty.
 #[must_use]
-#[derive(
-    Clone, Debug, PartialEq, Eq, derive_more::IntoIterator, serde::Serialize, serde::Deserialize,
-)]
-pub struct Series<V, I: Ord = DateTime<Local>>(#[into_iterator(owned, ref)] BTreeMap<I, V>);
+#[serde_as]
+#[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator, serde::Serialize)]
+pub struct Series<V, I: Ord = DateTime<Local>>(
+    #[into_iterator(owned, ref)]
+    #[serde_as(as = "serde_with::Seq<(_, _)>")]
+    #[serde(bound(serialize = "I: serde::Serialize, V: serde::Serialize"))]
+    BTreeMap<I, V>,
+);
 
 impl<V, I: Ord> Default for Series<V, I> {
     fn default() -> Self {

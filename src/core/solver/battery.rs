@@ -32,9 +32,14 @@ impl Battery {
     /// Battery active time.
     #[must_use]
     pub fn apply_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
-        let initial_residual_energy = self.residual_energy;
+        self.apply_parasitic_load(for_);
+        self.apply_active_load(power, for_)
+    }
 
-        let active_time = if power > Kilowatts::ZERO {
+    #[must_use]
+    fn apply_active_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
+        let initial_residual_energy = self.residual_energy;
+        if power > Kilowatts::ZERO {
             // While charging, the residual energy grows slower:
             let internal_power = power * self.efficiency;
             self.residual_energy = (self.residual_energy + internal_power * for_)
@@ -55,15 +60,11 @@ impl Battery {
         } else {
             // Idle:
             TimeDelta::zero()
-        };
-
-        self.apply_self_discharge(for_ - active_time);
-
-        active_time
+        }
     }
 
-    fn apply_self_discharge(&mut self, idle_time: TimeDelta) {
+    fn apply_parasitic_load(&mut self, for_: TimeDelta) {
         self.residual_energy =
-            (self.residual_energy - self.self_discharge * idle_time).max(KilowattHours::ZERO);
+            (self.residual_energy - self.self_discharge * for_).max(KilowattHours::ZERO);
     }
 }

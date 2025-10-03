@@ -1,7 +1,11 @@
 use clap::{Parser, Subcommand};
 use reqwest::Url;
 
-use crate::quantity::{power::Kilowatts, rate::KilowattHourRate};
+use crate::{
+    api::home_assistant,
+    prelude::*,
+    quantity::{power::Kilowatts, rate::KilowattHourRate},
+};
 
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
@@ -86,13 +90,8 @@ pub struct ConsumptionArgs {
 
 #[derive(Parser)]
 pub struct HomeAssistantArgs {
-    /// Home Assistant API access token.
-    #[clap(long = "home-assistant-access-token", env = "HOME_ASSISTANT_ACCESS_TOKEN")]
-    pub access_token: String,
-
-    /// Home Assistant API base URL. For example: `http://localhost:8123/api`.
-    #[clap(long = "home-assistant-api-base-url", env = "HOME_ASSISTANT_API_BASE_URL")]
-    pub base_url: Url,
+    #[clap(flatten)]
+    pub connection: HomeAssistantConnectionArgs,
 
     /// Home Assistant sensor ID for the household total energy usage in kilowatt-hours.
     /// For example: `sensor.custom_total_energy_usage`.
@@ -111,6 +110,23 @@ pub struct HomeAssistantArgs {
         env = "HOME_ASSISTANT_HISTORY_DAYS"
     )]
     pub n_history_days: i64,
+}
+
+#[derive(Parser)]
+pub struct HomeAssistantConnectionArgs {
+    /// Home Assistant API access token.
+    #[clap(long = "home-assistant-access-token", env = "HOME_ASSISTANT_ACCESS_TOKEN")]
+    pub access_token: String,
+
+    /// Home Assistant API base URL. For example: `http://localhost:8123/api`.
+    #[clap(long = "home-assistant-api-base-url", env = "HOME_ASSISTANT_API_BASE_URL")]
+    pub base_url: Url,
+}
+
+impl HomeAssistantConnectionArgs {
+    pub fn try_new_client(self) -> Result<home_assistant::Api> {
+        home_assistant::Api::try_new(&self.access_token, self.base_url)
+    }
 }
 
 #[derive(Parser)]
@@ -153,4 +169,13 @@ pub enum BurrowFoxEssCommand {
 pub enum BurrowCommand {
     /// Test FoxESS Cloud API connectivity.
     FoxEss(BurrowFoxEssArgs),
+
+    /// Fetch and dump the energy history from Home Assistant.
+    EnergyHistory(BurrowEnergyHistoryArgs),
+}
+
+#[derive(Parser)]
+pub struct BurrowEnergyHistoryArgs {
+    #[clap(flatten)]
+    pub home_assistant: HomeAssistantArgs,
 }

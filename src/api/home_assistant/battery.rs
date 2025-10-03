@@ -5,15 +5,15 @@ use chrono::TimeDelta;
 use crate::quantity::{energy::KilowattHours, power::Kilowatts};
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Deserialize)]
+#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Serialize, serde::Deserialize)]
 pub struct BatteryStateAttributes<T> {
-    #[serde(rename = "custom_battery_residual_energy")]
+    #[serde(alias = "custom_battery_residual_energy")]
     pub residual_energy: T,
 
-    #[serde(rename = "custom_battery_energy_import")]
+    #[serde(alias = "custom_battery_energy_import")]
     pub total_import: T,
 
-    #[serde(rename = "custom_battery_energy_export")]
+    #[serde(alias = "custom_battery_energy_export")]
     pub total_export: T,
 }
 

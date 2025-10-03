@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sub)]
+#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Serialize)]
 pub struct EnergyState<T> {
     /// Net household energy usage excluding the energy systems.
     pub total_energy_usage: T,

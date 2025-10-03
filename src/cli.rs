@@ -23,8 +23,7 @@ pub enum Command {
     #[clap(name = "hunt")]
     Hunt(Box<HuntArgs>),
 
-    /// Test FoxESS Cloud API connectivity.
-    #[expect(clippy::doc_markdown)]
+    /// Development tools.
     #[clap(name = "burrow")]
     Burrow(BurrowArgs),
 }
@@ -129,8 +128,14 @@ pub struct BurrowArgs {
     pub command: BurrowCommand,
 }
 
+#[derive(Parser)]
+pub struct BurrowFoxEssArgs {
+    #[command(subcommand)]
+    pub command: BurrowFoxEssCommand,
+}
+
 #[derive(Subcommand)]
-pub enum BurrowCommand {
+pub enum BurrowFoxEssCommand {
     /// Get parsed device variables.
     DeviceVariables,
 
@@ -142,4 +147,10 @@ pub enum BurrowCommand {
 
     /// Get the schedule.
     Schedule,
+}
+
+#[derive(Subcommand)]
+pub enum BurrowCommand {
+    /// Test FoxESS Cloud API connectivity.
+    FoxEss(BurrowFoxEssArgs),
 }

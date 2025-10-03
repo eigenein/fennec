@@ -15,7 +15,7 @@ use tracing::level_filters::LevelFilter;
 
 use crate::{
     api::{foxess, heartbeat, home_assistant, home_assistant::BatteryStateAttributes, nextenergy},
-    cli::{Args, BurrowArgs, BurrowCommand, Command, HuntArgs},
+    cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
@@ -44,9 +44,11 @@ async fn main() -> Result {
         Command::Hunt(hunt_args) => {
             hunt(&fox_ess, &args.fox_ess_api.serial_number, *hunt_args).await?;
         }
-        Command::Burrow(burrow_args) => {
-            burrow(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
-        }
+        Command::Burrow(burrow_args) => match burrow_args.command {
+            BurrowCommand::FoxEss(burrow_args) => {
+                burrow(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
+            }
+        },
     }
 
     info!("Done!");
@@ -122,19 +124,19 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     Ok(())
 }
 
-async fn burrow(fox_ess: &foxess::Api, serial_number: &str, args: BurrowArgs) -> Result {
+async fn burrow(fox_ess: &foxess::Api, serial_number: &str, args: BurrowFoxEssArgs) -> Result {
     match args.command {
-        BurrowCommand::DeviceDetails => {
+        BurrowFoxEssCommand::DeviceDetails => {
             let details = fox_ess.get_device_details(serial_number).await?;
             info!("Gotcha", total_capacity = details.total_capacity());
         }
 
-        BurrowCommand::DeviceVariables => {
+        BurrowFoxEssCommand::DeviceVariables => {
             let variables = fox_ess.get_device_variables(serial_number).await?;
             info!("Gotcha", residual_energy = variables.residual_energy);
         }
 
-        BurrowCommand::RawDeviceVariables => {
+        BurrowFoxEssCommand::RawDeviceVariables => {
             let response = fox_ess.get_devices_variables_raw(&[serial_number]).await?;
             info!("Gotcha!");
             for device in response {
@@ -151,7 +153,7 @@ async fn burrow(fox_ess: &foxess::Api, serial_number: &str, args: BurrowArgs) ->
             }
         }
 
-        BurrowCommand::Schedule => {
+        BurrowFoxEssCommand::Schedule => {
             let schedule = fox_ess.get_schedule(serial_number).await?;
             info!("Gotcha", enabled = schedule.is_enabled);
             println!("{}", render_time_slot_sequence(&schedule.groups));

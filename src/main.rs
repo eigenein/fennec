@@ -18,13 +18,13 @@ use crate::{
         foxess,
         heartbeat,
         home_assistant,
-        home_assistant::{BatteryStateAttributes, State},
+        home_assistant::{battery::BatteryStateAttributes, history::State},
         nextenergy,
     },
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
+    quantity::energy::KilowattHours,
     render::{render_time_slot_sequence, try_render_steps},
 };
 
@@ -77,7 +77,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     info!("Fetched battery details", residual_energy, total_capacity);
 
     // Fetch the state history and resample it:
-    let total_energy_usage_history = home_assistant
+    let energy_differentials = home_assistant
         .get_history::<BatteryStateAttributes<KilowattHours>>(
             &hunt_args.home_assistant.total_energy_usage_entity_id,
             now - TimeDelta::days(hunt_args.home_assistant.n_history_days),
@@ -88,14 +88,14 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .map(State::into)
         .collect::<Series<_>>()
         .resample_hourly()
+        .collect::<Series<_>>()
+        .differentiate()
         .collect::<Series<_>>();
     // Calculate the stand-by consumption:
-    let stand_by_power = total_energy_usage_history
+    let stand_by_power = energy_differentials
         .into_iter()
         .map(|(timestamp, state)| (timestamp, state.total_energy_usage))
         .collect::<Series<_>>()
-        .differentiate()
-        .collect::<Series<Kilowatts>>()
         .average_hourly();
 
     let solution = Solver::builder()

@@ -6,10 +6,7 @@ use std::{
 use chrono::{DateTime, DurationRound, Local, TimeDelta, Timelike};
 use itertools::Itertools;
 
-use crate::{
-    core::{point::Point, series::Series},
-    quantity::{energy::KilowattHours, power::Kilowatts},
-};
+use crate::core::{point::Point, series::Series};
 
 impl<V> Series<V> {
     /// Interpolate the time series and iterate over hours,
@@ -60,11 +57,16 @@ impl<V> Series<V> {
             .for_each(|(index, value)| averages[index as usize] = value);
         averages
     }
-}
 
-impl Series<KilowattHours> {
-    /// TODO: make generic.
-    pub fn differentiate(&self) -> impl Iterator<Item = (DateTime<Local>, Kilowatts)> {
+    #[allow(clippy::type_repetition_in_bounds)]
+    pub fn differentiate(
+        &self,
+    ) -> impl Iterator<Item = (DateTime<Local>, <V as Div<TimeDelta>>::Output)>
+    where
+        V: Copy,
+        V: Sub<V, Output = V>,
+        V: Div<TimeDelta>,
+    {
         self.0.iter().tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
             (*from_index, (*to_value - *from_value) / (*to_index - *from_index))
         })
@@ -77,6 +79,7 @@ mod tests {
     use chrono::TimeZone;
 
     use super::*;
+    use crate::quantity::energy::KilowattHours;
 
     #[test]
     fn test_resample_hourly() {

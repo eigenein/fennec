@@ -40,6 +40,8 @@ impl Battery {
     #[must_use]
     fn apply_active_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
         let initial_residual_energy = self.residual_energy;
+
+        // TODO: de-duplicate: only the coefficient depends on the mode, the min-max'es could just be `clamp`.
         if power > Kilowatts::ZERO {
             // Charging:
             let internal_power = power * self.parameters.charge_coefficient;

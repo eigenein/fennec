@@ -1,3 +1,5 @@
+use std::ops::{Div, Mul};
+
 use chrono::{DateTime, Local};
 use reqwest::{
     Client,
@@ -87,7 +89,7 @@ pub struct State<A> {
 }
 
 #[must_use]
-#[derive(serde::Deserialize)]
+#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Deserialize)]
 pub struct BatteryStateAttributes {
     #[serde(rename = "custom_battery_residual_energy")]
     pub residual_energy: KilowattHours,
@@ -97,6 +99,68 @@ pub struct BatteryStateAttributes {
 
     #[serde(rename = "custom_battery_energy_export")]
     pub total_export: KilowattHours,
+}
+
+impl Mul<f64> for BatteryStateAttributes {
+    type Output = Self;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self {
+            residual_energy: self.residual_energy * rhs,
+            total_import: self.total_import * rhs,
+            total_export: self.total_export * rhs,
+        }
+    }
+}
+
+impl Div<f64> for BatteryStateAttributes {
+    type Output = Self;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Self {
+            residual_energy: self.residual_energy / rhs,
+            total_import: self.total_import / rhs,
+            total_export: self.total_export / rhs,
+        }
+    }
+}
+
+#[must_use]
+#[derive(Copy, Clone, derive_more::Add, derive_more::Sub)]
+pub struct EnergyState {
+    /// Net household energy usage excluding the energy systems.
+    pub total_energy_usage: KilowattHours,
+
+    pub battery: BatteryStateAttributes,
+}
+
+impl From<State<BatteryStateAttributes>> for (DateTime<Local>, EnergyState) {
+    /// Unpack the state for collection into a series.
+    fn from(state: State<BatteryStateAttributes>) -> Self {
+        (
+            state.last_changed_at,
+            EnergyState {
+                total_energy_usage: KilowattHours::from(state.value),
+                battery: state.attributes,
+            },
+        )
+    }
+}
+
+impl Mul<f64> for EnergyState {
+    type Output = Self;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self { total_energy_usage: self.total_energy_usage * rhs, battery: self.battery * rhs }
+    }
+}
+
+impl Div<f64> for EnergyState {
+    type Output = Self;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Self { total_energy_usage: self.total_energy_usage / rhs, battery: self.battery / rhs }
+    }
 }
 
 #[cfg(test)]

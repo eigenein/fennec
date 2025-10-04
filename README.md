@@ -147,8 +147,6 @@ template:
   - triggers:
       - trigger: "state"
         entity_id: "sensor.foxess_residual_energy"
-      - trigger: time_pattern
-        minutes: 60
     sensor:
       - name: "Fennec sensor"
         unit_of_measurement: "kWh"

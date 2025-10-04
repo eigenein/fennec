@@ -5,6 +5,7 @@ use itertools::Itertools;
 impl<K, V, T> Differentiate<K, V> for T where T: ?Sized {}
 
 pub trait Differentiate<K, V> {
+    /// Differentiate the values by the keys.
     fn differentiate<R>(self) -> impl Iterator<Item = (K, R)>
     where
         Self: Iterator<Item = (K, V)> + Sized,

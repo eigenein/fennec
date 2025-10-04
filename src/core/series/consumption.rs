@@ -56,18 +56,18 @@ impl<V> Series<V> {
         averages
     }
 
-    pub fn differentiate(
-        &self,
-    ) -> impl Iterator<Item = (DateTime<Local>, <V as Div<TimeDelta>>::Output)>
-    where
-        V: Copy,
-        V: Sub<V, Output = V>,
-        V: Div<TimeDelta>,
-    {
-        self.0.iter().tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
-            (*from_index, (*to_value - *from_value) / (*to_index - *from_index))
-        })
-    }
+    // pub fn differentiate(
+    //     &self,
+    // ) -> impl Iterator<Item = (DateTime<Local>, <V as Div<TimeDelta>>::Output)>
+    // where
+    //     V: Copy,
+    //     V: Sub<V, Output = V>,
+    //     V: Div<TimeDelta>,
+    // {
+    //     self.0.iter().tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
+    //         (*from_index, (*to_value - *from_value) / (*to_index - *from_index))
+    //     })
+    // }
 }
 
 #[cfg(test)]
@@ -136,29 +136,5 @@ mod tests {
                 Some(700.0),
             ]
         );
-    }
-
-    #[test]
-    fn test_differentiate() {
-        let series = Series::from_iter([
-            (Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap(), KilowattHours::from(100.0)),
-            (Local.with_ymd_and_hms(2025, 9, 21, 21, 45, 0).unwrap(), KilowattHours::from(150.0)),
-            (Local.with_ymd_and_hms(2025, 9, 21, 22, 30, 0).unwrap(), KilowattHours::from(300.0)),
-            (Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap(), KilowattHours::from(400.0)),
-            (Local.with_ymd_and_hms(2025, 9, 21, 23, 30, 0).unwrap(), KilowattHours::from(700.0)),
-        ]);
-        let diff = series.differentiate().collect::<Series<_>>().into_iter().collect::<Vec<_>>();
-
-        assert_eq!(diff.len(), 4);
-
-        assert_eq!(diff[0].0, Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap());
-        assert_abs_diff_eq!(diff[0].1.0, 200.0);
-
-        assert_abs_diff_eq!(diff[1].1.0, 200.0);
-
-        assert_abs_diff_eq!(diff[2].1.0, 400.0);
-
-        assert_eq!(diff[3].0, Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap());
-        assert_abs_diff_eq!(diff[3].1.0, 400.0);
     }
 }

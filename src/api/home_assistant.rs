@@ -15,7 +15,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     api::home_assistant::history::{EntitiesHistory, EntityHistory, State},
-    core::series::Series,
+    core::series::{Differentiate, Series},
     prelude::*,
 };
 
@@ -88,6 +88,7 @@ impl Api {
             .collect::<Series<_>>()
             .resample_hourly()
             .collect::<Series<_>>()
+            .into_iter()
             .differentiate()
             .collect::<Series<_>>())
     }

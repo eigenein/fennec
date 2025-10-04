@@ -7,6 +7,7 @@ use crate::core::series::Series;
 
 impl<V> Series<V> {
     /// Group the points by hour and average the values.
+    #[deprecated = "extract into a trait"]
     pub fn average_hourly(&self) -> [Option<V>; 24]
     where
         V: Copy,
@@ -19,6 +20,7 @@ impl<V> Series<V> {
             .into_group_map_by(|(index, _)| index.hour())
             .into_iter()
             .map(|(hour, points)| {
+                // FIXME: introduce `trait Mean`.
                 if points.is_empty() {
                     (hour, None)
                 } else {

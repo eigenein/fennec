@@ -38,32 +38,32 @@ impl Battery {
     }
 
     #[must_use]
-    fn apply_active_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
+    fn apply_active_load(&mut self, external_power: Kilowatts, for_: TimeDelta) -> TimeDelta {
         let initial_residual_energy = self.residual_energy;
 
-        // TODO: de-duplicate: only the coefficient depends on the mode, the min-max'es could just be `clamp`.
-        if power > Kilowatts::ZERO {
-            // Charging:
-            let internal_power = power * self.parameters.charge_coefficient;
-            self.residual_energy = (self.residual_energy + internal_power * for_)
-                .min(self.capacity.max(self.residual_energy));
-            let time_charging = (self.residual_energy - initial_residual_energy) / internal_power;
-            assert!(time_charging >= TimeDelta::zero());
-            time_charging
-        } else if power < Kilowatts::ZERO {
-            // Discharging:
-            let internal_power = power * self.parameters.discharge_coefficient;
-            // Remember that the power here is negative, hence the `+`:
-            self.residual_energy = (self.residual_energy + internal_power * for_)
-                .max(self.min_residual_energy.min(initial_residual_energy));
-            let time_discharging =
-                (self.residual_energy - initial_residual_energy) / internal_power;
-            assert!(time_discharging >= TimeDelta::zero());
-            time_discharging
-        } else {
-            // Idle:
-            TimeDelta::zero()
-        }
+        // Calculate the internal power:
+        let internal_power = external_power
+            * if external_power > Kilowatts::ZERO {
+                self.parameters.charge_coefficient
+            } else if external_power < Kilowatts::ZERO {
+                self.parameters.discharge_coefficient
+            } else {
+                return TimeDelta::zero();
+            };
+
+        // Update the residual energy:
+        self.residual_energy = (self.residual_energy + internal_power * for_).clamp(
+            // At the bottom, it's capped by the minimum SoC or residual energy – when it's already lower:
+            self.min_residual_energy.min(initial_residual_energy),
+            // At the top, it's capped by the capacity or residual energy – when it's somehow higher:
+            self.capacity.max(initial_residual_energy),
+        );
+
+        // The energy differential and internal power must have the same sign here:
+        let active_time = (self.residual_energy - initial_residual_energy) / internal_power;
+
+        assert!(active_time >= TimeDelta::zero());
+        active_time
     }
 
     fn apply_parasitic_load(&mut self, for_: TimeDelta) {

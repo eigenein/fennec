@@ -13,6 +13,9 @@ use crate::prelude::*;
 ///
 /// Technically, I could implement it using a [`Vec`] while carefully maintaining the invariant,
 /// but [`BTreeMap`] makes it much easier without a big performance penalty.
+///
+/// TODO: I guess, I should make it a trait over `IntoIterator::<Item = (I, V)>` to support any container
+///       and avoid the extra `collect()` calls.
 #[must_use]
 #[serde_as]
 #[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator, serde::Serialize)]

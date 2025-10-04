@@ -87,13 +87,12 @@ impl Solver<'_> {
 
         // Going backwards:
         for (timestamp, grid_rate) in self.grid_rates.into_iter().rev() {
-            // FIXME: I don't like this…
-            let step_duration = if *timestamp <= self.now {
+            let mut step_duration = TimeDelta::hours(1);
+            if self.now >= *timestamp {
+                // FIXME: I don't like this…
                 // This hour has already begun:
-                TimeDelta::hours(1) - (self.now - *timestamp)
-            } else {
-                TimeDelta::hours(1)
-            };
+                step_duration -= self.now - *timestamp;
+            }
 
             // Average stand-by power at this hour of day:
             let stand_by_power =

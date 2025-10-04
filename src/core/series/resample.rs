@@ -17,6 +17,7 @@ pub trait ResampleHourly<K, V> {
     {
         const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
 
+        // FIXME: what if there is an interval longer that one hour?
         self.tuple_windows().filter(|((from, _), (to, _))| from.hour() != to.hour()).map(
             |((left_key, left_value), (right_key, right_value))| {
                 let at = right_key.clone().duration_trunc(ONE_HOUR).unwrap();

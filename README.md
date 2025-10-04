@@ -117,7 +117,7 @@ Fennec needs an entity configured in Home Assistant to:
 - estimate the battery charging and discharging coefficients as well as the parasitic load.
 
 > [!IMPORTANT]
-> It is recommended to update the entity whenever the battery residual charge changes.
+> It is recommended to update the entity not so frequently but well when the battery residual charge changes.
 > While a more frequently updated entity would technically work,
 > it would take much more time for Fennec to fetch the state history – without having any additional benefits.
 
@@ -147,6 +147,8 @@ template:
   - triggers:
       - trigger: "state"
         entity_id: "sensor.foxess_residual_energy"
+      - trigger: time_pattern
+        minutes: 5
     sensor:
       - name: "Fennec sensor"
         unit_of_measurement: "kWh"

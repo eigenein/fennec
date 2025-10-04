@@ -4,18 +4,15 @@ pub mod stats;
 use std::{collections::BTreeMap, fmt::Debug};
 
 use chrono::{DateTime, Local};
-use itertools::{EitherOrBoth, Itertools};
 use serde_with::serde_as;
-
-use crate::prelude::*;
 
 /// Series of values sorted by index.
 ///
 /// Technically, I could implement it using a [`Vec`] while carefully maintaining the invariant,
 /// but [`BTreeMap`] makes it much easier without a big performance penalty.
 ///
-/// TODO: I guess, I should make it a trait over `IntoIterator::<Item = (I, V)>` to support any container
-///       and avoid the extra `collect()` calls.
+/// TODO: I guess, I should make specific traits over `IntoIterator::<Item = (I, V)>` to support any container
+///       and avoid the extra `collect()` calls (`Differentiate`, `ResampleHourly`, and `AverageHourly`).
 #[must_use]
 #[serde_as]
 #[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator, serde::Serialize)]
@@ -51,92 +48,5 @@ impl<V, I: Ord> Series<V, I> {
 
     pub fn iter(&self) -> impl Iterator<Item = (&I, &V)> {
         self.into_iter()
-    }
-
-    pub fn extend(&mut self, other: impl IntoIterator<Item = (I, V)>) {
-        // TODO: I'm wondering whether there is a better way.
-        for (key, value) in other {
-            self.0.insert(key, value);
-        }
-    }
-
-    pub fn push(&mut self, index: I, value: V) {
-        self.0.insert(index, value);
-    }
-
-    /// Zip the series by the indices.
-    ///
-    /// - Matched indices are zipped together and the right-hand side value is mapped.
-    /// - Missing indices on the left side are skipped.
-    /// - Missing indices on the right side are replaced with the `default`.
-    pub fn zip_right_or<R, T: Copy>(
-        &self,
-        rhs: &Series<R, I>,
-        map: fn(&R) -> T,
-        default: T,
-    ) -> impl Iterator<Item = (&I, (&V, T))> {
-        self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).filter_map(
-            move |pair| match pair {
-                EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
-                    Some((left_index, (left_value, map(right_value))))
-                }
-                EitherOrBoth::Left((left_index, left_value)) => {
-                    Some((left_index, (left_value, default)))
-                }
-                EitherOrBoth::Right(_) => None,
-            },
-        )
-    }
-
-    /// Zip the series by the indices.
-    ///
-    /// It returns an error when the indices do not match.
-    pub fn try_zip_exactly<'l, 'r, R>(
-        &'l self,
-        rhs: &'r Series<R, I>,
-    ) -> impl Iterator<Item = Result<(&'l I, (&'l V, &'r R))>>
-    where
-        I: Debug,
-    {
-        self.0.iter().merge_join_by(&rhs.0, |(lhs, _), (rhs, _)| lhs.cmp(rhs)).map(
-            |pair| match pair {
-                EitherOrBoth::Both((left_index, left_value), (_, right_value)) => {
-                    Ok((left_index, (left_value, right_value)))
-                }
-                EitherOrBoth::Left((index, _)) | EitherOrBoth::Right((index, _)) => {
-                    bail!("non-matching index: `{index:?}`");
-                }
-            },
-        )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_try_zip_exactly_ok() -> Result {
-        let lhs = Series::from_iter([(42, 1)]);
-        let rhs = Series::from_iter([(42, 2)]);
-        assert_eq!(lhs.try_zip_exactly(&rhs).next().unwrap()?, (&42, (&1, &2)));
-        Ok(())
-    }
-
-    #[test]
-    fn test_try_zip_exactly_error() {
-        let lhs = Series::from_iter([(42, 1)]);
-        let rhs = Series::from_iter([(43, 2)]);
-        assert!(lhs.try_zip_exactly(&rhs).next().unwrap().is_err());
-    }
-
-    #[test]
-    fn test_zip_right_or() {
-        let lhs = Series::from_iter([(42, 2), (43, 4)]);
-        let rhs = Series::from_iter([(41, 1), (42, 3)]);
-        assert_eq!(
-            lhs.zip_right_or(&rhs, |rhs| Some(*rhs), None).collect_vec(),
-            [(&42, (&2, Some(3))), (&43, (&4, None))]
-        );
     }
 }

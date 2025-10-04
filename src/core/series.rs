@@ -1,4 +1,4 @@
-mod consumption;
+mod average;
 mod differentiate;
 mod resample;
 pub mod stats;
@@ -8,7 +8,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 use chrono::{DateTime, Local};
 use serde_with::serde_as;
 
-pub use self::{differentiate::Differentiate, resample::ResampleHourly};
+pub use self::{average::AverageHourly, differentiate::Differentiate, resample::ResampleHourly};
 
 /// Series of values sorted by index.
 ///

@@ -16,7 +16,11 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{foxess, heartbeat, home_assistant::battery::BatteryStateAttributes, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
-    core::{series::Series, solver::Solver, working_mode::WorkingMode as CoreWorkingMode},
+    core::{
+        series::{AverageHourly, Series},
+        solver::Solver,
+        working_mode::WorkingMode as CoreWorkingMode,
+    },
     prelude::*,
     quantity::energy::KilowattHours,
     render::{render_time_slot_sequence, try_render_steps},
@@ -95,7 +99,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let stand_by_power = energy_differentials
         .into_iter()
         .map(|(timestamp, state)| (timestamp, state.total_energy_usage))
-        .collect::<Series<_>>()
         .average_hourly();
 
     let solution = Solver::builder()

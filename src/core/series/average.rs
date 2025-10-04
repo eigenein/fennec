@@ -3,30 +3,25 @@ use std::{iter::Sum, ops::Div};
 use chrono::Timelike;
 use itertools::Itertools;
 
-use crate::core::series::Series;
+impl<K, V, T> AverageHourly<K, V> for T where T: ?Sized {}
 
-impl<V> Series<V> {
-    /// Group the points by hour and average the values.
-    #[deprecated = "extract into a trait"]
-    pub fn average_hourly(&self) -> [Option<V>; 24]
+pub trait AverageHourly<K, V> {
+    fn average_hourly(self) -> [Option<V>; 24]
     where
-        V: Copy,
-        V: Sum,
-        V: Div<f64, Output = V>,
+        Self: Sized + Iterator<Item = (K, V)>,
+        K: Timelike,
+        V: Copy + Sum + Div<f64, Output = V>,
     {
         let mut averages = [None; 24];
-        self.0
-            .iter()
-            .into_group_map_by(|(index, _)| index.hour())
+        self.into_group_map_by(|(index, _)| index.hour())
             .into_iter()
             .map(|(hour, points)| {
-                // FIXME: introduce `trait Mean`.
                 if points.is_empty() {
                     (hour, None)
                 } else {
                     #[allow(clippy::cast_precision_loss)]
                     let n = points.len() as f64;
-                    (hour, Some(points.into_iter().map(|(_, value)| *value).sum::<V>() / n))
+                    (hour, Some(points.into_iter().map(|(_, value)| value).sum::<V>() / n))
                 }
             })
             .for_each(|(index, value)| averages[index as usize] = value);
@@ -42,15 +37,15 @@ mod tests {
 
     #[test]
     fn test_average_hourly() {
-        let series = Series::from_iter([
+        let series = vec![
             (Local.with_ymd_and_hms(2025, 9, 21, 21, 30, 0).unwrap(), 100.0),
             (Local.with_ymd_and_hms(2025, 9, 21, 21, 45, 0).unwrap(), 150.0),
             (Local.with_ymd_and_hms(2025, 9, 21, 22, 30, 0).unwrap(), 300.0),
             (Local.with_ymd_and_hms(2025, 9, 21, 22, 45, 0).unwrap(), 400.0),
             (Local.with_ymd_and_hms(2025, 9, 21, 23, 30, 0).unwrap(), 700.0),
-        ]);
+        ];
         assert_eq!(
-            series.average_hourly(),
+            series.into_iter().average_hourly(),
             [
                 None,
                 None,

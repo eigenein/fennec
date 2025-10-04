@@ -14,7 +14,6 @@ pub fn try_render_steps(
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Result<Table> {
-    // TODO: extract to a method in `Series`:
     #[allow(clippy::cast_precision_loss)]
     let average_rate =
         grid_rates.iter().map(|(_, grid_rate)| grid_rate.0).sum::<f64>() / grid_rates.len() as f64;

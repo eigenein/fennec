@@ -85,8 +85,6 @@ impl Api {
             .await?
             .into_iter()
             .map(State::into)
-            .collect::<Series<_>>()
-            .into_iter()
             .resample_hourly()
             .differentiate()
             .collect::<Series<_>>())

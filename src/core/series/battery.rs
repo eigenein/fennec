@@ -34,7 +34,11 @@ pub trait TryEstimateBatteryParameters<K> {
             charge_coefficient: model.coefficients[1],
             discharge_coefficient: model.coefficients[2],
         };
-        ensure!(parameters.parasitic_load > Kilowatts::ZERO);
+        ensure!(
+            parameters.parasitic_load > Kilowatts::ZERO,
+            "non-positive parasitic load is impossible ({})",
+            parameters.parasitic_load,
+        );
         ensure!(parameters.charge_coefficient < parameters.discharge_coefficient);
 
         info!(

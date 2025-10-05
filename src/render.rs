@@ -44,8 +44,10 @@ pub fn try_render_steps(
                 Color::Green
             }),
             Cell::new(step.stand_by_power.to_string()).fg(
-                if step.stand_by_power <= battery_args.discharging_power {
+                if step.stand_by_power <= -battery_args.charging_power {
                     Color::Green
+                } else if step.stand_by_power <= battery_args.discharging_power {
+                    Color::DarkYellow
                 } else {
                     Color::Red
                 },

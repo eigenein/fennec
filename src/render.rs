@@ -1,16 +1,17 @@
+use chrono::{DateTime, Local};
 use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     cli::BatteryArgs,
-    core::{series::Series, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
+    core::{series::Point, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
     quantity::{cost::Cost, energy::KilowattHours, power::Watts, rate::KilowattHourRate},
 };
 
 pub fn try_render_steps(
-    grid_rates: &Series<KilowattHourRate>,
-    steps: &Series<Step>,
+    grid_rates: &[Point<DateTime<Local>, KilowattHourRate>],
+    steps: &[Point<DateTime<Local>, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Result<Table> {

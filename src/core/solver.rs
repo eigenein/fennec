@@ -13,7 +13,7 @@ use ordered_float::OrderedFloat;
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     core::{
-        series::{Series, battery::BatteryParameters},
+        series::{BatteryParameters, Point},
         solver::{
             battery::Battery,
             energy::WattHours,
@@ -30,7 +30,7 @@ use crate::{
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
-    grid_rates: &'a Series<KilowattHourRate>,
+    grid_rates: &'a [(DateTime<Local>, KilowattHourRate)],
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
@@ -86,7 +86,7 @@ impl Solver<'_> {
             ];
 
         // Going backwards:
-        for (timestamp, grid_rate) in self.grid_rates.into_iter().rev() {
+        for (timestamp, grid_rate) in self.grid_rates.iter().rev() {
             let mut step_duration = TimeDelta::hours(1);
             if self.now >= *timestamp {
                 // FIXME: I don't like this…
@@ -130,7 +130,7 @@ impl Solver<'_> {
                 net_loss: initial_partial_solution.net_loss,
                 net_loss_without_battery,
             },
-            steps: Self::backtrack(initial_partial_solution),
+            steps: Self::backtrack(initial_partial_solution).collect(),
         }
     }
 
@@ -228,7 +228,9 @@ impl Solver<'_> {
     }
 
     /// Track the optimal solution starting with the initial conditions.
-    fn backtrack(initial_partial_solution: Rc<PartialSolution>) -> Series<Step> {
+    fn backtrack(
+        initial_partial_solution: Rc<PartialSolution>,
+    ) -> impl Iterator<Item = Point<DateTime<Local>, Step>> {
         let mut partial_solution = Some(initial_partial_solution);
         from_fn(move || {
             // I'll need to yield the current step, so clone:
@@ -237,7 +239,6 @@ impl Solver<'_> {
             partial_solution.clone_from(&current_partial_solution.next);
             current_partial_solution.step
         })
-        .collect()
     }
 }
 

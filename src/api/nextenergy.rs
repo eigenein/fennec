@@ -7,7 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{core::series::Series, prelude::*, quantity::rate::KilowattHourRate};
+use crate::{core::series::Point, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api(Client);
 
@@ -19,7 +19,7 @@ impl Api {
     pub async fn get_hourly_rates_48h(
         &self,
         since: DateTime<Local>,
-    ) -> Result<Series<KilowattHourRate>> {
+    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, KilowattHourRate>>> {
         // Round down to the closest hour:
         let since = since.duration_trunc(TimeDelta::hours(1))?;
         let this_day_rates = self.get_hourly_rates(since.date_naive()).await?;
@@ -29,13 +29,15 @@ impl Api {
 
         Ok(this_day_rates
             .into_iter()
-            .filter(|(timestamp, _)| *timestamp >= since)
-            .chain(next_day_rates)
-            .collect())
+            .filter(move |(timestamp, _)| *timestamp >= since)
+            .chain(next_day_rates))
     }
 
     #[instrument(name = "Fetching energy prices…", fields(on = ?on), skip_all)]
-    pub async fn get_hourly_rates(&self, on: NaiveDate) -> Result<Series<KilowattHourRate>> {
+    pub async fn get_hourly_rates(
+        &self,
+        on: NaiveDate,
+    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, KilowattHourRate>>> {
         Ok(self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(on))
@@ -51,8 +53,8 @@ impl Api {
             .points
             .list
             .into_iter()
-            .map(|point| (on.and_hms_opt(point.hour, 0, 0).context("invalid timestamp").unwrap().and_local_timezone(Local).unwrap(), point.value))
-            .collect())
+            .map(move |point| (on.and_hms_opt(point.hour, 0, 0).context("invalid timestamp").unwrap().and_local_timezone(Local).unwrap(), point.value))
+        )
     }
 }
 

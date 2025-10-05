@@ -12,6 +12,7 @@ use std::ops::RangeInclusive;
 
 use chrono::{DateTime, Local, TimeDelta};
 use clap::Parser;
+use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use serde::de::IgnoredAny;
 use tracing::level_filters::LevelFilter;
@@ -29,12 +30,12 @@ use crate::{
         series::{
             AverageHourly,
             Differentiate,
+            Point,
             ResampleHourly,
             Series,
-            battery::TryEstimateBatteryParameters,
+            TryEstimateBatteryParameters,
         },
         solver::Solver,
-        working_mode::WorkingMode as CoreWorkingMode,
     },
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
@@ -79,7 +80,8 @@ async fn main() -> Result {
                         &history_args.home_assistant.battery_state_entity_id,
                         &home_assistant_period,
                     )
-                    .await?;
+                    .await?
+                    .collect_vec();
                 println!("{}", serde_json::to_string_pretty(&battery_differentials)?);
             }
         },
@@ -96,7 +98,8 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let home_assistant_period =
         (now - TimeDelta::days(hunt_args.home_assistant.n_history_days))..=now;
 
-    let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
+    let grid_rates: Series<_, _> =
+        nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?.collect();
     ensure!(!grid_rates.is_empty());
     info!("Fetched energy rates", len = grid_rates.len());
 
@@ -111,7 +114,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             &home_assistant_period,
         )
         .await?
-        .into_iter()
         .try_estimate_battery_parameters()
         .unwrap_or_default();
 
@@ -151,7 +153,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         try_render_steps(&grid_rates, &solution.steps, hunt_args.battery, total_capacity)?
     );
 
-    let schedule: Series<CoreWorkingMode> =
+    let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
     let time_slot_sequence =
         foxess::TimeSlotSequence::from_schedule(&schedule, &hunt_args.battery)?;
@@ -215,7 +217,7 @@ impl home_assistant::Api {
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<Series<BatteryState<Kilowatts>>> {
+    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, BatteryState<Kilowatts>>>> {
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
@@ -226,7 +228,6 @@ impl home_assistant::Api {
                     BatteryState { residual_energy: state.value, attributes: state.attributes },
                 )
             })
-            .differentiate()
-            .collect::<Series<_>>())
+            .differentiate())
     }
 }

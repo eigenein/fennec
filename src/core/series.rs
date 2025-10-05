@@ -1,54 +1,14 @@
 mod average;
-pub mod battery;
+mod battery;
 mod differentiate;
 mod resample;
 
-use std::{collections::BTreeMap, fmt::Debug};
+pub use self::{
+    average::AverageHourly,
+    battery::{BatteryParameters, TryEstimateBatteryParameters},
+    differentiate::Differentiate,
+    resample::ResampleHourly,
+};
 
-use chrono::{DateTime, Local};
-use serde_with::serde_as;
-
-pub use self::{average::AverageHourly, differentiate::Differentiate, resample::ResampleHourly};
-
-/// Series of values sorted by index.
-///
-/// Technically, I could implement it using a [`Vec`] while carefully maintaining the invariant,
-/// but [`BTreeMap`] makes it much easier without a big performance penalty.
-#[must_use]
-#[serde_as]
-#[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator, serde::Serialize)]
-#[deprecated = "use the inner type directly"]
-pub struct Series<V, I: Ord = DateTime<Local>>(
-    #[into_iterator(owned, ref)]
-    #[serde_as(as = "serde_with::Seq<(_, _)>")]
-    #[serde(bound(serialize = "I: serde::Serialize, V: serde::Serialize"))]
-    BTreeMap<I, V>,
-);
-
-impl<V, I: Ord> Default for Series<V, I> {
-    fn default() -> Self {
-        Self(BTreeMap::new())
-    }
-}
-
-impl<V, I: Ord> FromIterator<(I, V)> for Series<V, I> {
-    fn from_iter<Iter: IntoIterator<Item = (I, V)>>(iter: Iter) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}
-
-impl<V, I: Ord> Series<V, I> {
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (&I, &V)> {
-        self.into_iter()
-    }
-}
+pub type Point<K, V> = (K, V);
+pub type Series<K, V> = Vec<Point<K, V>>;

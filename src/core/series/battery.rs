@@ -71,12 +71,12 @@ pub struct BatteryParameters {
 }
 
 impl Default for BatteryParameters {
-    /// Get the ideal battery parameters.
+    /// Get some reasonable defaults for when the training data is not yet enough.
     fn default() -> Self {
         Self {
-            charge_coefficient: 1.0,
-            discharge_coefficient: 1.0,
-            parasitic_load: Kilowatts::ZERO,
+            charge_coefficient: 0.95,
+            discharge_coefficient: 0.95,
+            parasitic_load: Kilowatts::from(0.02),
         }
     }
 }

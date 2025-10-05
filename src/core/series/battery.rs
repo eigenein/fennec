@@ -24,10 +24,8 @@ pub trait TryEstimateBatteryParameters<K> {
 
         let mut model = MultipleLinearRegression::<f64>::new();
 
-        #[allow(clippy::literal_string_with_formatting_args)]
         if let Err(message) = model.fit(&xs, &ys) {
-            warn!("{message}");
-            bail!("failed to estimate the battery parameters: {message}");
+            bail!("{message}");
         }
 
         let parameters = BatteryParameters {

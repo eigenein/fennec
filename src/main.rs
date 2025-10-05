@@ -115,6 +115,9 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         )
         .await?
         .try_estimate_battery_parameters()
+        .inspect_err(|error| {
+            warn!("Failed to estimate the battery parameters: {error:#}");
+        })
         .unwrap_or_default();
 
     // Calculate the stand-by power:

@@ -14,7 +14,6 @@ pub struct EntitiesHistory<V, A>(pub Vec<EntityHistory<V, A>>);
 #[serde(bound(
     deserialize = "A: serde::de::DeserializeOwned, V: std::str::FromStr + serde::de::DeserializeOwned, <V as std::str::FromStr>::Err: std::fmt::Display"
 ))]
-#[deprecated = "replace with a type alias"]
 pub struct EntityHistory<V, A>(
     #[serde_as(as = "serde_with::VecSkipError<_>")] pub Vec<State<V, A>>,
 );

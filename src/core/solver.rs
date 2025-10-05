@@ -13,7 +13,7 @@ use ordered_float::OrderedFloat;
 use crate::{
     cli::{BatteryArgs, ConsumptionArgs},
     core::{
-        series::{Series, stats::BatteryParameters},
+        series::{Series, battery::BatteryParameters},
         solver::{
             battery::Battery,
             energy::WattHours,

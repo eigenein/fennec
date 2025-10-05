@@ -24,17 +24,15 @@ use crate::{
         home_assistant::battery::{BatteryState, BatteryStateAttributes},
         nextenergy,
     },
-    cli::{
-        Args,
-        BurrowCommand,
-        BurrowFoxEssArgs,
-        BurrowFoxEssCommand,
-        Command,
-        HomeAssistantArgs,
-        HuntArgs,
-    },
+    cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::{AverageHourly, Differentiate, ResampleHourly, Series},
+        series::{
+            AverageHourly,
+            Differentiate,
+            ResampleHourly,
+            Series,
+            battery::TryEstimateBatteryParameters,
+        },
         solver::Solver,
         working_mode::WorkingMode as CoreWorkingMode,
     },
@@ -113,7 +111,9 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             &home_assistant_period,
         )
         .await?
-        .try_estimate_battery_parameters()?;
+        .into_iter()
+        .try_estimate_battery_parameters()
+        .unwrap_or_default();
 
     // Calculate the stand-by consumption:
     let stand_by_power = home_assistant

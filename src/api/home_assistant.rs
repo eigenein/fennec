@@ -2,11 +2,7 @@ pub mod battery;
 pub mod energy;
 pub mod history;
 
-use std::{
-    fmt::Display,
-    ops::{Add, Div, Mul, RangeInclusive, Sub},
-    str::FromStr,
-};
+use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
 
 use chrono::{DateTime, Local};
 use reqwest::{

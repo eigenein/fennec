@@ -1,7 +1,7 @@
 mod average;
+pub mod battery;
 mod differentiate;
 mod resample;
-pub mod stats;
 
 use std::{collections::BTreeMap, fmt::Debug};
 

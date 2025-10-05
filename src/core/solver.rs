@@ -79,11 +79,7 @@ impl Solver<'_> {
         //
         // They're initialized to zeroes at the end of the forecast period:
         #[allow(clippy::rc_clone_in_vec_init)]
-        let mut next_partial_solutions =
-            vec![
-                Rc::new(PartialSolution { net_loss: Cost::ZERO, next: None, step: None });
-                n_energy_states
-            ];
+        let mut next_partial_solutions = vec![Rc::new(PartialSolution::default()); n_energy_states];
 
         // Going backwards:
         for (timestamp, grid_rate) in self.grid_rates.iter().rev() {
@@ -260,4 +256,10 @@ struct PartialSolution {
     /// the back track with the original metrics, but having it here makes it much easier to work with
     /// (and to ensure it is working properly).
     step: Option<(DateTime<Local>, Step)>,
+}
+
+impl Default for PartialSolution {
+    fn default() -> Self {
+        Self { net_loss: Cost::ZERO, next: None, step: None }
+    }
 }

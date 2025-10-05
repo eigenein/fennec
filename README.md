@@ -102,8 +102,12 @@ spec:
                   value: "..."
                 - name: "HOME_ASSISTANT_API_BASE_URL"
                   value: "..."
-                - name: "HOME_ASSISTANT_ENTITY_ID"
-                  value: "sensor.custom_fennec_sensor"
+                - name: "HOME_ASSISTANT_BATTERY_STATE_ENTITY_ID"
+                  value: "sensor.custom_fennec_battery_state"
+                - name: "HOME_ASSISTANT_TOTAL_USAGE_ENTITY_ID"
+                  value: "sensor.custom_fennec_total_energy_usage"
+                - name: "HOME_ASSISTANT_SOLAR_YIELD_ENTITY_ID"
+                  value: "sensor.custom_fennec_total_solar_yield"
               command:
                 - "/fennec"
                 - "hunt"
@@ -116,13 +120,13 @@ spec:
 ```yaml
 template:
   - triggers:
-      - trigger: "state"
-        entity_id: "sensor.foxess_residual_energy"
+      - trigger: "time_pattern"
+        minutes: "/5"
     sensor:
-      - name: "Fennec sensor"
+      - name: "Fennec – total energy usage"
         unit_of_measurement: "kWh"
-        unique_id: "custom_fennec_sensor"
-        default_entity_id: "sensor.custom_fennec_sensor"
+        unique_id: "custom_fennec_total_energy_usage"
+        default_entity_id: "sensor.custom_fennec_total_energy_usage"
         icon: "mdi:flash"
         state_class: "total"
         state: |
@@ -133,8 +137,25 @@ template:
             - states('sensor.p1_meter_energy_export') | float
             - states('sensor.battery_socket_energy_import') | float
           }}
+      - name: "Fennec – total solar yield"
+        unit_of_measurement: "kWh"
+        unique_id: "custom_fennec_total_solar_yield"
+        default_entity_id: "sensor.custom_fennec_total_solar_yield"
+        icon: "mdi:flash"
+        state_class: "total"
+        state: "{{ states('sensor.sb2_5_1vl_40_555_total_yield') }}"
+  - triggers:
+      - trigger: "state"
+        entity_id: "sensor.foxess_residual_energy"
+    sensor:
+      - name: "Fennec – battery state"
+        unit_of_measurement: "kWh"
+        unique_id: "custom_fennec_battery_state"
+        default_entity_id: "sensor.custom_fennec_battery_state"
+        icon: "mdi:flash"
+        state_class: "total"
+        state: "{{ states('sensor.foxess_residual_energy') }}"
         attributes:
-          custom_battery_residual_energy: "{{ states('sensor.foxess_residual_energy') }}"
           custom_battery_energy_import: "{{ states('sensor.battery_socket_energy_import') }}"
           custom_battery_energy_export: "{{ states('sensor.battery_socket_energy_export') }}"
 ```

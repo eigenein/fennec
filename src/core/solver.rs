@@ -36,7 +36,7 @@ pub struct Solver<'a> {
     battery_args: BatteryArgs,
     battery_parameters: BatteryParameters,
     consumption: ConsumptionArgs,
-    stand_by_power: [Option<Kilowatts>; 24],
+    stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
 }
 
@@ -90,9 +90,8 @@ impl Solver<'_> {
                 step_duration -= self.now - *timestamp;
             }
 
-            // Average stand-by power at this hour of day:
-            let stand_by_power =
-                self.stand_by_power[timestamp.hour() as usize].unwrap_or(Kilowatts::ZERO);
+            // Average stand-by power at this hour of a day:
+            let stand_by_power = self.stand_by_power[timestamp.hour() as usize];
             net_loss_without_battery += self.loss(*grid_rate, stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:

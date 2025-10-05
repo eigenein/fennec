@@ -117,8 +117,8 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .try_estimate_battery_parameters()
         .unwrap_or_default();
 
-    // Calculate the stand-by consumption:
-    let stand_by_power = home_assistant
+    // Calculate the stand-by power:
+    let stand_by_usage = home_assistant
         .get_history::<KilowattHours, IgnoredAny>(
             &hunt_args.home_assistant.total_usage_entity_id,
             &home_assistant_period,
@@ -129,6 +129,25 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .resample_hourly()
         .differentiate()
         .average_hourly();
+    let solar_yield = home_assistant
+        .get_history::<KilowattHours, IgnoredAny>(
+            &hunt_args.home_assistant.solar_yield_entity_id,
+            &home_assistant_period,
+        )
+        .await?
+        .into_iter()
+        .map(|state| (state.last_changed_at, state.value))
+        .resample_hourly()
+        .differentiate()
+        .average_hourly();
+    let stand_by_power = stand_by_usage
+        .into_iter()
+        .zip(solar_yield)
+        .map(|(usage, r#yield)| {
+            usage.unwrap_or(Kilowatts::ZERO) - r#yield.unwrap_or(Kilowatts::ZERO)
+        })
+        .collect_array()
+        .unwrap();
 
     let solution = Solver::builder()
         .grid_rates(&grid_rates)

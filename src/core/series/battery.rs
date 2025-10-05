@@ -7,11 +7,7 @@ impl<K, T> TryEstimateBatteryParameters<K> for T where T: ?Sized {}
 pub trait TryEstimateBatteryParameters<K> {
     /// Estimate the battery parameters from the time series of
     /// residual charge, import and export differentials.
-    #[instrument(
-        name = "Estimating the battery parameters…",
-        skip_all,
-        fields(n_points = ?self.size_hint()),
-    )]
+    #[instrument(name = "Estimating the battery parameters…", skip_all)]
     fn try_estimate_battery_parameters(self) -> Result<BatteryParameters>
     where
         Self: Iterator<Item = (K, BatteryState<Kilowatts>)> + Sized,
@@ -28,6 +24,7 @@ pub trait TryEstimateBatteryParameters<K> {
 
         let mut model = MultipleLinearRegression::<f64>::new();
         if let Err(message) = model.fit(&xs, &ys) {
+            warn!("{message}");
             bail!("failed to estimate the battery parameters: {message}");
         }
 

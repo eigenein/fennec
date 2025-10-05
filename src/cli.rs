@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local, TimeDelta};
 use clap::{Parser, Subcommand};
 use reqwest::Url;
 
@@ -91,9 +92,23 @@ pub struct HomeAssistantArgs {
     #[clap(flatten)]
     pub connection: HomeAssistantConnectionArgs,
 
-    /// Home Assistant entity ID – see the `README` for the requirements.
-    #[clap(long = "home-assistant-entity-id", env = "HOME_ASSISTANT_ENTITY_ID")]
-    pub entity_id: String,
+    #[clap(
+        long = "home-assistant-battery-state-entity-id",
+        env = "HOME_ASSISTANT_BATTERY_STATE_ENTITY_ID"
+    )]
+    pub battery_state_entity_id: String,
+
+    #[clap(
+        long = "home-assistant-total-usage-entity-id",
+        env = "HOME_ASSISTANT_TOTAL_USAGE_ENTITY_ID"
+    )]
+    pub total_usage_entity_id: String,
+
+    #[clap(
+        long = "home-assistant-solar-yield-entity-id",
+        env = "HOME_ASSISTANT_SOLAR_YIELD_ENTITY_ID"
+    )]
+    pub solar_yield_entity_id: String,
 
     #[clap(
         long = "home-assistant-history-days",
@@ -161,12 +176,12 @@ pub enum BurrowCommand {
     /// Test FoxESS Cloud API connectivity.
     FoxEss(BurrowFoxEssArgs),
 
-    /// Fetch and dump the energy history from Home Assistant.
-    EnergyHistory(BurrowEnergyHistoryArgs),
+    /// Fetch and dump the battery differential history from Home Assistant.
+    BatteryDifferentials(BurrowBatteryDifferentialsArgs),
 }
 
 #[derive(Parser)]
-pub struct BurrowEnergyHistoryArgs {
+pub struct BurrowBatteryDifferentialsArgs {
     #[clap(flatten)]
     pub home_assistant: HomeAssistantArgs,
 }

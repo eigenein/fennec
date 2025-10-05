@@ -3,29 +3,35 @@ use serde_with::serde_as;
 
 #[must_use]
 #[derive(serde::Deserialize, derive_more::IntoIterator)]
-pub struct EntitiesHistory<A>(
-    #[serde(bound(deserialize = "A: serde::de::DeserializeOwned"))] pub Vec<EntityHistory<A>>,
-);
+#[serde(bound(
+    deserialize = "A: serde::de::DeserializeOwned, V: std::str::FromStr + serde::de::DeserializeOwned, <V as std::str::FromStr>::Err: std::fmt::Display"
+))]
+pub struct EntitiesHistory<V, A>(pub Vec<EntityHistory<V, A>>);
 
 #[must_use]
 #[serde_as]
 #[derive(serde::Deserialize, derive_more::Index, derive_more::IntoIterator)]
-pub struct EntityHistory<A>(
-    #[serde_as(as = "serde_with::VecSkipError<_>")]
-    #[serde(bound(deserialize = "A: serde::de::DeserializeOwned"))]
-    pub Vec<State<A>>,
+#[serde(bound(
+    deserialize = "A: serde::de::DeserializeOwned, V: std::str::FromStr + serde::de::DeserializeOwned, <V as std::str::FromStr>::Err: std::fmt::Display"
+))]
+#[deprecated = "replace with a type alias"]
+pub struct EntityHistory<V, A>(
+    #[serde_as(as = "serde_with::VecSkipError<_>")] pub Vec<State<V, A>>,
 );
 
 #[must_use]
 #[serde_as]
 #[derive(serde::Deserialize)]
-pub struct State<A> {
+#[serde(bound(
+    deserialize = "A: serde::de::DeserializeOwned, V: std::str::FromStr + serde::de::DeserializeOwned, <V as std::str::FromStr>::Err: std::fmt::Display",
+))]
+pub struct State<V, A> {
     #[serde(rename = "last_changed")]
     pub last_changed_at: DateTime<Local>,
 
     #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "state")]
-    pub value: f64,
+    pub value: V,
 
     pub attributes: A,
 }
@@ -49,57 +55,54 @@ mod tests {
             [
                 [
                     {
-                        "entity_id": "sensor.custom_fennec_sensor",
+                        "entity_id": "sensor.custom_fennec_battery_state",
                         "state": "unavailable",
                         "attributes": {
                             "state_class": "total",
-                            "custom_battery_residual_energy": 5.62,
-                            "custom_battery_energy_import": 198.52,
-                            "custom_battery_energy_export": 162.646,
+                            "custom_battery_energy_import": 210.333,
+                            "custom_battery_energy_export": 172.407,
                             "unit_of_measurement": "kWh",
                             "icon": "mdi:flash",
-                            "friendly_name": "Fennec sensor"
+                            "friendly_name": "Fennec – battery state"
                         },
-                        "last_changed": "2025-10-02T15:17:17.713307+00:00",
-                        "last_updated": "2025-10-02T15:17:17.713307+00:00"
+                        "last_changed": "2025-10-05T13:33:07.673333+00:00",
+                        "last_updated": "2025-10-05T13:33:07.673333+00:00"
                     },
                     {
-                        "entity_id": "sensor.custom_fennec_sensor",
-                        "state": "39790.578",
+                        "entity_id": "sensor.custom_fennec_battery_state",
+                        "state": "5.5",
                         "attributes": {
                             "state_class": "total",
-                            "custom_battery_residual_energy": 5.62,
-                            "custom_battery_energy_import": 198.52,
-                            "custom_battery_energy_export": 162.646,
+                            "custom_battery_energy_import": 210.333,
+                            "custom_battery_energy_export": 172.407,
                             "unit_of_measurement": "kWh",
                             "icon": "mdi:flash",
-                            "friendly_name": "Fennec sensor"
+                            "friendly_name": "Fennec – battery state"
                         },
-                        "last_changed": "2025-10-02T15:17:17.713307+00:00",
-                        "last_updated": "2025-10-02T15:17:17.713307+00:00"
+                        "last_changed": "2025-10-05T13:33:07.673333+00:00",
+                        "last_updated": "2025-10-05T13:33:07.673333+00:00"
                     }
                 ]
             ]
         "#;
-        let history = serde_json::from_str::<EntitiesHistory<BatteryStateAttributes<KilowattHours>>>(
-            RESPONSE,
-        )?;
+        let history = serde_json::from_str::<
+            EntitiesHistory<KilowattHours, BatteryStateAttributes<KilowattHours>>,
+        >(RESPONSE)?;
         let total_energy_usage = history.into_iter().next().unwrap();
         assert_eq!(total_energy_usage.0.len(), 1);
         let state = &total_energy_usage[0];
         assert_eq!(
             state.last_changed_at,
-            NaiveDate::from_ymd_opt(2025, 10, 2)
+            NaiveDate::from_ymd_opt(2025, 10, 5)
                 .unwrap()
-                .and_hms_micro_opt(17, 17, 17, 713307)
+                .and_hms_micro_opt(15, 33, 7, 673333)
                 .unwrap()
                 .and_local_timezone(Local)
                 .unwrap()
         );
-        assert_abs_diff_eq!(state.value, 39790.578);
-        assert_abs_diff_eq!(state.attributes.residual_energy.0, 5.62);
-        assert_abs_diff_eq!(state.attributes.total_import.0, 198.52);
-        assert_abs_diff_eq!(state.attributes.total_export.0, 162.646);
+        assert_abs_diff_eq!(state.value.0, 5.5);
+        assert_abs_diff_eq!(state.attributes.total_import.0, 210.333);
+        assert_abs_diff_eq!(state.attributes.total_export.0, 172.407);
         Ok(())
     }
 }

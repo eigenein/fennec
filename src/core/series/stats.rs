@@ -1,7 +1,7 @@
 use rs_stats::regression::multiple_linear_regression::MultipleLinearRegression;
 
 use crate::{
-    api::home_assistant::energy::EnergyState,
+    api::home_assistant::battery::BatteryState,
     core::series::Series,
     prelude::*,
     quantity::power::Kilowatts,
@@ -22,7 +22,7 @@ pub struct BatteryParameters {
     pub parasitic_load: Kilowatts,
 }
 
-impl Series<EnergyState<Kilowatts>> {
+impl Series<BatteryState<Kilowatts>> {
     /// Estimate the battery parameters from the time series of
     /// residual charge, import and export differentials.
     #[instrument(
@@ -37,8 +37,8 @@ impl Series<EnergyState<Kilowatts>> {
             .map(|(_, state)| {
                 (
                     // Negate the export since it discharges the battery:
-                    vec![state.battery.total_import.0, -state.battery.total_export.0],
-                    state.battery.residual_energy.0,
+                    vec![state.attributes.total_import.0, -state.attributes.total_export.0],
+                    state.residual_energy.0,
                 )
             })
             .unzip();

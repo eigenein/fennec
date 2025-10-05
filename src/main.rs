@@ -8,21 +8,38 @@ mod prelude;
 mod quantity;
 mod render;
 
-use chrono::{Local, TimeDelta};
+use std::ops::RangeInclusive;
+
+use chrono::{DateTime, Local, TimeDelta};
 use clap::Parser;
 use logfire::config::{ConsoleOptions, SendToLogfire};
+use serde::de::IgnoredAny;
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{foxess, heartbeat, home_assistant::battery::BatteryStateAttributes, nextenergy},
-    cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
+    api::{
+        foxess,
+        heartbeat,
+        home_assistant,
+        home_assistant::battery::{BatteryState, BatteryStateAttributes},
+        nextenergy,
+    },
+    cli::{
+        Args,
+        BurrowCommand,
+        BurrowFoxEssArgs,
+        BurrowFoxEssCommand,
+        Command,
+        HomeAssistantArgs,
+        HuntArgs,
+    },
     core::{
-        series::{AverageHourly, Series},
+        series::{AverageHourly, Differentiate, ResampleHourly, Series},
         solver::Solver,
         working_mode::WorkingMode as CoreWorkingMode,
     },
     prelude::*,
-    quantity::energy::KilowattHours,
+    quantity::{energy::KilowattHours, power::Kilowatts},
     render::{render_time_slot_sequence, try_render_steps},
 };
 
@@ -50,21 +67,22 @@ async fn main() -> Result {
         }
         Command::Burrow(burrow_args) => match burrow_args.command {
             BurrowCommand::FoxEss(burrow_args) => {
-                burrow(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
+                burrow_fox_ess(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
             }
-            BurrowCommand::EnergyHistory(history_args) => {
+            BurrowCommand::BatteryDifferentials(history_args) => {
                 let now = Local::now();
-                let energy_differentials = history_args
+                let home_assistant_period =
+                    (now - TimeDelta::days(history_args.home_assistant.n_history_days))..=now;
+                let battery_differentials = history_args
                     .home_assistant
                     .connection
                     .try_new_client()?
-                    .get_history_differentials::<BatteryStateAttributes<KilowattHours>, _>(
-                        &history_args.home_assistant.entity_id,
-                        now - TimeDelta::days(history_args.home_assistant.n_history_days),
-                        now,
+                    .get_battery_differentials(
+                        &history_args.home_assistant.battery_state_entity_id,
+                        &home_assistant_period,
                     )
                     .await?;
-                println!("{}", serde_json::to_string_pretty(&energy_differentials)?);
+                println!("{}", serde_json::to_string_pretty(&battery_differentials)?);
             }
         },
     }
@@ -77,6 +95,9 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let home_assistant = hunt_args.home_assistant.connection.try_new_client()?;
 
     let now = Local::now();
+    let home_assistant_period =
+        (now - TimeDelta::days(hunt_args.home_assistant.n_history_days))..=now;
+
     let grid_rates = nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?;
     ensure!(!grid_rates.is_empty());
     info!("Fetched energy rates", len = grid_rates.len());
@@ -85,20 +106,26 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    // Fetch the state history and resample it:
-    let energy_differentials = home_assistant
-        .get_history_differentials::<BatteryStateAttributes<KilowattHours>, _>(
-            &hunt_args.home_assistant.entity_id,
-            now - TimeDelta::days(hunt_args.home_assistant.n_history_days),
-            now,
+    // Fetch the battery state history and estimate the parameters:
+    let battery_parameters = home_assistant
+        .get_battery_differentials(
+            &hunt_args.home_assistant.battery_state_entity_id,
+            &home_assistant_period,
         )
-        .await?;
-    let battery_parameters = energy_differentials.try_estimate_battery_parameters()?;
+        .await?
+        .try_estimate_battery_parameters()?;
 
     // Calculate the stand-by consumption:
-    let stand_by_power = energy_differentials
+    let stand_by_power = home_assistant
+        .get_history::<KilowattHours, IgnoredAny>(
+            &hunt_args.home_assistant.total_usage_entity_id,
+            &home_assistant_period,
+        )
+        .await?
         .into_iter()
-        .map(|(timestamp, state)| (timestamp, state.total_energy_usage))
+        .map(|state| (state.last_changed_at, state.value))
+        .resample_hourly()
+        .differentiate()
         .average_hourly();
 
     let solution = Solver::builder()
@@ -141,7 +168,11 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     Ok(())
 }
 
-async fn burrow(fox_ess: &foxess::Api, serial_number: &str, args: BurrowFoxEssArgs) -> Result {
+async fn burrow_fox_ess(
+    fox_ess: &foxess::Api,
+    serial_number: &str,
+    args: BurrowFoxEssArgs,
+) -> Result {
     match args.command {
         BurrowFoxEssCommand::DeviceDetails => {
             let details = fox_ess.get_device_details(serial_number).await?;
@@ -177,4 +208,25 @@ async fn burrow(fox_ess: &foxess::Api, serial_number: &str, args: BurrowFoxEssAr
         }
     }
     Ok(())
+}
+
+impl home_assistant::Api {
+    async fn get_battery_differentials(
+        &self,
+        entity_id: &str,
+        period: &RangeInclusive<DateTime<Local>>,
+    ) -> Result<Series<BatteryState<Kilowatts>>> {
+        Ok(self
+            .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
+            .await?
+            .into_iter()
+            .map(|state| {
+                (
+                    state.last_changed_at,
+                    BatteryState { residual_energy: state.value, attributes: state.attributes },
+                )
+            })
+            .differentiate()
+            .collect::<Series<_>>())
+    }
 }

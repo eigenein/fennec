@@ -64,7 +64,7 @@ Fennec is designed to run as a cron job, continuously refining and updating the 
 ### Running as a Kubernetes job
 
 > [!IMPORTANT]
-> At the moment, I only have `aarch64-unknown-linux-gnu` builds.
+> At the moment, I only have `aarch64-unknown-linux-gnu` Docker builds.
 
 ```yaml
 apiVersion: "batch/v1"
@@ -110,35 +110,6 @@ spec:
 ```
 
 ## Home Assistant integration
-
-Fennec needs an entity configured in Home Assistant to:
-
-- estimate average hourly energy consumption;
-- estimate the battery charging and discharging coefficients as well as the parasitic load.
-
-> [!IMPORTANT]
-> It is recommended to update the entity not so frequently but well when the battery residual charge changes.
-> While a more frequently updated entity would technically work,
-> it would take much more time for Fennec to fetch the state history – without having any additional benefits.
-
-### State
-
-Total net energy usage meter.
-
-> [!IMPORTANT]
-> The state must represent the household energy consumption only,
-> excluding all the energy systems usage. Hence, one should sum the grid import, PV yield, and battery export,
-> but subtract the grid export and battery import.
-
-### Attributes
-
-The entity must have the following attributes:
-
-| Attribute name                   | Unit |                                                            |
-|----------------------------------|------|------------------------------------------------------------|
-| `custom_battery_residual_energy` | kWh  | **Internally measured** battery residual charge            |
-| `custom_battery_energy_import`   | kWh  | **Externally measured** total energy import by the battery |
-| `custom_battery_energy_export`   | kWh  | **Externally measured** total energy export by the battery |
 
 ### Example
 

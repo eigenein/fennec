@@ -152,6 +152,7 @@ struct Variables {
 #[cfg(test)]
 mod tests {
     use chrono::{Local, Timelike};
+    use itertools::Itertools;
 
     use super::*;
 
@@ -159,10 +160,10 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_hourly_rates_48h_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new()?.get_hourly_rates_48h(now).await?;
+        let series = Api::try_new()?.get_hourly_rates_48h(now).await?.collect_vec();
         assert!(series.len() >= 1);
         assert!(series.len() <= 48);
-        let (timestamp, _) = series.iter().next().unwrap();
+        let (timestamp, _) = series[0];
         assert_eq!(timestamp.hour(), now.hour());
         Ok(())
     }

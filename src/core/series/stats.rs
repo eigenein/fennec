@@ -30,6 +30,7 @@ impl Series<EnergyState<Kilowatts>> {
         skip_all,
         fields(n_points = self.len()),
     )]
+    #[deprecated = "implement as a trait"]
     pub fn try_estimate_battery_parameters(&self) -> Result<BatteryParameters> {
         let (xs, ys): (Vec<_>, Vec<_>) = self
             .iter()

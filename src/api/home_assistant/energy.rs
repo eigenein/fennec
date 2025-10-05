@@ -16,6 +16,7 @@ pub struct EnergyState<T> {
     pub battery: BatteryStateAttributes<T>,
 }
 
+/// FIXME: deprecated:
 impl<V: From<f64>> From<State<BatteryStateAttributes<V>>> for (DateTime<Local>, EnergyState<V>) {
     /// Unpack the state for collection into a series.
     fn from(state: State<BatteryStateAttributes<V>>) -> Self {

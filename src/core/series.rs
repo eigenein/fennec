@@ -14,12 +14,10 @@ pub use self::{average::AverageHourly, differentiate::Differentiate, resample::R
 ///
 /// Technically, I could implement it using a [`Vec`] while carefully maintaining the invariant,
 /// but [`BTreeMap`] makes it much easier without a big performance penalty.
-///
-/// TODO: I guess, I should make specific traits over `IntoIterator::<Item = (I, V)>` to support any container
-///       and avoid the extra `collect()` calls (`Differentiate`, `ResampleHourly`, and `AverageHourly`).
 #[must_use]
 #[serde_as]
 #[derive(Clone, Debug, PartialEq, Eq, derive_more::IntoIterator, serde::Serialize)]
+#[deprecated = "use the inner type directly"]
 pub struct Series<V, I: Ord = DateTime<Local>>(
     #[into_iterator(owned, ref)]
     #[serde_as(as = "serde_with::Seq<(_, _)>")]

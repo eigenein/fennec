@@ -65,6 +65,7 @@ impl Api {
         Ok(entity_history)
     }
 
+    #[deprecated = "use `get_history` directly"]
     pub async fn get_history_differentials<A, V>(
         &self,
         entity_id: &str,

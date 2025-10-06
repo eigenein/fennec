@@ -29,6 +29,7 @@ pub trait TryEstimateBatteryParameters<K> {
             })
             .multiunzip();
 
+        info!("Regression analysis…", len = records.len());
         let dataset = DatasetBase::new(Array2::from(records), Array::from(targets));
         let model = LinearRegression::default().fit(&dataset)?;
 

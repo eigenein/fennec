@@ -22,7 +22,7 @@ use crate::{
         foxess,
         heartbeat,
         home_assistant,
-        home_assistant::battery::{BatteryState, BatteryStateAttributes},
+        home_assistant::battery::{BatteryDifferentials, BatteryStateAttributes},
         nextenergy,
     },
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
@@ -108,6 +108,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     info!("Fetched battery details", residual_energy, total_capacity);
 
     // Fetch the battery state history and estimate the parameters:
+    #[allow(clippy::literal_string_with_formatting_args)]
     let battery_parameters = home_assistant
         .get_battery_differentials(
             &hunt_args.home_assistant.battery_state_entity_id,
@@ -131,6 +132,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .map(|state| (state.last_changed_at, state.value))
         .resample_hourly()
         .differentiate()
+        .map(|(timestamp, (_, power))| (timestamp, power))
         .average_hourly();
     let solar_yield = home_assistant
         .get_history::<KilowattHours, IgnoredAny>(
@@ -142,6 +144,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .map(|state| (state.last_changed_at, state.value))
         .resample_hourly()
         .differentiate()
+        .map(|(timestamp, (_, power))| (timestamp, power))
         .average_hourly();
     let stand_by_power = stand_by_usage
         .into_iter()
@@ -239,17 +242,14 @@ impl home_assistant::Api {
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, BatteryState<Kilowatts>>>> {
+    ) -> Result<
+        impl Iterator<Item = Point<DateTime<Local>, (TimeDelta, BatteryDifferentials<Kilowatts>)>>,
+    > {
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
             .into_iter()
-            .map(|state| {
-                (
-                    state.last_changed_at,
-                    BatteryState { residual_energy: state.value, attributes: state.attributes },
-                )
-            })
+            .map(|state| (state.last_changed_at, state))
             .differentiate())
     }
 }

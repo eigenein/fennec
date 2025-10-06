@@ -1,4 +1,4 @@
-use std::ops::{Div, Mul};
+use std::ops::{Div, Mul, Sub};
 
 use chrono::TimeDelta;
 
@@ -7,37 +7,13 @@ use crate::{
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
-#[must_use]
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Serialize)]
-pub struct BatteryState<T> {
-    pub residual_energy: T,
-    pub attributes: BatteryStateAttributes<T>,
-}
+impl Sub<Self> for State<KilowattHours, BatteryStateAttributes<KilowattHours>> {
+    type Output = BatteryDifferentials<KilowattHours>;
 
-impl<T> From<State<T, BatteryStateAttributes<T>>> for BatteryState<T> {
-    fn from(state: State<T, BatteryStateAttributes<T>>) -> Self {
-        Self { residual_energy: state.value, attributes: state.attributes }
-    }
-}
-
-impl Div<TimeDelta> for BatteryState<KilowattHours> {
-    type Output = BatteryState<Kilowatts>;
-
-    fn div(self, rhs: TimeDelta) -> Self::Output {
-        BatteryState {
-            residual_energy: self.residual_energy / rhs,
-            attributes: self.attributes / rhs,
-        }
-    }
-}
-
-impl Mul<TimeDelta> for BatteryState<Kilowatts> {
-    type Output = BatteryState<KilowattHours>;
-
-    fn mul(self, rhs: TimeDelta) -> Self::Output {
-        BatteryState {
-            residual_energy: self.residual_energy * rhs,
-            attributes: self.attributes * rhs,
+    fn sub(self, rhs: Self) -> Self::Output {
+        BatteryDifferentials {
+            residual_energy: rhs.value - self.value,
+            attributes: rhs.attributes - self.attributes,
         }
     }
 }
@@ -70,6 +46,24 @@ impl Mul<TimeDelta> for BatteryStateAttributes<Kilowatts> {
         BatteryStateAttributes {
             total_import: self.total_import * rhs,
             total_export: self.total_export * rhs,
+        }
+    }
+}
+
+#[must_use]
+#[derive(Copy, Clone, serde::Serialize)]
+pub struct BatteryDifferentials<T> {
+    pub residual_energy: T,
+    pub attributes: BatteryStateAttributes<T>,
+}
+
+impl Div<TimeDelta> for BatteryDifferentials<KilowattHours> {
+    type Output = BatteryDifferentials<Kilowatts>;
+
+    fn div(self, rhs: TimeDelta) -> Self::Output {
+        BatteryDifferentials {
+            residual_energy: self.residual_energy / rhs,
+            attributes: self.attributes / rhs,
         }
     }
 }

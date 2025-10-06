@@ -20,7 +20,7 @@ pub struct EntityHistory<V, A>(
 
 #[must_use]
 #[serde_as]
-#[derive(serde::Deserialize)]
+#[derive(Copy, Clone, serde::Deserialize)]
 #[serde(bound(
     deserialize = "A: serde::de::DeserializeOwned, V: std::str::FromStr + serde::de::DeserializeOwned, <V as std::str::FromStr>::Err: std::fmt::Display",
 ))]

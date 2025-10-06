@@ -6,15 +6,17 @@ impl<K, V, T> Differentiate<K, V> for T where T: ?Sized {}
 
 pub trait Differentiate<K, V> {
     /// Differentiate the values by the keys.
-    fn differentiate<R>(self) -> impl Iterator<Item = (K, R)>
+    fn differentiate<R>(self) -> impl Iterator<Item = (K, (<K as Sub<K>>::Output, R))>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Clone + Sub<K>,
+        <K as Sub<K>>::Output: Clone,
         V: Clone + Sub<V>,
         <V as Sub<V>>::Output: Div<<K as Sub<K>>::Output, Output = R>,
     {
         self.tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
-            (from_index.clone(), (to_value - from_value) / (to_index - from_index))
+            let dk = to_index - from_index.clone();
+            (from_index, (dk.clone(), (to_value - from_value) / dk))
         })
     }
 }
@@ -26,8 +28,8 @@ mod tests {
 
     #[test]
     fn test_differentiate() {
-        let series = vec![(1, 100), (2, 200), (4, 600)];
+        let series = vec![(2, 100), (3, 200), (5, 600)];
         let diff: Vec<_> = series.into_iter().differentiate().collect();
-        assert_eq!(diff, vec![(1, 100), (2, 200)]);
+        assert_eq!(diff, vec![(2, (1, 100)), (3, (2, 200))]);
     }
 }

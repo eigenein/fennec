@@ -33,7 +33,10 @@ impl Battery {
     /// Battery active time.
     #[must_use]
     pub fn apply_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
+        // It's important to apply the parasitic load first,
+        // so that the solver could put the battery on charging even when it's full.
         self.apply_parasitic_load(for_);
+
         self.apply_active_load(power, for_)
     }
 

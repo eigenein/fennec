@@ -70,7 +70,7 @@ impl Battery {
     }
 
     fn apply_idle_power(&mut self, for_: TimeDelta) {
-        self.residual_energy =
-            (self.residual_energy + self.parameters.idle_power * for_).max(KilowattHours::ZERO);
+        self.residual_energy = (self.residual_energy + self.parameters.parasitic_power * for_)
+            .max(KilowattHours::ZERO);
     }
 }

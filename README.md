@@ -73,8 +73,8 @@ metadata:
   name: "fennec"
 spec:
   timeZone: "Europe/Amsterdam"
-  schedule: "1,31 * * * *"
-  startingDeadlineSeconds: 600
+  schedule: "0,30 * * * *"
+  startingDeadlineSeconds: 900
   concurrencyPolicy: "Replace"
   successfulJobsHistoryLimit: 1
   jobTemplate:

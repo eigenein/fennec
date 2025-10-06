@@ -9,7 +9,7 @@ license = "MIT"
 publish = true
 readme = "README.md"
 repository = "https://github.com/eigenein/fennec"
-version = "0.23.5"
+version = "0.23.6"
 rust-version = "1.90"
 
 [badges]

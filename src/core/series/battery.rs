@@ -33,16 +33,16 @@ pub trait TryEstimateBatteryParameters<K> {
         let model = LinearRegression::default().fit(&dataset)?;
 
         let parameters = BatteryParameters {
-            // The free term is the parasitic load and should be negative as it always discharges:
-            parasitic_load: Kilowatts::from(-model.intercept()),
+            idle_power: Kilowatts::from(model.intercept()),
             charging_coefficient: model.params()[0],
             discharging_coefficient: model.params()[1],
         };
-        ensure!(
-            parameters.parasitic_load > Kilowatts::ZERO,
-            "non-positive parasitic load is impossible ({})",
-            parameters.parasitic_load,
-        );
+        // FIXME: without this, the battery gets «free» charge, but sometimes it glitches:
+        // ensure!(
+        //     parameters.idle_power < Kilowatts::ZERO,
+        //     "non-positive parasitic load is impossible ({})",
+        //     parameters.idle_power,
+        // );
         ensure!(
             parameters.charging_coefficient < 1.0,
             "the charging efficiency must be under 100%",
@@ -54,7 +54,7 @@ pub trait TryEstimateBatteryParameters<K> {
 
         info!(
             "Done",
-            parasitic_load = parameters.parasitic_load,
+            idle_power = parameters.idle_power,
             charging_efficiency = format!("{:.1}%", 100.0 * parameters.charging_coefficient),
             discharging_efficiency = format!("{:.1}%", 100.0 / parameters.discharging_coefficient),
             round_trip = format!("{:.1}%", 100.0 * parameters.round_trip()),
@@ -81,7 +81,7 @@ pub struct BatteryParameters {
     /// Always active parasitic power – for example from the [BMS][1].
     ///
     /// [1]: https://en.wikipedia.org/wiki/Battery_management_system
-    pub parasitic_load: Kilowatts,
+    pub idle_power: Kilowatts,
 }
 
 impl Default for BatteryParameters {
@@ -90,7 +90,7 @@ impl Default for BatteryParameters {
         Self {
             charging_coefficient: 0.95,
             discharging_coefficient: 0.95,
-            parasitic_load: Kilowatts::from(0.02),
+            idle_power: Kilowatts::from(-0.02),
         }
     }
 }
@@ -144,7 +144,7 @@ mod tests {
             ),
         ];
         let parameters = series.into_iter().try_estimate_battery_parameters()?;
-        assert_abs_diff_eq!(parameters.parasitic_load.0, 0.05);
+        assert_abs_diff_eq!(parameters.idle_power.0, -0.05);
         assert_abs_diff_eq!(parameters.charging_coefficient, 0.95);
         assert_abs_diff_eq!(parameters.discharging_coefficient, 1.25);
         Ok(())

@@ -47,9 +47,9 @@ impl Battery {
         // Calculate the internal power:
         let internal_power = external_power
             * if external_power > Kilowatts::ZERO {
-                self.parameters.charge_coefficient
+                self.parameters.charging_coefficient
             } else if external_power < Kilowatts::ZERO {
-                self.parameters.discharge_coefficient
+                self.parameters.discharging_coefficient
             } else {
                 return TimeDelta::zero();
             };

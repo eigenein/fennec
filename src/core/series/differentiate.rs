@@ -2,11 +2,11 @@ use std::ops::{Div, Sub};
 
 use itertools::Itertools;
 
-impl<K, V, T> Differentiate<K, V> for T where T: ?Sized {}
+impl<T> Differentiate for T where T: ?Sized {}
 
-pub trait Differentiate<K, V> {
+pub trait Differentiate {
     /// Differentiate the values by the keys.
-    fn differentiate<R>(self) -> impl Iterator<Item = (K, (<K as Sub<K>>::Output, R))>
+    fn differentiate<K, V, R>(self) -> impl Iterator<Item = (K, R)>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Clone + Sub<K>,
@@ -15,8 +15,7 @@ pub trait Differentiate<K, V> {
         <V as Sub<V>>::Output: Div<<K as Sub<K>>::Output, Output = R>,
     {
         self.tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
-            let dk = to_index - from_index.clone();
-            (from_index, (dk.clone(), (to_value - from_value) / dk))
+            (from_index.clone(), (to_value - from_value) / (to_index - from_index))
         })
     }
 }
@@ -30,6 +29,6 @@ mod tests {
     fn test_differentiate() {
         let series = vec![(2, 100), (3, 200), (5, 600)];
         let diff: Vec<_> = series.into_iter().differentiate().collect();
-        assert_eq!(diff, vec![(2, (1, 100)), (3, (2, 200))]);
+        assert_eq!(diff, vec![(2, 100), (3, 200)]);
     }
 }

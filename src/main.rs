@@ -22,7 +22,7 @@ use crate::{
         foxess,
         heartbeat,
         home_assistant,
-        home_assistant::battery::{BatteryDifferentials, BatteryStateAttributes},
+        home_assistant::battery::{BatteryState, BatteryStateAttributes},
         nextenergy,
     },
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
@@ -117,7 +117,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .try_estimate_battery_parameters()
         .inspect_err(|error| {
-            warn!("Failed to estimate the battery parameters: {error:#}");
+            warn!("Failed to estimate the battery parameters (so using the defaults): {error:#}");
         })
         .unwrap_or_default();
 
@@ -132,7 +132,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .map(|state| (state.last_changed_at, state.value))
         .resample_hourly()
         .differentiate()
-        .map(|(timestamp, (_, power))| (timestamp, power))
         .average_hourly();
     let solar_yield = home_assistant
         .get_history::<KilowattHours, IgnoredAny>(
@@ -144,7 +143,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .map(|state| (state.last_changed_at, state.value))
         .resample_hourly()
         .differentiate()
-        .map(|(timestamp, (_, power))| (timestamp, power))
         .average_hourly();
     let stand_by_power = stand_by_usage
         .into_iter()
@@ -242,14 +240,13 @@ impl home_assistant::Api {
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<
-        impl Iterator<Item = Point<DateTime<Local>, (TimeDelta, BatteryDifferentials<Kilowatts>)>>,
-    > {
+    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, BatteryState<Kilowatts>>>> {
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
             .into_iter()
-            .map(|state| (state.last_changed_at, state))
+            .map(|state| (state.last_changed_at, BatteryState::from(state)))
+            .resample_hourly()
             .differentiate())
     }
 }

@@ -43,7 +43,7 @@ pub fn try_render_steps(
             } else {
                 Color::Green
             }),
-            Cell::new(step.stand_by_power.to_string()).fg(
+            Cell::new(step.stand_by_power.to_string()).set_alignment(CellAlignment::Right).fg(
                 if step.stand_by_power <= -battery_args.charging_power {
                     Color::Green
                 } else if step.stand_by_power <= battery_args.discharging_power {

@@ -3,10 +3,10 @@ use std::{iter::Sum, ops::Div};
 use chrono::Timelike;
 use itertools::Itertools;
 
-impl<K, V, T> AverageHourly<K, V> for T where T: ?Sized {}
+impl<T> AverageHourly for T where T: ?Sized {}
 
-pub trait AverageHourly<K, V> {
-    fn average_hourly(self) -> [Option<V>; 24]
+pub trait AverageHourly {
+    fn average_hourly<K, V>(self) -> [Option<V>; 24]
     where
         Self: Sized + Iterator<Item = (K, V)>,
         K: Timelike,

@@ -38,14 +38,6 @@ pub trait TryEstimateBatteryParameters<K> {
             charging_coefficient: model.params()[0],
             discharging_coefficient: model.params()[1],
         };
-        ensure!(
-            parameters.charging_coefficient < 1.0,
-            "the charging efficiency must be under 100%",
-        );
-        ensure!(
-            parameters.discharging_coefficient > 1.0,
-            "the discharging efficiency must be under 100%",
-        );
 
         info!(
             "Done",

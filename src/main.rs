@@ -27,14 +27,7 @@ use crate::{
     },
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::{
-            AverageHourly,
-            Differentiate,
-            Point,
-            ResampleHourly,
-            Series,
-            TryEstimateBatteryParameters,
-        },
+        series::{AverageHourly, Differentiate, Point, Series, TryEstimateBatteryParameters},
         solver::Solver,
     },
     prelude::*,
@@ -117,7 +110,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .try_estimate_battery_parameters()
         .inspect_err(|error| {
-            warn!("Failed to estimate the battery parameters (so using the defaults): {error:#}");
+            warn!("Failed to estimate the battery parameters (need more data, hence using the defaults): {error:#}");
         })
         .unwrap_or_default();
 
@@ -130,7 +123,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
-        .resample_hourly()
         .differentiate()
         .average_hourly();
     let solar_yield = home_assistant
@@ -141,7 +133,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
-        .resample_hourly()
         .differentiate()
         .average_hourly();
     let stand_by_power = stand_by_usage
@@ -246,7 +237,6 @@ impl home_assistant::Api {
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .resample_hourly()
             .differentiate())
     }
 }

@@ -38,6 +38,9 @@ pub trait TryEstimateBatteryParameters<K> {
             charging_coefficient: model.params()[0],
             discharging_coefficient: model.params()[1],
         };
+        ensure!(parameters.parasitic_power.0.is_finite());
+        ensure!(parameters.charging_coefficient.is_finite());
+        ensure!(parameters.discharging_coefficient.is_finite());
 
         info!(
             "Done",

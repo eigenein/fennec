@@ -40,7 +40,9 @@ pub trait TryEstimateBatteryParameters<K> {
         };
         ensure!(parameters.parasitic_power.0.is_finite());
         ensure!(parameters.charging_coefficient.is_finite());
+        ensure!(parameters.charging_coefficient != 0.0, "estimated zero charging efficiency");
         ensure!(parameters.discharging_coefficient.is_finite());
+        ensure!(parameters.discharging_coefficient != 0.0, "estimated zero discharging efficiency");
 
         info!(
             "Done",

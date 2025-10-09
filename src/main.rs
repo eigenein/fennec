@@ -231,12 +231,14 @@ impl home_assistant::Api {
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, BatteryState<Kilowatts>>>> {
+    ) -> Result<
+        impl Iterator<Item = Point<DateTime<Local>, (BatteryState<KilowattHours>, TimeDelta)>>,
+    > {
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .differentiate())
+            .deltas())
     }
 }

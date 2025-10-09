@@ -96,11 +96,12 @@ impl TryFrom<&FittedLinearRegression<f64>> for BatteryParameters {
         };
         ensure!(this.parasitic_power.0.is_finite());
         ensure!(this.charging_coefficient.is_finite());
-        ensure!(this.charging_coefficient <= 1.2);
-        ensure!(this.charging_coefficient >= 0.8);
+        ensure!(this.charging_coefficient <= 1.5); // FIXME: probably, should restrict to `<1.0`.
+        ensure!(this.charging_coefficient >= 0.5); // FIXME: probably, should restrict to `<1.0`.
         ensure!(this.discharging_coefficient.is_finite());
-        ensure!(this.discharging_coefficient <= 1.2);
-        ensure!(this.discharging_coefficient >= 0.8);
+        ensure!(this.discharging_coefficient <= 1.5); // FIXME: probably, should restrict to `>1.0`.
+        ensure!(this.discharging_coefficient >= 0.5); // FIXME: probably, should restrict to `>1.0`.
+        ensure!(this.discharging_coefficient > this.charging_coefficient); // FIXME: and then, this is implied.
         Ok(this)
     }
 }

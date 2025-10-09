@@ -115,6 +115,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .unwrap_or_default();
 
     // Calculate the stand-by power:
+    // FIXME: implement proper resampling?
     let stand_by_usage = home_assistant
         .get_history::<KilowattHours, IgnoredAny>(
             &hunt_args.home_assistant.total_usage_entity_id,

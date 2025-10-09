@@ -73,7 +73,7 @@ metadata:
   name: "fennec"
 spec:
   timeZone: "Europe/Amsterdam"
-  schedule: "0,30 * * * *"
+  schedule: "1,31 * * * *"
   startingDeadlineSeconds: 900
   concurrencyPolicy: "Replace"
   successfulJobsHistoryLimit: 1
@@ -121,12 +121,21 @@ spec:
 template:
   - triggers:
       - trigger: "time_pattern"
-        minutes: "/5"
+        minutes: 0
     sensor:
-      - name: "Fennec – total energy usage"
+      - name: "Fennec hourly total solar yield"
         unit_of_measurement: "kWh"
-        unique_id: "custom_fennec_total_energy_usage"
-        default_entity_id: "sensor.custom_fennec_total_energy_usage"
+        unique_id: "custom_fennec_hourly_total_solar_yield"
+        default_entity_id: "sensor.custom_fennec_hourly_total_solar_yield"
+        icon: "mdi:flash"
+        state_class: "total"
+        state: "{{ states('sensor.sb2_5_1vl_40_555_total_yield') }}"
+        attributes:
+          custom_hour: "{{ now().hour }}" # force update
+      - name: "Fennec hourly total energy usage"
+        unit_of_measurement: "kWh"
+        unique_id: "custom_fennec_hourly_total_energy_usage"
+        default_entity_id: "sensor.custom_fennec_hourly_total_energy_usage"
         icon: "mdi:flash"
         state_class: "total"
         state: |
@@ -137,25 +146,21 @@ template:
             - states('sensor.p1_meter_energy_export') | float
             - states('sensor.battery_socket_energy_import') | float
           }}
-      - name: "Fennec – total solar yield"
-        unit_of_measurement: "kWh"
-        unique_id: "custom_fennec_total_solar_yield"
-        default_entity_id: "sensor.custom_fennec_total_solar_yield"
-        icon: "mdi:flash"
-        state_class: "total"
-        state: "{{ states('sensor.sb2_5_1vl_40_555_total_yield') }}"
+        attributes:
+          custom_hour: "{{ now().hour }}" # force update
   - triggers:
-      - trigger: "state"
-        entity_id: "sensor.foxess_residual_energy"
+      - trigger: "time_pattern"
+        hours: "/4"
     sensor:
-      - name: "Fennec – battery state"
+      - name: "Fennec periodic battery state"
         unit_of_measurement: "kWh"
-        unique_id: "custom_fennec_battery_state"
-        default_entity_id: "sensor.custom_fennec_battery_state"
+        unique_id: "custom_fennec_periodic_battery_state"
+        default_entity_id: "sensor.custom_fennec_periodic_battery_state"
         icon: "mdi:flash"
         state_class: "total"
         state: "{{ states('sensor.foxess_residual_energy') }}"
         attributes:
+          custom_hour: "{{ now().hour }}" # force update
           custom_battery_energy_import: "{{ states('sensor.battery_socket_energy_import') }}"
           custom_battery_energy_export: "{{ states('sensor.battery_socket_energy_export') }}"
 ```

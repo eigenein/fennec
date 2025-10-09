@@ -3,6 +3,8 @@ use std::{iter::Sum, ops::Div};
 use chrono::Timelike;
 use itertools::Itertools;
 
+use crate::core::series::SumValues;
+
 impl<T> AverageHourly for T where T: ?Sized {}
 
 pub trait AverageHourly {
@@ -21,7 +23,7 @@ pub trait AverageHourly {
                 } else {
                     #[allow(clippy::cast_precision_loss)]
                     let n = points.len() as f64;
-                    (hour, Some(points.into_iter().map(|(_, value)| value).sum::<V>() / n))
+                    (hour, Some(points.into_iter().sum_values() / n))
                 }
             })
             .for_each(|(index, value)| averages[index as usize] = value);

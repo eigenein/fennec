@@ -14,6 +14,7 @@ impl KilowattHours {
         Self(f64::from(watt_hours) * 0.001)
     }
 
+    /// FIXME: move to [`Quantity`].
     pub const fn abs(mut self) -> Self {
         self.0 = self.0.abs();
         self

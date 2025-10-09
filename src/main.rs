@@ -232,24 +232,16 @@ impl home_assistant::Api {
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
     ) -> Result<impl Iterator<Item = (BatteryState<KilowattHours>, TimeDelta)>> {
-        let mut accumulator = (BatteryState::default(), TimeDelta::zero());
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
             .deltas()
-            .filter_map(move |(_, (state_delta, time_delta))| {
-                // FIXME: this accumulates deltas until the energy difference becomes non-zero:
-                accumulator.0 += state_delta;
-                accumulator.1 += time_delta;
-                if accumulator.0.residual_energy.abs() >= KilowattHours::from(0.001) {
-                    let r#yield = accumulator;
-                    accumulator = (BatteryState::default(), TimeDelta::zero());
-                    Some(r#yield)
-                } else {
-                    None
-                }
-            }))
+            .filter(|(_, (state_delta, _))| {
+                // Filter out Home Assistant glitches:
+                state_delta.residual_energy.abs() >= KilowattHours::from(0.001)
+            })
+            .map(|(_, value)| value))
     }
 }

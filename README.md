@@ -148,7 +148,11 @@ template:
           }}
         attributes:
           custom_hour: "{{ now().hour }}" # force update
-      - name: "Fennec periodic battery state"
+  - triggers:
+      - trigger: "state"
+        entity_id: "sensor.foxess_residual_energy"
+    sensor:
+      - name: "Fennec battery state"
         unit_of_measurement: "kWh"
         unique_id: "custom_fennec_periodic_battery_state"
         default_entity_id: "sensor.custom_fennec_periodic_battery_state"

@@ -1,6 +1,6 @@
 use itertools::MultiUnzip;
-use linfa::{DatasetBase, prelude::*};
-use linfa_linear::LinearRegression;
+use linfa::{DatasetBase, traits::Fit};
+use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::{Array, Array2};
 
 use crate::{api::home_assistant::battery::BatteryState, prelude::*, quantity::power::Kilowatts};
@@ -31,20 +31,11 @@ pub trait TryEstimateBatteryParameters<K> {
 
         info!("Regression analysis…", len = records.len());
         let dataset = DatasetBase::new(Array2::from(records), Array::from(targets));
-        let model = LinearRegression::default().fit(&dataset)?;
-
-        let parameters = BatteryParameters {
-            parasitic_power: Kilowatts::from(model.intercept()),
-            charging_coefficient: model.params()[0],
-            discharging_coefficient: model.params()[1],
-        };
-        ensure!(parameters.parasitic_power.0.is_finite());
-        ensure!(parameters.charging_coefficient.is_finite());
-        ensure!(parameters.charging_coefficient <= 1.5);
-        ensure!(parameters.charging_coefficient >= 0.5);
-        ensure!(parameters.discharging_coefficient.is_finite());
-        ensure!(parameters.discharging_coefficient <= 1.5);
-        ensure!(parameters.discharging_coefficient >= 0.5);
+        let model = LinearRegression::default()
+            .fit(&dataset)
+            .context("could not build a linear regression")?;
+        let parameters = BatteryParameters::try_from(&model)
+            .context("estimated parameters do not make sense")?;
 
         info!(
             "Done",
@@ -91,6 +82,26 @@ impl Default for BatteryParameters {
             discharging_coefficient: 0.95,
             parasitic_power: Kilowatts::from(-0.02),
         }
+    }
+}
+
+impl TryFrom<&FittedLinearRegression<f64>> for BatteryParameters {
+    type Error = Error;
+
+    fn try_from(model: &FittedLinearRegression<f64>) -> Result<Self> {
+        let this = Self {
+            parasitic_power: Kilowatts::from(model.intercept()),
+            charging_coefficient: model.params()[0],
+            discharging_coefficient: model.params()[1],
+        };
+        ensure!(this.parasitic_power.0.is_finite());
+        ensure!(this.charging_coefficient.is_finite());
+        ensure!(this.charging_coefficient <= 1.2);
+        ensure!(this.charging_coefficient >= 0.8);
+        ensure!(this.discharging_coefficient.is_finite());
+        ensure!(this.discharging_coefficient <= 1.2);
+        ensure!(this.discharging_coefficient >= 0.8);
+        Ok(this)
     }
 }
 

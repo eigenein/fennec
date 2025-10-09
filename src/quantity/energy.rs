@@ -13,6 +13,11 @@ impl KilowattHours {
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
         Self(f64::from(watt_hours) * 0.001)
     }
+
+    pub const fn abs(mut self) -> Self {
+        self.0 = self.0.abs();
+        self
+    }
 }
 
 impl Default for KilowattHours {

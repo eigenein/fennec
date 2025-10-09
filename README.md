@@ -148,10 +148,6 @@ template:
           }}
         attributes:
           custom_hour: "{{ now().hour }}" # force update
-  - triggers:
-      - trigger: "time_pattern"
-        hours: "/4"
-    sensor:
       - name: "Fennec periodic battery state"
         unit_of_measurement: "kWh"
         unique_id: "custom_fennec_periodic_battery_state"
@@ -160,7 +156,6 @@ template:
         state_class: "total"
         state: "{{ states('sensor.foxess_residual_energy') }}"
         attributes:
-          custom_hour: "{{ now().hour }}" # force update
           custom_battery_energy_import: "{{ states('sensor.battery_socket_energy_import') }}"
           custom_battery_energy_export: "{{ states('sensor.battery_socket_energy_export') }}"
 ```

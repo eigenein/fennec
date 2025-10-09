@@ -14,16 +14,14 @@ impl<T> TryEstimateBatteryParameters for T where T: ?Sized {}
 
 pub trait TryEstimateBatteryParameters {
     /// Estimate the battery parameters from the time series of
-    /// residual charge, import and export differentials.
-    ///
-    /// **Prior resampling is strongly recommended.**
+    /// residual charge, import and export deltas.
     #[instrument(name = "Estimating the battery parameters…", skip_all, fields(len = self.size_hint().1))]
-    fn try_estimate_battery_parameters<K>(self) -> Result<BatteryParameters>
+    fn try_estimate_battery_parameters(self) -> Result<BatteryParameters>
     where
-        Self: Iterator<Item = (K, (BatteryState<KilowattHours>, TimeDelta))> + Sized,
+        Self: Iterator<Item = (BatteryState<KilowattHours>, TimeDelta)> + Sized,
     {
         let (records, targets, weights): (Vec<_>, Vec<_>, Vec<_>) = self
-            .map(|(_, (energy_delta, time_delta))| {
+            .map(|(energy_delta, time_delta)| {
                 (
                     [
                         (energy_delta.attributes.total_import / time_delta).0,
@@ -133,43 +131,34 @@ mod tests {
     fn test_try_estimate_battery_parameters_ok() -> Result {
         let series = vec![
             (
-                (),
-                (
-                    BatteryState {
-                        residual_energy: KilowattHours::from(0.9),
-                        attributes: BatteryStateAttributes {
-                            total_import: KilowattHours::from(1.0),
-                            total_export: KilowattHours::from(0.0),
-                        },
+                BatteryState {
+                    residual_energy: KilowattHours::from(0.9),
+                    attributes: BatteryStateAttributes {
+                        total_import: KilowattHours::from(1.0),
+                        total_export: KilowattHours::from(0.0),
                     },
-                    TimeDelta::hours(1),
-                ),
+                },
+                TimeDelta::hours(1),
             ),
             (
-                (),
-                (
-                    BatteryState {
-                        residual_energy: KilowattHours::from(-1.3),
-                        attributes: BatteryStateAttributes {
-                            total_import: KilowattHours::from(0.0),
-                            total_export: KilowattHours::from(1.0),
-                        },
+                BatteryState {
+                    residual_energy: KilowattHours::from(-1.3),
+                    attributes: BatteryStateAttributes {
+                        total_import: KilowattHours::from(0.0),
+                        total_export: KilowattHours::from(1.0),
                     },
-                    TimeDelta::hours(1),
-                ),
+                },
+                TimeDelta::hours(1),
             ),
             (
-                (),
-                (
-                    BatteryState {
-                        residual_energy: KilowattHours::from(-0.05),
-                        attributes: BatteryStateAttributes {
-                            total_import: KilowattHours::from(0.0),
-                            total_export: KilowattHours::from(0.0),
-                        },
+                BatteryState {
+                    residual_energy: KilowattHours::from(-0.05),
+                    attributes: BatteryStateAttributes {
+                        total_import: KilowattHours::from(0.0),
+                        total_export: KilowattHours::from(0.0),
                     },
-                    TimeDelta::hours(1),
-                ),
+                },
+                TimeDelta::hours(1),
             ),
         ];
         let parameters = series.into_iter().try_estimate_battery_parameters()?;

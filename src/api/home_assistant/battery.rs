@@ -8,7 +8,16 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Default,
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sub,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub struct BatteryStateAttributes<T> {
     #[serde(alias = "custom_battery_energy_import")]
     pub total_import: T,
@@ -41,7 +50,15 @@ impl Mul<TimeDelta> for BatteryStateAttributes<Kilowatts> {
 
 /// Intermediate structure to facilitate resampling and differentiating the battery state history.
 #[must_use]
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, serde::Serialize)]
+#[derive(
+    Copy,
+    Clone,
+    Default,
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sub,
+    serde::Serialize,
+)]
 pub struct BatteryState<T> {
     pub residual_energy: T,
     pub attributes: BatteryStateAttributes<T>,

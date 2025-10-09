@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Display, Formatter},
+    fmt::{Debug, Display, Formatter},
     ops::Mul,
 };
 
@@ -15,9 +15,15 @@ impl Display for Kilowatts {
     }
 }
 
+impl Debug for Kilowatts {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.0}W", self.0 * 1000.0)
+    }
+}
+
 impl From<Kilowatts> for opentelemetry::Value {
     fn from(value: Kilowatts) -> Self {
-        format!("{:.0}W", value.0 * 1000.0).into()
+        format!("{value:?}").into()
     }
 }
 

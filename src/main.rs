@@ -123,7 +123,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
-        .differentiate()
+        .deltas()
         .average_hourly();
     let solar_yield = home_assistant
         .get_history::<KilowattHours, IgnoredAny>(
@@ -133,7 +133,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
-        .differentiate()
+        .deltas()
         .average_hourly();
     let stand_by_power = stand_by_usage
         .into_iter()

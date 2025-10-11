@@ -81,7 +81,7 @@ impl Default for BatteryParameters {
     fn default() -> Self {
         Self {
             charging_coefficient: 0.95,
-            discharging_coefficient: 0.95,
+            discharging_coefficient: 1.05,
             parasitic_power: Kilowatts::from(-0.02),
         }
     }

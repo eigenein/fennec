@@ -27,7 +27,15 @@ use crate::{
     },
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::{AverageHourly, Differentiate, Series, TryEstimateBatteryParameters},
+        series::{
+            AverageHourly,
+            Differentiate,
+            Resample,
+            Series,
+            TryEstimateBatteryParameters,
+            resample_daily,
+            resample_hourly,
+        },
         solver::Solver,
     },
     prelude::*,
@@ -115,7 +123,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .unwrap_or_default();
 
     // Calculate the stand-by power:
-    // FIXME: implement proper resampling?
     let stand_by_usage = home_assistant
         .get_history::<KilowattHours, IgnoredAny>(
             &hunt_args.home_assistant.total_usage_entity_id,
@@ -124,6 +131,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
+        .resample(resample_hourly)
         .deltas()
         .average_hourly();
     let solar_yield = home_assistant
@@ -134,6 +142,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
+        .resample(resample_hourly)
         .deltas()
         .average_hourly();
     let stand_by_power = stand_by_usage
@@ -241,10 +250,16 @@ impl home_assistant::Api {
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
+            .resample(resample_daily)
             .deltas()
-            .filter(|(_, (state_delta, _))| {
-                // Filter out Home Assistant glitches:
-                state_delta.residual_energy.abs() >= KilowattHours::from(0.001)
+            .inspect(|(timestamp, (state_delta, _))| {
+                info!(
+                    "Battery delta",
+                    starting_at = timestamp.to_rfc3339(),
+                    energy = state_delta.residual_energy,
+                    import = state_delta.attributes.total_import,
+                    export = state_delta.attributes.total_export,
+                );
             })
             .map(|(_, value)| value))
     }

@@ -86,7 +86,7 @@ spec:
           restartPolicy: "OnFailure"
           containers:
             - name: "fennec-job"
-              image: "ghcr.io/eigenein/fennec:0.22.0"
+              image: "ghcr.io/eigenein/fennec:0.25.0"
               env:
                 - name: "TZ"
                   value: "Europe/Amsterdam"
@@ -103,11 +103,11 @@ spec:
                 - name: "HOME_ASSISTANT_API_BASE_URL"
                   value: "..."
                 - name: "HOME_ASSISTANT_BATTERY_STATE_ENTITY_ID"
-                  value: "sensor.custom_fennec_battery_state"
+                  value: "sensor.custom_fennec_periodic_battery_state"
                 - name: "HOME_ASSISTANT_TOTAL_USAGE_ENTITY_ID"
-                  value: "sensor.custom_fennec_total_energy_usage"
-                - name: "HOME_ASSISTANT_SOLAR_YIELD_ENTITY_ID"
-                  value: "sensor.custom_fennec_total_solar_yield"
+                  value: "sensor.custom_fennec_hourly_total_energy_usage"
+                - name: "HOME_ASSISTANT_TOTAL_SOLAR_YIELD_ENTITY_ID"
+                  value: "sensor.custom_fennec_hourly_total_solar_yield"
               command:
                 - "/fennec"
                 - "hunt"

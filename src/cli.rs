@@ -92,20 +92,20 @@ pub struct HomeAssistantArgs {
     pub connection: HomeAssistantConnectionArgs,
 
     #[clap(
-        long = "home-assistant-periodic-battery-state-entity-id",
-        env = "HOME_ASSISTANT_PERIODIC_BATTERY_STATE_ENTITY_ID"
+        long = "home-assistant-battery-state-entity-id",
+        env = "HOME_ASSISTANT_BATTERY_STATE_ENTITY_ID"
     )]
     pub battery_state_entity_id: String,
 
     #[clap(
-        long = "home-assistant-hourly-total-usage-entity-id",
-        env = "HOME_ASSISTANT_HOURLY_TOTAL_USAGE_ENTITY_ID"
+        long = "home-assistant-total-total-usage-entity-id",
+        env = "HOME_ASSISTANT_TOTAL_USAGE_ENTITY_ID"
     )]
     pub total_usage_entity_id: String,
 
     #[clap(
-        long = "home-assistant-hourly-solar-yield-entity-id",
-        env = "HOME_ASSISTANT_HOURLY_SOLAR_YIELD_ENTITY_ID"
+        long = "home-assistant-total-solar-yield-entity-id",
+        env = "HOME_ASSISTANT_TOTAL_SOLAR_YIELD_ENTITY_ID"
     )]
     pub solar_yield_entity_id: String,
 

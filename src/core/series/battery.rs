@@ -52,9 +52,7 @@ pub trait TryEstimateBatteryParameters {
             round_trip = format!("{:.1}%", 100.0 * parameters.round_trip()),
         );
         if parameters.parasitic_power > Kilowatts::ZERO {
-            warn!(
-                "Positive parasitic power is not real, longer battery state history is likely needed for better estimate",
-            );
+            warn!("Positive parasitic power is not real");
         }
         Ok(parameters)
     }
@@ -103,12 +101,12 @@ impl TryFrom<&FittedLinearRegression<f64>> for BatteryParameters {
         };
         ensure!(this.parasitic_power.0.is_finite());
         ensure!(this.charging_coefficient.is_finite());
-        ensure!(this.charging_coefficient <= 1.5); // FIXME: probably, should restrict to `<1.0`.
-        ensure!(this.charging_coefficient >= 0.5); // FIXME: probably, should restrict to `<1.0`.
+        ensure!(this.charging_coefficient <= 1.5);
+        ensure!(this.charging_coefficient >= 0.5);
         ensure!(this.discharging_coefficient.is_finite());
-        ensure!(this.discharging_coefficient <= 1.5); // FIXME: probably, should restrict to `>1.0`.
-        ensure!(this.discharging_coefficient >= 0.5); // FIXME: probably, should restrict to `>1.0`.
-        ensure!(this.discharging_coefficient > this.charging_coefficient); // FIXME: and then, this is implied.
+        ensure!(this.discharging_coefficient <= 1.5);
+        ensure!(this.discharging_coefficient >= 0.5);
+        ensure!(this.discharging_coefficient > this.charging_coefficient);
         Ok(this)
     }
 }

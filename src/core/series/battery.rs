@@ -51,9 +51,6 @@ pub trait TryEstimateBatteryParameters {
             discharging_efficiency = format!("{:.1}%", 100.0 / parameters.discharging_coefficient),
             round_trip = format!("{:.1}%", 100.0 * parameters.round_trip()),
         );
-        if parameters.parasitic_power > Kilowatts::ZERO {
-            warn!("Positive parasitic power is not real");
-        }
         Ok(parameters)
     }
 }
@@ -100,6 +97,7 @@ impl TryFrom<&FittedLinearRegression<f64>> for BatteryParameters {
             discharging_coefficient: model.params()[1],
         };
         ensure!(this.parasitic_power.0.is_finite());
+        ensure!(this.parasitic_power <= Kilowatts::ZERO);
         ensure!(this.charging_coefficient.is_finite());
         ensure!(this.charging_coefficient <= 1.5);
         ensure!(this.charging_coefficient >= 0.5);

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use reqwest::Url;
 
 use crate::prelude::*;
@@ -5,7 +7,9 @@ use crate::prelude::*;
 #[allow(clippy::literal_string_with_formatting_args)]
 #[instrument(skip_all, name = "Sending a heartbeat…")]
 pub async fn send(url: Url) {
-    if let Err(error) = reqwest::Client::new().post(url).send().await {
+    if let Err(error) =
+        reqwest::Client::new().post(url).timeout(Duration::from_secs(10)).send().await
+    {
         warn!("Failed to send the heartbeat: {error:#}");
     }
 }

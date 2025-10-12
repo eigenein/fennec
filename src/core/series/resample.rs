@@ -1,13 +1,13 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use chrono::{DateTime, DurationRound, TimeDelta, TimeZone, Timelike};
+use chrono::{DateTime, DurationRound, TimeDelta, TimeZone};
 use itertools::Itertools;
 
 impl<T> Resample for T where T: ?Sized {}
 
 pub trait Resample {
     #[must_use]
-    fn resample<K, V>(self, sample: fn(&K, &K) -> Option<K>) -> impl Iterator<Item = (K, V)>
+    fn resample<K, V>(self, sample: impl Fn(&K, &K) -> Option<K>) -> impl Iterator<Item = (K, V)>
     where
         Self: Iterator<Item = (K, V)> + Sized,
         K: Clone + Sub<K>,
@@ -28,28 +28,18 @@ pub trait Resample {
     }
 }
 
-pub fn resample_hourly<Tz: TimeZone>(lhs: &DateTime<Tz>, rhs: &DateTime<Tz>) -> Option<DateTime<Tz>>
+pub fn resample_on_time_delta<Tz>(
+    time_delta: TimeDelta,
+) -> impl Fn(&DateTime<Tz>, &DateTime<Tz>) -> Option<DateTime<Tz>>
 where
     DateTime<Tz>: Copy,
+    Tz: TimeZone,
 {
-    ((lhs.date_naive() != rhs.date_naive()) || (lhs.hour() != rhs.hour()))
-        .then(|| rhs.duration_trunc(TimeDelta::hours(1)).unwrap())
-}
-
-/// TODO: make generic and configurable.
-pub fn resample_12h<Tz: TimeZone>(lhs: &DateTime<Tz>, rhs: &DateTime<Tz>) -> Option<DateTime<Tz>>
-where
-    DateTime<Tz>: Copy,
-{
-    ((lhs.date_naive() != rhs.date_naive()) || (lhs.hour() / 12 != rhs.hour() / 12))
-        .then(|| rhs.duration_trunc(TimeDelta::hours(12)).unwrap())
-}
-
-pub fn resample_daily<Tz: TimeZone>(lhs: &DateTime<Tz>, rhs: &DateTime<Tz>) -> Option<DateTime<Tz>>
-where
-    DateTime<Tz>: Copy,
-{
-    (lhs.date_naive() != rhs.date_naive()).then(|| rhs.duration_trunc(TimeDelta::days(1)).unwrap())
+    move |lhs, rhs| {
+        let lhs = lhs.duration_trunc(time_delta).unwrap();
+        let rhs = rhs.duration_trunc(time_delta).unwrap();
+        (lhs != rhs).then_some(rhs)
+    }
 }
 
 #[cfg(test)]
@@ -71,24 +61,26 @@ mod tests {
     #[test]
     fn test_resample_hourly() {
         let date = NaiveDate::from_ymd_opt(2025, 10, 11).unwrap();
+        let resample = resample_on_time_delta(TimeDelta::hours(1));
 
         let lhs = date.and_hms_opt(19, 55, 0).unwrap().and_local_timezone(Local).unwrap();
-        assert!(resample_hourly(&lhs, &lhs).is_none());
+        assert!(resample(&lhs, &lhs).is_none());
 
         let rhs = date.and_hms_opt(20, 5, 0).unwrap().and_local_timezone(Local).unwrap();
         let expected = date.and_hms_opt(20, 0, 0).unwrap().and_local_timezone(Local).unwrap();
-        assert_eq!(resample_hourly(&lhs, &rhs), Some(expected));
+        assert_eq!(resample(&lhs, &rhs), Some(expected));
     }
 
     #[test]
     fn test_resample_daily() {
+        let resample = resample_on_time_delta(TimeDelta::days(1));
         let lhs = NaiveDate::from_ymd_opt(2025, 10, 11)
             .unwrap()
             .and_hms_opt(19, 55, 0)
             .unwrap()
             .and_local_timezone(Local)
             .unwrap();
-        assert!(resample_daily(&lhs, &lhs).is_none());
+        assert!(resample(&lhs, &lhs).is_none());
 
         let rhs = NaiveDate::from_ymd_opt(2025, 10, 12)
             .unwrap()
@@ -102,6 +94,6 @@ mod tests {
             .unwrap()
             .and_local_timezone(Local)
             .unwrap();
-        assert_eq!(resample_daily(&lhs, &rhs), Some(expected));
+        assert_eq!(resample(&lhs, &rhs), Some(expected));
     }
 }

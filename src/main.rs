@@ -33,9 +33,7 @@ use crate::{
             Resample,
             Series,
             TryEstimateBatteryParameters,
-            resample_12h,
-            resample_daily,
-            resample_hourly,
+            resample_on_time_delta,
         },
         solver::Solver,
     },
@@ -81,6 +79,7 @@ async fn main() -> Result {
                     .get_battery_differentials(
                         &history_args.home_assistant.battery_state_entity_id,
                         &home_assistant_period,
+                        history_args.home_assistant.battery_state_resample_interval_hours,
                     )
                     .await?
                     .collect_vec();
@@ -115,6 +114,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .get_battery_differentials(
             &hunt_args.home_assistant.battery_state_entity_id,
             &home_assistant_period,
+            hunt_args.home_assistant.battery_state_resample_interval_hours,
         )
         .await?
         .try_estimate_battery_parameters()
@@ -132,7 +132,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
-        .resample(resample_hourly)
+        .resample(resample_on_time_delta(TimeDelta::hours(1)))
         .deltas()
         .average_hourly();
     let solar_yield = home_assistant
@@ -143,7 +143,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .await?
         .into_iter()
         .map(|state| (state.last_changed_at, state.value))
-        .resample(resample_hourly)
+        .resample(resample_on_time_delta(TimeDelta::hours(1)))
         .deltas()
         .average_hourly();
     let stand_by_power = stand_by_usage
@@ -241,17 +241,23 @@ async fn burrow_fox_ess(
 }
 
 impl home_assistant::Api {
+    #[instrument(
+        skip_all,
+        name = "Calculating battery differentials…",
+        fields(resample_interval_hours = resample_interval_hours),
+    )]
     async fn get_battery_differentials(
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
+        resample_interval_hours: i64,
     ) -> Result<impl Iterator<Item = (BatteryState<KilowattHours>, TimeDelta)>> {
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .resample(resample_12h)
+            .resample(resample_on_time_delta(TimeDelta::hours(resample_interval_hours)))
             .deltas()
             .inspect(|(timestamp, (state_delta, _))| {
                 info!(

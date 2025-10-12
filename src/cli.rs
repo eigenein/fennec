@@ -98,6 +98,13 @@ pub struct HomeAssistantArgs {
     pub battery_state_entity_id: String,
 
     #[clap(
+        default_value = "12",
+        long = "home-assistant-battery-state-resample-interval-hours",
+        env = "HOME_ASSISTANT_BATTERY_STATE_RESAMPLE_INTERVAL_HOURS"
+    )]
+    pub battery_state_resample_interval_hours: i64,
+
+    #[clap(
         long = "home-assistant-total-total-usage-entity-id",
         env = "HOME_ASSISTANT_TOTAL_USAGE_ENTITY_ID"
     )]

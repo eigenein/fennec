@@ -1,6 +1,6 @@
 //! [NextEnergy](https://www.nextenergy.nl/actuele-energieprijzen) client.
 
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use chrono::{DateTime, DurationRound, Local, NaiveDate, TimeDelta};
 use reqwest::Client;
@@ -13,7 +13,7 @@ pub struct Api(Client);
 
 impl Api {
     pub fn try_new() -> Result<Self> {
-        Ok(Self(Client::builder().build()?))
+        Ok(Self(Client::builder().timeout(Duration::from_secs(10)).build()?))
     }
 
     pub async fn get_hourly_rates_48h(

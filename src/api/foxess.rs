@@ -2,6 +2,8 @@ mod models;
 mod response;
 mod schedule;
 
+use std::time::Duration;
+
 use chrono::Utc;
 use models::DeviceDetails;
 use reqwest::{
@@ -30,10 +32,12 @@ impl Api {
         headers.insert("Timezone", HeaderValue::from_static("Europe/Amsterdam"));
         headers.insert("Lang", HeaderValue::from_static("en"));
         headers.insert("Token", HeaderValue::from_str(&api_key)?);
-        Ok(Self {
-            api_key,
-            client: Client::builder().user_agent("fennec").default_headers(headers).build()?,
-        })
+        let client = Client::builder()
+            .user_agent("fennec")
+            .default_headers(headers)
+            .timeout(Duration::from_secs(10))
+            .build()?;
+        Ok(Self { client, api_key })
     }
 
     #[instrument(skip_all, name = "Fetching device details…", fields(serial_number = serial_number))]

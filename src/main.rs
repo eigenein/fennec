@@ -33,6 +33,7 @@ use crate::{
             Resample,
             Series,
             TryEstimateBatteryParameters,
+            resample_12h,
             resample_daily,
             resample_hourly,
         },
@@ -250,7 +251,7 @@ impl home_assistant::Api {
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .resample(resample_daily)
+            .resample(resample_12h)
             .deltas()
             .inspect(|(timestamp, (state_delta, _))| {
                 info!(

@@ -36,6 +36,15 @@ where
         .then(|| rhs.duration_trunc(TimeDelta::hours(1)).unwrap())
 }
 
+/// TODO: make generic and configurable.
+pub fn resample_12h<Tz: TimeZone>(lhs: &DateTime<Tz>, rhs: &DateTime<Tz>) -> Option<DateTime<Tz>>
+where
+    DateTime<Tz>: Copy,
+{
+    ((lhs.date_naive() != rhs.date_naive()) || (lhs.hour() / 12 != rhs.hour() / 12))
+        .then(|| rhs.duration_trunc(TimeDelta::hours(12)).unwrap())
+}
+
 pub fn resample_daily<Tz: TimeZone>(lhs: &DateTime<Tz>, rhs: &DateTime<Tz>) -> Option<DateTime<Tz>>
 where
     DateTime<Tz>: Copy,

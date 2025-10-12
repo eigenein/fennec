@@ -86,7 +86,7 @@ spec:
           restartPolicy: "OnFailure"
           containers:
             - name: "fennec-job"
-              image: "ghcr.io/eigenein/fennec:0.25.0"
+              image: "ghcr.io/eigenein/fennec:0.25.6"
               env:
                 - name: "TZ"
                   value: "Europe/Amsterdam"

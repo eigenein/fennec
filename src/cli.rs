@@ -3,6 +3,7 @@ use reqwest::Url;
 
 use crate::{
     api::home_assistant,
+    core::working_mode::WorkingMode,
     prelude::*,
     quantity::{power::Kilowatts, rate::KilowattHourRate},
 };
@@ -69,6 +70,15 @@ pub struct HuntArgs {
     #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
     pub heartbeat_url: Option<Url>,
 
+    #[clap(
+        long = "working-modes",
+        env = "WORKING_MODES",
+        value_delimiter = ',',
+        num_args = 1..,
+        default_value = "balancing,discharging,charging,idle",
+    )]
+    pub working_modes: Vec<WorkingMode>,
+
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
@@ -79,6 +89,7 @@ pub struct HuntArgs {
     pub home_assistant: HomeAssistantArgs,
 }
 
+/// TODO: move into `HuntArgs`.
 #[derive(Copy, Clone, Parser)]
 pub struct ConsumptionArgs {
     /// Energy purchase fees («inkoopvergoeding»).

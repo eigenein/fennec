@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, clap::ValueEnum)]
 pub enum WorkingMode {
     /// Do not do anything.
     Idle,

@@ -38,6 +38,7 @@ pub struct Solver<'a> {
     consumption: ConsumptionArgs,
     stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
+    working_modes: Vec<WorkingMode>,
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
@@ -147,8 +148,8 @@ impl Solver<'_> {
             .capacity(self.capacity)
             .parameters(self.battery_parameters)
             .build();
-        [WorkingMode::Idle, WorkingMode::Balancing, WorkingMode::Discharging, WorkingMode::Charging]
-            .into_iter()
+        self.working_modes
+            .iter()
             .map(|working_mode| {
                 let step = self
                     .simulate_step()
@@ -156,7 +157,7 @@ impl Solver<'_> {
                     .grid_rate(grid_rate)
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery.clone())
-                    .working_mode(working_mode)
+                    .working_mode(*working_mode)
                     .duration(duration)
                     .call();
                 let next_partial_solution = {

@@ -24,8 +24,10 @@ impl Api {
         let since = since.duration_trunc(TimeDelta::hours(1))?;
         let this_day_rates = self.get_hourly_rates(since.date_naive()).await?;
 
-        let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-        let next_day_rates = self.get_hourly_rates(next_day.date_naive()).await?;
+        let next_day_rates = {
+            let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
+            self.get_hourly_rates(next_day.date_naive()).await?
+        };
 
         Ok(this_day_rates
             .into_iter()

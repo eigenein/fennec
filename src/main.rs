@@ -14,7 +14,6 @@ use chrono::{DateTime, Local, TimeDelta};
 use clap::Parser;
 use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
-use serde::de::IgnoredAny;
 use tracing::level_filters::LevelFilter;
 
 use crate::{
@@ -28,7 +27,6 @@ use crate::{
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
         series::{
-            AverageHourly,
             Differentiate,
             Resample,
             Series,
@@ -125,27 +123,17 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
 
     // Calculate the stand-by power:
     let stand_by_usage = home_assistant
-        .get_history::<KilowattHours, IgnoredAny>(
+        .get_average_hourly_history::<KilowattHours>(
             &hunt_args.home_assistant.total_usage_entity_id,
             &home_assistant_period,
         )
-        .await?
-        .into_iter()
-        .map(|state| (state.last_changed_at, state.value))
-        .resample(resample_on_time_delta(TimeDelta::hours(1)))
-        .deltas()
-        .average_hourly();
+        .await?;
     let solar_yield = home_assistant
-        .get_history::<KilowattHours, IgnoredAny>(
+        .get_average_hourly_history::<KilowattHours>(
             &hunt_args.home_assistant.solar_yield_entity_id,
             &home_assistant_period,
         )
-        .await?
-        .into_iter()
-        .map(|state| (state.last_changed_at, state.value))
-        .resample(resample_on_time_delta(TimeDelta::hours(1)))
-        .deltas()
-        .average_hourly();
+        .await?;
     let stand_by_power = stand_by_usage
         .into_iter()
         .zip(solar_yield)

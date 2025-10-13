@@ -12,11 +12,11 @@ pub trait Differentiate {
     ) -> impl Iterator<Item = (K, (<V as Sub<V>>::Output, <K as Sub<K>>::Output))>
     where
         Self: Iterator<Item = (K, V)> + Sized,
-        K: Clone + Sub<K>,
-        V: Clone + Sub<V>,
+        K: Copy + Sub<K>,
+        V: Copy + Sub<V>,
     {
         self.tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
-            (from_index.clone(), (to_value - from_value, to_index - from_index))
+            (from_index, (to_value - from_value, to_index - from_index))
         })
     }
 }

@@ -10,17 +10,15 @@ pub trait Resample {
     fn resample<K, V>(self, sample: impl Fn(&K, &K) -> Option<K>) -> impl Iterator<Item = (K, V)>
     where
         Self: Iterator<Item = (K, V)> + Sized,
-        K: Clone + Sub<K>,
-        V: Clone + Add<V, Output = V> + Sub<V>,
-        <V as Sub<V>>::Output: Div<<K as Sub<K>>::Output>,
-        <<V as Sub<V>>::Output as Div<<K as Sub<K>>::Output>>::Output:
-            Mul<<K as Sub<K>>::Output, Output = V>,
+        K: Copy + Sub<K>,
+        V: Copy + Add<V, Output = V> + Sub<V, Output = V> + Div<<K as Sub<K>>::Output>,
+        <V as Div<<K as Sub<K>>::Output>>::Output: Mul<<K as Sub<K>>::Output, Output = V>,
     {
         self.tuple_windows().filter_map(
             move |((left_key, left_value), (right_key, right_value))| {
                 sample(&left_key, &right_key).map(|key| {
-                    let dvdk = (right_value - left_value.clone()) / (right_key - left_key.clone());
-                    let dk = key.clone() - left_key;
+                    let dvdk = (right_value - left_value) / (right_key - left_key);
+                    let dk = key - left_key;
                     (key, left_value + dvdk * dk)
                 })
             },

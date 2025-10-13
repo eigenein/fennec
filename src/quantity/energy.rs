@@ -21,12 +21,6 @@ impl KilowattHours {
     }
 }
 
-impl Default for KilowattHours {
-    fn default() -> Self {
-        Self(0.0)
-    }
-}
-
 impl Display for KilowattHours {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:.0} Wh", self.0 * 1000.0)

@@ -30,7 +30,7 @@ pub enum Command {
 
     /// Development tools.
     #[clap(name = "burrow")]
-    Burrow(BurrowArgs),
+    Burrow(Box<BurrowArgs>),
 }
 
 #[derive(Copy, Clone, Parser)]
@@ -187,7 +187,7 @@ pub enum BurrowCommand {
     FoxEss(BurrowFoxEssArgs),
 
     /// Fetch and dump the battery differential history from Home Assistant.
-    BatteryDifferentials(BurrowBatteryDifferentialsArgs),
+    BatteryDifferentials(Box<BurrowBatteryDifferentialsArgs>),
 }
 
 #[derive(Parser)]

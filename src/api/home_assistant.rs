@@ -21,7 +21,7 @@ use serde::de::{DeserializeOwned, IgnoredAny};
 
 use crate::{
     api::home_assistant::history::{EntitiesHistory, EntityHistory},
-    core::series::{AverageHourly, Differentiate, Resample, resample_on_time_delta},
+    core::series::{AverageHourly, Differentiate, Resample, resample_by_interval},
     prelude::*,
 };
 
@@ -75,11 +75,11 @@ impl Api {
         Ok(entity_history)
     }
 
-    pub async fn get_average_hourly_history<V>(
+    pub async fn get_average_hourly_deltas<V>(
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<[Option<<<V as Div<TimeDelta>>::Output as Div<f64>>::Output>; 24]>
+    ) -> Result<[Option<<V as Div<TimeDelta>>::Output>; 24]>
     where
         <V as Div<TimeDelta>>::Output: Copy
             + Mul<TimeDelta, Output = V>
@@ -87,20 +87,23 @@ impl Api {
             + Sum,
         <V as FromStr>::Err: Display,
         V: Copy
-            + Default
             + Add<V, Output = V>
             + Sub<V, Output = V>
+            + Div<f64, Output = V>
+            + Sum
             + Div<TimeDelta>
             + FromStr
             + DeserializeOwned,
     {
+        let interval = TimeDelta::hours(1);
         Ok(self
             .get_history::<V, IgnoredAny>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, state.value))
-            .resample(resample_on_time_delta(TimeDelta::hours(1)))
+            .resample(resample_by_interval(interval))
             .deltas()
+            .map(|(timestamp, dv)| (timestamp, dv / interval))
             .average_hourly())
     }
 }

@@ -26,16 +26,16 @@ pub trait Resample {
     }
 }
 
-pub fn resample_on_time_delta<Tz>(
-    time_delta: TimeDelta,
+pub fn resample_by_interval<Tz>(
+    interval: TimeDelta,
 ) -> impl Fn(&DateTime<Tz>, &DateTime<Tz>) -> Option<DateTime<Tz>>
 where
     DateTime<Tz>: Copy,
     Tz: TimeZone,
 {
     move |lhs, rhs| {
-        let lhs = lhs.duration_trunc(time_delta).unwrap();
-        let rhs = rhs.duration_trunc(time_delta).unwrap();
+        let lhs = lhs.duration_trunc(interval).unwrap();
+        let rhs = rhs.duration_trunc(interval).unwrap();
         (lhs != rhs).then_some(rhs)
     }
 }
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn test_resample_hourly() {
         let date = NaiveDate::from_ymd_opt(2025, 10, 11).unwrap();
-        let resample = resample_on_time_delta(TimeDelta::hours(1));
+        let resample = resample_by_interval(TimeDelta::hours(1));
 
         let lhs = date.and_hms_opt(19, 55, 0).unwrap().and_local_timezone(Local).unwrap();
         assert!(resample(&lhs, &lhs).is_none());
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_resample_daily() {
-        let resample = resample_on_time_delta(TimeDelta::days(1));
+        let resample = resample_by_interval(TimeDelta::days(1));
         let lhs = NaiveDate::from_ymd_opt(2025, 10, 11)
             .unwrap()
             .and_hms_opt(19, 55, 0)

@@ -8,7 +8,7 @@ pub use self::{
     average::AverageHourly,
     battery::{BatteryParameters, TryEstimateBatteryParameters},
     differentiate::Differentiate,
-    resample::{Resample, resample_on_time_delta},
+    resample::{Resample, resample_by_interval},
     sum::SumValues,
 };
 

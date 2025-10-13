@@ -31,7 +31,7 @@ use crate::{
             Resample,
             Series,
             TryEstimateBatteryParameters,
-            resample_on_time_delta,
+            resample_by_interval,
         },
         solver::Solver,
     },
@@ -94,8 +94,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let home_assistant = hunt_args.home_assistant.connection.try_new_client()?;
 
     let now = Local::now();
-    let home_assistant_period =
-        (now - TimeDelta::days(hunt_args.home_assistant.n_history_days))..=now;
+    let history_period = (now - TimeDelta::days(hunt_args.home_assistant.n_history_days))..=now;
 
     let grid_rates: Series<_, _> =
         nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?.collect();
@@ -111,7 +110,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let battery_parameters = home_assistant
         .get_battery_differentials(
             &hunt_args.home_assistant.battery_state_entity_id,
-            &home_assistant_period,
+            &history_period,
             hunt_args.home_assistant.battery_state_resample_interval_hours,
         )
         .await?
@@ -123,15 +122,15 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
 
     // Calculate the stand-by power:
     let stand_by_usage = home_assistant
-        .get_average_hourly_history::<KilowattHours>(
+        .get_average_hourly_deltas::<KilowattHours>(
             &hunt_args.home_assistant.total_usage_entity_id,
-            &home_assistant_period,
+            &history_period,
         )
         .await?;
     let solar_yield = home_assistant
-        .get_average_hourly_history::<KilowattHours>(
+        .get_average_hourly_deltas::<KilowattHours>(
             &hunt_args.home_assistant.solar_yield_entity_id,
-            &home_assistant_period,
+            &history_period,
         )
         .await?;
     let stand_by_power = stand_by_usage
@@ -241,14 +240,15 @@ impl home_assistant::Api {
         period: &RangeInclusive<DateTime<Local>>,
         resample_interval_hours: i64,
     ) -> Result<impl Iterator<Item = (BatteryState<KilowattHours>, TimeDelta)>> {
+        let interval = TimeDelta::hours(resample_interval_hours);
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .resample(resample_on_time_delta(TimeDelta::hours(resample_interval_hours)))
+            .resample(resample_by_interval(interval))
             .deltas()
-            .inspect(|(timestamp, (state_delta, _))| {
+            .inspect(|(timestamp, state_delta)| {
                 info!(
                     "Battery delta",
                     starting_at = timestamp.to_rfc3339(),
@@ -257,6 +257,6 @@ impl home_assistant::Api {
                     export = state_delta.attributes.total_export,
                 );
             })
-            .map(|(_, value)| value))
+            .map(move |(_, value)| (value, interval)))
     }
 }

@@ -79,22 +79,15 @@ pub struct HuntArgs {
     )]
     pub working_modes: Vec<WorkingMode>,
 
+    /// Energy purchase fees («inkoopvergoeding»).
+    #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
+    pub purchase_fee: KilowattHourRate,
+
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
     #[clap(flatten)]
-    pub consumption: ConsumptionArgs,
-
-    #[clap(flatten)]
     pub home_assistant: HomeAssistantArgs,
-}
-
-/// TODO: move into `HuntArgs`.
-#[derive(Copy, Clone, Parser)]
-pub struct ConsumptionArgs {
-    /// Energy purchase fees («inkoopvergoeding»).
-    #[clap(long = "purchase-fees-per-kwh", default_value = "0.021", env = "PURCHASE_FEES_PER_KWH")]
-    pub purchase_fees: KilowattHourRate,
 }
 
 #[derive(Parser)]

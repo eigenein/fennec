@@ -161,7 +161,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .capacity(total_capacity)
         .battery_args(hunt_args.battery)
         .battery_parameters(battery_parameters)
-        .consumption(hunt_args.consumption)
+        .purchase_fee(hunt_args.purchase_fee)
         .stand_by_power(stand_by_power)
         .now(now)
         .working_modes(hunt_args.working_modes)

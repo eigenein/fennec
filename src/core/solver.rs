@@ -11,7 +11,7 @@ use chrono::{DateTime, Local, TimeDelta, Timelike};
 use ordered_float::OrderedFloat;
 
 use crate::{
-    cli::{BatteryArgs, ConsumptionArgs},
+    cli::BatteryArgs,
     core::{
         series::{BatteryParameters, Point},
         solver::{
@@ -35,7 +35,7 @@ pub struct Solver<'a> {
     capacity: KilowattHours,
     battery_args: BatteryArgs,
     battery_parameters: BatteryParameters,
-    consumption: ConsumptionArgs,
+    purchase_fee: KilowattHourRate,
     stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
     working_modes: Vec<WorkingMode>,
@@ -219,7 +219,7 @@ impl Solver<'_> {
             consumption * grid_rate
         } else {
             // We sell excess energy cheaper:
-            consumption * (grid_rate - self.consumption.purchase_fees)
+            consumption * (grid_rate - self.purchase_fee)
         }
     }
 

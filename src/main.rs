@@ -261,9 +261,11 @@ impl home_assistant::Api {
                 info!(
                     "Battery delta",
                     starting_at = timestamp.to_rfc3339(),
-                    energy = state_delta.residual_energy,
                     import = state_delta.attributes.total_import,
                     export = state_delta.attributes.total_export,
+                    ideal =
+                        state_delta.attributes.total_import - state_delta.attributes.total_export,
+                    actual = state_delta.residual_energy,
                 );
             })
             .map(move |(_, value)| (value, interval)))

@@ -87,7 +87,7 @@ pub struct HuntArgs {
     #[clap(
         long = "disable-idle-above-solar-power-kilowatts",
         env = "DISABLE_IDLE_ABOVE_SOLAR_POWER_KILOWATTS",
-        default_value = "0.1"
+        default_value = "0.05"
     )]
     pub disable_idle_above_solar_power: Kilowatts,
 

@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use chrono::{DateTime, Local};
 use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 
@@ -10,7 +12,7 @@ use crate::{
 };
 
 pub fn try_render_steps(
-    grid_rates: &[Point<DateTime<Local>, KilowattHourRate>],
+    grid_rates: &[Point<Range<DateTime<Local>>, KilowattHourRate>],
     steps: &[Point<DateTime<Local>, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
@@ -35,9 +37,9 @@ pub fn try_render_steps(
         "Loss",
     ]);
     for ((time, grid_rate), (right_time, step)) in grid_rates.iter().zip(steps) {
-        ensure!(time == right_time);
+        ensure!(time.start == *right_time);
         table.add_row(vec![
-            Cell::new(time.format("%H:%M").to_string()),
+            Cell::new(time.start.format("%H:%M").to_string()),
             Cell::new(grid_rate.to_string()).fg(if grid_rate.0 >= average_rate {
                 Color::Red
             } else {

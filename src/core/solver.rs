@@ -4,7 +4,7 @@ pub mod solution;
 pub mod step;
 pub mod summary;
 
-use std::{iter::from_fn, rc::Rc};
+use std::{iter::from_fn, ops::Range, rc::Rc};
 
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta, Timelike};
@@ -31,7 +31,7 @@ use crate::{
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
-    grid_rates: &'a [(DateTime<Local>, KilowattHourRate)],
+    grid_rates: &'a [(Range<DateTime<Local>>, KilowattHourRate)],
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
@@ -84,16 +84,15 @@ impl Solver<'_> {
         let mut next_partial_solutions = vec![Rc::new(PartialSolution::default()); n_energy_states];
 
         // Going backwards:
-        for (timestamp, grid_rate) in self.grid_rates.iter().rev() {
-            let mut step_duration = TimeDelta::hours(1);
-            if self.now >= *timestamp {
-                // FIXME: I don't like this…
-                // This hour has already begun:
-                step_duration -= self.now - *timestamp;
-            }
+        for (time_range, grid_rate) in self.grid_rates.iter().rev() {
+            let step_duration = if time_range.contains(&self.now) {
+                time_range.end - self.now
+            } else {
+                TimeDelta::hours(1)
+            };
 
             // Average stand-by power at this hour of a day:
-            let stand_by_power = self.stand_by_power[timestamp.hour() as usize];
+            let stand_by_power = self.stand_by_power[time_range.start.hour() as usize];
             net_loss_without_battery += self.loss(*grid_rate, stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:
@@ -101,7 +100,7 @@ impl Solver<'_> {
                 .map(|initial_residual_energy_watt_hours| {
                     Rc::new(
                         self.optimise_step()
-                            .timestamp(*timestamp)
+                            .timestamp(time_range.start)
                             .stand_by_power(stand_by_power)
                             .grid_rate(*grid_rate)
                             .initial_residual_energy(KilowattHours::from(WattHours(

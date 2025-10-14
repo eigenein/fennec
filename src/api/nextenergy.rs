@@ -1,6 +1,6 @@
 //! [NextEnergy](https://www.nextenergy.nl/actuele-energieprijzen) client.
 
-use std::{str::FromStr, time::Duration};
+use std::{ops::Range, str::FromStr, time::Duration};
 
 use chrono::{DateTime, DurationRound, Local, NaiveDate, TimeDelta};
 use reqwest::Client;
@@ -19,9 +19,8 @@ impl Api {
     pub async fn get_hourly_rates_48h(
         &self,
         since: DateTime<Local>,
-    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, KilowattHourRate>>> {
+    ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
         // Round down to the closest hour:
-        let since = since.duration_trunc(TimeDelta::hours(1))?;
         let this_day_rates = self.get_hourly_rates(since.date_naive()).await?;
 
         let next_day_rates = {
@@ -31,7 +30,7 @@ impl Api {
 
         Ok(this_day_rates
             .into_iter()
-            .filter(move |(timestamp, _)| *timestamp >= since)
+            .filter(move |(time_range, _)| time_range.end >= since)
             .chain(next_day_rates))
     }
 
@@ -39,7 +38,7 @@ impl Api {
     pub async fn get_hourly_rates(
         &self,
         on: NaiveDate,
-    ) -> Result<impl Iterator<Item = Point<DateTime<Local>, KilowattHourRate>>> {
+    ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
         Ok(self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(on))
@@ -55,7 +54,11 @@ impl Api {
             .points
             .list
             .into_iter()
-            .map(move |point| (on.and_hms_opt(point.hour, 0, 0).context("invalid timestamp").unwrap().and_local_timezone(Local).unwrap(), point.value))
+            .map(move |point| {
+                let start_time = on.and_hms_opt(point.hour, 0, 0).unwrap().and_local_timezone(Local).unwrap();
+                let end_time = start_time + TimeDelta::hours(1);
+                (start_time..end_time, point.value)
+            })
         )
     }
 }
@@ -165,8 +168,8 @@ mod tests {
         let series = Api::try_new()?.get_hourly_rates_48h(now).await?.collect_vec();
         assert!(series.len() >= 1);
         assert!(series.len() <= 48);
-        let (timestamp, _) = series[0];
-        assert_eq!(timestamp.hour(), now.hour());
+        let (time_range, _) = &series[0];
+        assert_eq!(time_range.start.hour(), now.hour());
         Ok(())
     }
 }

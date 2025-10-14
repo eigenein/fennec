@@ -39,7 +39,7 @@ pub struct Solver<'a> {
     purchase_fee: KilowattHourRate,
     stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
-    working_modes: EnumSet<WorkingMode>,
+    working_modes: [EnumSet<WorkingMode>; 24],
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
@@ -148,7 +148,7 @@ impl Solver<'_> {
             .capacity(self.capacity)
             .parameters(self.battery_parameters)
             .build();
-        self.working_modes
+        self.working_modes[timestamp.hour() as usize]
             .iter()
             .map(|working_mode| {
                 let step = self

@@ -84,6 +84,13 @@ pub struct HuntArgs {
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
     pub purchase_fee: KilowattHourRate,
 
+    #[clap(
+        long = "disable-idle-above-solar-power-kilowatts",
+        env = "DISABLE_IDLE_ABOVE_SOLAR_POWER_KILOWATTS",
+        default_value = "0.1"
+    )]
+    pub disable_idle_above_solar_power: Kilowatts,
+
     #[clap(flatten)]
     pub battery: BatteryArgs,
 

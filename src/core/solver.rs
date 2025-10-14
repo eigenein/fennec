@@ -8,6 +8,7 @@ use std::{iter::from_fn, rc::Rc};
 
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta, Timelike};
+use enumset::EnumSet;
 use ordered_float::OrderedFloat;
 
 use crate::{
@@ -38,7 +39,7 @@ pub struct Solver<'a> {
     purchase_fee: KilowattHourRate,
     stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
-    working_modes: Vec<WorkingMode>,
+    working_modes: EnumSet<WorkingMode>,
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
@@ -157,7 +158,7 @@ impl Solver<'_> {
                     .grid_rate(grid_rate)
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery.clone())
-                    .working_mode(*working_mode)
+                    .working_mode(working_mode)
                     .duration(duration)
                     .call();
                 let next_partial_solution = {

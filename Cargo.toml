@@ -42,6 +42,7 @@ bon = "=3.7.2"
 comfy-table = "=7.2.1"
 derive_more = { version = "=2.0.1", features = ["full"] }
 dotenvy = "=0.15.7"
+enumset = "1.1.10"
 itertools = "=0.14.0"
 linfa = "=0.8.0"
 linfa-linear = "=0.8.0"

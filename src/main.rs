@@ -151,7 +151,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .purchase_fee(hunt_args.purchase_fee)
         .stand_by_power(stand_by_power)
         .now(now)
-        .working_modes(hunt_args.working_modes)
+        .working_modes(hunt_args.working_modes.into_iter().collect())
         .solve();
 
     let profit = solution.summary.profit();

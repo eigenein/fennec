@@ -131,7 +131,9 @@ impl TimeSlotSequence {
                 let feed_power = match working_mode {
                     CoreWorkingMode::Discharging => battery_args.discharging_power,
                     CoreWorkingMode::Idle => Kilowatts::ZERO,
-                    _ => battery_args.charging_power,
+                    CoreWorkingMode::Balancing | CoreWorkingMode::Charging => {
+                        battery_args.charging_power
+                    }
                 };
                 let working_mode = match working_mode {
                     CoreWorkingMode::Charging | CoreWorkingMode::Idle => WorkingMode::ForceCharge,

@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use enumset::EnumSet;
 use reqwest::Url;
 
 use crate::{
@@ -88,6 +89,13 @@ pub struct HuntArgs {
 
     #[clap(flatten)]
     pub home_assistant: HomeAssistantArgs,
+}
+
+impl HuntArgs {
+    #[must_use]
+    pub fn working_modes(&self) -> EnumSet<WorkingMode> {
+        self.working_modes.iter().copied().collect()
+    }
 }
 
 #[derive(Parser)]

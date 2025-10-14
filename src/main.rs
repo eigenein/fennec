@@ -91,8 +91,8 @@ async fn main() -> Result {
 }
 
 async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
+    let working_modes = hunt_args.working_modes();
     let home_assistant = hunt_args.home_assistant.connection.try_new_client()?;
-
     let now = Local::now();
     let history_period = (now - TimeDelta::days(hunt_args.home_assistant.n_history_days))..=now;
 
@@ -151,7 +151,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .purchase_fee(hunt_args.purchase_fee)
         .stand_by_power(stand_by_power)
         .now(now)
-        .working_modes(hunt_args.working_modes.into_iter().collect())
+        .working_modes(working_modes)
         .solve();
 
     let profit = solution.summary.profit();

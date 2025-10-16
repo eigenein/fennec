@@ -58,7 +58,7 @@ pub fn try_render_steps(
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,
                 CoreWorkingMode::Balancing => Color::DarkYellow,
-                CoreWorkingMode::BackupSolar => Color::DarkGreen,
+                CoreWorkingMode::BackupSolar => Color::Magenta,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
             Cell::new(step.residual_energy_before.to_string())

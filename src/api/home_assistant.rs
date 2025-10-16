@@ -21,7 +21,7 @@ use serde::de::{DeserializeOwned, IgnoredAny};
 
 use crate::{
     api::home_assistant::history::{EntitiesHistory, EntityHistory},
-    core::series::{AverageHourly, Differentiate, Resample, resample_by_interval},
+    core::series::{AverageHourly, Differentiate, Resample},
     prelude::*,
 };
 
@@ -101,7 +101,7 @@ impl Api {
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, state.value))
-            .resample(resample_by_interval(interval))
+            .resample_by_interval(interval)
             .deltas()
             .map(|(timestamp, dv)| (timestamp, dv / interval))
             .average_hourly())

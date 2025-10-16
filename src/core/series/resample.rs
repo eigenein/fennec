@@ -1,97 +1,91 @@
-use std::ops::{Add, Div, Mul, Sub};
+use std::{
+    iter::from_fn,
+    ops::{Add, Div, Mul, Sub},
+};
 
-use chrono::{DateTime, DurationRound, TimeDelta, TimeZone};
+use chrono::{DateTime, DurationRound, Local, TimeDelta};
 use itertools::Itertools;
 
 impl<T> Resample for T where T: ?Sized {}
 
 pub trait Resample {
     #[must_use]
-    fn resample<K, V>(self, sample: impl Fn(&K, &K) -> Option<K>) -> impl Iterator<Item = (K, V)>
+    fn resample_by_interval<V>(
+        self,
+        interval: TimeDelta,
+    ) -> impl Iterator<Item = (DateTime<Local>, V)>
     where
-        Self: Iterator<Item = (K, V)> + Sized,
-        K: Copy + Sub<K>,
-        V: Copy + Add<V, Output = V> + Sub<V, Output = V> + Div<<K as Sub<K>>::Output>,
-        <V as Div<<K as Sub<K>>::Output>>::Output: Mul<<K as Sub<K>>::Output, Output = V>,
+        Self: Iterator<Item = (DateTime<Local>, V)> + Sized,
+        V: Copy + Add<V, Output = V> + Sub<V, Output = V> + Div<TimeDelta>,
+        <V as Div<TimeDelta>>::Output: Copy + Mul<TimeDelta, Output = V>,
     {
-        self.tuple_windows().filter_map(
-            move |((left_key, left_value), (right_key, right_value))| {
-                sample(&left_key, &right_key).map(|key| {
-                    let dvdk = (right_value - left_value) / (right_key - left_key);
-                    let dk = key - left_key;
-                    (key, left_value + dvdk * dk)
+        self.tuple_windows().flat_map(
+            move |((left_timestamp, left_value), (right_timestamp, right_value))| {
+                let dvdt = (right_value - left_value) / (right_timestamp - left_timestamp);
+                let mut timestamp = left_timestamp.duration_trunc(interval).unwrap();
+                from_fn(move || {
+                    timestamp += interval;
+                    if timestamp <= right_timestamp {
+                        let dt = timestamp - left_timestamp;
+                        Some((timestamp, left_value + dvdt * dt))
+                    } else {
+                        None
+                    }
                 })
             },
         )
     }
 }
 
-pub fn resample_by_interval<Tz>(
-    interval: TimeDelta,
-) -> impl Fn(&DateTime<Tz>, &DateTime<Tz>) -> Option<DateTime<Tz>>
-where
-    DateTime<Tz>: Copy,
-    Tz: TimeZone,
-{
-    move |lhs, rhs| {
-        let lhs = lhs.duration_trunc(interval).unwrap();
-        let rhs = rhs.duration_trunc(interval).unwrap();
-        (lhs != rhs).then_some(rhs)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use chrono::{Local, NaiveDate};
+    use chrono::NaiveDate;
 
     use super::*;
+    use crate::quantity::energy::KilowattHours;
 
     #[test]
-    fn test_resample() {
-        let series = [(1.0, 0.0), (1.5, 100.0), (2.5, 200.0), (2.9, 300.0)];
-        let series = series
-            .into_iter()
-            .resample(|lhs: &f64, rhs: &f64| (lhs.trunc() != rhs.trunc()).then(|| rhs.trunc()))
-            .collect_vec();
-        assert_eq!(series, [(2.0, 150.0)]);
-    }
-
-    #[test]
-    fn test_resample_hourly() {
+    fn test_resample_by_interval() {
         let date = NaiveDate::from_ymd_opt(2025, 10, 11).unwrap();
-        let resample = resample_by_interval(TimeDelta::hours(1));
 
-        let lhs = date.and_hms_opt(19, 55, 0).unwrap().and_local_timezone(Local).unwrap();
-        assert!(resample(&lhs, &lhs).is_none());
+        let series = vec![
+            (
+                // This one technically gets ignored:
+                date.and_hms_opt(11, 0, 0).unwrap().and_local_timezone(Local).unwrap(),
+                KilowattHours::from(100.0),
+            ),
+            (
+                date.and_hms_opt(11, 30, 0).unwrap().and_local_timezone(Local).unwrap(),
+                KilowattHours::from(3.0),
+            ),
+            (
+                // Skip 2 hours, it should still yield a point at 12:00:
+                date.and_hms_opt(13, 0, 0).unwrap().and_local_timezone(Local).unwrap(),
+                KilowattHours::from(6.0),
+            ),
+            (
+                date.and_hms_opt(14, 30, 0).unwrap().and_local_timezone(Local).unwrap(),
+                KilowattHours::from(10.5),
+            ),
+        ];
 
-        let rhs = date.and_hms_opt(20, 5, 0).unwrap().and_local_timezone(Local).unwrap();
-        let expected = date.and_hms_opt(20, 0, 0).unwrap().and_local_timezone(Local).unwrap();
-        assert_eq!(resample(&lhs, &rhs), Some(expected));
-    }
-
-    #[test]
-    fn test_resample_daily() {
-        let resample = resample_by_interval(TimeDelta::days(1));
-        let lhs = NaiveDate::from_ymd_opt(2025, 10, 11)
-            .unwrap()
-            .and_hms_opt(19, 55, 0)
-            .unwrap()
-            .and_local_timezone(Local)
-            .unwrap();
-        assert!(resample(&lhs, &lhs).is_none());
-
-        let rhs = NaiveDate::from_ymd_opt(2025, 10, 12)
-            .unwrap()
-            .and_hms_opt(2, 15, 0)
-            .unwrap()
-            .and_local_timezone(Local)
-            .unwrap();
-        let expected = NaiveDate::from_ymd_opt(2025, 10, 12)
-            .unwrap()
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_local_timezone(Local)
-            .unwrap();
-        assert_eq!(resample(&lhs, &rhs), Some(expected));
+        let series = series.into_iter().resample_by_interval(TimeDelta::hours(1)).collect_vec();
+        assert_eq!(
+            series,
+            vec![
+                (
+                    date.and_hms_opt(12, 0, 0).unwrap().and_local_timezone(Local).unwrap(),
+                    KilowattHours::from(4.0)
+                ),
+                (
+                    date.and_hms_opt(13, 0, 0).unwrap().and_local_timezone(Local).unwrap(),
+                    KilowattHours::from(6.0)
+                ),
+                (
+                    date.and_hms_opt(14, 0, 0).unwrap().and_local_timezone(Local).unwrap(),
+                    KilowattHours::from(9.0)
+                ),
+            ]
+        );
     }
 }

@@ -26,13 +26,7 @@ use crate::{
     },
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::{
-            Differentiate,
-            Resample,
-            Series,
-            TryEstimateBatteryParameters,
-            resample_by_interval,
-        },
+        series::{Differentiate, Resample, Series, TryEstimateBatteryParameters},
         solver::Solver,
     },
     prelude::*,
@@ -247,7 +241,7 @@ impl home_assistant::Api {
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .resample(resample_by_interval(interval))
+            .resample_by_interval(interval)
             .deltas()
             .inspect(|(timestamp, state_delta)| {
                 info!(

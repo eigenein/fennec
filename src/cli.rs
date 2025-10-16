@@ -76,7 +76,7 @@ pub struct HuntArgs {
         env = "WORKING_MODES",
         value_delimiter = ',',
         num_args = 1..,
-        default_value = "balancing,charging",
+        default_value = "idle,balancing,charging",
     )]
     pub working_modes: Vec<WorkingMode>,
 

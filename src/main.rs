@@ -34,7 +34,6 @@ use crate::{
             resample_by_interval,
         },
         solver::Solver,
-        working_mode::WorkingMode,
     },
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
@@ -92,7 +91,7 @@ async fn main() -> Result {
 }
 
 async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
-    let mut working_modes = [hunt_args.working_modes(); 24];
+    let working_modes = hunt_args.working_modes();
     let home_assistant = hunt_args.home_assistant.connection.try_new_client()?;
     let now = Local::now();
     let history_period = (now - TimeDelta::days(hunt_args.home_assistant.n_history_days))..=now;
@@ -133,13 +132,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             &history_period,
         )
         .await?;
-
-    // Disable idling when solar power is good enough:
-    for (working_modes, solar_yield) in working_modes.iter_mut().zip(&solar_yield) {
-        if solar_yield.unwrap_or(Kilowatts::ZERO) >= hunt_args.disable_idle_above_solar_power {
-            *working_modes -= WorkingMode::Idle;
-        }
-    }
 
     // Calculate the stand-by power:
     let stand_by_power = stand_by_usage

@@ -128,18 +128,26 @@ impl TimeSlotSequence {
                 (working_mode, group.map(|(time, _)| time).collect::<Vec<_>>())
             })
             .map(|(working_mode, timestamps)| {
-                let feed_power = match working_mode {
-                    CoreWorkingMode::Discharging => battery_args.discharging_power,
-                    CoreWorkingMode::Idle => Kilowatts::ZERO,
-                    CoreWorkingMode::Balancing | CoreWorkingMode::Charging => {
-                        battery_args.charging_power
+                let (working_mode, feed_power) = match working_mode {
+                    // Forced charging at 0W is effectively idling:
+                    CoreWorkingMode::Idle => (WorkingMode::ForceCharge, Kilowatts::ZERO),
+
+                    CoreWorkingMode::Charging => {
+                        (WorkingMode::ForceCharge, battery_args.charging_power)
+                    }
+
+                    CoreWorkingMode::Balancing => {
+                        (WorkingMode::SelfUse, battery_args.discharging_power)
+                    }
+
+                    // Self-use permits charging from excess solar power, zero feed power forbids discharging:
+                    CoreWorkingMode::BackupSolar => (WorkingMode::SelfUse, Kilowatts::ZERO),
+
+                    CoreWorkingMode::Discharging => {
+                        (WorkingMode::ForceDischarge, battery_args.discharging_power)
                     }
                 };
-                let working_mode = match working_mode {
-                    CoreWorkingMode::Charging | CoreWorkingMode::Idle => WorkingMode::ForceCharge,
-                    CoreWorkingMode::Discharging => WorkingMode::ForceDischarge,
-                    CoreWorkingMode::Balancing => WorkingMode::SelfUse,
-                };
+
                 let time_slot = TimeSlot {
                     is_enabled: true,
                     start_time: StartTime::from_hour(timestamps.first().unwrap().hour()),

@@ -76,20 +76,13 @@ pub struct HuntArgs {
         env = "WORKING_MODES",
         value_delimiter = ',',
         num_args = 1..,
-        default_value = "balancing,charging,idle",
+        default_value = "balancing,backup-solar,charging",
     )]
     pub working_modes: Vec<WorkingMode>,
 
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
     pub purchase_fee: KilowattHourRate,
-
-    #[clap(
-        long = "disable-idle-above-solar-power-kilowatts",
-        env = "DISABLE_IDLE_ABOVE_SOLAR_POWER_KILOWATTS",
-        default_value = "0.05"
-    )]
-    pub disable_idle_above_solar_power: Kilowatts,
 
     #[clap(flatten)]
     pub battery: BatteryArgs,

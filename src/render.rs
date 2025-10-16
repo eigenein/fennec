@@ -58,6 +58,7 @@ pub fn try_render_steps(
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,
                 CoreWorkingMode::Balancing => Color::DarkYellow,
+                CoreWorkingMode::BackupSolar => Color::DarkGreen,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
             Cell::new(step.residual_energy_before.to_string())
@@ -90,7 +91,7 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
     table.enforce_styling();
-    table.set_header(vec!["Start", "End", "Mode", "Power"]);
+    table.set_header(vec!["Start", "End", "Mode", "Feed power"]);
     for time_slot in sequence {
         let mode_color = match time_slot.working_mode {
             FoxEssWorkingMode::ForceDischarge if time_slot.feed_power != Watts(0) => Color::Red,

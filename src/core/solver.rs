@@ -39,7 +39,7 @@ pub struct Solver<'a> {
     purchase_fee: KilowattHourRate,
     stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
-    working_modes: [EnumSet<WorkingMode>; 24],
+    working_modes: EnumSet<WorkingMode>,
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
@@ -148,7 +148,7 @@ impl Solver<'_> {
             .capacity(self.capacity)
             .parameters(self.battery_parameters)
             .build();
-        self.working_modes[timestamp.hour() as usize]
+        self.working_modes
             .iter()
             .map(|working_mode| {
                 let step = self
@@ -181,15 +181,18 @@ impl Solver<'_> {
     fn simulate_step(
         &self,
         mut battery: Battery,
-        stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
         duration: TimeDelta,
+
+        /// Net power consumption by the household (negative is solar power excess).
+        stand_by_power: Kilowatts,
     ) -> Step {
         // Requested external power flow to or from the battery (negative is directed from the battery):
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
+            WorkingMode::BackupSolar => (-stand_by_power).max(Kilowatts::ZERO),
             WorkingMode::Charging => self.battery_args.charging_power,
             WorkingMode::Discharging => -self.battery_args.discharging_power,
             WorkingMode::Balancing => (-stand_by_power)

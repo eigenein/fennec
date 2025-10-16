@@ -140,9 +140,6 @@ impl TimeSlotSequence {
                         (WorkingMode::SelfUse, battery_args.discharging_power)
                     }
 
-                    // Self-use permits charging from excess solar power, zero feed power forbids discharging:
-                    CoreWorkingMode::BackupSolar => (WorkingMode::SelfUse, Kilowatts::ZERO),
-
                     CoreWorkingMode::Discharging => {
                         (WorkingMode::ForceDischarge, battery_args.discharging_power)
                     }

@@ -33,7 +33,6 @@ Fennec is designed to run as a cron job, continuously refining and updating the 
 | Discharging      | Forced discharging | Max discharging power |
 | Balancing        | Self-use           | Max discharging power |
 | Idle             | Forced charging    | 0                     |
-| Backing up solar | Self-use           | 0                     |
 
 ## Example of a generated schedule
 

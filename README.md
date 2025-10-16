@@ -25,6 +25,16 @@ Fennec, on the other hand, uses extensive information to build an optimal chargi
 
 Fennec is designed to run as a cron job, continuously refining and updating the schedule.
 
+## Supported modes
+
+| Logical mode     | FoxESS mode        | Feed power            |
+|------------------|--------------------|-----------------------|
+| Charging         | Forced charging    | Max charging power    |
+| Discharging      | Forced discharging | Max discharging power |
+| Balancing        | Self-use           | Max discharging power |
+| Idle             | Forced charging    | 0                     |
+| Backing up solar | Self-use           | 0                     |
+
 ## Example of a generated schedule
 
 ```text
@@ -86,7 +96,7 @@ spec:
           restartPolicy: "OnFailure"
           containers:
             - name: "fennec-job"
-              image: "ghcr.io/eigenein/fennec:0.25.6"
+              image: "ghcr.io/eigenein/fennec:0.28.0"
               env:
                 - name: "TZ"
                   value: "Europe/Amsterdam"
@@ -121,9 +131,9 @@ spec:
 template:
   - triggers:
       - trigger: "time_pattern"
-        minutes: 0
+        minutes: "/5"
     sensor:
-      - name: "Fennec hourly total solar yield"
+      - name: "Fennec total solar yield"
         unit_of_measurement: "kWh"
         unique_id: "custom_fennec_hourly_total_solar_yield"
         default_entity_id: "sensor.custom_fennec_hourly_total_solar_yield"
@@ -131,8 +141,8 @@ template:
         state_class: "total"
         state: "{{ states('sensor.sb2_5_1vl_40_555_total_yield') }}"
         attributes:
-          custom_hour: "{{ now().hour }}" # force update
-      - name: "Fennec hourly total energy usage"
+          custom_now: "{{ now() }}" # force update
+      - name: "Fennec total energy usage"
         unit_of_measurement: "kWh"
         unique_id: "custom_fennec_hourly_total_energy_usage"
         default_entity_id: "sensor.custom_fennec_hourly_total_energy_usage"
@@ -147,7 +157,7 @@ template:
             - states('sensor.battery_socket_energy_import') | float
           }}
         attributes:
-          custom_hour: "{{ now().hour }}" # force update
+          custom_now: "{{ now() }}" # force update
   - triggers:
       - trigger: "state"
         entity_id: "sensor.foxess_residual_energy"

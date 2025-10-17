@@ -8,27 +8,16 @@ mod prelude;
 mod quantity;
 mod render;
 
-use std::ops::RangeInclusive;
-
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{Local, TimeDelta};
 use clap::Parser;
 use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
 use crate::{
-    api::{
-        foxess,
-        heartbeat,
-        home_assistant,
-        home_assistant::battery::{BatteryState, BatteryStateAttributes},
-        nextenergy,
-    },
+    api::{foxess, heartbeat, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
-    core::{
-        series::{Differentiate, Resample, Series, TryEstimateBatteryParameters},
-        solver::Solver,
-    },
+    core::{series::Series, solver::Solver},
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
     render::{render_time_slot_sequence, try_render_steps},
@@ -60,23 +49,6 @@ async fn main() -> Result {
             BurrowCommand::FoxEss(burrow_args) => {
                 burrow_fox_ess(&fox_ess, &args.fox_ess_api.serial_number, burrow_args).await?;
             }
-            BurrowCommand::BatteryDifferentials(history_args) => {
-                let now = Local::now();
-                let home_assistant_period =
-                    (now - TimeDelta::days(history_args.home_assistant.n_history_days))..=now;
-                let battery_differentials = history_args
-                    .home_assistant
-                    .connection
-                    .try_new_client()?
-                    .get_battery_differentials(
-                        &history_args.home_assistant.battery_state_entity_id,
-                        &home_assistant_period,
-                        history_args.home_assistant.battery_state_resample_interval_hours,
-                    )
-                    .await?
-                    .collect_vec();
-                println!("{}", serde_json::to_string_pretty(&battery_differentials)?);
-            }
         },
     }
 
@@ -98,21 +70,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let residual_energy = fox_ess.get_device_variables(serial_number).await?.residual_energy;
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
-
-    // Fetch the battery state history and estimate the parameters:
-    #[allow(clippy::literal_string_with_formatting_args)]
-    let battery_parameters = home_assistant
-        .get_battery_differentials(
-            &hunt_args.home_assistant.battery_state_entity_id,
-            &history_period,
-            hunt_args.home_assistant.battery_state_resample_interval_hours,
-        )
-        .await?
-        .try_estimate_battery_parameters()
-        .inspect_err(|error| {
-            warn!("Failed to estimate the battery parameters (need more data, hence using the defaults): {error:#}");
-        })
-        .unwrap_or_default();
 
     let stand_by_usage = home_assistant
         .get_average_hourly_deltas::<KilowattHours>(
@@ -142,7 +99,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery_args(hunt_args.battery)
-        .battery_parameters(battery_parameters)
         .purchase_fee(hunt_args.purchase_fee)
         .stand_by_power(stand_by_power)
         .now(now)
@@ -221,38 +177,4 @@ async fn burrow_fox_ess(
         }
     }
     Ok(())
-}
-
-impl home_assistant::Api {
-    #[instrument(
-        skip_all,
-        name = "Calculating battery differentials…",
-        fields(resample_interval_hours = resample_interval_hours),
-    )]
-    async fn get_battery_differentials(
-        &self,
-        entity_id: &str,
-        period: &RangeInclusive<DateTime<Local>>,
-        resample_interval_hours: i64,
-    ) -> Result<impl Iterator<Item = (TimeDelta, BatteryState<KilowattHours>)>> {
-        Ok(self
-            .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
-            .await?
-            .into_iter()
-            .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .resample_by_interval(TimeDelta::hours(resample_interval_hours))
-            .deltas()
-            .inspect(|(timestamp, (_, state_delta))| {
-                info!(
-                    "Battery delta",
-                    starting_at = timestamp.to_rfc3339(),
-                    import = state_delta.attributes.total_import,
-                    export = state_delta.attributes.total_export,
-                    ideal =
-                        state_delta.attributes.total_import - state_delta.attributes.total_export,
-                    actual = state_delta.residual_energy,
-                );
-            })
-            .map(move |(_, (time_delta, state_delta))| (time_delta, state_delta)))
-    }
 }

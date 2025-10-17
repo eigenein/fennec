@@ -1,4 +1,3 @@
-pub mod battery;
 pub mod energy;
 pub mod history;
 
@@ -17,7 +16,7 @@ use reqwest::{
     Url,
     header::{HeaderMap, HeaderName, HeaderValue},
 };
-use serde::de::{DeserializeOwned, IgnoredAny};
+use serde::de::DeserializeOwned;
 
 use crate::{
     api::home_assistant::history::{EntitiesHistory, EntityHistory},
@@ -46,13 +45,12 @@ impl Api {
     }
 
     #[instrument(skip_all, name = "Fetching the entity state changes…", fields(entity_id = entity_id))]
-    pub async fn get_history<V, A>(
+    pub async fn get_history<V>(
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<EntityHistory<V, A>>
+    ) -> Result<EntityHistory<V>>
     where
-        A: DeserializeOwned,
         V: FromStr + DeserializeOwned,
         <V as FromStr>::Err: Display,
     {
@@ -65,7 +63,7 @@ impl Api {
         url.query_pairs_mut()
             .append_pair("filter_entity_id", entity_id)
             .append_pair("end_time", &period.end().to_rfc3339());
-        let entities_history: EntitiesHistory<V, A> =
+        let entities_history: EntitiesHistory<V> =
             self.client.get(url).send().await?.error_for_status()?.json().await?;
         let entity_history = entities_history
             .into_iter()
@@ -96,7 +94,7 @@ impl Api {
             + DeserializeOwned,
     {
         Ok(self
-            .get_history::<V, IgnoredAny>(entity_id, period)
+            .get_history::<V>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, state.value))

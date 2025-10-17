@@ -1,7 +1,7 @@
 use chrono::TimeDelta;
 
 use crate::{
-    core::series::BatteryParameters,
+    cli::BatteryParameters,
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
@@ -47,9 +47,9 @@ impl Battery {
         // Calculate the internal power:
         let internal_power = external_power
             * if external_power > Kilowatts::ZERO {
-                self.parameters.charging_coefficient
+                self.parameters.charging_efficiency
             } else if external_power < Kilowatts::ZERO {
-                self.parameters.discharging_coefficient
+                1.0 / self.parameters.discharging_efficiency
             } else {
                 return TimeDelta::zero();
             };
@@ -70,7 +70,7 @@ impl Battery {
     }
 
     fn apply_idle_power(&mut self, for_: TimeDelta) {
-        self.residual_energy = (self.residual_energy + self.parameters.parasitic_power * for_)
-            .max(KilowattHours::ZERO);
+        self.residual_energy =
+            (self.residual_energy - self.parameters.parasitic_load * for_).max(KilowattHours::ZERO);
     }
 }

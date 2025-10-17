@@ -9,7 +9,7 @@ license = "MIT"
 publish = true
 readme = "README.md"
 repository = "https://github.com/eigenein/fennec"
-version = "0.30.0"
+version = "0.31.0"
 rust-version = "1.90"
 
 [badges]
@@ -38,17 +38,14 @@ priority = -1
 
 [dependencies]
 anyhow = "=1.0.100"
-bon = "=3.7.2"
+bon = "=3.8.1"
 comfy-table = "=7.2.1"
 derive_more = { version = "=2.0.1", features = ["full"] }
 dotenvy = "=0.15.7"
 enumset = "1.1.10"
 itertools = "=0.14.0"
-linfa = "=0.8.0"
-linfa-linear = "=0.8.0"
 logfire = "=0.8.2"
 md5 = "=0.8.0"
-ndarray = "=0.16.1"
 opentelemetry = { version = "=0.30.0", default-features = false }
 ordered-float = "=5.1.0"
 serde = "=1.0.228"

@@ -14,7 +14,7 @@ use ordered_float::OrderedFloat;
 use crate::{
     cli::BatteryArgs,
     core::{
-        series::{BatteryParameters, Point},
+        series::Point,
         solver::{
             battery::Battery,
             energy::WattHours,
@@ -35,7 +35,6 @@ pub struct Solver<'a> {
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
-    battery_parameters: BatteryParameters,
     purchase_fee: KilowattHourRate,
     stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
@@ -146,7 +145,7 @@ impl Solver<'_> {
             .residual_energy(initial_residual_energy)
             .min_residual_energy(min_residual_energy)
             .capacity(self.capacity)
-            .parameters(self.battery_parameters)
+            .parameters(self.battery_args.parameters)
             .build();
         self.working_modes
             .iter()

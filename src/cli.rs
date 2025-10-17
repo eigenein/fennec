@@ -59,6 +59,33 @@ pub struct BatteryArgs {
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
+
+    #[clap(flatten)]
+    pub parameters: BatteryParameters,
+}
+
+#[derive(Copy, Clone, Parser)]
+pub struct BatteryParameters {
+    #[clap(
+        long = "battery-parasitic-load",
+        default_value = "0.02",
+        env = "BATTERY_PARASITIC_LOAD"
+    )]
+    pub parasitic_load: Kilowatts,
+
+    #[clap(
+        long = "battery-charging-efficiency",
+        default_value = "0.971",
+        env = "BATTERY_CHARGING_EFFICIENCY"
+    )]
+    pub charging_efficiency: f64,
+
+    #[clap(
+        long = "battery-discharging-efficiency",
+        default_value = "0.971",
+        env = "BATTERY_DISCHARGING_EFFICIENCY"
+    )]
+    pub discharging_efficiency: f64,
 }
 
 #[derive(Parser)]
@@ -102,19 +129,6 @@ impl HuntArgs {
 pub struct HomeAssistantArgs {
     #[clap(flatten)]
     pub connection: HomeAssistantConnectionArgs,
-
-    #[clap(
-        long = "home-assistant-battery-state-entity-id",
-        env = "HOME_ASSISTANT_BATTERY_STATE_ENTITY_ID"
-    )]
-    pub battery_state_entity_id: String,
-
-    #[clap(
-        default_value = "24",
-        long = "home-assistant-battery-state-resample-interval-hours",
-        env = "HOME_ASSISTANT_BATTERY_STATE_RESAMPLE_INTERVAL_HOURS"
-    )]
-    pub battery_state_resample_interval_hours: i64,
 
     #[clap(
         long = "home-assistant-total-total-usage-entity-id",
@@ -193,13 +207,4 @@ pub enum BurrowFoxEssCommand {
 pub enum BurrowCommand {
     /// Test FoxESS Cloud API connectivity.
     FoxEss(BurrowFoxEssArgs),
-
-    /// Fetch and dump the battery differential history from Home Assistant.
-    BatteryDifferentials(Box<BurrowBatteryDifferentialsArgs>),
-}
-
-#[derive(Parser)]
-pub struct BurrowBatteryDifferentialsArgs {
-    #[clap(flatten)]
-    pub home_assistant: HomeAssistantArgs,
 }

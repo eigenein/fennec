@@ -234,16 +234,15 @@ impl home_assistant::Api {
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
         resample_interval_hours: i64,
-    ) -> Result<impl Iterator<Item = (BatteryState<KilowattHours>, TimeDelta)>> {
-        let interval = TimeDelta::hours(resample_interval_hours);
+    ) -> Result<impl Iterator<Item = (TimeDelta, BatteryState<KilowattHours>)>> {
         Ok(self
             .get_history::<KilowattHours, BatteryStateAttributes<KilowattHours>>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, BatteryState::from(state)))
-            .resample_by_interval(interval)
+            .resample_by_interval(TimeDelta::hours(resample_interval_hours))
             .deltas()
-            .inspect(|(timestamp, state_delta)| {
+            .inspect(|(timestamp, (_, state_delta))| {
                 info!(
                     "Battery delta",
                     starting_at = timestamp.to_rfc3339(),
@@ -254,6 +253,6 @@ impl home_assistant::Api {
                     actual = state_delta.residual_energy,
                 );
             })
-            .map(move |(_, value)| (value, interval)))
+            .map(move |(_, (time_delta, state_delta))| (time_delta, state_delta)))
     }
 }

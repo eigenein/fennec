@@ -95,15 +95,14 @@ impl Api {
             + FromStr
             + DeserializeOwned,
     {
-        let interval = TimeDelta::hours(1);
         Ok(self
             .get_history::<V, IgnoredAny>(entity_id, period)
             .await?
             .into_iter()
             .map(|state| (state.last_changed_at, state.value))
-            .resample_by_interval(interval)
+            .resample_by_interval(TimeDelta::hours(1))
             .deltas()
-            .map(|(timestamp, dv)| (timestamp, dv / interval))
+            .map(|(timestamp, (dt, dv))| (timestamp, dv / dt))
             .average_hourly())
     }
 }

@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use chrono::{DateTime, Local};
 
 use crate::core::{
@@ -9,5 +11,5 @@ pub struct Solution {
     pub summary: Summary,
 
     /// The simulated working plan.
-    pub steps: Series<DateTime<Local>, Step>,
+    pub steps: Series<Range<DateTime<Local>>, Step>,
 }

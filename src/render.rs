@@ -7,16 +7,15 @@ use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     cli::BatteryArgs,
     core::{series::Point, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
-    prelude::*,
     quantity::{cost::Cost, energy::KilowattHours, power::Watts, rate::KilowattHourRate},
 };
 
-pub fn try_render_steps(
+pub fn render_steps(
     grid_rates: &[Point<Range<DateTime<Local>>, KilowattHourRate>],
-    steps: &[Point<DateTime<Local>, Step>],
+    steps: &[Point<Range<DateTime<Local>>, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
-) -> Result<Table> {
+) -> Table {
     #[allow(clippy::cast_precision_loss)]
     let average_rate =
         grid_rates.iter().map(|(_, grid_rate)| grid_rate.0).sum::<f64>() / grid_rates.len() as f64;
@@ -36,10 +35,10 @@ pub fn try_render_steps(
         "Grid usage",
         "Loss",
     ]);
-    for ((time, grid_rate), (right_time, step)) in grid_rates.iter().zip(steps) {
-        ensure!(time.start == *right_time);
+    for ((rate_range, grid_rate), (step_range, step)) in grid_rates.iter().zip(steps) {
+        assert_eq!(rate_range, step_range);
         table.add_row(vec![
-            Cell::new(time.start.format("%H:%M").to_string()),
+            Cell::new(rate_range.start.format("%H:%M").to_string()),
             Cell::new(grid_rate.to_string()).fg(if grid_rate.0 >= average_rate {
                 Color::Red
             } else {
@@ -82,7 +81,7 @@ pub fn try_render_steps(
             }),
         ]);
     }
-    Ok(table)
+    table
 }
 
 #[must_use]

@@ -20,7 +20,7 @@ use crate::{
     core::{series::Series, solver::Solver},
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
-    render::{render_time_slot_sequence, try_render_steps},
+    render::{render_steps, render_time_slot_sequence},
 };
 
 #[tokio::main]
@@ -115,10 +115,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         profit = profit,
         daily_profit = daily_profit,
     );
-    println!(
-        "{}",
-        try_render_steps(&grid_rates, &solution.steps, hunt_args.battery, total_capacity)?
-    );
+    println!("{}", render_steps(&grid_rates, &solution.steps, hunt_args.battery, total_capacity));
 
     let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();

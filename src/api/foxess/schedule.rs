@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    ops::Range,
+};
 
 use chrono::{DateTime, Local, Timelike};
 use itertools::Itertools;
@@ -111,7 +114,7 @@ pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
 impl TimeSlotSequence {
     #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
     pub fn from_schedule<'a>(
-        schedule: impl IntoIterator<Item = &'a (DateTime<Local>, CoreWorkingMode)>,
+        schedule: impl IntoIterator<Item = &'a (Range<DateTime<Local>>, CoreWorkingMode)>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
         schedule
@@ -119,7 +122,7 @@ impl TimeSlotSequence {
             .take(24) // Avoid collisions with the same hours next day.
             .chunk_by(|(time, mode)| {
                 // Group by date as well because we cannot have time slots like 22:00-02:00:
-                (time.date_naive(), *mode)
+                (time.start.date_naive(), *mode) // FIXME: make use of the time range.
             })
             .into_iter()
             .take(8) // FoxESS Cloud allows maximum of 8 schedule groups.
@@ -147,8 +150,8 @@ impl TimeSlotSequence {
 
                 let time_slot = TimeSlot {
                     is_enabled: true,
-                    start_time: StartTime::from_hour(timestamps.first().unwrap().hour()),
-                    end_time: EndTime::from_hour(timestamps.last().unwrap().hour()),
+                    start_time: StartTime::from_hour(timestamps.first().unwrap().start.hour()), // FIXME: time range.
+                    end_time: EndTime::from_hour(timestamps.last().unwrap().start.hour()), // FIXME: time range.
                     max_soc: 100,
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,

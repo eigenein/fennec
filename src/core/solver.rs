@@ -99,7 +99,7 @@ impl Solver<'_> {
                 .map(|initial_residual_energy_watt_hours| {
                     Rc::new(
                         self.optimise_step()
-                            .timestamp(time_range.start)
+                            .time_range(time_range.clone())
                             .stand_by_power(stand_by_power)
                             .grid_rate(*grid_rate)
                             .initial_residual_energy(KilowattHours::from(WattHours(
@@ -132,7 +132,7 @@ impl Solver<'_> {
     #[builder]
     fn optimise_step(
         &self,
-        timestamp: DateTime<Local>,
+        time_range: Range<DateTime<Local>>,
         stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
@@ -167,7 +167,7 @@ impl Solver<'_> {
                 PartialSolution {
                     net_loss,
                     next: Some(next_partial_solution),
-                    step: Some((timestamp, step)),
+                    step: Some((time_range.clone(), step)),
                 }
             })
             .min_by_key(|partial_solution| OrderedFloat(partial_solution.net_loss.0))
@@ -227,14 +227,14 @@ impl Solver<'_> {
     /// Track the optimal solution starting with the initial conditions.
     fn backtrack(
         initial_partial_solution: Rc<PartialSolution>,
-    ) -> impl Iterator<Item = Point<DateTime<Local>, Step>> {
+    ) -> impl Iterator<Item = Point<Range<DateTime<Local>>, Step>> {
         let mut partial_solution = Some(initial_partial_solution);
         from_fn(move || {
             // I'll need to yield the current step, so clone:
             let current_partial_solution = partial_solution.clone()?;
             // …and advance:
             partial_solution.clone_from(&current_partial_solution.next);
-            current_partial_solution.step
+            current_partial_solution.step.clone() // TODO: can I do without `clone()`?
         })
     }
 }
@@ -256,7 +256,7 @@ struct PartialSolution {
     /// Technically, it is not needed to store the timestamp here because I could always zip
     /// the back track with the original metrics, but having it here makes it much easier to work with
     /// (and to ensure it is working properly).
-    step: Option<(DateTime<Local>, Step)>,
+    step: Option<(Range<DateTime<Local>>, Step)>,
 }
 
 impl Default for PartialSolution {

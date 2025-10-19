@@ -22,7 +22,7 @@ use crate::{
         working_mode::WorkingMode,
     },
     prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
+    quantity::power::Kilowatts,
     render::{render_steps, render_time_slot_sequence},
 };
 
@@ -74,17 +74,14 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    let solar_yield = home_assistant
-        .get_average_hourly_deltas::<KilowattHours>(
-            &hunt_args.home_assistant.solar_yield_entity_id,
-            &history_period,
-        )
+    let (solar_yield, _) = home_assistant
+        .get_average_hourly_power(&hunt_args.home_assistant.solar_yield_entity_id, &history_period)
         .await?;
 
     // TODO: update the first hour with the average solar power of the last hour (and drop the idling flag):
     let conditions: Vec<_> = {
-        let stand_by_usage = home_assistant
-            .get_average_hourly_deltas::<KilowattHours>(
+        let (stand_by_usage, _) = home_assistant
+            .get_average_hourly_power(
                 &hunt_args.home_assistant.total_usage_entity_id,
                 &history_period,
             )
@@ -120,8 +117,10 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .solve();
 
     let profit = solution.summary.profit();
+
     #[allow(clippy::cast_precision_loss)]
     let daily_profit = profit / (conditions.len() as f64 / 24.0);
+
     info!(
         "Optimized",
         net_loss = solution.summary.net_loss,

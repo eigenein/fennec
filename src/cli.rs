@@ -111,6 +111,9 @@ pub struct HuntArgs {
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
     pub purchase_fee: KilowattHourRate,
 
+    #[clap(long, env = "ALLOW_IDLING_DURING_LIGHT_HOURS")]
+    pub allow_idling_during_light_hours: bool,
+
     #[clap(flatten)]
     pub battery: BatteryArgs,
 

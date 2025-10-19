@@ -7,18 +7,24 @@ use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     cli::BatteryArgs,
     core::{series::Point, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
-    quantity::{cost::Cost, energy::KilowattHours, power::Watts, rate::KilowattHourRate},
+    quantity::{
+        cost::Cost,
+        energy::KilowattHours,
+        power::{Kilowatts, Watts},
+        rate::KilowattHourRate,
+    },
 };
 
+#[expect(clippy::type_complexity)]
 pub fn render_steps(
-    grid_rates: &[Point<Range<DateTime<Local>>, KilowattHourRate>],
+    conditions: &[Point<Range<DateTime<Local>>, (KilowattHourRate, Kilowatts)>],
     steps: &[Point<Range<DateTime<Local>>, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Table {
     #[allow(clippy::cast_precision_loss)]
-    let average_rate =
-        grid_rates.iter().map(|(_, grid_rate)| grid_rate.0).sum::<f64>() / grid_rates.len() as f64;
+    let average_rate = conditions.iter().map(|(_, (grid_rate, _))| grid_rate.0).sum::<f64>()
+        / conditions.len() as f64;
 
     let min_residual_energy = capacity * (f64::from(battery_args.min_soc_percent) / 100.0);
 
@@ -35,7 +41,7 @@ pub fn render_steps(
         "Grid usage",
         "Loss",
     ]);
-    for ((rate_range, grid_rate), (step_range, step)) in grid_rates.iter().zip(steps) {
+    for ((rate_range, (grid_rate, _)), (step_range, step)) in conditions.iter().zip(steps) {
         assert_eq!(rate_range, step_range);
         table.add_row(vec![
             Cell::new(rate_range.start.format("%H:%M").to_string()),

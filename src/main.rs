@@ -8,9 +8,8 @@ mod prelude;
 mod quantity;
 mod render;
 
-use chrono::{Local, TimeDelta};
+use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
-use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -71,18 +70,29 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    let stand_by_usage = home_assistant
-        .get_average_hourly_deltas::<KilowattHours>(
-            &hunt_args.home_assistant.total_usage_entity_id,
-            &history_period,
-        )
-        .await?;
     let solar_yield = home_assistant
         .get_average_hourly_deltas::<KilowattHours>(
             &hunt_args.home_assistant.solar_yield_entity_id,
             &history_period,
         )
         .await?;
+    let conditions: Vec<_> = {
+        let stand_by_usage = home_assistant
+            .get_average_hourly_deltas::<KilowattHours>(
+                &hunt_args.home_assistant.total_usage_entity_id,
+                &history_period,
+            )
+            .await?;
+        grid_rates
+            .into_iter()
+            .map(|(time_range, rate)| {
+                let hour = time_range.start.hour() as usize;
+                let stand_by_usage = stand_by_usage[hour].unwrap_or(Kilowatts::ZERO);
+                let solar_yield = solar_yield[hour].unwrap_or(Kilowatts::ZERO);
+                (time_range, (rate, stand_by_usage - solar_yield))
+            })
+            .collect()
+    };
 
     // Remove idling from the light hours:
     for (modes, r#yield) in working_modes.iter_mut().zip(&solar_yield) {
@@ -93,30 +103,19 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         }
     }
 
-    // Calculate the stand-by power:
-    let stand_by_power = stand_by_usage
-        .into_iter()
-        .zip(solar_yield)
-        .map(|(usage, r#yield)| {
-            usage.unwrap_or(Kilowatts::ZERO) - r#yield.unwrap_or(Kilowatts::ZERO)
-        })
-        .collect_array()
-        .unwrap();
-
     let solution = Solver::builder()
-        .grid_rates(&grid_rates)
+        .conditions(&conditions)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery_args(hunt_args.battery)
         .purchase_fee(hunt_args.purchase_fee)
-        .stand_by_power(stand_by_power)
         .now(now)
         .working_modes(working_modes)
         .solve();
 
     let profit = solution.summary.profit();
     #[allow(clippy::cast_precision_loss)]
-    let daily_profit = profit / (grid_rates.len() as f64 / 24.0);
+    let daily_profit = profit / (conditions.len() as f64 / 24.0);
     info!(
         "Optimized",
         net_loss = solution.summary.net_loss,
@@ -124,7 +123,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         profit = profit,
         daily_profit = daily_profit,
     );
-    println!("{}", render_steps(&grid_rates, &solution.steps, hunt_args.battery, total_capacity));
+    println!("{}", render_steps(&conditions, &solution.steps, hunt_args.battery, total_capacity));
 
     let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();

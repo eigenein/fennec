@@ -30,13 +30,13 @@ use crate::{
 
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
+#[expect(clippy::type_complexity)]
 pub struct Solver<'a> {
-    grid_rates: &'a [(Range<DateTime<Local>>, KilowattHourRate)],
+    conditions: &'a [(Range<DateTime<Local>>, (KilowattHourRate, Kilowatts))],
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
     purchase_fee: KilowattHourRate,
-    stand_by_power: [Kilowatts; 24],
     now: DateTime<Local>,
     working_modes: [EnumSet<WorkingMode>; 24],
 }
@@ -83,7 +83,7 @@ impl Solver<'_> {
         let mut next_partial_solutions = vec![Rc::new(PartialSolution::default()); n_energy_states];
 
         // Going backwards:
-        for (time_range, grid_rate) in self.grid_rates.iter().rev() {
+        for (time_range, (grid_rate, stand_by_power)) in self.conditions.iter().rev() {
             let step_duration = if time_range.contains(&self.now) {
                 time_range.end - self.now
             } else {
@@ -91,8 +91,7 @@ impl Solver<'_> {
             };
 
             // Average stand-by power at this hour of a day:
-            let stand_by_power = self.stand_by_power[time_range.start.hour() as usize];
-            net_loss_without_battery += self.loss(*grid_rate, stand_by_power * step_duration);
+            net_loss_without_battery += self.loss(*grid_rate, *stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:
             next_partial_solutions = (0..=max_energy.0)
@@ -100,7 +99,7 @@ impl Solver<'_> {
                     Rc::new(
                         self.optimise_step()
                             .time_range(time_range.clone())
-                            .stand_by_power(stand_by_power)
+                            .stand_by_power(*stand_by_power)
                             .grid_rate(*grid_rate)
                             .initial_residual_energy(KilowattHours::from(WattHours(
                                 initial_residual_energy_watt_hours,

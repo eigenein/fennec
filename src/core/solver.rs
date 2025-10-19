@@ -1,4 +1,5 @@
 mod battery;
+pub mod conditions;
 mod energy;
 pub mod solution;
 pub mod step;
@@ -17,6 +18,7 @@ use crate::{
         series::Point,
         solver::{
             battery::Battery,
+            conditions::Conditions,
             energy::WattHours,
             solution::Solution,
             step::Step,
@@ -30,9 +32,8 @@ use crate::{
 
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
-#[expect(clippy::type_complexity)]
 pub struct Solver<'a> {
-    conditions: &'a [(Range<DateTime<Local>>, (KilowattHourRate, Kilowatts))],
+    conditions: &'a [(Range<DateTime<Local>>, Conditions)],
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
@@ -83,7 +84,7 @@ impl Solver<'_> {
         let mut next_partial_solutions = vec![Rc::new(PartialSolution::default()); n_energy_states];
 
         // Going backwards:
-        for (time_range, (grid_rate, stand_by_power)) in self.conditions.iter().rev() {
+        for (time_range, conditions) in self.conditions.iter().rev() {
             let step_duration = if time_range.contains(&self.now) {
                 time_range.end - self.now
             } else {
@@ -91,7 +92,8 @@ impl Solver<'_> {
             };
 
             // Average stand-by power at this hour of a day:
-            net_loss_without_battery += self.loss(*grid_rate, *stand_by_power * step_duration);
+            net_loss_without_battery +=
+                self.loss(conditions.grid_rate, conditions.stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:
             next_partial_solutions = (0..=max_energy.0)
@@ -99,8 +101,7 @@ impl Solver<'_> {
                     Rc::new(
                         self.optimise_step()
                             .time_range(time_range.clone())
-                            .stand_by_power(*stand_by_power)
-                            .grid_rate(*grid_rate)
+                            .conditions(conditions)
                             .initial_residual_energy(KilowattHours::from(WattHours(
                                 initial_residual_energy_watt_hours,
                             )))
@@ -132,8 +133,7 @@ impl Solver<'_> {
     fn optimise_step(
         &self,
         time_range: Range<DateTime<Local>>,
-        stand_by_power: Kilowatts,
-        grid_rate: KilowattHourRate,
+        conditions: &Conditions,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         next_partial_solutions: &[Rc<PartialSolution>],
@@ -151,8 +151,7 @@ impl Solver<'_> {
             .map(|working_mode| {
                 let step = self
                     .simulate_step()
-                    .stand_by_power(stand_by_power)
-                    .grid_rate(grid_rate)
+                    .conditions(conditions)
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery.clone())
                     .working_mode(working_mode)
@@ -179,20 +178,17 @@ impl Solver<'_> {
     fn simulate_step(
         &self,
         mut battery: Battery,
-        grid_rate: KilowattHourRate,
+        conditions: &Conditions,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
         duration: TimeDelta,
-
-        /// Net power consumption by the household (negative is solar power excess).
-        stand_by_power: Kilowatts,
     ) -> Step {
         // Requested external power flow to or from the battery (negative is directed from the battery):
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Charging => self.battery_args.charging_power,
             WorkingMode::Discharging => -self.battery_args.discharging_power,
-            WorkingMode::Balancing => (-stand_by_power)
+            WorkingMode::Balancing => (-conditions.stand_by_power)
                 .clamp(-self.battery_args.discharging_power, self.battery_args.charging_power),
         };
 
@@ -201,15 +197,15 @@ impl Solver<'_> {
 
         // Total household energy balance:
         let grid_consumption =
-            battery_external_power * battery_active_time + stand_by_power * duration;
+            battery_external_power * battery_active_time + conditions.stand_by_power * duration;
 
         Step {
             working_mode,
             residual_energy_before: initial_residual_energy,
             residual_energy_after: battery.residual_energy(),
-            stand_by_power,
+            stand_by_power: conditions.stand_by_power,
             grid_consumption,
-            loss: self.loss(grid_rate, grid_consumption),
+            loss: self.loss(conditions.grid_rate, grid_consumption),
         }
     }
 

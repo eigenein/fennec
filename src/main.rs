@@ -16,7 +16,11 @@ use tracing::level_filters::LevelFilter;
 use crate::{
     api::{foxess, heartbeat, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
-    core::{series::Series, solver::Solver, working_mode::WorkingMode},
+    core::{
+        series::Series,
+        solver::{Solver, conditions::Conditions},
+        working_mode::WorkingMode,
+    },
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
     render::{render_steps, render_time_slot_sequence},
@@ -76,6 +80,8 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             &history_period,
         )
         .await?;
+
+    // TODO: update the first hour with the average solar power of the last hour (and drop the idling flag):
     let conditions: Vec<_> = {
         let stand_by_usage = home_assistant
             .get_average_hourly_deltas::<KilowattHours>(
@@ -85,16 +91,16 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             .await?;
         grid_rates
             .into_iter()
-            .map(|(time_range, rate)| {
+            .map(|(time_range, grid_rate)| {
                 let hour = time_range.start.hour() as usize;
                 let stand_by_usage = stand_by_usage[hour].unwrap_or(Kilowatts::ZERO);
                 let solar_yield = solar_yield[hour].unwrap_or(Kilowatts::ZERO);
-                (time_range, (rate, stand_by_usage - solar_yield))
+                (time_range, Conditions { grid_rate, stand_by_power: stand_by_usage - solar_yield })
             })
             .collect()
     };
 
-    // Remove idling from the light hours:
+    // Remove idling from the light hours: // TODO: goes away when I correct on the current solar yield:
     for (modes, r#yield) in working_modes.iter_mut().zip(&solar_yield) {
         if !hunt_args.allow_idling_during_light_hours
             && r#yield.unwrap_or(Kilowatts::ZERO) >= hunt_args.battery.parameters.parasitic_load

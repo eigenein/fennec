@@ -6,24 +6,22 @@ use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     cli::BatteryArgs,
-    core::{series::Point, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
-    quantity::{
-        cost::Cost,
-        energy::KilowattHours,
-        power::{Kilowatts, Watts},
-        rate::KilowattHourRate,
+    core::{
+        series::Point,
+        solver::{conditions::Conditions, step::Step},
+        working_mode::WorkingMode as CoreWorkingMode,
     },
+    quantity::{cost::Cost, energy::KilowattHours, power::Watts},
 };
 
-#[expect(clippy::type_complexity)]
 pub fn render_steps(
-    conditions: &[Point<Range<DateTime<Local>>, (KilowattHourRate, Kilowatts)>],
+    conditions: &[Point<Range<DateTime<Local>>, Conditions>],
     steps: &[Point<Range<DateTime<Local>>, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Table {
     #[allow(clippy::cast_precision_loss)]
-    let average_rate = conditions.iter().map(|(_, (grid_rate, _))| grid_rate.0).sum::<f64>()
+    let average_rate = conditions.iter().map(|(_, conditions)| conditions.grid_rate.0).sum::<f64>()
         / conditions.len() as f64;
 
     let min_residual_energy = capacity * (f64::from(battery_args.min_soc_percent) / 100.0);
@@ -41,15 +39,12 @@ pub fn render_steps(
         "Grid usage",
         "Loss",
     ]);
-    for ((rate_range, (grid_rate, _)), (step_range, step)) in conditions.iter().zip(steps) {
+    for ((rate_range, conditions), (step_range, step)) in conditions.iter().zip(steps) {
         assert_eq!(rate_range, step_range);
         table.add_row(vec![
             Cell::new(rate_range.start.format("%H:%M").to_string()),
-            Cell::new(grid_rate.to_string()).fg(if grid_rate.0 >= average_rate {
-                Color::Red
-            } else {
-                Color::Green
-            }),
+            Cell::new(conditions.grid_rate.to_string())
+                .fg(if conditions.grid_rate.0 >= average_rate { Color::Red } else { Color::Green }),
             Cell::new(step.stand_by_power.to_string()).set_alignment(CellAlignment::Right).fg(
                 if step.stand_by_power <= -battery_args.charging_power {
                     Color::Green

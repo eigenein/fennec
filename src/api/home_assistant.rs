@@ -72,36 +72,17 @@ impl Api {
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<([Option<Kilowatts>; 24], Option<Kilowatts>)> {
+    ) -> Result<[Option<Kilowatts>; 24]> {
         const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
 
-        let mut from_point = None;
-        let mut to_point = None;
-        let hourly_power = self
+        Ok(self
             .get_history::<KilowattHours>(entity_id, period)
             .await?
             .into_iter()
-            .inspect(|state| {
-                if state.last_changed_at >= *period.end() - ONE_HOUR {
-                    let point = Some((state.last_changed_at, state.value));
-                    if from_point.is_none() {
-                        from_point = point;
-                    }
-                    to_point = point;
-                }
-            })
             .map(|state| (state.last_changed_at, state.value))
             .resample_by_interval(ONE_HOUR)
             .deltas()
             .map(|(timestamp, (dt, dv))| (timestamp, dv / dt))
-            .average_hourly();
-
-        let last_hour_power = from_point.zip(to_point).and_then(
-            |((from_timestamp, from_value), (to_timestamp, to_value))| {
-                let power = (to_value - from_value) / (to_timestamp - from_timestamp);
-                power.0.is_finite().then_some(power)
-            },
-        );
-        Ok((hourly_power, last_hour_power))
+            .average_hourly())
     }
 }

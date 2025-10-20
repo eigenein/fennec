@@ -74,13 +74,12 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    let (solar_yield, _) = home_assistant
+    let solar_yield = home_assistant
         .get_average_hourly_power(&hunt_args.home_assistant.solar_yield_entity_id, &history_period)
         .await?;
 
-    // TODO: update the first hour with the average solar power of the last hour (and drop the idling flag):
     let conditions: Vec<_> = {
-        let (stand_by_usage, _) = home_assistant
+        let stand_by_usage = home_assistant
             .get_average_hourly_power(
                 &hunt_args.home_assistant.total_usage_entity_id,
                 &history_period,
@@ -97,7 +96,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             .collect()
     };
 
-    // Remove idling from the light hours: // TODO: goes away when I correct on the current solar yield:
+    // Remove idling from the light hours:
     for (modes, r#yield) in working_modes.iter_mut().zip(&solar_yield) {
         if !hunt_args.allow_idling_during_light_hours
             && r#yield.unwrap_or(Kilowatts::ZERO) >= hunt_args.battery.parameters.parasitic_load

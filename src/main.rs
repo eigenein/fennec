@@ -82,13 +82,23 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         )
         .await?
         .into_iter()
+        // TODO: move the `map` into `get_history`:
         .map(|state| (state.last_changed_at, state.value))
-        .resample_by_interval(TimeDelta::hours(1))
+        .collect_vec();
+    let peak_hourly_solar_power = solar_power
+        .iter()
+        .copied()
+        // TODO: de-dup `.deltas().map()`.
         .deltas()
         .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
-        .collect_vec();
-    let average_hourly_solar_yield = solar_power.iter().copied().average_hourly();
-    let peak_hourly_solar_power = solar_power.into_iter().peak_hourly();
+        .peak_hourly();
+    let average_hourly_solar_yield = solar_power
+        .into_iter()
+        .resample_by_interval(TimeDelta::hours(1))
+        // TODO: de-dup `.deltas().map()`.
+        .deltas()
+        .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
+        .average_hourly();
 
     let conditions: Vec<_> = {
         let stand_by_usage = home_assistant
@@ -106,7 +116,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
                 let mut allowed_working_modes = working_modes;
                 let solar_power_peak = peak_hourly_solar_power[hour].unwrap_or(Kilowatts::ZERO);
                 if solar_power_peak > stand_by_usage {
-                    warn!("Idling is disabled", hour, stand_by_usage, solar_power_peak);
                     allowed_working_modes -= WorkingMode::Idle;
                 }
                 (

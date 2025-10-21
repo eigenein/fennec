@@ -19,7 +19,6 @@ use crate::{
     core::{
         series::Series,
         solver::{Solver, conditions::Conditions},
-        working_mode::WorkingMode,
     },
     prelude::*,
     quantity::power::Kilowatts,
@@ -60,7 +59,7 @@ async fn main() -> Result {
 }
 
 async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -> Result {
-    let mut working_modes = [hunt_args.working_modes(); 24];
+    let working_modes = hunt_args.working_modes();
     let home_assistant = hunt_args.home_assistant.connection.try_new_client()?;
     let now = Local::now();
     let history_period = (now - TimeDelta::days(hunt_args.home_assistant.n_history_days))..=now;
@@ -95,15 +94,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             })
             .collect()
     };
-
-    // Remove idling from the light hours:
-    for (modes, r#yield) in working_modes.iter_mut().zip(&solar_yield) {
-        if !hunt_args.allow_idling_during_light_hours
-            && r#yield.unwrap_or(Kilowatts::ZERO) >= hunt_args.battery.parameters.parasitic_load
-        {
-            *modes -= WorkingMode::Idle;
-        }
-    }
 
     let solution = Solver::builder()
         .conditions(&conditions)

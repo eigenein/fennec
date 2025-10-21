@@ -26,6 +26,7 @@ pub trait AggregateHourly {
             .unwrap()
     }
 
+    /// TODO: percentiles.
     fn peak_hourly<K, V>(self) -> [Option<V>; 24]
     where
         Self: Sized + Iterator<Item = (K, V)>,

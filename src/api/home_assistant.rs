@@ -82,7 +82,7 @@ impl Api {
             .map(|state| (state.last_changed_at, state.value))
             .resample_by_interval(ONE_HOUR)
             .deltas()
-            .map(|(timestamp, (dt, dv))| (timestamp, dv / dt))
+            .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
             .average_hourly())
     }
 }

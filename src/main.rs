@@ -10,6 +10,7 @@ mod render;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
+use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -17,11 +18,12 @@ use crate::{
     api::{foxess, heartbeat, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::Series,
+        series::{AggregateHourly, Differentiate, Resample, Series},
         solver::{Solver, conditions::Conditions},
+        working_mode::WorkingMode,
     },
     prelude::*,
-    quantity::power::Kilowatts,
+    quantity::{energy::KilowattHours, power::Kilowatts},
     render::{render_steps, render_time_slot_sequence},
 };
 
@@ -73,9 +75,20 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    let solar_yield = home_assistant
-        .get_average_hourly_power(&hunt_args.home_assistant.solar_yield_entity_id, &history_period)
-        .await?;
+    let solar_power = home_assistant
+        .get_history::<KilowattHours>(
+            &hunt_args.home_assistant.solar_yield_entity_id,
+            &history_period,
+        )
+        .await?
+        .into_iter()
+        .map(|state| (state.last_changed_at, state.value))
+        .resample_by_interval(TimeDelta::hours(1))
+        .deltas()
+        .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
+        .collect_vec();
+    let average_hourly_solar_yield = solar_power.iter().copied().average_hourly();
+    let peak_hourly_solar_power = solar_power.into_iter().peak_hourly();
 
     let conditions: Vec<_> = {
         let stand_by_usage = home_assistant
@@ -89,8 +102,21 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             .map(|(time_range, grid_rate)| {
                 let hour = time_range.start.hour() as usize;
                 let stand_by_usage = stand_by_usage[hour].unwrap_or(Kilowatts::ZERO);
-                let solar_yield = solar_yield[hour].unwrap_or(Kilowatts::ZERO);
-                (time_range, Conditions { grid_rate, stand_by_power: stand_by_usage - solar_yield })
+                let solar_yield = average_hourly_solar_yield[hour].unwrap_or(Kilowatts::ZERO);
+                let mut allowed_working_modes = working_modes;
+                let solar_power_peak = peak_hourly_solar_power[hour].unwrap_or(Kilowatts::ZERO);
+                if solar_power_peak > stand_by_usage {
+                    warn!("Idling is disabled", hour, stand_by_usage, solar_power_peak);
+                    allowed_working_modes -= WorkingMode::Idle;
+                }
+                (
+                    time_range,
+                    Conditions {
+                        grid_rate,
+                        allowed_working_modes,
+                        stand_by_power: stand_by_usage - solar_yield,
+                    },
+                )
             })
             .collect()
     };
@@ -102,7 +128,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .battery_args(hunt_args.battery)
         .purchase_fee(hunt_args.purchase_fee)
         .now(now)
-        .working_modes(working_modes)
         .solve();
 
     let profit = solution.summary.profit();

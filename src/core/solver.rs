@@ -9,7 +9,6 @@ use std::{iter::from_fn, ops::Range, rc::Rc};
 
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta};
-use enumset::EnumSet;
 use ordered_float::OrderedFloat;
 
 use crate::{
@@ -39,7 +38,6 @@ pub struct Solver<'a> {
     battery_args: BatteryArgs,
     purchase_fee: KilowattHourRate,
     now: DateTime<Local>,
-    working_modes: EnumSet<WorkingMode>,
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
@@ -146,7 +144,8 @@ impl Solver<'_> {
             .capacity(self.capacity)
             .parameters(self.battery_args.parameters)
             .build();
-        self.working_modes
+        conditions
+            .allowed_working_modes
             .iter()
             .map(|working_mode| {
                 let step = self

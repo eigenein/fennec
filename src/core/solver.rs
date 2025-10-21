@@ -203,7 +203,6 @@ impl Solver<'_> {
             working_mode,
             residual_energy_before: initial_residual_energy,
             residual_energy_after: battery.residual_energy(),
-            stand_by_power: conditions.stand_by_power,
             grid_consumption,
             loss: self.loss(conditions.grid_rate, grid_consumption),
         }

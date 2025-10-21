@@ -45,15 +45,15 @@ pub fn render_steps(
             Cell::new(rate_range.start.format("%H:%M").to_string()),
             Cell::new(conditions.grid_rate.to_string())
                 .fg(if conditions.grid_rate.0 >= average_rate { Color::Red } else { Color::Green }),
-            Cell::new(step.stand_by_power.to_string()).set_alignment(CellAlignment::Right).fg(
-                if step.stand_by_power <= -battery_args.charging_power {
+            Cell::new(conditions.stand_by_power.to_string())
+                .set_alignment(CellAlignment::Right)
+                .fg(if conditions.stand_by_power <= -battery_args.charging_power {
                     Color::Green
-                } else if step.stand_by_power <= battery_args.discharging_power {
+                } else if conditions.stand_by_power <= battery_args.discharging_power {
                     Color::DarkYellow
                 } else {
                     Color::Red
-                },
-            ),
+                }),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,

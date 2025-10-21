@@ -1,9 +1,11 @@
-use std::{hash::Hash, iter::Sum, ops::Div};
+use std::{
+    hash::Hash,
+    iter::Sum,
+    ops::{Add, Div},
+};
 
 use chrono::Timelike;
 use itertools::Itertools;
-
-use crate::core::series::SumValues;
 
 impl<T> AverageHourly for T where T: ?Sized {}
 
@@ -12,22 +14,20 @@ pub trait AverageHourly {
     where
         Self: Sized + Iterator<Item = (K, V)>,
         K: Hash + Eq + Timelike,
-        V: Copy + Sum + Div<f64, Output = V>,
+        V: Copy + Sum + Add<V, Output = V> + Div<f64, Output = V>,
     {
-        let mut averages = [None; 24];
-        self.into_group_map_by(|(key, _)| key.hour())
-            .into_iter()
-            .map(|(hour, points)| {
-                assert!(!points.is_empty());
-
-                #[allow(clippy::cast_precision_loss)]
-                let len = points.len() as f64;
-
-                // Average the points within similar hours:
-                (hour, points.into_iter().sum_values() / len)
-            })
-            .for_each(|(hour, value)| averages[hour as usize] = Some(value));
-        averages
+        let mut sums = [None; 24];
+        let mut weights = [0_u32; 24];
+        for (timestamp, value) in self {
+            let hour = timestamp.hour() as usize;
+            weights[hour] += 1;
+            sums[hour] = Some(sums[hour].map_or(value, |sum| sum + value));
+        }
+        sums.into_iter()
+            .zip(weights)
+            .map(|(sum, weight)| sum.map(|sum| sum / f64::from(weight)))
+            .collect_array()
+            .unwrap()
     }
 }
 

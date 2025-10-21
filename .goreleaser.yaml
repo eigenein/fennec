@@ -46,6 +46,3 @@ docker_signs:
       - "sign"
       - "${artifact}"
       - "--yes"
-
-changelog:
-  sort: asc

@@ -7,9 +7,9 @@ use std::{
 use chrono::Timelike;
 use itertools::Itertools;
 
-impl<T> AverageHourly for T where T: ?Sized {}
+impl<T> AggregateHourly for T where T: ?Sized {}
 
-pub trait AverageHourly {
+pub trait AggregateHourly {
     fn average_hourly<K, V>(self) -> [Option<V>; 24]
     where
         Self: Sized + Iterator<Item = (K, V)>,

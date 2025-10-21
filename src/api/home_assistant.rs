@@ -14,7 +14,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     api::home_assistant::history::{EntitiesHistory, EntityHistory},
-    core::series::{AverageHourly, Differentiate, Resample},
+    core::series::{AggregateHourly, Differentiate, Resample},
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
 };

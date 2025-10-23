@@ -91,7 +91,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         // TODO: de-dup `.deltas().map()`.
         .deltas()
         .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
-        .hourly_percentile(hunt_args.solar_power_threshold_percentile);
+        .hourly_quantiles(hunt_args.solar_power_threshold_quantile);
     let average_hourly_solar_yield = solar_power
         .into_iter()
         .resample_by_interval(TimeDelta::hours(1))

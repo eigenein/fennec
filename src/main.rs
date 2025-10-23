@@ -24,7 +24,7 @@ use crate::{
     },
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
-    render::{render_steps, render_time_slot_sequence},
+    render::{render_hourly_power, render_steps, render_time_slot_sequence},
 };
 
 #[tokio::main]
@@ -85,13 +85,13 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         // TODO: move the `map` into `get_history`:
         .map(|state| (state.last_changed_at, state.value))
         .collect_vec();
-    let peak_hourly_solar_power = solar_power
+    let hourly_solar_power_threshold = solar_power
         .iter()
         .copied()
         // TODO: de-dup `.deltas().map()`.
         .deltas()
         .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
-        .peak_hourly();
+        .hourly_percentile(hunt_args.solar_power_threshold_percentile);
     let average_hourly_solar_yield = solar_power
         .into_iter()
         .resample_by_interval(TimeDelta::hours(1))
@@ -107,6 +107,14 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
                 &history_period,
             )
             .await?;
+        println!(
+            "{}",
+            render_hourly_power(
+                &stand_by_usage,
+                &average_hourly_solar_yield,
+                &hourly_solar_power_threshold,
+            )
+        );
         grid_rates
             .into_iter()
             .map(|(time_range, grid_rate)| {
@@ -114,8 +122,9 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
                 let stand_by_usage = stand_by_usage[hour].unwrap_or(Kilowatts::ZERO);
                 let solar_yield = average_hourly_solar_yield[hour].unwrap_or(Kilowatts::ZERO);
                 let mut allowed_working_modes = working_modes;
-                let solar_power_peak = peak_hourly_solar_power[hour].unwrap_or(Kilowatts::ZERO);
-                if solar_power_peak > stand_by_usage {
+                let solar_power_threshold =
+                    hourly_solar_power_threshold[hour].unwrap_or(Kilowatts::ZERO);
+                if solar_power_threshold > stand_by_usage {
                     allowed_working_modes -= WorkingMode::Idle;
                 }
                 (

@@ -107,6 +107,9 @@ pub struct HuntArgs {
     )]
     pub working_modes: Vec<WorkingMode>,
 
+    #[clap(long, env, default_value = "0.95")]
+    pub solar_power_threshold_percentile: f64,
+
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
     pub purchase_fee: KilowattHourRate,

@@ -1,4 +1,7 @@
-use std::ops::{Add, Div};
+use std::{
+    cmp::Ordering,
+    ops::{Add, Div},
+};
 
 use chrono::Timelike;
 use itertools::Itertools;
@@ -26,20 +29,22 @@ pub trait AggregateHourly {
             .unwrap()
     }
 
-    /// TODO: percentiles.
-    fn peak_hourly<K, V>(self) -> [Option<V>; 24]
+    fn hourly_percentile<K, V>(self, percentile: f64) -> [Option<V>; 24]
     where
         Self: Sized + Iterator<Item = (K, V)>,
         K: Timelike,
         V: Copy + PartialOrd,
     {
-        let mut peaks: [Option<V>; 24] = [None; 24];
-        for (timestamp, value) in self {
-            let hour = timestamp.hour() as usize;
-            peaks[hour] =
-                Some(peaks[hour].map_or(value, |peak| if value > peak { value } else { peak }));
+        let mut hourly_percentile = [None; 24];
+        for (hour, mut values) in self.into_group_map_by(|(timestamp, _)| timestamp.hour()) {
+            let index = ((values.len() - 1) as f64 * percentile) as usize;
+            let (_, (_, percentile), _) = values
+                .select_nth_unstable_by(index, |(_, lhs), (_, rhs)| {
+                    lhs.partial_cmp(rhs).unwrap_or(Ordering::Equal)
+                });
+            hourly_percentile[hour as usize] = Some(*percentile);
         }
-        peaks
+        hourly_percentile
     }
 }
 
@@ -62,8 +67,8 @@ mod tests {
     fn test_peak_hourly() {
         let time = NaiveTime::from_hms_opt(23, 0, 0).unwrap();
         let series = vec![(time, 2), (time, 3), (time, 1)];
-        let averages = series.into_iter().peak_hourly();
+        let averages = series.into_iter().hourly_percentile(0.5);
         assert_eq!(&averages[0..23], [None; 23]);
-        assert_eq!(averages[23], Some(3));
+        assert_eq!(averages[23], Some(2));
     }
 }

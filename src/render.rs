@@ -11,7 +11,11 @@ use crate::{
         solver::{conditions::Conditions, step::Step},
         working_mode::WorkingMode as CoreWorkingMode,
     },
-    quantity::{cost::Cost, energy::KilowattHours, power::Watts},
+    quantity::{
+        cost::Cost,
+        energy::KilowattHours,
+        power::{Kilowatts, Watts},
+    },
 };
 
 pub fn render_steps(
@@ -42,40 +46,43 @@ pub fn render_steps(
     for ((rate_range, conditions), (step_range, step)) in conditions.iter().zip(steps) {
         assert_eq!(rate_range, step_range);
         table.add_row(vec![
-            Cell::new(rate_range.start.format("%H:%M").to_string()),
-            Cell::new(conditions.grid_rate.to_string())
-                .fg(if conditions.grid_rate.0 >= average_rate { Color::Red } else { Color::Green }),
-            Cell::new(conditions.stand_by_power.to_string())
-                .set_alignment(CellAlignment::Right)
-                .fg(if conditions.stand_by_power <= -battery_args.charging_power {
+            Cell::new(rate_range.start.format("%H:%M")),
+            Cell::new(conditions.grid_rate).fg(if conditions.grid_rate.0 >= average_rate {
+                Color::Red
+            } else {
+                Color::Green
+            }),
+            Cell::new(conditions.stand_by_power).set_alignment(CellAlignment::Right).fg(
+                if conditions.stand_by_power <= -battery_args.charging_power {
                     Color::Green
                 } else if conditions.stand_by_power <= battery_args.discharging_power {
                     Color::DarkYellow
                 } else {
                     Color::Red
-                }),
+                },
+            ),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
                 CoreWorkingMode::Charging => Color::Green,
                 CoreWorkingMode::Discharging => Color::Red,
                 CoreWorkingMode::Balancing => Color::DarkYellow,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
-            Cell::new(step.residual_energy_before.to_string())
-                .set_alignment(CellAlignment::Right)
-                .fg(if step.residual_energy_before > min_residual_energy {
+            Cell::new(step.residual_energy_before).set_alignment(CellAlignment::Right).fg(
+                if step.residual_energy_before > min_residual_energy {
                     Color::Reset
                 } else {
                     Color::Red
-                }),
-            Cell::new(step.residual_energy_after.to_string())
-                .set_alignment(CellAlignment::Right)
-                .fg(if step.residual_energy_after > min_residual_energy {
+                },
+            ),
+            Cell::new(step.residual_energy_after).set_alignment(CellAlignment::Right).fg(
+                if step.residual_energy_after > min_residual_energy {
                     Color::Reset
                 } else {
                     Color::Red
-                }),
-            Cell::new(step.grid_consumption.to_string()).set_alignment(CellAlignment::Right),
-            Cell::new(step.loss.to_string()).fg(if step.loss >= Cost::ONE_CENT {
+                },
+            ),
+            Cell::new(step.grid_consumption).set_alignment(CellAlignment::Right),
+            Cell::new(step.loss).fg(if step.loss >= Cost::ONE_CENT {
                 Color::Red
             } else {
                 Color::Green
@@ -99,10 +106,58 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
             _ => Color::Reset,
         };
         table.add_row(vec![
-            Cell::new(time_slot.start_time.to_string()),
-            Cell::new(time_slot.end_time.to_string()),
+            Cell::new(&time_slot.start_time),
+            Cell::new(&time_slot.end_time),
             Cell::new(format!("{:?}", time_slot.working_mode)).fg(mode_color),
-            Cell::new(time_slot.feed_power.to_string()).set_alignment(CellAlignment::Right),
+            Cell::new(time_slot.feed_power).set_alignment(CellAlignment::Right),
+        ]);
+    }
+    table
+}
+
+#[must_use]
+pub fn render_hourly_power(
+    stand_by_usage: &[Option<Kilowatts>],
+    average_solar_power: &[Option<Kilowatts>],
+    solar_threshold: &[Option<Kilowatts>],
+) -> Table {
+    let mut table = Table::new();
+    table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
+    table.enforce_styling();
+    table.set_header(vec!["Hour", "Stand-by", "Solar threshold", "Average solar"]);
+    for (hour, ((stand_by_power, average_solar_power), solar_threshold)) in
+        stand_by_usage.iter().zip(average_solar_power).zip(solar_threshold).enumerate()
+    {
+        table.add_row(vec![
+            Cell::new(hour).set_alignment(CellAlignment::Right),
+            Cell::new(if let Some(power) = stand_by_power {
+                power.to_string()
+            } else {
+                "".to_string()
+            })
+            .set_alignment(CellAlignment::Right),
+            Cell::new(if let Some(power) = solar_threshold {
+                power.to_string()
+            } else {
+                "".to_string()
+            })
+            .set_alignment(CellAlignment::Right)
+            .fg(if solar_threshold > stand_by_power {
+                Color::Green
+            } else {
+                Color::Reset
+            }),
+            Cell::new(if let Some(power) = average_solar_power {
+                power.to_string()
+            } else {
+                "".to_string()
+            })
+            .set_alignment(CellAlignment::Right)
+            .fg(if average_solar_power > stand_by_power {
+                Color::Green
+            } else {
+                Color::Reset
+            }),
         ]);
     }
     table

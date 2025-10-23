@@ -73,6 +73,7 @@ pub struct BatteryParameters {
     )]
     pub parasitic_load: Kilowatts,
 
+    /// TODO: replace these two with «round-trip efficiency» and charging-discharging balance.
     #[clap(
         long = "battery-charging-efficiency",
         default_value = "0.971",
@@ -80,6 +81,7 @@ pub struct BatteryParameters {
     )]
     pub charging_efficiency: f64,
 
+    /// TODO: replace these two with «round-trip efficiency» and charging-discharging balance.
     #[clap(
         long = "battery-discharging-efficiency",
         default_value = "0.971",

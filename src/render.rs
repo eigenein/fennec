@@ -130,34 +130,14 @@ pub fn render_hourly_power(
     {
         table.add_row(vec![
             Cell::new(hour).set_alignment(CellAlignment::Right),
-            Cell::new(if let Some(power) = stand_by_power {
-                power.to_string()
-            } else {
-                "".to_string()
-            })
-            .set_alignment(CellAlignment::Right),
-            Cell::new(if let Some(power) = solar_threshold {
-                power.to_string()
-            } else {
-                "".to_string()
-            })
-            .set_alignment(CellAlignment::Right)
-            .fg(if solar_threshold > stand_by_power {
-                Color::Green
-            } else {
-                Color::Reset
-            }),
-            Cell::new(if let Some(power) = average_solar_power {
-                power.to_string()
-            } else {
-                "".to_string()
-            })
-            .set_alignment(CellAlignment::Right)
-            .fg(if average_solar_power > stand_by_power {
-                Color::Green
-            } else {
-                Color::Reset
-            }),
+            Cell::new(stand_by_power.unwrap_or(Kilowatts::ZERO))
+                .set_alignment(CellAlignment::Right),
+            Cell::new(solar_threshold.unwrap_or(Kilowatts::ZERO))
+                .set_alignment(CellAlignment::Right)
+                .fg(if solar_threshold > stand_by_power { Color::Green } else { Color::Reset }),
+            Cell::new(average_solar_power.unwrap_or(Kilowatts::ZERO))
+                .set_alignment(CellAlignment::Right)
+                .fg(if average_solar_power > stand_by_power { Color::Green } else { Color::Reset }),
         ]);
     }
     table

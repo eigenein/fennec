@@ -3,7 +3,7 @@ pub mod history;
 
 use std::{fmt::Display, ops::RangeInclusive, str::FromStr, time::Duration};
 
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local};
 use itertools::Itertools;
 use reqwest::{
     Client,
@@ -13,12 +13,7 @@ use reqwest::{
 };
 use serde::de::DeserializeOwned;
 
-use crate::{
-    api::home_assistant::history::EntitiesHistory,
-    core::series::{AggregateHourly, Differentiate, Resample, Series},
-    prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
-};
+use crate::{api::home_assistant::history::EntitiesHistory, core::series::Series, prelude::*};
 
 pub struct Api {
     client: Client,
@@ -70,22 +65,5 @@ impl Api {
             .into_iter()
             .map(|state| (state.last_changed_at, state.value))
             .collect_vec())
-    }
-
-    pub async fn get_average_hourly_power(
-        &self,
-        entity_id: &str,
-        period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<[Option<Kilowatts>; 24]> {
-        const ONE_HOUR: TimeDelta = TimeDelta::hours(1);
-
-        Ok(self
-            .get_history::<KilowattHours>(entity_id, period)
-            .await?
-            .into_iter()
-            .resample_by_interval(ONE_HOUR)
-            .deltas()
-            .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
-            .average_hourly())
     }
 }

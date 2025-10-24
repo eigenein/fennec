@@ -10,6 +10,7 @@ mod render;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
+use itertools::{EitherOrBoth, Itertools};
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -73,14 +74,17 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    let conditions: Vec<_> = {
+    let conditions = {
         let stand_by_usage = home_assistant
-            .get_average_hourly_power(
+            .get_history::<KilowattHours>(
                 &hunt_args.home_assistant.total_usage_entity_id,
                 &history_period,
             )
-            .await?;
-        let average_hourly_solar_yield = home_assistant
+            .await?
+            .into_iter()
+            .resample_by_interval(TimeDelta::hours(1))
+            .differentiate();
+        let solar_yield = home_assistant
             .get_history::<KilowattHours>(
                 &hunt_args.home_assistant.solar_yield_entity_id,
                 &history_period,
@@ -88,17 +92,36 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             .await?
             .into_iter()
             .resample_by_interval(TimeDelta::hours(1))
-            .differentiate()
-            .average_hourly();
+            .differentiate();
+        let median_stand_by_power = stand_by_usage
+            .into_iter()
+            .merge_join_by(solar_yield, |(lhs, _), (rhs, _)| lhs.cmp(rhs))
+            .filter_map(|join| match join {
+                EitherOrBoth::Both((timestamp, stand_by_usage), (_, solar_yield)) => {
+                    Some((timestamp, stand_by_usage - solar_yield))
+                }
+                EitherOrBoth::Left((timestamp, _)) | EitherOrBoth::Right((timestamp, _)) => {
+                    warn!(
+                        "No match between the solar yield and stand-by usage",
+                        at = timestamp.to_rfc3339()
+                    );
+                    None
+                }
+            })
+            .median_hourly();
         grid_rates
             .into_iter()
             .map(|(time_range, grid_rate)| {
                 let hour = time_range.start.hour() as usize;
-                let stand_by_usage = stand_by_usage[hour].unwrap_or(Kilowatts::ZERO);
-                let solar_yield = average_hourly_solar_yield[hour].unwrap_or(Kilowatts::ZERO);
-                (time_range, Conditions { grid_rate, stand_by_power: stand_by_usage - solar_yield })
+                (
+                    time_range,
+                    Conditions {
+                        grid_rate,
+                        stand_by_power: median_stand_by_power[hour].unwrap_or(Kilowatts::ZERO),
+                    },
+                )
             })
-            .collect()
+            .collect_vec()
     };
 
     let solution = Solver::builder()

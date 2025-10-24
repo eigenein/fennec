@@ -6,38 +6,56 @@ use itertools::Itertools;
 impl<T> AggregateHourly for T where T: ?Sized {}
 
 pub trait AggregateHourly {
-    fn average_hourly<K, V>(self) -> [Option<V>; 24]
+    #[must_use]
+    fn median_hourly<K, V>(self) -> [Option<V>; 24]
     where
         Self: Sized + Iterator<Item = (K, V)>,
         K: Timelike,
-        V: Copy + Add<Output = V> + Div<f64, Output = V>,
+        V: Copy + PartialOrd + Add<Output = V> + Div<f64, Output = V>,
     {
-        let mut sums = [None; 24];
-        let mut weights = [0_u32; 24];
-        for (timestamp, value) in self {
-            let hour = timestamp.hour() as usize;
-            weights[hour] += 1;
-            sums[hour] = Some(sums[hour].map_or(value, |sum| sum + value));
+        let mut medians = [None; 24];
+        for (hour, values) in self.into_group_map_by(|(timestamp, _)| timestamp.hour()) {
+            medians[hour as usize] = values.into_iter().median();
         }
-        sums.into_iter()
-            .zip(weights)
-            .map(|(sum, weight)| sum.map(|sum| sum / f64::from(weight)))
-            .collect_array()
-            .unwrap()
+        medians
+    }
+
+    #[must_use]
+    fn median<K, V>(self) -> Option<V>
+    where
+        Self: Sized + Iterator<Item = (K, V)>,
+        V: Copy + Add<Output = V> + Div<f64, Output = V> + PartialOrd,
+    {
+        let mut values = self.map(|(_, value)| value).collect_vec();
+        if values.is_empty() {
+            None
+        } else {
+            values.sort_unstable_by(|lhs, rhs| lhs.partial_cmp(rhs).unwrap());
+            let index = values.len() / 2;
+            if values.len() % 2 == 1 {
+                Some(values[index])
+            } else {
+                Some((values[index - 1] + values[index]) / 2.0)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveTime;
+    use approx::assert_abs_diff_eq;
 
     use super::*;
 
     #[test]
-    fn test_average_hourly() {
-        let time = NaiveTime::from_hms_opt(23, 0, 0).unwrap();
-        let averages = vec![(time, 10.0), (time, 2.0)].into_iter().average_hourly();
-        assert_eq!(&averages[0..23], [None; 23]);
-        assert_eq!(averages[23], Some(6.0));
+    fn test_median_odd() {
+        let median = vec![((), 1.0), ((), 0.0), ((), 2.0)].into_iter().median().unwrap();
+        assert_eq!(median, 1.0);
+    }
+
+    #[test]
+    fn test_median_even() {
+        let median = vec![((), 1.0), ((), 0.0), ((), 2.0), ((), 3.0)].into_iter().median().unwrap();
+        assert_abs_diff_eq!(median, 1.5);
     }
 }

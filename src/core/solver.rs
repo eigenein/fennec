@@ -174,8 +174,9 @@ impl Solver<'_> {
             .min_by_key(|partial_solution| {
                 // TODO: make `Quantity` orderable:
                 (
-                    // Round to mills for more stable results across runs:
-                    OrderedFloat(partial_solution.net_loss.round_to_mills().0),
+                    // Round for more stable results across runs:
+                    OrderedFloat(partial_solution.net_loss.round_to_pips().0),
+                    // Break ties with the peak grid consumption:
                     OrderedFloat(partial_solution.peak_grid_consumption.0),
                 )
             })

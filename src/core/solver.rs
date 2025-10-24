@@ -123,6 +123,7 @@ impl Solver<'_> {
         Solution {
             summary: Summary {
                 net_loss: initial_partial_solution.net_loss,
+                peak_grid_consumption: initial_partial_solution.peak_grid_consumption,
                 net_loss_without_battery,
             },
             steps: Self::backtrack(initial_partial_solution).collect(),
@@ -161,14 +162,23 @@ impl Solver<'_> {
                     let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
                     next_partial_solutions[usize::from(next_energy)].clone()
                 };
-                let net_loss = step.loss + next_partial_solution.net_loss;
                 PartialSolution {
-                    net_loss,
+                    net_loss: step.loss + next_partial_solution.net_loss,
+                    peak_grid_consumption: next_partial_solution
+                        .peak_grid_consumption
+                        .max(step.grid_consumption),
                     next: Some(next_partial_solution),
                     step: Some((time_range.clone(), step)),
                 }
             })
-            .min_by_key(|partial_solution| OrderedFloat(partial_solution.net_loss.0))
+            .min_by_key(|partial_solution| {
+                // TODO: make `Quantity` orderable:
+                (
+                    // Round to mills for more stable results across runs:
+                    OrderedFloat(partial_solution.net_loss.round_to_mills().0),
+                    OrderedFloat(partial_solution.peak_grid_consumption.0),
+                )
+            })
             .unwrap()
     }
 
@@ -235,8 +245,13 @@ impl Solver<'_> {
 }
 
 struct PartialSolution {
-    /// Net loss from the current state till the forecast period end – our optimization target.
+    /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
+
+    /// Peak grid usage till the end of the forecast period.
+    ///
+    /// This is a secondary optimization target: it helps to smoothen the grid usage given the equal losses.
+    peak_grid_consumption: KilowattHours,
 
     /// Next partial solution – allows backtracking the entire sequence.
     ///
@@ -256,6 +271,11 @@ struct PartialSolution {
 
 impl Default for PartialSolution {
     fn default() -> Self {
-        Self { net_loss: Cost::ZERO, next: None, step: None }
+        Self {
+            net_loss: Cost::ZERO,
+            peak_grid_consumption: KilowattHours::ZERO,
+            next: None,
+            step: None,
+        }
     }
 }

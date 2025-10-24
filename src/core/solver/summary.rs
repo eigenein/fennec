@@ -1,10 +1,11 @@
-use crate::quantity::cost::Cost;
+use crate::quantity::{cost::Cost, energy::KilowattHours};
 
 /// Solution summary.
 #[derive(Copy, Clone)]
 pub struct Summary {
     pub net_loss: Cost,
     pub net_loss_without_battery: Cost,
+    pub peak_grid_consumption: KilowattHours,
 }
 
 impl Summary {

@@ -9,6 +9,7 @@ use std::{iter::from_fn, ops::Range, rc::Rc};
 
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta};
+use enumset::EnumSet;
 use ordered_float::OrderedFloat;
 
 use crate::{
@@ -33,6 +34,7 @@ use crate::{
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
     conditions: &'a [(Range<DateTime<Local>>, Conditions)],
+    working_modes: EnumSet<WorkingMode>,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
@@ -144,8 +146,7 @@ impl Solver<'_> {
             .capacity(self.capacity)
             .parameters(self.battery_args.parameters)
             .build();
-        conditions
-            .allowed_working_modes
+        self.working_modes
             .iter()
             .map(|working_mode| {
                 let step = self
@@ -182,12 +183,13 @@ impl Solver<'_> {
         working_mode: WorkingMode,
         duration: TimeDelta,
     ) -> Step {
-        // Requested external power flow to or from the battery (negative is directed from the battery):
+        // Requested external power flow to (positive) or from (negative) the battery:
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
-            WorkingMode::Charging => self.battery_args.charging_power,
-            WorkingMode::Discharging => -self.battery_args.discharging_power,
-            WorkingMode::Balancing => (-conditions.stand_by_power)
+            WorkingMode::BackUp => (-conditions.stand_by_power).max(Kilowatts::ZERO),
+            WorkingMode::Charge => self.battery_args.charging_power,
+            WorkingMode::Discharge => -self.battery_args.discharging_power,
+            WorkingMode::Balance => (-conditions.stand_by_power)
                 .clamp(-self.battery_args.discharging_power, self.battery_args.charging_power),
         };
 

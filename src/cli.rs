@@ -105,12 +105,9 @@ pub struct HuntArgs {
         env = "WORKING_MODES",
         value_delimiter = ',',
         num_args = 1..,
-        default_value = "idle,balancing,charging",
+        default_value = "back-up,balance,charge",
     )]
     pub working_modes: Vec<WorkingMode>,
-
-    #[clap(long, env, default_value = "0.95")]
-    pub solar_power_threshold_quantile: f64,
 
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]

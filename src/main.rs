@@ -19,11 +19,10 @@ use crate::{
     core::{
         series::{AggregateHourly, Differentiate, Resample, Series},
         solver::{Solver, conditions::Conditions},
-        working_mode::WorkingMode,
     },
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
-    render::{render_hourly_power, render_steps, render_time_slot_sequence},
+    render::{render_steps, render_time_slot_sequence},
 };
 
 #[tokio::main]
@@ -74,27 +73,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    let solar_power = home_assistant
-        .get_history::<KilowattHours>(
-            &hunt_args.home_assistant.solar_yield_entity_id,
-            &history_period,
-        )
-        .await?;
-    let hourly_solar_power_threshold = solar_power
-        .iter()
-        .copied()
-        // TODO: de-dup `.deltas().map()`.
-        .deltas()
-        .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
-        .hourly_quantiles(hunt_args.solar_power_threshold_quantile);
-    let average_hourly_solar_yield = solar_power
-        .into_iter()
-        .resample_by_interval(TimeDelta::hours(1))
-        // TODO: de-dup `.deltas().map()`.
-        .deltas()
-        .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
-        .average_hourly();
-
     let conditions: Vec<_> = {
         let stand_by_usage = home_assistant
             .get_average_hourly_power(
@@ -102,40 +80,32 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
                 &history_period,
             )
             .await?;
-        println!(
-            "{}",
-            render_hourly_power(
-                &stand_by_usage,
-                &average_hourly_solar_yield,
-                &hourly_solar_power_threshold,
+        let average_hourly_solar_yield = home_assistant
+            .get_history::<KilowattHours>(
+                &hunt_args.home_assistant.solar_yield_entity_id,
+                &history_period,
             )
-        );
+            .await?
+            .into_iter()
+            .resample_by_interval(TimeDelta::hours(1))
+            // TODO: de-dup `.deltas().map()`.
+            .deltas()
+            .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
+            .average_hourly();
         grid_rates
             .into_iter()
             .map(|(time_range, grid_rate)| {
                 let hour = time_range.start.hour() as usize;
                 let stand_by_usage = stand_by_usage[hour].unwrap_or(Kilowatts::ZERO);
                 let solar_yield = average_hourly_solar_yield[hour].unwrap_or(Kilowatts::ZERO);
-                let mut allowed_working_modes = working_modes;
-                let solar_power_threshold =
-                    hourly_solar_power_threshold[hour].unwrap_or(Kilowatts::ZERO);
-                if solar_power_threshold > stand_by_usage {
-                    allowed_working_modes -= WorkingMode::Idle;
-                }
-                (
-                    time_range,
-                    Conditions {
-                        grid_rate,
-                        allowed_working_modes,
-                        stand_by_power: stand_by_usage - solar_yield,
-                    },
-                )
+                (time_range, Conditions { grid_rate, stand_by_power: stand_by_usage - solar_yield })
             })
             .collect()
     };
 
     let solution = Solver::builder()
         .conditions(&conditions)
+        .working_modes(working_modes)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery_args(hunt_args.battery)

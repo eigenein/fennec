@@ -11,11 +11,7 @@ use crate::{
         solver::{conditions::Conditions, step::Step},
         working_mode::WorkingMode as CoreWorkingMode,
     },
-    quantity::{
-        cost::Cost,
-        energy::KilowattHours,
-        power::{Kilowatts, Watts},
-    },
+    quantity::{cost::Cost, energy::KilowattHours, power::Watts},
 };
 
 pub fn render_steps(
@@ -62,9 +58,10 @@ pub fn render_steps(
                 },
             ),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
-                CoreWorkingMode::Charging => Color::Green,
-                CoreWorkingMode::Discharging => Color::Red,
-                CoreWorkingMode::Balancing => Color::DarkYellow,
+                CoreWorkingMode::Charge => Color::Green,
+                CoreWorkingMode::Discharge => Color::Red,
+                CoreWorkingMode::Balance => Color::DarkYellow,
+                CoreWorkingMode::BackUp => Color::Magenta,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
             Cell::new(step.residual_energy_before).set_alignment(CellAlignment::Right).fg(
@@ -110,34 +107,6 @@ pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
             Cell::new(&time_slot.end_time),
             Cell::new(format!("{:?}", time_slot.working_mode)).fg(mode_color),
             Cell::new(time_slot.feed_power).set_alignment(CellAlignment::Right),
-        ]);
-    }
-    table
-}
-
-#[must_use]
-pub fn render_hourly_power(
-    stand_by_usage: &[Option<Kilowatts>],
-    average_solar_power: &[Option<Kilowatts>],
-    solar_threshold: &[Option<Kilowatts>],
-) -> Table {
-    let mut table = Table::new();
-    table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
-    table.enforce_styling();
-    table.set_header(vec!["Hour", "Stand-by", "Solar threshold", "Average solar"]);
-    for (hour, ((stand_by_power, average_solar_power), solar_threshold)) in
-        stand_by_usage.iter().zip(average_solar_power).zip(solar_threshold).enumerate()
-    {
-        table.add_row(vec![
-            Cell::new(hour).set_alignment(CellAlignment::Right),
-            Cell::new(stand_by_power.unwrap_or(Kilowatts::ZERO))
-                .set_alignment(CellAlignment::Right),
-            Cell::new(solar_threshold.unwrap_or(Kilowatts::ZERO))
-                .set_alignment(CellAlignment::Right)
-                .fg(if solar_threshold > stand_by_power { Color::Green } else { Color::Reset }),
-            Cell::new(average_solar_power.unwrap_or(Kilowatts::ZERO))
-                .set_alignment(CellAlignment::Right)
-                .fg(if average_solar_power > stand_by_power { Color::Green } else { Color::Reset }),
         ]);
     }
     table

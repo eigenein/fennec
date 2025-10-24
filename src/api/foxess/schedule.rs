@@ -135,7 +135,7 @@ impl TimeSlotSequence {
                     // Forced charging at 0W is effectively idling:
                     CoreWorkingMode::Idle => (WorkingMode::ForceCharge, Kilowatts::ZERO),
 
-                    CoreWorkingMode::BackUp => (WorkingMode::Backup, battery_args.charging_power),
+                    CoreWorkingMode::BackUp => (WorkingMode::BackUp, battery_args.charging_power),
 
                     CoreWorkingMode::Charge => {
                         (WorkingMode::ForceCharge, battery_args.charging_power)
@@ -181,9 +181,8 @@ pub enum WorkingMode {
     #[serde(rename = "ForceDischarge")]
     ForceDischarge,
 
-    /// Anyhow, the API does not accept this one for my battery.
     #[serde(rename = "Backup")]
-    Backup,
+    BackUp,
 }
 
 #[cfg(test)]

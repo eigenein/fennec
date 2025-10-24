@@ -4,6 +4,7 @@ pub mod history;
 use std::{fmt::Display, ops::RangeInclusive, str::FromStr, time::Duration};
 
 use chrono::{DateTime, Local, TimeDelta};
+use itertools::Itertools;
 use reqwest::{
     Client,
     ClientBuilder,
@@ -13,8 +14,8 @@ use reqwest::{
 use serde::de::DeserializeOwned;
 
 use crate::{
-    api::home_assistant::history::{EntitiesHistory, EntityHistory},
-    core::series::{AggregateHourly, Differentiate, Resample},
+    api::home_assistant::history::EntitiesHistory,
+    core::series::{AggregateHourly, Differentiate, Resample, Series},
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
@@ -44,7 +45,7 @@ impl Api {
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<EntityHistory<V>>
+    ) -> Result<Series<DateTime<Local>, V>>
     where
         V: FromStr + DeserializeOwned,
         <V as FromStr>::Err: Display,
@@ -65,7 +66,10 @@ impl Api {
             .next()
             .with_context(|| format!("the API returned no data for `{entity_id}`"))?;
         info!("Fetched", len = entity_history.0.len());
-        Ok(entity_history)
+        Ok(entity_history
+            .into_iter()
+            .map(|state| (state.last_changed_at, state.value))
+            .collect_vec())
     }
 
     pub async fn get_average_hourly_power(
@@ -79,7 +83,6 @@ impl Api {
             .get_history::<KilowattHours>(entity_id, period)
             .await?
             .into_iter()
-            .map(|state| (state.last_changed_at, state.value))
             .resample_by_interval(ONE_HOUR)
             .deltas()
             .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))

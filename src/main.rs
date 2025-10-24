@@ -10,7 +10,6 @@ mod render;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
-use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -80,11 +79,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             &hunt_args.home_assistant.solar_yield_entity_id,
             &history_period,
         )
-        .await?
-        .into_iter()
-        // TODO: move the `map` into `get_history`:
-        .map(|state| (state.last_changed_at, state.value))
-        .collect_vec();
+        .await?;
     let hourly_solar_power_threshold = solar_power
         .iter()
         .copied()

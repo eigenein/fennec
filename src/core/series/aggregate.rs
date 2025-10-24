@@ -44,22 +44,33 @@ pub trait AggregateHourly {
         Self: Sized + Iterator<Item = (K, V)>,
         V: Copy + PartialOrd + Add<Output = V> + Mul<f64, Output = V>,
     {
-        assert!((p >= 0.0) && (p <= 1.0));
+        assert!((0.0..=1.0).contains(&p));
 
         let values = self
             .map(|(_, value)| value)
             .sorted_unstable_by(|lhs, rhs| lhs.partial_cmp(rhs).unwrap())
             .collect_vec();
 
+        #[allow(clippy::cast_precision_loss)]
         let index = (values.len() - 1) as f64 * p;
-        let lower = index.floor();
-        let upper = index.ceil();
 
-        if lower == upper {
-            values[lower as usize]
+        let lower_index = index.floor();
+        let upper_index = index.ceil();
+
+        #[allow(clippy::cast_possible_truncation)]
+        #[allow(clippy::cast_sign_loss)]
+        let lower_value = values[lower_index as usize];
+
+        #[allow(clippy::float_cmp)]
+        if lower_index == upper_index {
+            lower_value
         } else {
-            let weight = index - lower;
-            values[lower as usize] * (1.0 - weight) + values[upper as usize] * weight
+            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_sign_loss)]
+            let upper_value = values[upper_index as usize];
+
+            let weight = index - lower_index;
+            lower_value * (1.0 - weight) + upper_value * weight
         }
     }
 }

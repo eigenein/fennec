@@ -1,4 +1,7 @@
-use std::ops::{Add, Div};
+use std::{
+    cmp::Ordering,
+    ops::{Add, Div},
+};
 
 use chrono::Timelike;
 use itertools::Itertools;
@@ -30,15 +33,21 @@ pub trait AggregateHourly {
         if values.is_empty() {
             None
         } else {
-            values.sort_unstable_by(|lhs, rhs| lhs.partial_cmp(rhs).unwrap());
+            values.sort_unstable_by(compare);
             let index = values.len() / 2;
+            let index_value = *values.select_nth_unstable_by(index, compare).1;
             if values.len() % 2 == 1 {
-                Some(values[index])
+                Some(index_value)
             } else {
-                Some((values[index - 1] + values[index]) / 2.0)
+                let leading_value = *values.select_nth_unstable_by(index - 1, compare).1;
+                Some((leading_value + index_value) / 2.0)
             }
         }
     }
+}
+
+fn compare<V: PartialOrd>(lhs: &V, rhs: &V) -> Ordering {
+    lhs.partial_cmp(rhs).unwrap()
 }
 
 #[cfg(test)]

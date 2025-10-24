@@ -74,6 +74,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
+    // TODO: maybe, I don't need resampling anymore:
     let conditions = {
         let stand_by_usage = home_assistant
             .get_history::<KilowattHours>(

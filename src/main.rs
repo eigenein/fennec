@@ -88,9 +88,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             .await?
             .into_iter()
             .resample_by_interval(TimeDelta::hours(1))
-            // TODO: de-dup `.deltas().map()`.
-            .deltas()
-            .map(|(timestamp, (time_delta, value_delta))| (timestamp, value_delta / time_delta))
+            .differentiate()
             .average_hourly();
         grid_rates
             .into_iter()

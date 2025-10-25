@@ -2,7 +2,7 @@
 
 use std::{ops::Range, str::FromStr, time::Duration};
 
-use chrono::{DateTime, DurationRound, Local, NaiveDate, TimeDelta};
+use chrono::{DateTime, DurationRound, Local, MappedLocalTime, NaiveDate, TimeDelta};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
@@ -54,10 +54,18 @@ impl Api {
             .points
             .list
             .into_iter()
-            .map(move |point| {
-                let start_time = on.and_hms_opt(point.hour, 0, 0).unwrap().and_local_timezone(Local).unwrap();
-                let end_time = start_time + TimeDelta::hours(1);
-                (start_time..end_time, point.value)
+            .flat_map(move |point| {
+                match on.and_hms_opt(point.hour, 0, 0).unwrap().and_local_timezone(Local) {
+                    // FIXME: properly handle the fold on winter time change:
+                    MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
+                        let end_time = start_time + TimeDelta::hours(1);
+                        let point = (start_time..end_time, point.value);
+                        Some(point)
+                    },
+
+                    // FIXME: properly handle the gap on summer time change:
+                    MappedLocalTime::None => None,
+                }
             })
         )
     }

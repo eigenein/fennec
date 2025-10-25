@@ -146,7 +146,6 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         without_battery = solution.summary.net_loss_without_battery,
         profit = profit,
         daily_profit = daily_profit,
-        peak_grid_consumption = solution.summary.peak_grid_consumption,
     );
     println!("{}", render_steps(&conditions, &solution.steps, hunt_args.battery, total_capacity));
 

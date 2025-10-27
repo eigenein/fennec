@@ -1,4 +1,3 @@
-pub mod energy;
 pub mod history;
 
 use std::{fmt::Display, ops::RangeInclusive, str::FromStr, time::Duration};

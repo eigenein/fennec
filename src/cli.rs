@@ -132,17 +132,8 @@ pub struct HomeAssistantArgs {
     #[clap(flatten)]
     pub connection: HomeAssistantConnectionArgs,
 
-    #[clap(
-        long = "home-assistant-total-total-usage-entity-id",
-        env = "HOME_ASSISTANT_TOTAL_USAGE_ENTITY_ID"
-    )]
-    pub total_usage_entity_id: String,
-
-    #[clap(
-        long = "home-assistant-total-solar-yield-entity-id",
-        env = "HOME_ASSISTANT_TOTAL_SOLAR_YIELD_ENTITY_ID"
-    )]
-    pub solar_yield_entity_id: String,
+    #[clap(long = "home-assistant-entity-id", env = "HOME_ASSISTANT_ENTITY_ID")]
+    pub entity_id: String,
 
     #[clap(
         long = "home-assistant-history-days",

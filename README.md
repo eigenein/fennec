@@ -68,10 +68,8 @@ spec:
                   value: "..."
                 - name: "HOME_ASSISTANT_API_BASE_URL"
                   value: "..."
-                - name: "HOME_ASSISTANT_TOTAL_USAGE_ENTITY_ID"
+                - name: "HOME_ASSISTANT_ENTITY_ID"
                   value: "sensor.custom_fennec_hourly_total_energy_usage"
-                - name: "HOME_ASSISTANT_TOTAL_SOLAR_YIELD_ENTITY_ID"
-                  value: "sensor.custom_fennec_hourly_total_solar_yield"
               command:
                 - "/fennec"
                 - "hunt"

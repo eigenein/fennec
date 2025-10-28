@@ -10,7 +10,7 @@ mod render;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
-use itertools::{EitherOrBoth, Itertools};
+use itertools::Itertools;
 use logfire::config::{ConsoleOptions, SendToLogfire};
 use tracing::level_filters::LevelFilter;
 
@@ -18,11 +18,11 @@ use crate::{
     api::{foxess, heartbeat, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::{AggregateHourly, Differentiate, Resample, Series},
+        series::{AggregateHourly, Differentiate, Series},
         solver::{Solver, conditions::Conditions},
     },
     prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
+    quantity::power::Kilowatts,
     render::{render_steps, render_time_slot_sequence},
 };
 
@@ -74,41 +74,15 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
     let total_capacity = fox_ess.get_device_details(serial_number).await?.total_capacity();
     info!("Fetched battery details", residual_energy, total_capacity);
 
-    // TODO: maybe, I don't need resampling anymore:
     let conditions = {
-        let stand_by_usage = home_assistant
-            .get_history::<KilowattHours>(
-                &hunt_args.home_assistant.total_usage_entity_id,
-                &history_period,
-            )
+        let median_stand_by_power = home_assistant
+            .get_energy_history(&hunt_args.home_assistant.entity_id, &history_period)
             .await?
             .into_iter()
-            .resample_by_interval(TimeDelta::hours(1))
-            .differentiate();
-        let solar_yield = home_assistant
-            .get_history::<KilowattHours>(
-                &hunt_args.home_assistant.solar_yield_entity_id,
-                &history_period,
-            )
-            .await?
-            .into_iter()
-            .resample_by_interval(TimeDelta::hours(1))
-            .differentiate();
-        let median_stand_by_power = stand_by_usage
-            .into_iter()
-            .merge_join_by(solar_yield, |(lhs, _), (rhs, _)| lhs.cmp(rhs))
-            .filter_map(|join| match join {
-                EitherOrBoth::Both((timestamp, stand_by_usage), (_, solar_yield)) => {
-                    Some((timestamp, stand_by_usage - solar_yield))
-                }
-                EitherOrBoth::Left((timestamp, _)) | EitherOrBoth::Right((timestamp, _)) => {
-                    warn!(
-                        "No match between the solar yield and stand-by usage",
-                        at = timestamp.to_rfc3339()
-                    );
-                    None
-                }
+            .map(|state| {
+                (state.last_changed_at, state.total_usage - state.attributes.total_solar_yield)
             })
+            .differentiate()
             .median_hourly();
         grid_rates
             .into_iter()

@@ -54,7 +54,7 @@ impl Api {
             .points
             .list
             .into_iter()
-            .flat_map(move |point| {
+            .filter_map(move |point| {
                 match on.and_hms_opt(point.hour, 0, 0).unwrap().and_local_timezone(Local) {
                     // FIXME: properly handle the fold on winter time change:
                     MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {

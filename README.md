@@ -110,4 +110,5 @@ template:
           }}
         attributes:
           custom_now: "{{ now() }}" # force update
+          custom_total_solar_yield: "{{ states('sensor.sb2_5_1vl_40_555_total_yield') }}"
 ```

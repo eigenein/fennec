@@ -83,6 +83,7 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
                 (state.last_changed_at, state.total_usage - state.attributes.total_solar_yield)
             })
             .differentiate()
+            .map(|(time_range, value)| (time_range.start, value)) // FIXME
             .median_hourly();
         grid_rates
             .into_iter()

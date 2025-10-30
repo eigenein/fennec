@@ -66,7 +66,7 @@ pub struct BatteryArgs {
 
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryParameters {
-    #[clap(long = "battery-parasitic-load", default_value = "0", env = "BATTERY_PARASITIC_LOAD")]
+    #[clap(long = "battery-parasitic-load", env = "BATTERY_PARASITIC_LOAD")]
     pub parasitic_load: Kilowatts,
 
     #[clap(long = "battery-charging-efficiency", env = "BATTERY_CHARGING_EFFICIENCY")]

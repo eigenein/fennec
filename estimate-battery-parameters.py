@@ -39,6 +39,7 @@ class Delta:
 
     def __post_init__(self) -> None:
         if self.imported < 0.0:
+            # Correct negative import as export:
             self.exported -= self.imported
             self.imported = 0.0
         assert self.exported >= 0.0
@@ -115,8 +116,11 @@ def main(
 
     model = LinearRegression()
     model.fit(
-        [[delta.imported, delta.exported] for delta in deltas],
-        [delta.energy for delta in deltas],
+        [
+            [delta.imported / delta.total_hours, delta.exported / delta.total_hours]
+            for delta in deltas
+        ],
+        [delta.energy / delta.total_hours for delta in deltas],
         sample_weight=[delta.total_hours for delta in deltas],
     )
     parasitic_load = -model.intercept_

@@ -91,7 +91,8 @@ def fetch_states(*, home_assistant_url: str, authorization_token: str, entity_id
 
 def differentiate(states: Iterable[State]) -> Iterable[Delta]:
     for from_state, to_state in pairwise(states):
-        yield to_state - from_state
+        if from_state.timestamp != to_state.timestamp:
+            yield to_state - from_state
 
 
 def main(

@@ -70,6 +70,12 @@ spec:
                   value: "..."
                 - name: "HOME_ASSISTANT_ENTITY_ID"
                   value: "sensor.custom_fennec_hourly_total_energy_usage"
+                - name: "BATTERY_PARASITIC_LOAD"
+                  value: "0.0"
+                - name: "BATTERY_CHARGING_EFFICIENCY"
+                  value: "0.965"
+                - name: "BATTERY_DISCHARGING_EFFICIENCY"
+                  value: "0.866"
               command:
                 - "/fennec"
                 - "hunt"

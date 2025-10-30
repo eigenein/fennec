@@ -66,27 +66,13 @@ pub struct BatteryArgs {
 
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryParameters {
-    #[clap(
-        long = "battery-parasitic-load",
-        default_value = "0.02",
-        env = "BATTERY_PARASITIC_LOAD"
-    )]
+    #[clap(long = "battery-parasitic-load", default_value = "0", env = "BATTERY_PARASITIC_LOAD")]
     pub parasitic_load: Kilowatts,
 
-    /// TODO: replace these two with «round-trip efficiency» and charging-discharging balance.
-    #[clap(
-        long = "battery-charging-efficiency",
-        default_value = "0.971",
-        env = "BATTERY_CHARGING_EFFICIENCY"
-    )]
+    #[clap(long = "battery-charging-efficiency", env = "BATTERY_CHARGING_EFFICIENCY")]
     pub charging_efficiency: f64,
 
-    /// TODO: replace these two with «round-trip efficiency» and charging-discharging balance.
-    #[clap(
-        long = "battery-discharging-efficiency",
-        default_value = "0.971",
-        env = "BATTERY_DISCHARGING_EFFICIENCY"
-    )]
+    #[clap(long = "battery-discharging-efficiency", env = "BATTERY_DISCHARGING_EFFICIENCY")]
     pub discharging_efficiency: f64,
 }
 

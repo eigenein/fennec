@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import Enum, auto
 from itertools import pairwise
+from statistics import median
 from typing import Annotated
 from urllib.parse import urljoin
 
@@ -60,14 +61,28 @@ class Delta:
         return self.exported >= 0.001
 
     @property
+    def is_idling(self) -> bool:
+        return not self.is_importing and not self.is_exporting and self.charge <= 0.0
+
+    @property
+    def is_charging(self) -> bool:
+        return self.is_importing and not self.is_exporting and self.charge >= 0.001
+
+    @property
+    def is_discharging(self) -> bool:
+        return self.is_exporting and not self.is_importing and self.charge <= -0.001
+
+    @property
     def as_parasitic_load(self) -> float:
         return (self.exported - self.imported - self.charge) / self.total_hours
 
-    def charging_efficiency(self, parasitic_load: float) -> float:
-        return self.charge / (self.imported - self.exported - parasitic_load * self.total_hours)
+    @property
+    def charging_efficiency(self) -> float:
+        return self.charge / (self.imported - self.exported)
 
-    def discharging_efficiency(self, parasitic_load: float) -> float:
-        return (self.imported - self.exported) / (self.charge - parasitic_load * self.total_hours)
+    @property
+    def discharging_efficiency(self) -> float:
+        return (self.imported - self.exported) / self.charge
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,63 +154,33 @@ def main(
     ))
     deltas = list(differentiate(states))
 
-    charging_stats = Delta()
-    discharging_stats = Delta()
-    idling_stats = Delta()
-    mixed_stats = Delta()
+    idling_stats = sum((delta for delta in deltas if delta.is_idling), start=Delta())
+    parasitic_load = idling_stats.as_parasitic_load
+
+    charging_samples = []
+    discharging_samples = []
 
     for delta in deltas:
-        if delta.is_importing:
-            if delta.is_exporting:
-                mixed_stats += delta
-            else:
-                # Importing without exporting must be charging:
-                charging_stats += delta
-        else:
-            if delta.is_exporting:
-                # Exporting without importing must be discharging:
-                discharging_stats += delta
-            elif delta.charge <= 0.0:
-                # No exporting and no importing with no charge gained:
-                idling_stats += delta
-            else:
-                # No importing nor exporting, but gained charge:
-                charging_stats += delta
+        delta.charge += parasitic_load * delta.total_hours
+        if delta.is_charging:
+            charging_samples.append(delta.charging_efficiency)
+        elif delta.is_discharging:
+            discharging_samples.append(delta.discharging_efficiency)
+
+    charging_efficiency = median(charging_samples)
+    discharging_efficiency = median(discharging_samples)
+
+    table = Table(
+        Column(header=f"{len(states)} states / {len(deltas)} delta's", style="bold"),
+        Column(),
+        Column(header="Source"),
+    )
+    table.add_row("Round-trip efficiency", f"{charging_efficiency * discharging_efficiency:.3f}")
+    table.add_row("Parasitic load", f"{parasitic_load:.3f} kW", f"{idling_stats.total_hours:.1f} hours")
+    table.add_row("Charging efficiency", f"{charging_efficiency:.3f}", f"{len(charging_samples)} samples")
+    table.add_row("Discharging efficiency", f"{discharging_efficiency:.3f}", f"{len(discharging_samples)} samples")
 
     console = Console()
-
-    table = Table(
-        Column(header=f"{len(states)} states ({len(deltas)} delta's)"),
-        Column(header="Duration"),
-        Column(header="Import"),
-        Column(header="Export"),
-        Column(header="Net charge"),
-        title="Cumulative statistics",
-        title_justify="left",
-    )
-    for title, stats in [
-        ("Charging", charging_stats),
-        ("Discharging", discharging_stats),
-        ("Idling", idling_stats),
-        ("Ignored", mixed_stats),
-    ]:
-        table.add_row(title, f"{stats.duration}", f"{stats.imported:.3f} kWh", f"{stats.exported:.3f} kWh", f"{stats.charge:+.3f} kWh")
-    console.print(table)
-
-    parasitic_load = idling_stats.as_parasitic_load
-    charging_efficiency = charging_stats.charging_efficiency(parasitic_load)
-    discharging_efficiency = discharging_stats.discharging_efficiency(parasitic_load)
-
-    table = Table(
-        Column(style="bold"),
-        title="Estimated battery parameters",
-        show_header=False,
-        title_justify="left",
-    )
-    table.add_row("Parasitic load", f"{parasitic_load:.3f} kW")
-    table.add_row("Charging efficiency", f"{charging_efficiency:.3f}")
-    table.add_row("Discharging efficiency", f"{discharging_efficiency:.3f}")
-    table.add_row("Round-trip efficiency", f"{charging_efficiency * discharging_efficiency:.3f}")
     console.print(table)
 
     # Charging: 1.087 kW / 1.192 kW = 0.912

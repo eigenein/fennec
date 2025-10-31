@@ -4,7 +4,7 @@
 # requires-python = ">=3.14"
 # dependencies = [
 #     "httpx>=0.28.1,<0.29.0",
-#     "scikit-learn>=1.7.2,<2.0.0",
+#     "rich>=14.1.0,<15.0.0",
 #     "typer>=0.20.0,<0.21.0",
 # ]
 # ///
@@ -20,6 +20,8 @@ from typing import Annotated
 from urllib.parse import urljoin
 
 import httpx
+from rich.console import Console
+from rich.table import Column, Table
 from sklearn.linear_model import LinearRegression
 from typer import Option, run
 
@@ -32,21 +34,40 @@ class WorkingMode(Enum):
 
 @dataclass(slots=True, kw_only=True)
 class Delta:
-    time: timedelta = timedelta()
-    energy: float = 0.0
+    duration: timedelta = timedelta()
+    charge: float = 0.0
     imported: float = 0.0
     exported: float = 0.0
 
-    def __post_init__(self) -> None:
-        if self.imported < 0.0:
-            # Correct negative import as export:
-            self.exported -= self.imported
-            self.imported = 0.0
-        assert self.exported >= 0.0
+    def __add__(self, other: Delta) -> Delta:
+        return Delta(
+            duration=(self.duration + other.duration),
+            charge=(self.charge + other.charge),
+            imported=(self.imported + other.imported),
+            exported=(self.exported + other.exported),
+        )
 
     @property
     def total_hours(self) -> float:
-        return self.time.total_seconds() / 3600.0
+        return self.duration.total_seconds() / 3600.0
+
+    @property
+    def is_importing(self) -> bool:
+        return self.imported >= 0.001
+
+    @property
+    def is_exporting(self) -> bool:
+        return self.exported >= 0.001
+
+    @property
+    def as_parasitic_load(self) -> float:
+        return (self.exported - self.imported - self.charge) / self.total_hours
+
+    def charging_efficiency(self, parasitic_load: float) -> float:
+        return self.charge / (self.imported - self.exported - parasitic_load * self.total_hours)
+
+    def discharging_efficiency(self, parasitic_load: float) -> float:
+        return (self.imported - self.exported) / (self.charge - parasitic_load * self.total_hours)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,8 +79,8 @@ class State:
 
     def __sub__(self, rhs: State) -> Delta:
         return Delta(
-            time=(self.timestamp - rhs.timestamp),
-            energy=(self.residual_energy - rhs.residual_energy),
+            duration=(self.timestamp - rhs.timestamp),
+            charge=(self.residual_energy - rhs.residual_energy),
             imported=(self.total_import - rhs.total_import),
             exported=(self.total_export - rhs.total_export),
         )
@@ -80,18 +101,22 @@ def fetch_states(*, home_assistant_url: str, authorization_token: str, entity_id
     response.raise_for_status()
 
     for state in response.json()[0]:
-        if (residual_energy := state["attributes"].get("custom_battery_residual_energy")) is not None:
+        if isinstance(residual_energy := state["attributes"].get("custom_battery_residual_energy"), float):
             yield State(
                 timestamp=datetime.fromisoformat(state["last_changed"]),
                 residual_energy=residual_energy,
-                total_import=state["attributes"]["custom_battery_energy_import"],
-                total_export=state["attributes"]["custom_battery_energy_export"],
+                total_import=float(state["attributes"]["custom_battery_energy_import"]),
+                total_export=float(state["attributes"]["custom_battery_energy_export"]),
             )
 
 
 def differentiate(states: Iterable[State]) -> Iterable[Delta]:
     for from_state, to_state in pairwise(states):
-        if from_state.timestamp != to_state.timestamp:
+        if (
+            (from_state.timestamp < to_state.timestamp)
+            and (from_state.total_import <= to_state.total_import)
+            and (from_state.total_export <= to_state.total_export)
+        ):
             yield to_state - from_state
 
 
@@ -113,25 +138,65 @@ def main(
         entity_id=entity_id,
     ))
     deltas = list(differentiate(states))
-    print(f"Fetched {len(states)} states ({len(deltas)} delta's)")
 
-    model = LinearRegression()
-    model.fit(
-        [
-            [delta.imported / delta.total_hours, delta.exported / delta.total_hours]
-            for delta in deltas
-        ],
-        [delta.energy / delta.total_hours for delta in deltas],
-        sample_weight=[delta.total_hours for delta in deltas],
+    charging_stats = Delta()
+    discharging_stats = Delta()
+    idling_stats = Delta()
+    mixed_stats = Delta()
+
+    for delta in deltas:
+        if delta.is_importing:
+            if delta.is_exporting:
+                mixed_stats += delta
+            else:
+                # Importing without exporting must be charging:
+                charging_stats += delta
+        else:
+            if delta.is_exporting:
+                # Exporting without importing must be discharging:
+                discharging_stats += delta
+            elif delta.charge <= 0.0:
+                # No exporting and no importing with no charge gained:
+                idling_stats += delta
+            else:
+                # No importing nor exporting, but gained charge:
+                charging_stats += delta
+
+    console = Console()
+
+    table = Table(
+        Column(header=f"{len(states)} states ({len(deltas)} delta's)"),
+        Column(header="Duration"),
+        Column(header="Import"),
+        Column(header="Export"),
+        Column(header="Net charge"),
+        title="Cumulative statistics",
+        title_justify="left",
     )
-    parasitic_load = -model.intercept_
-    charging_efficiency = model.coef_[0]
-    discharging_efficiency = -1.0 / model.coef_[1]
+    for title, stats in [
+        ("Charging", charging_stats),
+        ("Discharging", discharging_stats),
+        ("Idling", idling_stats),
+        ("Ignored", mixed_stats),
+    ]:
+        table.add_row(title, f"{stats.duration}", f"{stats.imported:.3f} kWh", f"{stats.exported:.3f} kWh", f"{stats.charge:+.3f} kWh")
+    console.print(table)
 
-    print(f"Parasitic load: {parasitic_load:.3f} kW")
-    print(f"Charging efficiency: {charging_efficiency:.3f}")
-    print(f"Discharging efficiency: {discharging_efficiency:.3f}")
-    print(f"Round-trip efficiency: {charging_efficiency * discharging_efficiency:.3f}")
+    parasitic_load = idling_stats.as_parasitic_load
+    charging_efficiency = charging_stats.charging_efficiency(parasitic_load)
+    discharging_efficiency = discharging_stats.discharging_efficiency(parasitic_load)
+
+    table = Table(
+        Column(style="bold"),
+        title="Estimated battery parameters",
+        show_header=False,
+        title_justify="left",
+    )
+    table.add_row("Parasitic load", f"{parasitic_load:.3f} kW")
+    table.add_row("Charging efficiency", f"{charging_efficiency:.3f}")
+    table.add_row("Discharging efficiency", f"{discharging_efficiency:.3f}")
+    table.add_row("Round-trip efficiency", f"{charging_efficiency * discharging_efficiency:.3f}")
+    console.print(table)
 
     # Charging: 1.087 kW / 1.192 kW = 0.912
     # Discharging: 0.8 kW / 0.856 kW = 0.935

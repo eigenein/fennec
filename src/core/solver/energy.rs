@@ -13,14 +13,14 @@ impl From<KilowattHours> for WattHours {
 }
 
 impl From<WattHours> for KilowattHours {
-    fn from(energy: WattHours) -> Self {
-        Self::from(f64::from(energy.0) / 1000.0)
+    fn from(watt_hours: WattHours) -> Self {
+        Self::from(f64::from(watt_hours.0) / 1000.0)
     }
 }
 
 impl From<WattHours> for usize {
-    fn from(energy: WattHours) -> Self {
-        Self::try_from(energy.0).expect("the energy level should fit into `usize`")
+    fn from(watt_hours: WattHours) -> Self {
+        Self::try_from(watt_hours.0).expect("the energy level should fit into `usize`")
     }
 }
 

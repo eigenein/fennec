@@ -176,9 +176,10 @@ def main(
         Column(header="Source"),
     )
     table.add_row("Round-trip efficiency", f"{charging_efficiency * discharging_efficiency:.3f}")
-    table.add_row("Parasitic load", f"{parasitic_load:.3f} kW", f"{idling_stats.total_hours:.1f} hours")
-    table.add_row("Charging efficiency", f"{charging_efficiency:.3f}", f"{len(charging_samples)} samples")
-    table.add_row("Discharging efficiency", f"{discharging_efficiency:.3f}", f"{len(discharging_samples)} samples")
+    table.add_section()
+    table.add_row("Parasitic load", f"[bold]{parasitic_load:.3f}[/bold] kW", f"{idling_stats.total_hours:.1f} hours")
+    table.add_row("[green]Charging efficiency[/green]", f"[bold green]{charging_efficiency:.3f}", f"{len(charging_samples)} samples")
+    table.add_row("[red]Discharging efficiency[/red]", f"[bold red]{discharging_efficiency:.3f}", f"{len(discharging_samples)} samples")
 
     console = Console()
     console.print(table)

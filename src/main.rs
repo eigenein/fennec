@@ -6,7 +6,7 @@ mod cli;
 mod core;
 mod prelude;
 mod quantity;
-mod render;
+mod tables;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::Parser;
@@ -23,7 +23,7 @@ use crate::{
     },
     prelude::*,
     quantity::power::Kilowatts,
-    render::{render_steps, render_time_slot_sequence},
+    tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
 #[tokio::main]
@@ -121,13 +121,16 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         profit = profit,
         daily_profit = daily_profit,
     );
-    println!("{}", render_steps(&conditions, &solution.steps, hunt_args.battery, total_capacity));
+    println!(
+        "{}",
+        build_steps_table(&conditions, &solution.steps, hunt_args.battery, total_capacity)
+    );
 
     let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
     let time_slot_sequence =
         foxess::TimeSlotSequence::from_schedule(&schedule, &hunt_args.battery)?;
-    println!("{}", render_time_slot_sequence(&time_slot_sequence));
+    println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 
     if !hunt_args.scout {
         fox_ess.set_schedule(serial_number, time_slot_sequence.as_ref()).await?;
@@ -176,7 +179,7 @@ async fn burrow_fox_ess(
         BurrowFoxEssCommand::Schedule => {
             let schedule = fox_ess.get_schedule(serial_number).await?;
             info!("Gotcha", enabled = schedule.is_enabled);
-            println!("{}", render_time_slot_sequence(&schedule.groups));
+            println!("{}", build_time_slot_sequence_table(&schedule.groups));
         }
     }
     Ok(())

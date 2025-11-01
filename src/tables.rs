@@ -14,7 +14,7 @@ use crate::{
     quantity::{cost::Cost, energy::KilowattHours, power::Watts},
 };
 
-pub fn render_steps(
+pub fn build_steps_table(
     conditions: &[Point<Range<DateTime<Local>>, Conditions>],
     steps: &[Point<Range<DateTime<Local>>, Step>],
     battery_args: BatteryArgs,
@@ -90,7 +90,7 @@ pub fn render_steps(
 }
 
 #[must_use]
-pub fn render_time_slot_sequence(sequence: &TimeSlotSequence) -> Table {
+pub fn build_time_slot_sequence_table(sequence: &TimeSlotSequence) -> Table {
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
     table.enforce_styling();

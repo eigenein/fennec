@@ -42,7 +42,7 @@ bon = "=3.8.1"
 comfy-table = "=7.2.1"
 derive_more = { version = "=2.0.1", features = ["full"] }
 dotenvy = "=0.15.7"
-enumset = "1.1.10"
+enumset = "=1.1.10"
 itertools = "=0.14.0"
 logfire = "=0.8.2"
 md5 = "=0.8.0"
@@ -76,4 +76,4 @@ default-features = false
 features = ["http2", "rustls-tls", "gzip", "brotli", "zstd", "deflate", "json"]
 
 [dev-dependencies]
-approx = "0.5.1"
+approx = "=0.5.1"

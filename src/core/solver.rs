@@ -3,7 +3,6 @@ pub mod conditions;
 mod energy;
 pub mod solution;
 pub mod step;
-pub mod summary;
 
 use std::{iter::from_fn, ops::Range, rc::Rc};
 
@@ -22,7 +21,6 @@ use crate::{
             energy::WattHours,
             solution::Solution,
             step::Step,
-            summary::Summary,
         },
         working_mode::WorkingMode,
     },
@@ -121,10 +119,8 @@ impl Solver<'_> {
             next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap();
 
         Solution {
-            summary: Summary {
-                net_loss: initial_partial_solution.net_loss,
-                net_loss_without_battery,
-            },
+            net_loss: initial_partial_solution.net_loss,
+            net_loss_without_battery,
             steps: Self::backtrack(initial_partial_solution).collect(),
         }
     }

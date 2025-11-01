@@ -109,15 +109,15 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .now(now)
         .solve();
 
-    let profit = solution.summary.profit();
+    let profit = solution.profit();
 
     #[allow(clippy::cast_precision_loss)]
     let daily_profit = profit / (conditions.len() as f64 / 24.0);
 
     info!(
         "Optimized",
-        net_loss = solution.summary.net_loss,
-        without_battery = solution.summary.net_loss_without_battery,
+        net_loss = solution.net_loss,
+        without_battery = solution.net_loss_without_battery,
         profit = profit,
         daily_profit = daily_profit,
     );

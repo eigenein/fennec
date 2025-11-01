@@ -1,23 +1,27 @@
 use std::{
     cmp::Ordering,
-    ops::{Add, Div},
+    ops::{Add, Div, Range},
 };
 
-use chrono::Timelike;
+use chrono::{DateTime, TimeDelta, TimeZone, Timelike};
 use itertools::Itertools;
 
 impl<T> AggregateHourly for T where T: ?Sized {}
 
 pub trait AggregateHourly {
     #[must_use]
-    fn median_hourly<K, V>(self) -> [Option<V>; 24]
+    fn median_hourly<Tz, V>(self) -> [Option<V>; 24]
     where
-        Self: Sized + Iterator<Item = (K, V)>,
-        K: Timelike,
+        Self: Sized + Iterator<Item = (Range<DateTime<Tz>>, V)>,
+        Tz: TimeZone,
         V: Copy + PartialOrd + Add<Output = V> + Div<f64, Output = V>,
+        DateTime<Tz>: Copy,
     {
         let mut medians = [None; 24];
-        for (hour, values) in self.into_group_map_by(|(timestamp, _)| timestamp.hour()) {
+        for (hour, values) in self
+            .filter(|(time_range, _)| (time_range.end - time_range.start) <= TimeDelta::hours(1))
+            .into_group_map_by(|(time_range, _)| time_range.start.hour())
+        {
             medians[hour as usize] = values.into_iter().median();
         }
         medians

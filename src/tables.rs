@@ -11,7 +11,7 @@ use crate::{
         solver::{conditions::Conditions, step::Step},
         working_mode::WorkingMode as CoreWorkingMode,
     },
-    quantity::{cost::Cost, energy::KilowattHours, power::Watts},
+    quantity::{cost::Cost, energy::KilowattHours, power::Watts, rate::KilowattHourRate},
 };
 
 pub fn build_steps_table(
@@ -21,8 +21,9 @@ pub fn build_steps_table(
     capacity: KilowattHours,
 ) -> Table {
     #[allow(clippy::cast_precision_loss)]
-    let average_rate = conditions.iter().map(|(_, conditions)| conditions.grid_rate.0).sum::<f64>()
-        / conditions.len() as f64;
+    let average_rate =
+        conditions.iter().map(|(_, conditions)| conditions.grid_rate).sum::<KilowattHourRate>()
+            / conditions.len() as f64;
 
     let min_residual_energy = capacity * (f64::from(battery_args.min_soc_percent) / 100.0);
 
@@ -43,7 +44,7 @@ pub fn build_steps_table(
         assert_eq!(rate_range, step_range);
         table.add_row(vec![
             Cell::new(rate_range.start.format("%H:%M")),
-            Cell::new(conditions.grid_rate).fg(if conditions.grid_rate.0 >= average_rate {
+            Cell::new(conditions.grid_rate).fg(if conditions.grid_rate >= average_rate {
                 Color::Red
             } else {
                 Color::Green

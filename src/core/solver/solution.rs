@@ -10,6 +10,7 @@ use crate::{
 pub struct Solution {
     pub net_loss: Cost,
 
+    /// TODO: move this out of [`Solution`].
     pub net_loss_without_battery: Cost,
 
     /// The simulated working plan.

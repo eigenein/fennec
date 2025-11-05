@@ -4,6 +4,12 @@ use crate::quantity::energy::KilowattHours;
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct WattHours(pub u32);
 
+impl From<usize> for WattHours {
+    fn from(watt_hours: usize) -> Self {
+        Self(u32::try_from(watt_hours).expect("watt-hours should fit into `u32`"))
+    }
+}
+
 impl From<KilowattHours> for WattHours {
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
@@ -20,7 +26,7 @@ impl From<WattHours> for KilowattHours {
 
 impl From<WattHours> for usize {
     fn from(watt_hours: WattHours) -> Self {
-        Self::try_from(watt_hours.0).expect("the energy level should fit into `usize`")
+        Self::try_from(watt_hours.0).expect("watt-hours should fit into `usize`")
     }
 }
 

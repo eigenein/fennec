@@ -6,9 +6,9 @@ use std::{
 use chrono::{DateTime, TimeDelta, TimeZone, Timelike};
 use itertools::Itertools;
 
-impl<T> AggregateHourly for T where T: ?Sized {}
+impl<T> Aggregate for T where T: ?Sized {}
 
-pub trait AggregateHourly {
+pub trait Aggregate {
     #[must_use]
     fn median_hourly<Tz, V>(self) -> [Option<V>; 24]
     where

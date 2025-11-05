@@ -9,6 +9,7 @@ use std::{iter::from_fn, ops::Range, rc::Rc};
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta};
 use enumset::EnumSet;
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 
 use crate::{
@@ -66,7 +67,6 @@ impl Solver<'_> {
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
         let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
-        let n_energy_states = usize::from(max_energy) + 1;
 
         // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
@@ -76,10 +76,10 @@ impl Solver<'_> {
         //
         // They are wrapped in `Rc`, because the vector is going to be replaced every hour,
         // but we still need to backtrack the entire solution path.
-        //
-        // They're initialized to zeroes at the end of the forecast period:
-        #[allow(clippy::rc_clone_in_vec_init)]
-        let mut next_partial_solutions = vec![Rc::new(PartialSolution::default()); n_energy_states];
+        let mut next_partial_solutions = (0..=usize::from(max_energy))
+            .map(|_| PartialSolution::new())
+            .map(Rc::new)
+            .collect_vec();
 
         // Going backwards:
         for (time_range, conditions) in self.conditions.iter().rev() {
@@ -159,7 +159,6 @@ impl Solver<'_> {
                 };
                 PartialSolution {
                     net_loss: step.loss + next_partial_solution.net_loss,
-
                     next: Some(next_partial_solution),
                     step: Some((time_range.clone(), step)),
                 }
@@ -253,8 +252,8 @@ struct PartialSolution {
     step: Option<(Range<DateTime<Local>>, Step)>,
 }
 
-impl Default for PartialSolution {
-    fn default() -> Self {
+impl PartialSolution {
+    pub const fn new() -> Self {
         Self { net_loss: Cost::ZERO, next: None, step: None }
     }
 }

@@ -18,7 +18,7 @@ use crate::{
     api::{foxess, heartbeat, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::{AggregateHourly, Differentiate, Series},
+        series::{Aggregate, Differentiate, Series},
         solver::{Solver, conditions::Conditions},
     },
     prelude::*,

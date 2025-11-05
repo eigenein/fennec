@@ -10,3 +10,9 @@ impl Display for KilowattHourRate {
         write!(f, "{:.2} €/kWh", self.0)
     }
 }
+
+impl From<KilowattHourRate> for opentelemetry::Value {
+    fn from(value: KilowattHourRate) -> Self {
+        format!("{:.2}€/kWh", value.0).into()
+    }
+}

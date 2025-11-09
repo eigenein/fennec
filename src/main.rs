@@ -22,7 +22,7 @@ use crate::{
         solver::{Solver, conditions::Conditions},
     },
     prelude::*,
-    quantity::power::Kilowatts,
+    quantity::{energy::KilowattHours, power::Kilowatts},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -80,7 +80,11 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
             .await?
             .into_iter()
             .map(|state| {
-                (state.last_changed_at, state.total_usage - state.attributes.total_solar_yield)
+                (
+                    state.last_changed_at,
+                    state.total_net_usage
+                        - state.attributes.total_solar_yield.unwrap_or(KilowattHours::ZERO),
+                )
             })
             .differentiate()
             .median_hourly();

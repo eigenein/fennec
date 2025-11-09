@@ -71,15 +71,15 @@ pub struct EnergyState {
 
     #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "state")]
-    pub total_usage: KilowattHours,
+    pub total_net_usage: KilowattHours,
 
     pub attributes: EnergyAttributes,
 }
 
 #[derive(serde::Deserialize)]
 pub struct EnergyAttributes {
-    #[serde(rename = "custom_total_solar_yield")]
-    pub total_solar_yield: KilowattHours,
+    #[serde(default, rename = "custom_total_solar_yield")]
+    pub total_solar_yield: Option<KilowattHours>,
 }
 
 #[cfg(test)]
@@ -114,7 +114,7 @@ mod tests {
                     },
                     {
                         "entity_id": "sensor.custom_fennec_hourly_total_energy_usage",
-                        "state": "40187.582",
+                        "state": "invalid",
                         "attributes": {
                             "state_class": "total",
                             "unit_of_measurement": "kWh",
@@ -140,8 +140,8 @@ mod tests {
 
         let state = &total_energy_usage[0];
         assert_eq!(state.last_changed_at, expected_timestamp);
-        assert_abs_diff_eq!(state.total_usage.0, 40187.582);
-        assert_abs_diff_eq!(state.attributes.total_solar_yield.0, 14651.505);
+        assert_abs_diff_eq!(state.total_net_usage.0, 40187.582);
+        assert_abs_diff_eq!(state.attributes.total_solar_yield.unwrap().0, 14651.505);
 
         Ok(())
     }

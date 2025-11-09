@@ -4,45 +4,36 @@ version: 2
 
 builds:
   - builder: rust
+    binary: "fennec"
     flags:
       - --release
     targets:
       - aarch64-unknown-linux-gnu
 
-signs:
-  - cmd: cosign
-    certificate: "${artifact}.pem"
-    artifacts: checksum
-    args:
-      - sign-blob
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
-      - "${artifact}"
-      - "--yes"
+source:
+  enabled: false
 
-dockers:
-  - image_templates:
-      - "ghcr.io/eigenein/fennec:{{ .Tag }}-arm64"
-    goarch: arm64
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-
-docker_manifests:
-  - name_template: "ghcr.io/eigenein/fennec:{{ .Tag }}"
-    image_templates:
-      - "ghcr.io/eigenein/fennec:{{ .Tag }}-arm64"
+dockers_v2:
+  - ids:
+      - "fennec"
+    platforms:
+      - linux/arm64
+    images:
+      - "ghcr.io/eigenein/fennec"
+    tags:
+      - "latest"
+      - "{{ .Version }}"
+    labels:
+      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.name": "{{ .ProjectName }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.source": "{{ .GitURL }}"
 
 docker_signs:
   - cmd: cosign
-    artifacts: manifests
     args:
       - "sign"
       - "${artifact}"
       - "--yes"
+    artifacts: "all"

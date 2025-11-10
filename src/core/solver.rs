@@ -122,7 +122,7 @@ impl Solver<'_> {
         Some(Solution {
             net_loss: initial_partial_solution.net_loss,
             net_loss_without_battery,
-            steps: Self::backtrack(initial_partial_solution).collect(),
+            steps: initial_partial_solution.backtrack().collect(),
         })
     }
 
@@ -225,22 +225,9 @@ impl Solver<'_> {
             consumption * (grid_rate - self.purchase_fee)
         }
     }
-
-    /// Track the optimal solution starting with the initial conditions.
-    fn backtrack(
-        initial_partial_solution: Rc<PartialSolution>,
-    ) -> impl Iterator<Item = Point<Range<DateTime<Local>>, Step>> {
-        let mut partial_solution = Some(initial_partial_solution);
-        from_fn(move || {
-            // I'll need to yield the current step, so clone:
-            let current_partial_solution = partial_solution.clone()?;
-            // …and advance:
-            partial_solution.clone_from(&current_partial_solution.next);
-            current_partial_solution.step.clone() // TODO: can I do without `clone()`?
-        })
-    }
 }
 
+/// TODO: this could be named just `Solution` – and potentially, the original `Solution` could be gone.
 struct PartialSolution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
@@ -251,6 +238,8 @@ struct PartialSolution {
     /// hour, while moving from the future to the present. When all the states for the current hour
     /// are calculated, I can safely drop the previous hour states, because I keep the relevant
     /// links via [`Rc`].
+    ///
+    /// TODO: these two [`Option`] attributes are linked, so join them.
     next: Option<Rc<PartialSolution>>,
 
     /// The current step metrics.
@@ -264,5 +253,17 @@ struct PartialSolution {
 impl PartialSolution {
     pub const fn new() -> Self {
         Self { net_loss: Cost::ZERO, next: None, step: None }
+    }
+
+    /// Track the optimal solution till the end.
+    fn backtrack(&self) -> impl Iterator<Item = Point<Range<DateTime<Local>>, Step>> {
+        let mut pointer = Some(self);
+        from_fn(move || {
+            // I'll need to yield the current step, so clone:
+            let current_solution = pointer?;
+            // …and advance:
+            pointer = current_solution.next.as_deref();
+            current_solution.step.clone() // TODO: can I do without `clone()`?
+        })
     }
 }

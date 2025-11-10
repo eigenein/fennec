@@ -111,7 +111,8 @@ async fn hunt(fox_ess: &foxess::Api, serial_number: &str, hunt_args: HuntArgs) -
         .battery_args(hunt_args.battery)
         .purchase_fee(hunt_args.purchase_fee)
         .now(now)
-        .solve();
+        .solve()
+        .context("no solution found, try allowing additional working modes")?;
 
     let profit = solution.profit();
 

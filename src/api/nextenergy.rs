@@ -56,7 +56,7 @@ impl Api {
             .into_iter()
             .enumerate()
             .filter_map(move |(index, point)| {
-                let hour = index as u32;
+                let hour = u32::try_from(index).unwrap();
                 assert_eq!((point.label + 1) % 24, hour, "NextEnergy messed up: index={index} label={}", point.label);
 
                 match on.and_hms_opt(hour, 0, 0).unwrap().and_local_timezone(Local) {

@@ -42,7 +42,7 @@ pub struct Solver<'a> {
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
-    pub fn solve(self) -> Solution {
+    pub fn solve(self) -> Option<Solution> {
         self.build().solve()
     }
 }
@@ -62,8 +62,9 @@ impl Solver<'_> {
     /// For each state, we pick the battery mode that minimizes total cost including future consequences.
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
-    #[instrument(skip_all, name = "Optimizing the schedule…", fields(residual_energy = ?self.residual_energy))]
-    fn solve(self) -> Solution {
+    #[instrument(skip_all, name = "Optimizing the schedule…", fields(residual_energy = ?self.residual_energy
+    ))]
+    fn solve(self) -> Option<Solution> {
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
         let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
@@ -79,6 +80,7 @@ impl Solver<'_> {
         let mut next_partial_solutions = (0..=usize::from(max_energy))
             .map(|_| PartialSolution::new())
             .map(Rc::new)
+            .map(Some)
             .collect_vec();
 
         // Going backwards:
@@ -96,19 +98,18 @@ impl Solver<'_> {
             // Calculate partial solutions for the current hour:
             next_partial_solutions = (0..=max_energy.0)
                 .map(|initial_residual_energy_watt_hours| {
-                    Rc::new(
-                        self.optimise_step()
-                            .time_range(time_range.clone())
-                            .conditions(conditions)
-                            .initial_residual_energy(KilowattHours::from(WattHours(
-                                initial_residual_energy_watt_hours,
-                            )))
-                            .min_residual_energy(min_residual_energy)
-                            .next_partial_solutions(&next_partial_solutions)
-                            .max_energy(max_energy)
-                            .duration(step_duration)
-                            .call(),
-                    )
+                    self.optimise_step()
+                        .time_range(time_range.clone())
+                        .conditions(conditions)
+                        .initial_residual_energy(KilowattHours::from(WattHours(
+                            initial_residual_energy_watt_hours,
+                        )))
+                        .min_residual_energy(min_residual_energy)
+                        .next_partial_solutions(&next_partial_solutions)
+                        .max_energy(max_energy)
+                        .duration(step_duration)
+                        .call()
+                        .map(Rc::new)
                 })
                 .collect();
         }
@@ -116,15 +117,19 @@ impl Solver<'_> {
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
         let initial_energy = WattHours::from(self.residual_energy);
         let initial_partial_solution =
-            next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap();
+            next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
-        Solution {
+        Some(Solution {
             net_loss: initial_partial_solution.net_loss,
             net_loss_without_battery,
             steps: Self::backtrack(initial_partial_solution).collect(),
-        }
+        })
     }
 
+    /// # Returns
+    ///
+    /// - [`Some`] [`PartialSolution`], if a solution exists.
+    /// - [`None`], if there is no solution.
     #[builder]
     fn optimise_step(
         &self,
@@ -132,26 +137,19 @@ impl Solver<'_> {
         conditions: &Conditions,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
-        next_partial_solutions: &[Rc<PartialSolution>],
+        next_partial_solutions: &[Option<Rc<PartialSolution>>],
         max_energy: WattHours,
         duration: TimeDelta,
-    ) -> PartialSolution {
+    ) -> Option<PartialSolution> {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
             .min_residual_energy(min_residual_energy)
             .capacity(self.capacity)
             .parameters(self.battery_args.parameters)
             .build();
-        let working_modes = if initial_residual_energy >= min_residual_energy {
-            self.working_modes
-        } else {
-            // Force charging under the minimally allowed SoC to prevent damage to the battery.
-            // The solver will optimize for the minimal costs anyway.
-            EnumSet::from(WorkingMode::Charge)
-        };
-        working_modes
+        self.working_modes
             .iter()
-            .map(|working_mode| {
+            .filter_map(|working_mode| {
                 let step = self
                     .simulate_step()
                     .conditions(conditions)
@@ -163,18 +161,22 @@ impl Solver<'_> {
                 let next_partial_solution = {
                     let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
                     next_partial_solutions[usize::from(next_energy)].clone()
-                };
-                PartialSolution {
-                    net_loss: step.loss + next_partial_solution.net_loss,
-                    next: Some(next_partial_solution),
-                    step: Some((time_range.clone(), step)),
+                }?;
+                if step.residual_energy_after >= min_residual_energy {
+                    Some(PartialSolution {
+                        net_loss: step.loss + next_partial_solution.net_loss,
+                        next: Some(next_partial_solution),
+                        step: Some((time_range.clone(), step)),
+                    })
+                } else {
+                    // Do not allow dropping below the minimally allowed state-of-charge:
+                    None
                 }
             })
             .min_by_key(|partial_solution| {
                 // TODO: make `Quantity` orderable:
                 OrderedFloat(partial_solution.net_loss.0)
             })
-            .unwrap()
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions,

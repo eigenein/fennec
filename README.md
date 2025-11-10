@@ -71,11 +71,11 @@ spec:
                 - name: "HOME_ASSISTANT_ENTITY_ID"
                   value: "sensor.custom_fennec_hourly_total_energy_usage"
                 - name: "BATTERY_PARASITIC_LOAD"
-                  value: "0.014"
+                  value: "0.027"
                 - name: "BATTERY_CHARGING_EFFICIENCY"
-                  value: "0.996"
+                  value: "1.033"
                 - name: "BATTERY_DISCHARGING_EFFICIENCY"
-                  value: "0.851"
+                  value: "0.849"
               command:
                 - "/fennec"
                 - "hunt"
@@ -91,15 +91,6 @@ template:
       - trigger: "time_pattern"
         minutes: "/5"
     sensor:
-      - name: "Fennec total solar yield"
-        unit_of_measurement: "kWh"
-        unique_id: "custom_fennec_hourly_total_solar_yield"
-        default_entity_id: "sensor.custom_fennec_hourly_total_solar_yield"
-        icon: "mdi:flash"
-        state_class: "total"
-        state: "{{ states('sensor.sb2_5_1vl_40_555_total_yield') }}"
-        attributes:
-          custom_now: "{{ now() }}" # force update
       - name: "Fennec total energy usage"
         unit_of_measurement: "kWh"
         unique_id: "custom_fennec_hourly_total_energy_usage"
@@ -109,12 +100,13 @@ template:
         state: |
           {{
               states('sensor.p1_meter_energy_import') | float
-            + states('sensor.sb2_5_1vl_40_555_total_yield') | float
-            + states('sensor.battery_socket_energy_export') | float
             - states('sensor.p1_meter_energy_export') | float
+            + states('sensor.battery_socket_energy_export') | float
             - states('sensor.battery_socket_energy_import') | float
           }}
         attributes:
           custom_now: "{{ now() }}" # force update
-          custom_total_solar_yield: "{{ states('sensor.sb2_5_1vl_40_555_total_yield') }}"
+          custom_battery_residual_energy: "{{ states('sensor.foxess_residual_energy') }}"
+          custom_battery_energy_import: "{{ states('sensor.battery_socket_energy_import') }}"
+          custom_battery_energy_export: "{{ states('sensor.battery_socket_energy_export') }}"
 ```

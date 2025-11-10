@@ -142,7 +142,14 @@ impl Solver<'_> {
             .capacity(self.capacity)
             .parameters(self.battery_args.parameters)
             .build();
-        self.working_modes
+        let working_modes = if initial_residual_energy >= min_residual_energy {
+            self.working_modes
+        } else {
+            // Force charging under the minimally allowed SoC to prevent damage to the battery.
+            // The solver will optimize for the minimal costs anyway.
+            EnumSet::from(WorkingMode::Charge)
+        };
+        working_modes
             .iter()
             .map(|working_mode| {
                 let step = self

@@ -39,7 +39,7 @@ impl Api {
         &self,
         on: NaiveDate,
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
-        Ok(self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/MainFlow/WB_EnergyPrices/DataActionGetDataPoints")
+        Ok(self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices_NEW/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(on))
             .send()
@@ -54,16 +54,18 @@ impl Api {
             .points
             .list
             .into_iter()
-            .filter_map(move |point| {
-                match on.and_hms_opt(point.hour, 0, 0).unwrap().and_local_timezone(Local) {
-                    // FIXME: properly handle the fold on winter time change:
+            .enumerate()
+            .filter_map(move |(index, point)| {
+                let hour = index as u32;
+                assert_eq!((point.label + 1) % 24, hour, "NextEnergy messed up: index={index} label={}", point.label);
+
+                match on.and_hms_opt(hour, 0, 0).unwrap().and_local_timezone(Local) {
                     MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
                         let end_time = start_time + TimeDelta::hours(1);
                         let point = (start_time..end_time, point.value);
                         Some(point)
                     },
 
-                    // FIXME: properly handle the gap on summer time change:
                     MappedLocalTime::None => None,
                 }
             })
@@ -95,7 +97,7 @@ struct GetDataPointsResponseDataPoint {
         rename = "Label",
         deserialize_with = "GetDataPointsResponseDataPoint::deserialize_label"
     )]
-    hour: u32,
+    label: u32,
 
     /// Kilowatt-hour rate.
     #[serde_as(as = "serde_with::DisplayFromStr")]
@@ -112,39 +114,42 @@ impl GetDataPointsResponseDataPoint {
 }
 
 #[derive(Serialize)]
-struct GetDataPointsRequest<'a> {
+struct GetDataPointsRequest {
     #[serde(rename = "viewName")]
-    pub view_name: &'a str,
+    pub view_name: &'static str,
 
     #[serde(rename = "versionInfo")]
-    pub version_info: VersionInfo<'a>,
+    pub version_info: VersionInfo,
 
     #[serde(rename = "screenData")]
     pub screen_data: ScreenData,
 }
 
-impl GetDataPointsRequest<'_> {
+impl GetDataPointsRequest {
     pub const fn new(date: NaiveDate) -> Self {
         Self {
             view_name: "MainFlow.MarketPrices",
             version_info: VersionInfo {
                 api_version: "4fAioRaV8iwFjjxeuz4+vw",
-                module_version: "4m7kd3sh6JgpFidC7o2TPA",
+                module_version: "yM5fgj6F4qiLDuJ6CWsCSg",
             },
             screen_data: ScreenData {
-                variables: Variables { distribution_id: 3, filter_price_date: date },
+                variables: Variables {
+                    distribution_id: 3,
+                    filter: Filter { costs_level_id: "Market+", price_including_vat: true, date },
+                },
             },
         }
     }
 }
 
 #[derive(Serialize)]
-struct VersionInfo<'a> {
+struct VersionInfo {
     #[serde(rename = "apiVersion")]
-    api_version: &'a str,
+    api_version: &'static str,
 
     #[serde(rename = "moduleVersion")]
-    module_version: &'a str,
+    module_version: &'static str,
 }
 
 #[derive(Serialize)]
@@ -158,8 +163,20 @@ struct Variables {
     #[serde(rename = "DistributionId")]
     distribution_id: u8,
 
-    #[serde(rename = "Filter_PriceDate")]
-    filter_price_date: NaiveDate,
+    #[serde(rename = "Filter")]
+    filter: Filter,
+}
+
+#[derive(Serialize)]
+struct Filter {
+    #[serde(rename = "PriceIncludingVAT")]
+    price_including_vat: bool,
+
+    #[serde(rename = "PriceDate")]
+    date: NaiveDate,
+
+    #[serde(rename = "CostsLevelId")]
+    costs_level_id: &'static str,
 }
 
 #[cfg(test)]

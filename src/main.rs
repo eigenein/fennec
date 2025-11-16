@@ -59,6 +59,9 @@ async fn main() -> Result {
         },
     }
 
+    if let Some(heartbeat_url) = args.heartbeat_url {
+        heartbeat::send(heartbeat_url).await;
+    }
     info!("Done!");
     Ok(())
 }
@@ -119,10 +122,6 @@ async fn hunt(args: HuntArgs) -> Result {
 
     if !args.scout {
         fox_ess.set_schedule(&args.fox_ess_api.serial_number, time_slot_sequence.as_ref()).await?;
-    }
-
-    if let Some(heartbeat_url) = args.heartbeat_url {
-        heartbeat::send(heartbeat_url).await;
     }
 
     Ok(())

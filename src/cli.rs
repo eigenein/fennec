@@ -15,6 +15,9 @@ use crate::{
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
 pub struct Args {
+    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
+    pub heartbeat_url: Option<Url>,
+
     #[command(subcommand)]
     pub command: Command,
 }
@@ -78,9 +81,6 @@ pub struct HuntArgs {
     #[expect(clippy::doc_markdown)]
     #[clap(long)]
     pub scout: bool,
-
-    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
-    pub heartbeat_url: Option<Url>,
 
     #[clap(
         long = "working-modes",

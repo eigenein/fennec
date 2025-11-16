@@ -9,15 +9,21 @@ use reqwest::{
 };
 use serde_with::serde_as;
 
-use crate::{prelude::*, quantity::energy::KilowattHours};
+use crate::{
+    core::series::{Aggregate, Differentiate},
+    prelude::*,
+    quantity::energy::KilowattHours,
+    statistics,
+    statistics::Statistics,
+};
 
-pub struct Api {
+pub struct Api<'u> {
     client: Client,
-    base_url: Url,
+    base_url: &'u Url,
 }
 
-impl Api {
-    pub fn try_new(access_token: &str, base_url: Url) -> Result<Self> {
+impl<'u> Api<'u> {
+    pub fn try_new(access_token: &str, base_url: &'u Url) -> Result<Self> {
         let headers = HeaderMap::from_iter([(
             HeaderName::from_static("authorization"),
             HeaderValue::from_str(&format!("Bearer {access_token}"))?,
@@ -31,7 +37,7 @@ impl Api {
         Ok(Self { client, base_url })
     }
 
-    #[instrument(skip_all, fields(entity_id = entity_id))]
+    #[instrument(skip_all, fields(entity_id = entity_id, since = ?period.start(), until = ?period.end()))]
     pub async fn get_energy_history(
         &self,
         entity_id: &str,
@@ -54,6 +60,28 @@ impl Api {
             .with_context(|| format!("the API returned no data for `{entity_id}`"))?;
         info!(len = entity_history.0.len(), "Fetched");
         Ok(entity_history.0)
+    }
+
+    pub async fn get_statistics(
+        &self,
+        entity_id: &str,
+        period: &RangeInclusive<DateTime<Local>>,
+    ) -> Result<Statistics> {
+        let hourly_stand_by_power = self
+            .get_energy_history(entity_id, period)
+            .await?
+            .into_iter()
+            .map(|state| {
+                (
+                    state.last_changed_at,
+                    state.total_net_usage
+                        - state.attributes.total_solar_yield.unwrap_or(KilowattHours::ZERO),
+                )
+            })
+            .differentiate()
+            .median_hourly();
+        let household = statistics::Household { hourly_stand_by_power };
+        Ok(Statistics { household })
     }
 }
 

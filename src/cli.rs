@@ -1,3 +1,6 @@
+use std::{ops::RangeInclusive, path::PathBuf};
+
+use chrono::{DateTime, Local, TimeDelta};
 use clap::{Parser, Subcommand};
 use enumset::EnumSet;
 use reqwest::Url;
@@ -127,6 +130,13 @@ pub struct HomeAssistantArgs {
     pub n_history_days: i64,
 }
 
+impl HomeAssistantArgs {
+    pub fn history_period(&self) -> RangeInclusive<DateTime<Local>> {
+        let now = Local::now();
+        (now - TimeDelta::days(self.n_history_days))..=now
+    }
+}
+
 #[derive(Parser)]
 pub struct HomeAssistantConnectionArgs {
     /// Home Assistant API access token.
@@ -139,8 +149,8 @@ pub struct HomeAssistantConnectionArgs {
 }
 
 impl HomeAssistantConnectionArgs {
-    pub fn try_new_client(self) -> Result<home_assistant::Api> {
-        home_assistant::Api::try_new(&self.access_token, self.base_url)
+    pub fn try_new_client(&self) -> Result<home_assistant::Api<'_>> {
+        home_assistant::Api::try_new(&self.access_token, &self.base_url)
     }
 }
 
@@ -157,6 +167,24 @@ pub struct FoxEssApiArgs {
 pub struct BurrowArgs {
     #[command(subcommand)]
     pub command: BurrowCommand,
+}
+
+#[derive(Subcommand)]
+pub enum BurrowCommand {
+    /// Gather consumption and battery statistics.
+    Statistics(BurrowStatisticsArgs),
+
+    /// Test FoxESS Cloud API connectivity.
+    FoxEss(BurrowFoxEssArgs),
+}
+
+#[derive(Parser)]
+pub struct BurrowStatisticsArgs {
+    #[clap(flatten)]
+    pub home_assistant: HomeAssistantArgs,
+
+    #[clap(long, env = "STATISTICS_PATH")]
+    pub output_file: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -181,10 +209,4 @@ pub enum BurrowFoxEssCommand {
 
     /// Get the schedule.
     Schedule,
-}
-
-#[derive(Subcommand)]
-pub enum BurrowCommand {
-    /// Test FoxESS Cloud API connectivity.
-    FoxEss(BurrowFoxEssArgs),
 }

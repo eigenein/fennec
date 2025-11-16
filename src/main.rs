@@ -6,9 +6,10 @@ mod cli;
 mod core;
 mod prelude;
 mod quantity;
+mod statistics;
 mod tables;
 
-use chrono::{Local, TimeDelta, Timelike};
+use chrono::Timelike;
 use clap::Parser;
 use itertools::Itertools;
 
@@ -16,11 +17,11 @@ use crate::{
     api::{foxess, heartbeat, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
-        series::{Aggregate, Differentiate, Series},
+        series::Series,
         solver::{Solver, conditions::Conditions},
     },
     prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
+    quantity::power::Kilowatts,
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -36,6 +37,22 @@ async fn main() -> Result {
             hunt(*hunt_args).await?;
         }
         Command::Burrow(burrow_args) => match burrow_args.command {
+            BurrowCommand::Statistics(statistics_args) => {
+                let home_assistant = statistics_args.home_assistant.connection.try_new_client()?;
+                let statistics = home_assistant
+                    .get_statistics(
+                        &statistics_args.home_assistant.entity_id,
+                        &statistics_args.home_assistant.history_period(),
+                    )
+                    .await?;
+                let contents = toml::to_string_pretty(&statistics)?;
+                if let Some(path) = statistics_args.output_file {
+                    std::fs::write(path, contents)?;
+                } else {
+                    println!("{contents}");
+                }
+            }
+
             BurrowCommand::FoxEss(burrow_args) => {
                 burrow_fox_ess(burrow_args).await?;
             }
@@ -51,11 +68,10 @@ async fn hunt(args: HuntArgs) -> Result {
     let fox_ess = foxess::Api::try_new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
     let home_assistant = args.home_assistant.connection.try_new_client()?;
-    let now = Local::now();
-    let history_period = (now - TimeDelta::days(args.home_assistant.n_history_days))..=now;
+    let history_period = args.home_assistant.history_period();
 
     let grid_rates: Series<_, _> =
-        nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?.collect();
+        nextenergy::Api::try_new()?.get_hourly_rates_48h(*history_period.end()).await?.collect();
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
 
@@ -66,19 +82,8 @@ async fn hunt(args: HuntArgs) -> Result {
     info!(?residual_energy, ?total_capacity, "Fetched battery details");
 
     let conditions = {
-        let median_stand_by_power = home_assistant
-            .get_energy_history(&args.home_assistant.entity_id, &history_period)
-            .await?
-            .into_iter()
-            .map(|state| {
-                (
-                    state.last_changed_at,
-                    state.total_net_usage
-                        - state.attributes.total_solar_yield.unwrap_or(KilowattHours::ZERO),
-                )
-            })
-            .differentiate()
-            .median_hourly();
+        let statistics =
+            home_assistant.get_statistics(&args.home_assistant.entity_id, &history_period).await?;
         grid_rates
             .into_iter()
             .map(|(time_range, grid_rate)| {
@@ -87,7 +92,8 @@ async fn hunt(args: HuntArgs) -> Result {
                     time_range,
                     Conditions {
                         grid_rate,
-                        stand_by_power: median_stand_by_power[hour].unwrap_or(Kilowatts::ZERO),
+                        stand_by_power: statistics.household.hourly_stand_by_power[hour]
+                            .unwrap_or(Kilowatts::ZERO),
                     },
                 )
             })
@@ -101,7 +107,7 @@ async fn hunt(args: HuntArgs) -> Result {
         .capacity(total_capacity)
         .battery_args(args.battery)
         .purchase_fee(args.purchase_fee)
-        .now(now)
+        .now(*history_period.end())
         .solve()
         .context("no solution found, try allowing additional working modes")?;
 

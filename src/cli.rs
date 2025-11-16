@@ -12,10 +12,6 @@ use crate::{
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
 pub struct Args {
-    /// Pydantic Logfire token: <https://logfire.pydantic.dev/docs/how-to-guides/create-write-tokens/>.
-    #[clap(long, env = "LOGFIRE_TOKEN", hide_env_values = true)]
-    _logfire_token: Option<String>,
-
     #[clap(flatten)]
     pub fox_ess_api: FoxEssApiArgs,
 

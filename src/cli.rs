@@ -12,9 +12,6 @@ use crate::{
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
 pub struct Args {
-    #[clap(flatten)]
-    pub fox_ess_api: FoxEssApiArgs,
-
     #[command(subcommand)]
     pub command: Command,
 }
@@ -102,6 +99,9 @@ pub struct HuntArgs {
     /// TODO: remove in favour of `burrow stats`.
     #[clap(flatten)]
     pub home_assistant: HomeAssistantArgs,
+
+    #[clap(flatten)]
+    pub fox_ess_api: FoxEssApiArgs,
 }
 
 impl HuntArgs {
@@ -161,6 +161,9 @@ pub struct BurrowArgs {
 
 #[derive(Parser)]
 pub struct BurrowFoxEssArgs {
+    #[clap(flatten)]
+    pub fox_ess_api: FoxEssApiArgs,
+
     #[command(subcommand)]
     pub command: BurrowFoxEssCommand,
 }

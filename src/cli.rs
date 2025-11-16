@@ -99,9 +99,11 @@ pub struct HuntArgs {
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
     pub purchase_fee: KilowattHourRate,
 
+    /// TODO: remove in favour of `burrow stats`.
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
+    /// TODO: remove in favour of `burrow stats`.
     #[clap(flatten)]
     pub home_assistant: HomeAssistantArgs,
 }

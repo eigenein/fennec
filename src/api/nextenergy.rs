@@ -16,6 +16,7 @@ impl Api {
         Ok(Self(Client::builder().timeout(Duration::from_secs(10)).build()?))
     }
 
+    #[instrument(skip_all, fields(since = ?since))]
     pub async fn get_hourly_rates_48h(
         &self,
         since: DateTime<Local>,
@@ -34,7 +35,7 @@ impl Api {
             .chain(next_day_rates))
     }
 
-    #[instrument(name = "Fetching energy prices…", fields(on = ?on), skip_all)]
+    #[instrument(fields(on = ?on), skip_all)]
     pub async fn get_hourly_rates(
         &self,
         on: NaiveDate,

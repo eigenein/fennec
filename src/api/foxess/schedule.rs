@@ -112,7 +112,7 @@ impl EndTime {
 pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
 
 impl TimeSlotSequence {
-    #[instrument(skip_all, name = "Building FoxESS time slots from the schedule…")]
+    #[instrument(skip_all)]
     pub fn from_schedule<'a>(
         schedule: impl IntoIterator<Item = &'a (Range<DateTime<Local>>, CoreWorkingMode)>,
         battery_args: &BatteryArgs,

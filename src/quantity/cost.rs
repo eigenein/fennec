@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::quantity::Quantity;
 
@@ -10,12 +10,12 @@ impl Cost {
 
 impl Display for Cost {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:+.2} €", self.0)
+        write!(f, "{:.2} €", self.0)
     }
 }
 
-impl From<Cost> for opentelemetry::Value {
-    fn from(value: Cost) -> Self {
-        format!("{:.2}€", value.0).into()
+impl Debug for Cost {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.2}€", self.0)
     }
 }

@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 
 pub use anyhow::{Context, Error, anyhow, bail, ensure};
-pub use logfire::{debug, error, info, trace, warn};
-pub use tracing::{Level, instrument};
+pub use tracing::{Level, debug, error, info, instrument, trace, warn};
 
 pub type Result<T = (), E = Error> = anyhow::Result<T, E>;

@@ -40,7 +40,7 @@ impl Api {
         Ok(Self { client, api_key })
     }
 
-    #[instrument(skip_all, name = "Fetching device details…", fields(serial_number = serial_number))]
+    #[instrument(skip_all, fields(serial_number = serial_number))]
     pub async fn get_device_details(&self, serial_number: &str) -> Result<DeviceDetails> {
         #[derive(Serialize)]
         struct GetDeviceDetailsRequest<'a> {
@@ -53,11 +53,7 @@ impl Api {
             .context("failed to request the device details")
     }
 
-    #[instrument(
-        skip_all,
-        fields(serial_number = serial_number),
-        name = "Fetching parsed device variables…"
-    )]
+    #[instrument(skip_all, fields(serial_number = serial_number))]
     pub async fn get_device_variables(&self, serial_number: &str) -> Result<DeviceVariables> {
         let variables = self
             .get_devices_variables_raw(&[serial_number])
@@ -73,7 +69,6 @@ impl Api {
     }
 
     #[instrument(
-        name = "Fetching all device variables…",
         skip_all,
         level = Level::DEBUG,
         fields(serial_numbers = ?serial_numbers),
@@ -98,7 +93,7 @@ impl Api {
         .context("failed to get the devices variables")
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number), name = "Fetching the device schedule…")]
+    #[instrument(skip_all, fields(serial_number = serial_number))]
     pub async fn get_schedule(&self, serial_number: &str) -> Result<Schedule> {
         #[derive(Serialize)]
         struct GetScheduleRequest<'a> {
@@ -116,7 +111,7 @@ impl Api {
         .context("failed to get the schedule")
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number), name = "Setting the device schedule…")]
+    #[instrument(skip_all, fields(serial_number = serial_number))]
     pub async fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {
@@ -136,7 +131,7 @@ impl Api {
         .await
     }
 
-    #[instrument(skip_all, level = Level::DEBUG, fields(path = path), name = "Calling…")]
+    #[instrument(skip_all, level = Level::DEBUG, fields(path = path))]
     async fn call<Q: Serialize, B: Serialize, R: DeserializeOwned>(
         &self,
         method: Method,
@@ -161,7 +156,7 @@ impl Api {
                 .await
                 .with_context(|| format!("failed to deserialize `{path}` response JSON"))?,
         )?;
-        debug!("Call succeeded", response = format!("{response:#}"));
+        debug!(?response, "Call succeeded");
         serde_json::from_value(response)
             .with_context(|| format!("failed to deserialize `{path}` response structure"))
     }

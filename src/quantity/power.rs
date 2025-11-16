@@ -21,12 +21,6 @@ impl Debug for Kilowatts {
     }
 }
 
-impl From<Kilowatts> for opentelemetry::Value {
-    fn from(value: Kilowatts) -> Self {
-        format!("{value:?}").into()
-    }
-}
-
 impl Mul<TimeDelta> for Kilowatts {
     type Output = KilowattHours;
 

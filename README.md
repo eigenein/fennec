@@ -60,8 +60,6 @@ spec:
                   value: "..."
                 - name: "FOX_ESS_API_KEY"
                   value: "..."
-                - name: "LOGFIRE_TOKEN"
-                  value: "..."
                 - name: "HEARTBEAT_URL"
                   value: "https://uptime.betterstack.com/api/v1/heartbeat/..."
                 - name: "HOME_ASSISTANT_ACCESS_TOKEN"

@@ -80,11 +80,9 @@ pub fn build_steps_table(
                 },
             ),
             Cell::new(step.grid_consumption).set_alignment(CellAlignment::Right),
-            Cell::new(step.loss).fg(if step.loss >= Cost::ONE_CENT {
-                Color::Red
-            } else {
-                Color::Green
-            }),
+            Cell::new(step.loss)
+                .set_alignment(CellAlignment::Right)
+                .fg(if step.loss >= Cost::ONE_CENT { Color::Red } else { Color::Green }),
         ]);
     }
     table

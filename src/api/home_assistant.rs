@@ -31,7 +31,7 @@ impl Api {
         Ok(Self { client, base_url })
     }
 
-    #[instrument(skip_all, name = "Fetching the energy history…", fields(entity_id = entity_id))]
+    #[instrument(skip_all, fields(entity_id = entity_id))]
     pub async fn get_energy_history(
         &self,
         entity_id: &str,
@@ -52,7 +52,7 @@ impl Api {
             .into_iter()
             .next()
             .with_context(|| format!("the API returned no data for `{entity_id}`"))?;
-        info!("Fetched", len = entity_history.0.len());
+        info!(len = entity_history.0.len(), "Fetched");
         Ok(entity_history.0)
     }
 }

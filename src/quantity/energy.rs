@@ -33,12 +33,6 @@ impl Debug for KilowattHours {
     }
 }
 
-impl From<KilowattHours> for opentelemetry::Value {
-    fn from(value: KilowattHours) -> Self {
-        format!("{value:?}").into()
-    }
-}
-
 impl Mul<KilowattHourRate> for KilowattHours {
     type Output = Cost;
 

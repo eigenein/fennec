@@ -1,8 +1,16 @@
+use std::fmt::{Debug, Formatter};
+
 use crate::quantity::energy::KilowattHours;
 
 /// Quantized energy for the solver's dynamic programming state space.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct WattHours(pub u32);
+
+impl Debug for WattHours {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.0}Wh", self.0)
+    }
+}
 
 impl From<usize> for WattHours {
     fn from(watt_hours: usize) -> Self {

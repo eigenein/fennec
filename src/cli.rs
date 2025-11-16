@@ -1,6 +1,6 @@
 use std::{ops::RangeInclusive, path::PathBuf};
 
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
 use enumset::EnumSet;
 use reqwest::Url;
@@ -133,6 +133,7 @@ pub struct HomeAssistantArgs {
 impl HomeAssistantArgs {
     pub fn history_period(&self) -> RangeInclusive<DateTime<Local>> {
         let now = Local::now();
+        let now = now.with_nanosecond(0).unwrap_or(now);
         (now - TimeDelta::days(self.n_history_days))..=now
     }
 }

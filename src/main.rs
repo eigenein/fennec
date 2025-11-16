@@ -110,19 +110,6 @@ async fn hunt(args: HuntArgs) -> Result {
         .now(*history_period.end())
         .solve()
         .context("no solution found, try allowing additional working modes")?;
-
-    let profit = solution.profit();
-
-    #[allow(clippy::cast_precision_loss)]
-    let daily_profit = profit / (conditions.len() as f64 / 24.0);
-
-    info!(
-        net_loss = ?solution.net_loss,
-        without_battery = ?solution.net_loss_without_battery,
-        ?profit,
-        ?daily_profit,
-        "Optimized",
-    );
     println!("{}", build_steps_table(&conditions, &solution.steps, args.battery, total_capacity));
 
     let schedule: Series<_, _> =

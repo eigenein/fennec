@@ -42,6 +42,8 @@ impl Api {
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
     pub async fn get_device_details(&self, serial_number: &str) -> Result<DeviceDetails> {
+        info!("Fetching…");
+
         #[derive(Serialize)]
         struct GetDeviceDetailsRequest<'a> {
             #[serde(rename = "sn")]
@@ -113,6 +115,8 @@ impl Api {
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
     pub async fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
+        info!(n_groups = groups.len(), "Setting…");
+
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]

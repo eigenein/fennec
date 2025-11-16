@@ -37,7 +37,7 @@ impl<'u> Api<'u> {
         Ok(Self { client, base_url })
     }
 
-    #[instrument(skip_all, fields(entity_id = entity_id, since = ?period.start(), until = ?period.end()))]
+    #[instrument(skip_all)]
     pub async fn get_energy_history(
         &self,
         entity_id: &str,
@@ -52,6 +52,7 @@ impl<'u> Api<'u> {
         url.query_pairs_mut()
             .append_pair("filter_entity_id", entity_id)
             .append_pair("end_time", &period.end().to_rfc3339());
+        info!(entity_id, since = ?period.start(), until = ?period.end(), "Fetching…");
         let entities_history: Vec<EnergyHistory> =
             self.client.get(url).send().await?.error_for_status()?.json().await?;
         let entity_history = entities_history

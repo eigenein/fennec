@@ -62,12 +62,12 @@ impl Solver<'_> {
     /// For each state, we pick the battery mode that minimizes total cost including future consequences.
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
-    #[instrument(skip_all, fields(residual_energy = ?self.residual_energy))]
+    #[instrument(skip_all)]
     fn solve(self) -> Option<Solution> {
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
         let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
-        info!(?min_residual_energy, ?max_energy, "Optimizing…");
+        info!(?min_residual_energy, ?self.residual_energy, ?max_energy, "Optimizing…");
 
         // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
@@ -119,11 +119,18 @@ impl Solver<'_> {
         let initial_partial_solution =
             next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
-        Some(Solution {
+        let solution = Solution {
             net_loss: initial_partial_solution.net_loss,
             net_loss_without_battery,
             steps: initial_partial_solution.backtrack().collect(),
-        })
+        };
+        info!(
+            net_loss = ?solution.net_loss,
+            without_battery = ?solution.net_loss_without_battery,
+            profit = ?solution.profit(),
+            "Optimized",
+        );
+        Some(solution)
     }
 
     /// # Returns

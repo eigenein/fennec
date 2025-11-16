@@ -7,7 +7,7 @@ use crate::prelude::*;
 #[allow(clippy::literal_string_with_formatting_args)]
 #[instrument(skip_all)]
 pub async fn send(url: Url) {
-    info!(?url, "Sending a heartbeat…");
+    info!(%url, "Sending a heartbeat…");
     if let Err(error) =
         reqwest::Client::new().post(url).timeout(Duration::from_secs(10)).send().await
     {

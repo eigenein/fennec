@@ -3,7 +3,12 @@ use std::path::Path;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
-use crate::{prelude::*, quantity::power::Kilowatts};
+use crate::{
+    api::home_assistant::EnergyState,
+    core::series::{Aggregate, Differentiate},
+    prelude::*,
+    quantity::power::Kilowatts,
+};
 
 #[must_use]
 #[derive(Serialize, Deserialize)]
@@ -15,16 +20,6 @@ pub struct Statistics {
 }
 
 impl Statistics {
-    #[expect(clippy::large_types_passed_by_value)]
-    pub fn new(hourly_stand_by_power: [Option<Kilowatts>; 24]) -> Self {
-        let mut household = Household { hourly_stand_by_power };
-        for kilowatts in household.hourly_stand_by_power.iter_mut().flatten() {
-            // Round the power to watts to remove the awkward number of decimal points:
-            kilowatts.0 = (kilowatts.0 * 1000.0).round() / 1000.0;
-        }
-        Self { generated_at: Some(Local::now()), household }
-    }
-
     #[instrument(skip_all, fields(path = %path.display()))]
     pub fn read_from(path: &Path) -> Result<Self> {
         let contents = std::fs::read_to_string(path)
@@ -37,6 +32,23 @@ impl Statistics {
         let contents = toml::to_string_pretty(self)?;
         std::fs::write(path, contents)
             .with_context(|| format!("failed to write the statistics to `{}`", path.display()))
+    }
+}
+
+impl FromIterator<EnergyState> for Statistics {
+    fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
+        let mut hourly_stand_by_power = iterator
+            .into_iter()
+            .map(|state| {
+                (state.last_changed_at, state.net_consumption - state.attributes.solar_yield)
+            })
+            .differentiate()
+            .median_hourly();
+        for kilowatts in hourly_stand_by_power.iter_mut().flatten() {
+            // Round the power to watts to remove the awkward number of decimal points:
+            kilowatts.0 = (kilowatts.0 * 1000.0).round() / 1000.0;
+        }
+        Self { generated_at: Some(Local::now()), household: Household { hourly_stand_by_power } }
     }
 }
 

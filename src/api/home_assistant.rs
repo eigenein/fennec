@@ -9,12 +9,7 @@ use reqwest::{
 };
 use serde_with::serde_as;
 
-use crate::{
-    core::series::{Aggregate, Differentiate},
-    prelude::*,
-    quantity::energy::KilowattHours,
-    statistics::Statistics,
-};
+use crate::{prelude::*, quantity::energy::KilowattHours};
 
 pub struct Api<'u> {
     client: Client,
@@ -60,23 +55,6 @@ impl<'u> Api<'u> {
             .with_context(|| format!("the API returned no data for `{entity_id}`"))?;
         info!(len = entity_history.0.len(), "Fetched");
         Ok(entity_history.0)
-    }
-
-    pub async fn get_statistics(
-        &self,
-        entity_id: &str,
-        period: &RangeInclusive<DateTime<Local>>,
-    ) -> Result<Statistics> {
-        let hourly_stand_by_power = self
-            .get_energy_history(entity_id, period)
-            .await?
-            .into_iter()
-            .map(|state| {
-                (state.last_changed_at, state.net_consumption - state.attributes.solar_yield)
-            })
-            .differentiate()
-            .median_hourly();
-        Ok(Statistics::new(hourly_stand_by_power))
     }
 }
 

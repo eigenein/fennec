@@ -9,7 +9,7 @@ mod quantity;
 mod statistics;
 mod tables;
 
-use chrono::Timelike;
+use chrono::{Local, Timelike};
 use clap::Parser;
 use itertools::Itertools;
 
@@ -22,6 +22,7 @@ use crate::{
     },
     prelude::*,
     quantity::power::Kilowatts,
+    statistics::Statistics,
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -48,7 +49,7 @@ async fn main() -> Result {
                 for (hour, power) in statistics.household.hourly_stand_by_power.iter().enumerate() {
                     info!(hour, ?power);
                 }
-                std::fs::write(statistics_args.output_file, toml::to_string_pretty(&statistics)?)?;
+                statistics.write_to(&statistics_args.output_path)?;
             }
 
             BurrowCommand::FoxEss(burrow_args) => {
@@ -66,13 +67,14 @@ async fn main() -> Result {
 
 #[instrument(skip_all)]
 async fn hunt(args: HuntArgs) -> Result {
+    let statistics = Statistics::read_from(&args.statistics_path)?;
+
     let fox_ess = foxess::Api::try_new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
-    let home_assistant = args.home_assistant.connection.try_new_client()?;
-    let history_period = args.home_assistant.history_period();
 
+    let now = Local::now();
     let grid_rates: Series<_, _> =
-        nextenergy::Api::try_new()?.get_hourly_rates_48h(*history_period.end()).await?.collect();
+        nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?.collect();
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
 
@@ -82,25 +84,15 @@ async fn hunt(args: HuntArgs) -> Result {
         fox_ess.get_device_details(&args.fox_ess_api.serial_number).await?.total_capacity();
     info!(?residual_energy, ?total_capacity, "Fetched battery details");
 
-    let conditions = {
-        let statistics =
-            home_assistant.get_statistics(&args.home_assistant.entity_id, &history_period).await?;
-        grid_rates
-            .into_iter()
-            .map(|(time_range, grid_rate)| {
-                let hour = time_range.start.hour() as usize;
-                (
-                    time_range,
-                    Conditions {
-                        grid_rate,
-                        stand_by_power: statistics.household.hourly_stand_by_power[hour]
-                            .unwrap_or(Kilowatts::ZERO),
-                    },
-                )
-            })
-            .collect_vec()
-    };
-
+    let conditions = grid_rates
+        .into_iter()
+        .map(|(time_range, grid_rate)| {
+            let hour = time_range.start.hour() as usize;
+            let stand_by_power =
+                statistics.household.hourly_stand_by_power[hour].unwrap_or(Kilowatts::ZERO);
+            (time_range, Conditions { grid_rate, stand_by_power })
+        })
+        .collect_vec();
     let solution = Solver::builder()
         .conditions(&conditions)
         .working_modes(working_modes)
@@ -108,7 +100,7 @@ async fn hunt(args: HuntArgs) -> Result {
         .capacity(total_capacity)
         .battery_args(args.battery)
         .purchase_fee(args.purchase_fee)
-        .now(*history_period.end())
+        .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
     println!("{}", build_steps_table(&conditions, &solution.steps, args.battery, total_capacity));

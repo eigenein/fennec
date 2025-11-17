@@ -99,12 +99,11 @@ pub struct HuntArgs {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
-    /// TODO: remove in favour of `burrow stats`.
-    #[clap(flatten)]
-    pub home_assistant: HomeAssistantArgs,
-
     #[clap(flatten)]
     pub fox_ess_api: FoxEssApiArgs,
+
+    #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
+    pub statistics_path: PathBuf,
 }
 
 impl HuntArgs {
@@ -185,7 +184,7 @@ pub struct BurrowStatisticsArgs {
     pub home_assistant: HomeAssistantArgs,
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
-    pub output_file: PathBuf,
+    pub output_path: PathBuf,
 }
 
 #[derive(Parser)]

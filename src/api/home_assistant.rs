@@ -13,7 +13,6 @@ use crate::{
     core::series::{Aggregate, Differentiate},
     prelude::*,
     quantity::energy::KilowattHours,
-    statistics,
     statistics::Statistics,
 };
 
@@ -81,8 +80,7 @@ impl<'u> Api<'u> {
             })
             .differentiate()
             .median_hourly();
-        let household = statistics::Household { hourly_stand_by_power };
-        Ok(Statistics { household })
+        Ok(Statistics::new(hourly_stand_by_power))
     }
 }
 

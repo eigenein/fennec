@@ -48,10 +48,11 @@ impl Battery {
         let internal_power = external_power
             * if external_power > Kilowatts::ZERO {
                 // FIXME: prefer lower-power charging:
-                let power_ratio = external_power / self.args.charging_power;
+                let power_ratio = (external_power / self.args.charging_power).clamp(0.0, 1.0);
                 // At max power, the bonus is `-0.005`. At zero power, the bonus is `+0.005`.
+                // TODO: extract to a function and add unit tests:
                 let bonus = 0.01 * (0.5 - power_ratio);
-                self.args.parameters.charging_efficiency * (1.0 + bonus)
+                self.args.parameters.charging_efficiency + bonus
             } else if external_power < Kilowatts::ZERO {
                 1.0 / self.args.parameters.discharging_efficiency
             } else {

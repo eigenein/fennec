@@ -152,7 +152,7 @@ impl Solver<'_> {
             .residual_energy(initial_residual_energy)
             .min_residual_energy(min_residual_energy)
             .capacity(self.capacity)
-            .parameters(self.battery_args.parameters)
+            .args(self.battery_args)
             .build();
         self.working_modes
             .iter()

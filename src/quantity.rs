@@ -84,6 +84,18 @@ where
     }
 }
 
+impl<T, const POWER: isize, const TIME: isize, const COST: isize> Div<Self>
+    for Quantity<T, POWER, TIME, COST>
+where
+    T: Div<Output = f64>,
+{
+    type Output = f64;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        self.0 / rhs.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fmt::{Debug, Formatter};

@@ -39,17 +39,16 @@ async fn main() -> Result {
         }
         Command::Burrow(burrow_args) => match burrow_args.command {
             BurrowCommand::Statistics(statistics_args) => {
-                let home_assistant = statistics_args.home_assistant.connection.try_new_client()?;
-                let statistics = home_assistant
+                statistics_args
+                    .home_assistant
+                    .connection
+                    .try_new_client()?
                     .get_statistics(
                         &statistics_args.home_assistant.entity_id,
                         &statistics_args.home_assistant.history_period(),
                     )
-                    .await?;
-                for (hour, power) in statistics.household.hourly_stand_by_power.iter().enumerate() {
-                    info!(hour, ?power);
-                }
-                statistics.write_to(&statistics_args.output_path)?;
+                    .await?
+                    .write_to(&statistics_args.output_path)?;
             }
 
             BurrowCommand::FoxEss(burrow_args) => {

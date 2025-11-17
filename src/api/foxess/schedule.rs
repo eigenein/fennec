@@ -137,10 +137,6 @@ impl TimeSlotSequence {
 
                     CoreWorkingMode::Backup => (WorkingMode::BackUp, battery_args.charging_power),
 
-                    CoreWorkingMode::ChargeSlowly => {
-                        (WorkingMode::ForceCharge, battery_args.charging_power * 0.5)
-                    }
-
                     CoreWorkingMode::Charge => {
                         (WorkingMode::ForceCharge, battery_args.charging_power)
                     }

@@ -201,7 +201,6 @@ impl Solver<'_> {
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Backup => (-conditions.stand_by_power).max(Kilowatts::ZERO),
-            WorkingMode::ChargeSlowly => self.battery_args.charging_power * 0.5,
             WorkingMode::Charge => self.battery_args.charging_power,
             WorkingMode::Discharge => -self.battery_args.discharging_power,
             WorkingMode::Balance => (-conditions.stand_by_power)

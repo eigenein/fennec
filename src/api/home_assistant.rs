@@ -72,7 +72,7 @@ impl<'u> Api<'u> {
             .await?
             .into_iter()
             .map(|state| {
-                (state.last_changed_at, state.total_net_usage - state.attributes.total_solar_yield)
+                (state.last_changed_at, state.net_consumption - state.attributes.solar_yield)
             })
             .differentiate()
             .median_hourly();
@@ -94,7 +94,7 @@ pub struct EnergyState {
 
     #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "state")]
-    pub total_net_usage: KilowattHours,
+    pub net_consumption: KilowattHours,
 
     pub attributes: EnergyAttributes,
 }
@@ -102,7 +102,13 @@ pub struct EnergyState {
 #[derive(serde::Deserialize)]
 pub struct EnergyAttributes {
     #[serde(rename = "custom_total_solar_yield")]
-    pub total_solar_yield: KilowattHours,
+    pub solar_yield: KilowattHours,
+
+    #[serde(rename = "custom_battery_energy_import")]
+    pub battery_energy_import: KilowattHours,
+
+    #[serde(rename = "custom_battery_energy_export")]
+    pub battery_energy_export: KilowattHours,
 }
 
 #[cfg(test)]
@@ -163,8 +169,10 @@ mod tests {
 
         let state = &total_energy_usage[0];
         assert_eq!(state.last_changed_at, expected_timestamp);
-        assert_abs_diff_eq!(state.total_net_usage.0, 40187.582);
-        assert_abs_diff_eq!(state.attributes.total_solar_yield.0, 14651.505);
+        assert_abs_diff_eq!(state.net_consumption.0, 40187.582);
+        assert_abs_diff_eq!(state.attributes.solar_yield.0, 14651.505);
+        assert_abs_diff_eq!(state.attributes.battery_energy_import.0, 366.963);
+        assert_abs_diff_eq!(state.attributes.battery_energy_export.0, 301.973);
 
         Ok(())
     }

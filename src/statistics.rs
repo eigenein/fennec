@@ -11,5 +11,6 @@ pub struct Statistics {
 #[must_use]
 #[derive(Serialize, Deserialize)]
 pub struct Household {
+    #[serde(rename = "hourly_stand_by_power_kilowatts")]
     pub hourly_stand_by_power: [Option<Kilowatts>; 24],
 }

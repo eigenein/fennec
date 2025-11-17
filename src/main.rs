@@ -10,7 +10,7 @@ mod statistics;
 mod tables;
 
 use chrono::{Local, Timelike};
-use clap::Parser;
+use clap::{Parser, crate_version};
 use itertools::Itertools;
 
 use crate::{
@@ -30,6 +30,7 @@ use crate::{
 async fn main() -> Result {
     let _ = dotenvy::dotenv();
     tracing_subscriber::fmt().without_time().compact().init();
+    info!(version = crate_version!(), "Starting…");
 
     let args = Args::parse();
 

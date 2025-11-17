@@ -48,12 +48,7 @@ async fn main() -> Result {
                 for (hour, power) in statistics.household.hourly_stand_by_power.iter().enumerate() {
                     info!(hour, ?power);
                 }
-                let contents = toml::to_string_pretty(&statistics)?;
-                if let Some(path) = statistics_args.output_file {
-                    std::fs::write(path, contents)?;
-                } else {
-                    println!("{contents}");
-                }
+                std::fs::write(statistics_args.output_file, toml::to_string_pretty(&statistics)?)?;
             }
 
             BurrowCommand::FoxEss(burrow_args) => {

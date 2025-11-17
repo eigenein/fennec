@@ -1,5 +1,6 @@
 .env
 flamegraph.svg
+statistics.toml
 
 # Added by goreleaser init:
 dist/

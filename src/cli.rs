@@ -184,8 +184,8 @@ pub struct BurrowStatisticsArgs {
     #[clap(flatten)]
     pub home_assistant: HomeAssistantArgs,
 
-    #[clap(long, env = "STATISTICS_PATH")]
-    pub output_file: Option<PathBuf>,
+    #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
+    pub output_file: PathBuf,
 }
 
 #[derive(Parser)]

@@ -11,11 +11,12 @@ pub trait Differentiate {
     ) -> impl Iterator<Item = (Range<K>, (<K as Sub>::Output, <V as Sub>::Output))>
     where
         Self: Iterator<Item = (K, V)> + Sized,
-        K: Copy + Sub,
+        K: Copy + Sub + PartialEq,
         V: Copy + Sub,
     {
-        self.tuple_windows().map(|((from_index, from_value), (to_index, to_value))| {
-            ((from_index..to_index), (to_index - from_index, to_value - from_value))
+        self.tuple_windows().filter_map(|((from_index, from_value), (to_index, to_value))| {
+            (from_index != to_index)
+                .then_some(((from_index..to_index), (to_index - from_index, to_value - from_value)))
         })
     }
 
@@ -24,7 +25,7 @@ pub trait Differentiate {
     ) -> impl Iterator<Item = (Range<K>, <<V as Sub>::Output as Div<<K as Sub>::Output>>::Output)>
     where
         Self: Iterator<Item = (K, V)> + Sized,
-        K: Copy + Sub,
+        K: Copy + Sub + PartialEq,
         V: Copy + Sub,
         <V as Sub>::Output: Div<<K as Sub>::Output>,
     {

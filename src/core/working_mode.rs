@@ -4,10 +4,13 @@ pub enum WorkingMode {
     Idle,
 
     /// Only excess solar power charging without discharging.
-    BackUp,
+    Backup,
 
     /// Charge on excess solar power, discharge on insufficient solar power.
     Balance,
+
+    /// Forced charging from any source at 50% of the maximum charging power.
+    ChargeSlowly,
 
     /// Forced charging from any source.
     Charge,

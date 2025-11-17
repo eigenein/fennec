@@ -135,7 +135,11 @@ impl TimeSlotSequence {
                     // Forced charging at 0W is effectively idling:
                     CoreWorkingMode::Idle => (WorkingMode::ForceCharge, Kilowatts::ZERO),
 
-                    CoreWorkingMode::BackUp => (WorkingMode::BackUp, battery_args.charging_power),
+                    CoreWorkingMode::Backup => (WorkingMode::BackUp, battery_args.charging_power),
+
+                    CoreWorkingMode::ChargeSlowly => {
+                        (WorkingMode::ForceCharge, battery_args.charging_power / 2.0)
+                    }
 
                     CoreWorkingMode::Charge => {
                         (WorkingMode::ForceCharge, battery_args.charging_power)

@@ -481,7 +481,7 @@ dependencies = [
 
 [[package]]
 name = "fennec"
-version = "0.40.5"
+version = "0.40.6"
 dependencies = [
  "anyhow",
  "approx",

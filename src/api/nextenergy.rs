@@ -31,7 +31,7 @@ impl Api {
 
         Ok(this_day_rates
             .into_iter()
-            .filter(move |(time_range, _)| time_range.end >= since)
+            .filter(move |(time_range, _)| time_range.end > since)
             .chain(next_day_rates))
     }
 
@@ -61,7 +61,7 @@ impl Api {
                 let hour = u32::try_from(index).unwrap();
                 assert_eq!((point.label + 1) % 24, hour, "NextEnergy messed up: index={index} label={}", point.label);
 
-                match on.and_hms_opt(hour, 0, 0).unwrap().and_local_timezone(Local) {
+                match on.and_hms_nano_opt(hour, 0, 0, 0).unwrap().and_local_timezone(Local) {
                     MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
                         let end_time = start_time + TimeDelta::hours(1);
                         let point = (start_time..end_time, point.value);

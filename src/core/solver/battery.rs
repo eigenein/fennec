@@ -35,7 +35,7 @@ impl Battery {
     pub fn apply_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
         // It's important to apply the parasitic load first,
         // so that the solver could put the battery on charging even when it's full.
-        self.apply_idle_power(for_);
+        self.apply_parasitic_load(for_);
 
         self.apply_active_load(power, for_)
     }
@@ -69,7 +69,7 @@ impl Battery {
         active_time
     }
 
-    fn apply_idle_power(&mut self, for_: TimeDelta) {
+    fn apply_parasitic_load(&mut self, for_: TimeDelta) {
         self.residual_energy = (self.residual_energy - self.args.parameters.parasitic_load * for_)
             .max(KilowattHours::ZERO);
     }

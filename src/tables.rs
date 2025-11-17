@@ -59,9 +59,7 @@ pub fn build_steps_table(
                 },
             ),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
-                CoreWorkingMode::Charge
-                | CoreWorkingMode::ChargeSlowly
-                | CoreWorkingMode::ChargeVerySlowly => Color::Green,
+                CoreWorkingMode::Charge | CoreWorkingMode::ChargeSlowly => Color::Green,
                 CoreWorkingMode::Discharge => Color::Red,
                 CoreWorkingMode::Balance => Color::DarkYellow,
                 CoreWorkingMode::Backup => Color::Magenta,

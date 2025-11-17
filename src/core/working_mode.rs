@@ -9,9 +9,6 @@ pub enum WorkingMode {
     /// Charge on excess solar power, discharge on insufficient solar power.
     Balance,
 
-    /// Forced charging from any source at 25% of the maximum charging power.
-    ChargeVerySlowly,
-
     /// Forced charging from any source at 50% of the maximum charging power.
     ChargeSlowly,
 

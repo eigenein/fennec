@@ -1,7 +1,7 @@
 use chrono::TimeDelta;
 
 use crate::{
-    cli::{BatteryArgs, BatteryParameters},
+    cli::BatteryArgs,
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
 

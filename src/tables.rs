@@ -20,7 +20,7 @@ pub fn build_steps_table(
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Table {
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     let average_rate =
         conditions.iter().map(|(_, conditions)| conditions.grid_rate).sum::<KilowattHourRate>()
             / conditions.len() as f64;

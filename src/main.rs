@@ -28,7 +28,7 @@ use crate::{
 #[tokio::main]
 async fn main() -> Result {
     let _ = dotenvy::dotenv();
-    tracing_subscriber::fmt().without_time().with_target(false).compact().init();
+    tracing_subscriber::fmt().without_time().compact().init();
 
     let args = Args::parse();
 
@@ -45,6 +45,9 @@ async fn main() -> Result {
                         &statistics_args.home_assistant.history_period(),
                     )
                     .await?;
+                for (hour, power) in statistics.household.hourly_stand_by_power.iter().enumerate() {
+                    info!(hour, ?power);
+                }
                 let contents = toml::to_string_pretty(&statistics)?;
                 if let Some(path) = statistics_args.output_file {
                     std::fs::write(path, contents)?;

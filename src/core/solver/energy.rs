@@ -19,8 +19,8 @@ impl From<usize> for WattHours {
 }
 
 impl From<KilowattHours> for WattHours {
-    #[allow(clippy::cast_possible_truncation)]
-    #[allow(clippy::cast_sign_loss)]
+    #[expect(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_sign_loss)]
     fn from(energy: KilowattHours) -> Self {
         Self((energy.0 * 1000.0).max(0.0) as u32)
     }

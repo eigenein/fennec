@@ -4,7 +4,6 @@ use reqwest::Url;
 
 use crate::prelude::*;
 
-#[allow(clippy::literal_string_with_formatting_args)]
 #[instrument(skip_all)]
 pub async fn send(url: Url) {
     info!(%url, "Sending a heartbeat…");

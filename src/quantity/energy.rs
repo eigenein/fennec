@@ -47,7 +47,7 @@ impl Div<Kilowatts> for KilowattHours {
     fn div(self, rhs: Kilowatts) -> Self::Output {
         let hours = self.0 / rhs.0;
 
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         TimeDelta::seconds((hours * 3600.0) as i64)
     }
 }

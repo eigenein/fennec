@@ -42,6 +42,7 @@ impl FromIterator<EnergyState> for Statistics {
             .map(|state| {
                 (state.last_changed_at, state.net_consumption - state.attributes.solar_yield)
             })
+            .deltas()
             .differentiate()
             .median_hourly();
         for kilowatts in hourly_stand_by_power.iter_mut().flatten() {

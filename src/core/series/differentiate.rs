@@ -15,23 +15,18 @@ pub trait Differentiate {
         V: Copy + Sub,
     {
         self.tuple_windows().filter_map(|((from_index, from_value), (to_index, to_value))| {
-            (from_index != to_index)
-                .then_some(((from_index..to_index), (to_index - from_index, to_value - from_value)))
+            (from_index != to_index) // FIXME: the comparison otta be outside.
+                .then_some((from_index..to_index, (to_index - from_index, to_value - from_value)))
         })
     }
 
-    fn differentiate<K, V>(
-        self,
-    ) -> impl Iterator<Item = (Range<K>, <<V as Sub>::Output as Div<<K as Sub>::Output>>::Output)>
+    fn differentiate<K, DK, DV>(self) -> impl Iterator<Item = (K, <DV as Div<DK>>::Output)>
     where
-        Self: Iterator<Item = (K, V)> + Sized,
-        K: Copy + Sub + PartialEq,
-        V: Copy + Sub,
-        <V as Sub>::Output: Div<<K as Sub>::Output>,
+        Self: Sized + Iterator<Item = (K, (DK, DV))>,
+        K: Clone,
+        DV: Div<DK>,
     {
-        self.deltas().map(|(index_range, (index_delta, value_delta))| {
-            (index_range, value_delta / index_delta)
-        })
+        self.map(|(index, (index_delta, value_delta))| (index, value_delta / index_delta))
     }
 }
 
@@ -40,7 +35,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_differentiate() {
+    fn test_deltas() {
         let series = vec![(2, 100), (3, 200), (5, 600)];
         let diff: Vec<_> = series.into_iter().deltas().collect();
         assert_eq!(diff, vec![(2..3, (1, 100)), (3..5, (2, 400))]);

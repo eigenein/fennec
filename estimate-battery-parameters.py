@@ -27,12 +27,6 @@ from sklearn.linear_model import LinearRegression
 from typer import Option, run
 
 
-class WorkingMode(Enum):
-    CHARGING = auto()
-    DISCHARGING = auto()
-    IDLING = auto()
-
-
 @dataclass(slots=True, kw_only=True)
 class Delta:
     duration: timedelta = timedelta()
@@ -183,10 +177,6 @@ def main(
 
     console = Console()
     console.print(table)
-
-    # Charging: 1.087 kW / 1.192 kW = 0.912
-    # Discharging: 0.8 kW / 0.856 kW = 0.935
-    # Roundtrip: 0.912 * 0.935 = 0.853
 
 
 if __name__ == "__main__":

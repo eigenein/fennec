@@ -11,7 +11,12 @@ use crate::{
         solver::{conditions::Conditions, step::Step},
         working_mode::WorkingMode as CoreWorkingMode,
     },
-    quantity::{cost::Cost, energy::KilowattHours, power::Watts, rate::KilowattHourRate},
+    quantity::{
+        cost::Cost,
+        energy::KilowattHours,
+        power::{Kilowatts, Watts},
+        rate::KilowattHourRate,
+    },
 };
 
 pub fn build_steps_table(
@@ -52,7 +57,7 @@ pub fn build_steps_table(
                 Color::Green
             }),
             Cell::new(conditions.stand_by_power).set_alignment(CellAlignment::Right).fg(
-                if conditions.stand_by_power <= -battery_args.charging_power {
+                if conditions.stand_by_power <= Kilowatts::ZERO {
                     Color::Green
                 } else if conditions.stand_by_power <= battery_args.discharging_power {
                     Color::DarkYellow

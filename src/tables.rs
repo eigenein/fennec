@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use chrono::{DateTime, Local};
-use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
+use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
@@ -31,7 +31,8 @@ pub fn build_steps_table(
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
     table.enforce_styling();
     table.set_header(vec![
-        "Time",
+        "Start",
+        "End",
         "Grid rate",
         "Stand-by",
         "Mode",
@@ -44,6 +45,7 @@ pub fn build_steps_table(
         assert_eq!(rate_range, step_range);
         table.add_row(vec![
             Cell::new(rate_range.start.format("%H:%M")),
+            Cell::new(rate_range.end.format("%H:%M")).add_attribute(Attribute::Dim),
             Cell::new(conditions.grid_rate).fg(if conditions.grid_rate >= average_rate {
                 Color::Red
             } else {

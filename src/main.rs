@@ -74,7 +74,7 @@ async fn hunt(args: HuntArgs) -> Result {
     let fox_ess = foxess::Api::try_new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
 
-    let now = Local::now();
+    let now = Local::now().with_nanosecond(0).unwrap();
     let grid_rates: Series<_, _> =
         nextenergy::Api::try_new()?.get_hourly_rates_48h(now).await?.collect();
     ensure!(!grid_rates.is_empty());
@@ -109,7 +109,7 @@ async fn hunt(args: HuntArgs) -> Result {
 
     let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
-    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(schedule, &args.battery)?;
+    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(schedule, now, &args.battery)?;
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 
     if !args.scout {

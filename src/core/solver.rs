@@ -67,7 +67,7 @@ impl Solver<'_> {
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
         let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
-        info!(?min_residual_energy, ?self.residual_energy, ?max_energy, "Optimizing…");
+        info!(?min_residual_energy, ?self.residual_energy, ?max_energy, n_time_spans = self.conditions.len(), "Optimizing…");
 
         // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
@@ -88,7 +88,7 @@ impl Solver<'_> {
             let step_duration = if time_range.contains(&self.now) {
                 time_range.end - self.now
             } else {
-                TimeDelta::hours(1)
+                time_range.end - time_range.start
             };
 
             // Average stand-by power at this hour of a day:

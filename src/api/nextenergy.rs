@@ -2,7 +2,7 @@
 
 use std::{ops::Range, str::FromStr, time::Duration};
 
-use chrono::{DateTime, DurationRound, Local, MappedLocalTime, NaiveDate, TimeDelta};
+use chrono::{DateTime, Days, Local, MappedLocalTime, NaiveDate, TimeDelta};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
@@ -16,23 +16,13 @@ impl Api {
         Ok(Self(Client::builder().timeout(Duration::from_secs(10)).build()?))
     }
 
-    #[instrument(skip_all, fields(since = ?since))]
+    #[instrument(skip_all, fields(on = ?on))]
     pub async fn get_hourly_rates_48h(
         &self,
-        since: DateTime<Local>,
+        on: NaiveDate,
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
-        // Round down to the closest hour:
-        let this_day_rates = self.get_hourly_rates(since.date_naive()).await?;
-
-        let next_day_rates = {
-            let next_day = (since + TimeDelta::days(1)).duration_trunc(TimeDelta::days(1))?;
-            self.get_hourly_rates(next_day.date_naive()).await?
-        };
-
-        Ok(this_day_rates
-            .into_iter()
-            .filter(move |(time_range, _)| time_range.end > since)
-            .chain(next_day_rates))
+        let next_day = on.checked_add_days(Days::new(1)).unwrap();
+        Ok(self.get_hourly_rates(on).await?.chain(self.get_hourly_rates(next_day).await?))
     }
 
     #[instrument(fields(on = ?on), skip_all)]
@@ -191,12 +181,12 @@ mod tests {
     #[tokio::test]
     #[ignore = "makes the API request"]
     async fn test_get_hourly_rates_48h_ok() -> Result {
-        let now = Local::now();
-        let series = Api::try_new()?.get_hourly_rates_48h(now).await?.collect_vec();
+        let series =
+            Api::try_new()?.get_hourly_rates_48h(Local::now().date_naive()).await?.collect_vec();
         assert!(series.len() >= 1);
         assert!(series.len() <= 48);
         let (time_range, _) = &series[0];
-        assert_eq!(time_range.start.hour(), now.hour());
+        assert_eq!(time_range.start.hour(), 0);
         Ok(())
     }
 }

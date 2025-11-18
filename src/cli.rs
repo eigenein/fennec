@@ -91,6 +91,9 @@ pub struct HuntArgs {
     )]
     pub working_modes: Vec<WorkingMode>,
 
+    #[clap(long = "n-hour-splits", env = "N_HOUR_SPLITS", default_value = "0")]
+    pub n_hour_splits: u16,
+
     /// Energy purchase fees («inkoopvergoeding»).
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
     pub purchase_fee: KilowattHourRate,

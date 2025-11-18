@@ -68,7 +68,13 @@ impl Solver<'_> {
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
         let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
-        info!(?min_residual_energy, ?self.residual_energy, ?max_energy, n_time_spans = self.conditions.len(), "Optimizing…");
+        info!(
+            ?min_residual_energy,
+            residual_energy = ?self.residual_energy,
+            ?max_energy,
+            n_time_spans = self.conditions.len(),
+            "Optimizing…",
+        );
 
         // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
@@ -129,7 +135,7 @@ impl Solver<'_> {
             net_loss = ?solution.net_loss,
             without_battery = ?solution.net_loss_without_battery,
             profit = ?solution.profit(),
-            elapsed = ?(Instant::now() - start_instant),
+            elapsed = ?start_instant.elapsed(),
             "Optimized",
         );
         Some(solution)

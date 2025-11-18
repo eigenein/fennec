@@ -18,6 +18,7 @@ pub struct Battery {
     /// Current residual energy.
     residual_energy: KilowattHours,
 
+    /// FIXME: needs only estimated battery parameters.
     args: BatteryArgs,
 }
 

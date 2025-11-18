@@ -1,5 +1,6 @@
 use std::{
     fmt::{Display, Formatter},
+    iter::once,
     ops::Range,
 };
 
@@ -69,17 +70,13 @@ pub struct StartTime {
     pub minute: u32,
 }
 
+impl StartTime {
+    const FIRST_MINUTE: Self = Self { hour: 0, minute: 0 };
+}
+
 impl Display for StartTime {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:02}:{:02}", self.hour, self.minute)
-    }
-}
-
-impl StartTime {
-    pub const MIDNIGHT: Self = Self { hour: 0, minute: 0 };
-
-    pub const fn from_hour(hour: u32) -> Self {
-        Self { hour, minute: 0 }
     }
 }
 
@@ -99,13 +96,7 @@ impl Display for EndTime {
 }
 
 impl EndTime {
-    pub const MIDNIGHT: Self = Self { hour: 23, minute: 59 };
-
-    pub const fn from_hour(hour_inclusive: u32) -> Self {
-        // End time is exclusive, but FoxESS Cloud won't accept `00:00`…
-        let (hour, minute) = if hour_inclusive == 23 { (23, 59) } else { (hour_inclusive + 1, 0) };
-        Self { hour, minute }
-    }
+    const LAST_MINUTE: Self = Self { hour: 23, minute: 59 };
 }
 
 #[derive(Serialize, Deserialize, derive_more::AsRef, derive_more::IntoIterator)]
@@ -113,38 +104,45 @@ pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
 
 impl TimeSlotSequence {
     #[instrument(skip_all)]
-    pub fn from_schedule<'a>(
-        schedule: impl IntoIterator<Item = &'a (Range<DateTime<Local>>, CoreWorkingMode)>,
+    pub fn from_schedule(
+        schedule: impl IntoIterator<Item = (Range<DateTime<Local>>, CoreWorkingMode)>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
         schedule
             .into_iter()
-            .take(24) // Avoid collisions with the same hours next day.
-            .chunk_by(|(time, mode)| {
-                // Group by date as well because we cannot have time slots like 22:00-02:00:
-                (time.start.date_naive(), *mode) // FIXME: make use of the time range.
-            })
+            .chunk_by(|(_, mode)| *mode)
             .into_iter()
-            .take(8) // FoxESS Cloud allows maximum of 8 schedule groups.
-            .map(|((_, working_mode), group)| {
-                // Convert into time slots with their respective working mode:
-                (working_mode, group.map(|(time, _)| time).collect::<Vec<_>>())
+            .map(|(working_mode, time_spans)| {
+                // Compress the time spans:
+                let time_spans = time_spans.into_iter().collect_vec();
+                (
+                    working_mode,
+                    time_spans.first().unwrap().0.start..time_spans.last().unwrap().0.end,
+                )
             })
-            .map(|(working_mode, timestamps)| {
+            .flat_map(|(working_mode, time_span)| -> Result<_> {
+                Ok(try_into_time_slots(time_span)?
+                    .flatten()
+                    .map(move |(start_time, end_time)| (working_mode, start_time, end_time)))
+            })
+            .flatten()
+            .take(
+                // FoxESS Cloud allows maximum of 8 schedule groups, pity:
+                8,
+            )
+            .map(|(working_mode, start_time, end_time)| {
                 let (working_mode, feed_power) = match working_mode {
-                    // Forced charging at 0W is effectively idling:
-                    CoreWorkingMode::Idle => (WorkingMode::ForceCharge, Kilowatts::ZERO),
-
+                    CoreWorkingMode::Idle => {
+                        // Forced charging at 0W is effectively idling:
+                        (WorkingMode::ForceCharge, Kilowatts::ZERO)
+                    }
                     CoreWorkingMode::Backup => (WorkingMode::BackUp, battery_args.charging_power),
-
                     CoreWorkingMode::Charge => {
                         (WorkingMode::ForceCharge, battery_args.charging_power)
                     }
-
                     CoreWorkingMode::Balance => {
                         (WorkingMode::SelfUse, battery_args.discharging_power)
                     }
-
                     CoreWorkingMode::Discharge => {
                         (WorkingMode::ForceDischarge, battery_args.discharging_power)
                     }
@@ -152,8 +150,8 @@ impl TimeSlotSequence {
 
                 let time_slot = TimeSlot {
                     is_enabled: true,
-                    start_time: StartTime::from_hour(timestamps.first().unwrap().start.hour()), // FIXME: time range.
-                    end_time: EndTime::from_hour(timestamps.last().unwrap().start.hour()), // FIXME: time range.
+                    start_time,
+                    end_time,
                     max_soc: 100,
                     min_soc_on_grid: battery_args.min_soc_percent,
                     feed_soc: battery_args.min_soc_percent,
@@ -163,6 +161,7 @@ impl TimeSlotSequence {
                 Ok(time_slot)
             })
             .collect::<Result<_>>()
+            .context("failed to compile a FoxESS schedule")
             .map(Self)
     }
 }
@@ -185,25 +184,79 @@ pub enum WorkingMode {
     BackUp,
 }
 
+fn try_into_time_slots(
+    time_span: Range<DateTime<Local>>,
+) -> Result<impl Iterator<Item = Option<(StartTime, EndTime)>>> {
+    ensure!(time_span.start < time_span.end);
+
+    ensure!(time_span.start.second() == 0 && time_span.start.nanosecond() == 0);
+    let start_time = StartTime { hour: time_span.start.hour(), minute: time_span.start.minute() };
+
+    ensure!(time_span.end.second() == 0 && time_span.end.nanosecond() == 0);
+    let end_time = EndTime { hour: time_span.end.hour(), minute: time_span.end.minute() };
+    if end_time.hour == 0 && end_time.minute == 0 {
+        // FoxESS intervals are half-open, but they won't accept 00:00 as end time 🤦:
+        return Ok(once(Some((start_time, EndTime::LAST_MINUTE))).chain(once(None)));
+    }
+
+    if time_span.start.date_naive() == time_span.end.date_naive() {
+        Ok(once(Some((start_time, end_time))).chain(once(None)))
+    } else {
+        // Split cross-day time spans because we cannot have time slots like 22:00-02:00:
+        Ok(once(Some((start_time, EndTime::LAST_MINUTE)))
+            .chain(once(Some((StartTime::FIRST_MINUTE, end_time)))))
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
+
     use super::*;
 
     #[test]
-    fn test_start_time_try_from_ok() -> Result {
-        assert_eq!(StartTime::from_hour(2), StartTime { hour: 2, minute: 0 });
+    fn test_try_into_time_slots_ok() -> Result {
+        let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
+        let end_time = Local.with_ymd_and_hms(2025, 11, 17, 23, 15, 0).unwrap();
+        let slots = try_into_time_slots(start_time..end_time)?.flatten().collect_vec();
+        assert_eq!(
+            slots,
+            vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 15 })],
+        );
         Ok(())
     }
 
     #[test]
-    fn test_end_time_try_from_non_last_hour_ok() -> Result {
-        assert_eq!(EndTime::from_hour(1), EndTime { hour: 2, minute: 0 });
+    fn test_try_into_time_slots_midnight_ok() -> Result {
+        let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
+        let end_time = Local.with_ymd_and_hms(2025, 11, 18, 0, 0, 0).unwrap();
+        let slots = try_into_time_slots(start_time..end_time)?.flatten().collect_vec();
+        assert_eq!(
+            slots,
+            vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 59 })],
+        );
         Ok(())
     }
 
     #[test]
-    fn test_end_time_try_from_last_hour_ok() -> Result {
-        assert_eq!(EndTime::from_hour(23), EndTime { hour: 23, minute: 59 });
+    fn test_try_into_time_slots_cross_day_ok() -> Result {
+        let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
+        let end_time = Local.with_ymd_and_hms(2025, 11, 18, 1, 15, 0).unwrap();
+        let slots = try_into_time_slots(start_time..end_time)?.flatten().collect_vec();
+        assert_eq!(
+            slots,
+            vec![
+                (StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 59 }),
+                (StartTime { hour: 0, minute: 0 }, EndTime { hour: 1, minute: 15 })
+            ],
+        );
         Ok(())
+    }
+
+    #[test]
+    fn test_try_into_time_slots_error() {
+        let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
+        let end_time = Local.with_ymd_and_hms(2025, 11, 16, 23, 15, 0).unwrap();
+        assert!(try_into_time_slots(start_time..end_time).is_err());
     }
 }

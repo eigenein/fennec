@@ -109,7 +109,7 @@ async fn hunt(args: HuntArgs) -> Result {
 
     let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
-    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(&schedule, &args.battery)?;
+    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(schedule, &args.battery)?;
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 
     if !args.scout {

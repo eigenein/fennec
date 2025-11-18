@@ -36,7 +36,9 @@ impl Statistics {
 }
 
 impl FromIterator<EnergyState> for Statistics {
+    #[instrument(skip_all)]
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
+        info!("Crunching numbers…");
         let mut hourly_stand_by_power = iterator
             .into_iter()
             .map(|state| {

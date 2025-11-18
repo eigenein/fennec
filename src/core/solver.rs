@@ -4,7 +4,7 @@ mod energy;
 pub mod solution;
 pub mod step;
 
-use std::{iter::from_fn, ops::Range, rc::Rc};
+use std::{iter::from_fn, ops::Range, rc::Rc, time::Instant};
 
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta};
@@ -64,6 +64,7 @@ impl Solver<'_> {
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
     fn solve(self) -> Option<Solution> {
+        let start_instant = Instant::now();
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
         let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
@@ -128,6 +129,7 @@ impl Solver<'_> {
             net_loss = ?solution.net_loss,
             without_battery = ?solution.net_loss_without_battery,
             profit = ?solution.profit(),
+            elapsed = ?(Instant::now() - start_instant),
             "Optimized",
         );
         Some(solution)

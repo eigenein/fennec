@@ -16,13 +16,13 @@ impl Api {
         Ok(Self(Client::builder().timeout(Duration::from_secs(10)).build()?))
     }
 
-    #[instrument(skip_all, fields(on = ?on))]
+    #[instrument(skip_all, fields(first_date = ?first_date))]
     pub async fn get_hourly_rates_48h(
         &self,
-        on: NaiveDate,
+        first_date: NaiveDate,
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
-        let next_day = on.checked_add_days(Days::new(1)).unwrap();
-        Ok(self.get_hourly_rates(on).await?.chain(self.get_hourly_rates(next_day).await?))
+        let next_date = first_date.checked_add_days(Days::new(1)).unwrap();
+        Ok(self.get_hourly_rates(first_date).await?.chain(self.get_hourly_rates(next_date).await?))
     }
 
     #[instrument(fields(on = ?on), skip_all)]

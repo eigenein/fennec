@@ -11,7 +11,7 @@ mod tables;
 
 use std::iter::once;
 
-use chrono::{Local, TimeDelta, Timelike};
+use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
 

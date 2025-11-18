@@ -110,17 +110,17 @@ impl TimeSlotSequence {
     ) -> Result<Self> {
         schedule
             .into_iter()
-            .chunk_by(|(_, mode)| *mode)
+            .chunk_by(|(_, mode)| {
+                // Group sequential time steps by the working mode:
+                *mode
+            })
             .into_iter()
-            .map(|(working_mode, time_spans)| {
+            .flat_map(|(working_mode, time_spans)| -> Result<_> {
                 // Compress the time spans:
                 let time_spans = time_spans.into_iter().collect_vec();
-                (
-                    working_mode,
-                    time_spans.first().unwrap().0.start..time_spans.last().unwrap().0.end,
-                )
-            })
-            .flat_map(|(working_mode, time_span)| -> Result<_> {
+                let time_span =
+                    time_spans.first().unwrap().0.start..time_spans.last().unwrap().0.end;
+                // And convert into FoxESS time slots:
                 Ok(try_into_time_slots(time_span)?
                     .flatten()
                     .map(move |(start_time, end_time)| (working_mode, start_time, end_time)))
@@ -128,6 +128,7 @@ impl TimeSlotSequence {
             .flatten()
             .take(
                 // FoxESS Cloud allows maximum of 8 schedule groups, pity:
+                // FIXME: overlapping time slots!
                 8,
             )
             .map(|(working_mode, start_time, end_time)| {

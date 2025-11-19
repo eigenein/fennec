@@ -138,9 +138,9 @@ mod tests {
         let total_energy_usage = history.into_iter().next().unwrap();
         assert_eq!(total_energy_usage.0.len(), 1);
 
-        let expected_timestamp = NaiveDate::from_ymd_opt(2025, 10, 27)
+        let expected_timestamp = NaiveDate::from_ymd_opt(2025, 11, 19)
             .unwrap()
-            .and_hms_micro_opt(14, 15, 0, 458479)
+            .and_hms_micro_opt(12, 55, 0, 63700)
             .unwrap()
             .and_local_timezone(Local)
             .unwrap();

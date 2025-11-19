@@ -79,8 +79,9 @@ pub struct EnergyState {
 
 #[derive(serde::Deserialize)]
 pub struct EnergyAttributes {
-    #[serde(rename = "custom_total_solar_yield")]
-    pub solar_yield: KilowattHours,
+    #[deprecated]
+    #[serde(default, rename = "custom_total_solar_yield")]
+    pub solar_yield: Option<KilowattHours>,
 
     #[serde(rename = "custom_battery_energy_import")]
     pub battery_energy_import: KilowattHours,
@@ -104,20 +105,19 @@ mod tests {
                 [
                     {
                         "entity_id": "sensor.custom_fennec_hourly_total_energy_usage",
-                        "state": "40187.582",
+                        "state": "25902.706",
                         "attributes": {
                             "state_class": "total",
-                            "custom_now": "2025-10-27 14:15:00.458187+01:00",
-                            "custom_total_solar_yield": 14651.505,
-                            "custom_battery_residual_energy": 5.16,
-                            "custom_battery_energy_import": 366.963,
-                            "custom_battery_energy_export": 301.973,
+                            "custom_now": "2025-11-19 12:55:00.063033+01:00",
+                            "custom_battery_residual_energy": 3.86,
+                            "custom_battery_energy_import": 473.809,
+                            "custom_battery_energy_export": 388.752,
                             "unit_of_measurement": "kWh",
                             "icon": "mdi:flash",
                             "friendly_name": "Fennec total energy usage"
                         },
-                        "last_changed": "2025-10-27T13:15:00.458479+00:00",
-                        "last_updated": "2025-10-27T13:15:00.458479+00:00"
+                        "last_changed": "2025-11-19T11:55:00.063700+00:00",
+                        "last_updated": "2025-11-19T11:55:00.063700+00:00"
                     },
                     {
                         "entity_id": "sensor.custom_fennec_hourly_total_energy_usage",
@@ -147,10 +147,9 @@ mod tests {
 
         let state = &total_energy_usage[0];
         assert_eq!(state.last_changed_at, expected_timestamp);
-        assert_abs_diff_eq!(state.net_consumption.0, 40187.582);
-        assert_abs_diff_eq!(state.attributes.solar_yield.0, 14651.505);
-        assert_abs_diff_eq!(state.attributes.battery_energy_import.0, 366.963);
-        assert_abs_diff_eq!(state.attributes.battery_energy_export.0, 301.973);
+        assert_abs_diff_eq!(state.net_consumption.0, 25902.706);
+        assert_abs_diff_eq!(state.attributes.battery_energy_import.0, 473.809);
+        assert_abs_diff_eq!(state.attributes.battery_energy_export.0, 388.752);
 
         Ok(())
     }

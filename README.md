@@ -36,23 +36,30 @@ Fennec is designed to run as a cron job, continuously refining and updating the 
 apiVersion: "batch/v1"
 kind: "CronJob"
 metadata:
-  name: "fennec"
+  name: "fennec-hunt"
 spec:
   timeZone: "Europe/Amsterdam"
-  schedule: "1,31 * * * *"
-  startingDeadlineSeconds: 900
+  schedule: "*/15 * * * *"
+  startingDeadlineSeconds: 600
   concurrencyPolicy: "Replace"
   successfulJobsHistoryLimit: 1
   jobTemplate:
     spec:
-      backoffLimit: 3
-      ttlSecondsAfterFinished: 86400
       template:
         spec:
           restartPolicy: "OnFailure"
+          volumes:
+            - name: "statistics"
+              hostPath:
+                path: "/Users/eigenein/.fennec/statistics.toml"
+                type: "FileOrCreate"
           containers:
-            - name: "fennec-job"
-              image: "ghcr.io/eigenein/fennec:0.33.0"
+            - name: "fennec-hunting-job"
+              image: "ghcr.io/eigenein/fennec:0.41.2"
+              volumeMounts:
+                - mountPath: "statistics.toml"
+                  name: "statistics"
+                  readOnly: true
               env:
                 - name: "TZ"
                   value: "Europe/Amsterdam"
@@ -60,23 +67,60 @@ spec:
                   value: "..."
                 - name: "FOX_ESS_API_KEY"
                   value: "..."
+                - name: "BATTERY_PARASITIC_LOAD"
+                  value: "0.028"
+                - name: "BATTERY_CHARGING_EFFICIENCY"
+                  value: "1.033"
+                - name: "BATTERY_DISCHARGING_EFFICIENCY"
+                  value: "0.839"
                 - name: "HEARTBEAT_URL"
-                  value: "https://uptime.betterstack.com/api/v1/heartbeat/..."
-                - name: "HOME_ASSISTANT_ACCESS_TOKEN"
                   value: "..."
+              args:
+                - "hunt"
+---
+apiVersion: "batch/v1"
+kind: "CronJob"
+metadata:
+  name: "fennec-statistics"
+spec:
+  timeZone: "Europe/Amsterdam"
+  schedule: "*/30 * * * *"
+  startingDeadlineSeconds: 1800
+  concurrencyPolicy: "Replace"
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: "OnFailure"
+          volumes:
+            - name: "statistics"
+              hostPath:
+                path: "/Users/eigenein/.fennec/statistics.toml"
+                type: "FileOrCreate"
+          containers:
+            - name: "fennec-statistics-job"
+              image: "ghcr.io/eigenein/fennec:0.41.2"
+              volumeMounts:
+                - mountPath: "statistics.toml"
+                  name: "statistics"
+                  readOnly: false
+              env:
+                - name: "TZ"
+                  value: "Europe/Amsterdam"
                 - name: "HOME_ASSISTANT_API_BASE_URL"
                   value: "..."
                 - name: "HOME_ASSISTANT_ENTITY_ID"
                   value: "sensor.custom_fennec_hourly_total_energy_usage"
-                - name: "BATTERY_PARASITIC_LOAD"
-                  value: "0.027"
-                - name: "BATTERY_CHARGING_EFFICIENCY"
-                  value: "1.033"
-                - name: "BATTERY_DISCHARGING_EFFICIENCY"
-                  value: "0.849"
-              command:
-                - "/fennec"
-                - "hunt"
+                - name: "HOME_ASSISTANT_ACCESS_TOKEN"
+                  value: "..."
+                - name: "STATISTICS_PATH"
+                  value: "statistics.toml"
+                - name: "HEARTBEAT_URL"
+                  value: "..."
+              args:
+                - "burrow"
+                - "statistics"
 ```
 
 ## Home Assistant integration

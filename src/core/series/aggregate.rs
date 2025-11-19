@@ -3,7 +3,7 @@ use std::{
     ops::{Add, Div, Range},
 };
 
-use chrono::{DateTime, TimeDelta, TimeZone, Timelike};
+use chrono::{DateTime, TimeZone, Timelike};
 use itertools::Itertools;
 
 impl<T> Aggregate for T where T: ?Sized {}
@@ -19,7 +19,11 @@ pub trait Aggregate {
     {
         let mut medians = [None; 24];
         for (hour, values) in self
-            .filter(|(time_range, _)| (time_range.end - time_range.start) <= TimeDelta::hours(1))
+            .filter(|(time_range, _)| {
+                // Filter out cross-hour values:
+                (time_range.start.date_naive() == time_range.end.date_naive())
+                    && (time_range.start.hour() == time_range.end.hour())
+            })
             .into_group_map_by(|(time_range, _)| time_range.start.hour())
         {
             medians[hour as usize] = values.into_iter().median();

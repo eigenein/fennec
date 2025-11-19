@@ -7,7 +7,7 @@ use crate::{
     api::home_assistant::EnergyState,
     core::series::{Aggregate, Differentiate},
     prelude::*,
-    quantity::power::Kilowatts,
+    quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
 #[must_use]
@@ -42,7 +42,11 @@ impl FromIterator<EnergyState> for Statistics {
         let mut hourly_stand_by_power = iterator
             .into_iter()
             .map(|state| {
-                (state.last_changed_at, state.net_consumption - state.attributes.solar_yield)
+                (
+                    state.last_changed_at,
+                    state.net_consumption
+                        - state.attributes.solar_yield.unwrap_or(KilowattHours::ZERO),
+                )
             })
             .deltas()
             .differentiate()

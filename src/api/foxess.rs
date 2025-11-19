@@ -35,7 +35,7 @@ impl Api {
         let client = Client::builder()
             .user_agent("fennec")
             .default_headers(headers)
-            .timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(15))
             .build()?;
         Ok(Self { client, api_key })
     }
@@ -79,6 +79,8 @@ impl Api {
         &self,
         serial_numbers: &[&str],
     ) -> Result<Vec<DeviceRealTimeData>> {
+        info!("Fetching…");
+
         #[derive(Serialize)]
         struct GetDeviceRealTimeDataRequest<'a> {
             #[serde(rename = "sns")]

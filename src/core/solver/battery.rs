@@ -1,7 +1,7 @@
 use chrono::TimeDelta;
 
 use crate::{
-    cli::BatteryArgs,
+    cli::BatteryParameters,
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
@@ -19,7 +19,7 @@ pub struct Battery {
     residual_energy: KilowattHours,
 
     /// FIXME: needs only estimated battery parameters.
-    args: BatteryArgs,
+    parameters: BatteryParameters,
 }
 
 impl Battery {
@@ -34,11 +34,13 @@ impl Battery {
     /// Battery active time.
     #[must_use]
     pub fn apply_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
-        // It's important to apply the parasitic load first,
-        // so that the solver could put the battery on charging even when it's full.
+        let active_time = self.apply_active_load(power, for_);
+
+        // FIXME: technically, I should also take the parasitic load into account when calculating the active time:
         self.apply_parasitic_load(for_);
 
-        self.apply_active_load(power, for_)
+        // This will be used to calculate the loss:
+        active_time
     }
 
     #[must_use]
@@ -48,9 +50,9 @@ impl Battery {
         // Calculate the internal power:
         let internal_power = external_power
             * if external_power > Kilowatts::ZERO {
-                self.args.parameters.charging_efficiency
+                self.parameters.charging_efficiency
             } else if external_power < Kilowatts::ZERO {
-                1.0 / self.args.parameters.discharging_efficiency
+                1.0 / self.parameters.discharging_efficiency
             } else {
                 return TimeDelta::zero();
             };
@@ -71,7 +73,7 @@ impl Battery {
     }
 
     fn apply_parasitic_load(&mut self, for_: TimeDelta) {
-        self.residual_energy = (self.residual_energy - self.args.parameters.parasitic_load * for_)
-            .max(KilowattHours::ZERO);
+        self.residual_energy =
+            (self.residual_energy - self.parameters.parasitic_load * for_).max(KilowattHours::ZERO);
     }
 }

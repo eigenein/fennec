@@ -120,16 +120,21 @@ async fn hunt(args: HuntArgs) -> Result {
         .working_modes(working_modes)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
-        .battery_args(args.battery)
+        .battery_args(args.battery_args)
+        .battery_parameters(args.battery_parameters)
         .purchase_fee(args.purchase_fee)
         .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
-    println!("{}", build_steps_table(&conditions, &solution.steps, args.battery, total_capacity));
+    println!(
+        "{}",
+        build_steps_table(&conditions, &solution.steps, args.battery_args, total_capacity),
+    );
 
     let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();
-    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(schedule, now, &args.battery)?;
+    let time_slot_sequence =
+        foxess::TimeSlotSequence::from_schedule(schedule, now, &args.battery_args)?;
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 
     if !args.scout {

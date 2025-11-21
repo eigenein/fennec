@@ -13,7 +13,7 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 
 use crate::{
-    cli::BatteryArgs,
+    cli::{BatteryArgs, BatteryParameters},
     core::{
         series::Point,
         solver::{
@@ -37,6 +37,7 @@ pub struct Solver<'a> {
     residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
+    battery_parameters: BatteryParameters,
     purchase_fee: KilowattHourRate,
     now: DateTime<Local>,
 }
@@ -160,7 +161,7 @@ impl Solver<'_> {
             .residual_energy(initial_residual_energy)
             .min_residual_energy(min_residual_energy)
             .capacity(self.capacity)
-            .args(self.battery_args)
+            .parameters(self.battery_parameters)
             .build();
         self.working_modes
             .iter()

@@ -58,9 +58,6 @@ pub struct BatteryArgs {
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
     pub min_soc_percent: u32,
-
-    #[clap(flatten)]
-    pub parameters: BatteryParameters,
 }
 
 #[derive(Copy, Clone, Parser)]
@@ -98,9 +95,12 @@ pub struct HuntArgs {
     #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
     pub purchase_fee: KilowattHourRate,
 
+    #[clap(flatten)]
+    pub battery_args: BatteryArgs,
+
     /// TODO: remove in favour of `burrow stats`.
     #[clap(flatten)]
-    pub battery: BatteryArgs,
+    pub battery_parameters: BatteryParameters,
 
     #[clap(flatten)]
     pub fox_ess_api: FoxEssApiArgs,

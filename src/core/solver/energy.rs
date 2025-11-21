@@ -22,7 +22,7 @@ impl From<KilowattHours> for WattHours {
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     fn from(energy: KilowattHours) -> Self {
-        Self((energy.0 * 1000.0).max(0.0) as u32)
+        Self((energy.0.0 * 1000.0).max(0.0) as u32)
     }
 }
 
@@ -45,16 +45,16 @@ mod tests {
 
     #[test]
     fn test_from_positive_kilowatt_hours() {
-        assert_eq!(WattHours::from(Quantity(1.0)), WattHours(1000));
+        assert_eq!(WattHours::from(Quantity::from(1.0)), WattHours(1000));
     }
 
     #[test]
     fn test_from_negative_kilowatt_hours() {
-        assert_eq!(WattHours::from(Quantity(-1.0)), WattHours(0));
+        assert_eq!(WattHours::from(Quantity::from(-1.0)), WattHours(0));
     }
 
     #[test]
     fn test_from_decawatt_hours() {
-        assert_eq!(KilowattHours::from(WattHours(1000)), Quantity(1.0));
+        assert_eq!(KilowattHours::from(WattHours(1000)), Quantity::from(1.0));
     }
 }

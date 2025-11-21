@@ -5,6 +5,7 @@ pub mod rate;
 
 use std::ops::{Div, Mul};
 
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 #[derive(
@@ -25,71 +26,44 @@ use serde::{Deserialize, Serialize};
     derive_more::SubAssign,
     derive_more::Sum,
 )]
-pub struct Quantity<T, const POWER: isize, const TIME: isize, const COST: isize>(pub T);
+#[from(i32, f64, OrderedFloat<f64>)]
+pub struct Quantity<const POWER: isize, const TIME: isize, const COST: isize>(
+    pub OrderedFloat<f64>,
+);
 
-impl<T, const POWER: isize, const TIME: isize, const COST: isize> Quantity<T, POWER, TIME, COST>
-where
-    Self: PartialOrd,
-{
-    pub fn min(mut self, rhs: Self) -> Self {
-        if rhs < self {
-            self = rhs;
-        }
-        self
-    }
+impl<const POWER: isize, const TIME: isize, const COST: isize> Quantity<POWER, TIME, COST> {
+    pub const ZERO: Self = Self(OrderedFloat(0.0));
 
-    pub fn max(mut self, rhs: Self) -> Self {
-        if rhs > self {
-            self = rhs;
-        }
-        self
-    }
-
-    pub fn clamp(mut self, min: Self, max: Self) -> Self {
-        if self < min {
-            self = min;
-        }
-        if self > max {
-            self = max;
-        }
+    pub const fn abs(mut self) -> Self {
+        self.0 = OrderedFloat(self.0.0.abs());
         self
     }
 }
 
-impl<const POWER: isize, const TIME: isize, const COST: isize> Quantity<f64, POWER, TIME, COST> {
-    pub const ZERO: Self = Self(0.0);
-}
-
-impl<T, const POWER: isize, const TIME: isize, const COST: isize> Mul<T>
-    for Quantity<T, POWER, TIME, COST>
-where
-    T: Mul<T>,
+impl<const POWER: isize, const TIME: isize, const COST: isize> Mul<f64>
+    for Quantity<POWER, TIME, COST>
 {
-    type Output = Quantity<T::Output, POWER, TIME, COST>;
+    type Output = Self;
 
-    fn mul(self, rhs: T) -> Self::Output {
-        Quantity(self.0 * rhs)
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self(self.0 * rhs)
     }
 }
 
-impl<T, const POWER: isize, const TIME: isize, const COST: isize> Div<T>
-    for Quantity<T, POWER, TIME, COST>
-where
-    T: Div<T>,
+impl<const POWER: isize, const TIME: isize, const COST: isize> Div<f64>
+    for Quantity<POWER, TIME, COST>
 {
-    type Output = Quantity<T::Output, POWER, TIME, COST>;
+    type Output = Self;
 
-    fn div(self, rhs: T) -> Self::Output {
-        Quantity(self.0 / rhs)
+    fn div(self, rhs: f64) -> Self::Output {
+        Self(self.0 / rhs)
     }
 }
 
-impl<T, const POWER: isize, const TIME: isize, const COST: isize> Div<Self>
-    for Quantity<T, POWER, TIME, COST>
-where
-    T: Div<Output = f64>,
+impl<const POWER: isize, const TIME: isize, const COST: isize> Div<Self>
+    for Quantity<POWER, TIME, COST>
 {
-    type Output = f64;
+    type Output = OrderedFloat<f64>;
 
     fn div(self, rhs: Self) -> Self::Output {
         self.0 / rhs.0
@@ -102,9 +76,9 @@ mod tests {
 
     use super::*;
 
-    pub type Bare<T> = Quantity<T, 0, 0, 0>;
+    pub type Bare = Quantity<0, 0, 0>;
 
-    impl<T: Debug> Debug for Bare<T> {
+    impl Debug for Bare {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             write!(f, "{:?}", self.0)
         }

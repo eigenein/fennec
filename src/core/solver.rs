@@ -10,7 +10,6 @@ use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta};
 use enumset::EnumSet;
 use itertools::Itertools;
-use ordered_float::OrderedFloat;
 
 use crate::{
     cli::{BatteryArgs, BatteryParameters},
@@ -189,10 +188,7 @@ impl Solver<'_> {
                     None
                 }
             })
-            .min_by_key(|partial_solution| {
-                // TODO: make `Quantity` orderable:
-                OrderedFloat(partial_solution.net_loss.0)
-            })
+            .min_by_key(|partial_solution| partial_solution.net_loss)
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions,

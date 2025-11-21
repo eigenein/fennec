@@ -7,17 +7,11 @@ use chrono::TimeDelta;
 
 use crate::quantity::{Quantity, cost::Cost, power::Kilowatts, rate::KilowattHourRate};
 
-pub type KilowattHours = Quantity<f64, 1, 1, 0>;
+pub type KilowattHours = Quantity<1, 1, 0>;
 
 impl KilowattHours {
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
-        Self(f64::from(watt_hours) * 0.001)
-    }
-
-    /// FIXME: move to [`Quantity`].
-    pub const fn abs(mut self) -> Self {
-        self.0 = self.0.abs();
-        self
+        Self::from(f64::from(watt_hours) * 0.001)
     }
 }
 
@@ -48,7 +42,7 @@ impl Div<Kilowatts> for KilowattHours {
         let hours = self.0 / rhs.0;
 
         #[expect(clippy::cast_possible_truncation)]
-        TimeDelta::seconds((hours * 3600.0) as i64)
+        TimeDelta::seconds((hours.0 * 3600.0) as i64)
     }
 }
 

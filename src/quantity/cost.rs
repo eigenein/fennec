@@ -1,11 +1,13 @@
 use std::fmt::{Debug, Display, Formatter};
 
+use ordered_float::OrderedFloat;
+
 use crate::quantity::Quantity;
 
-pub type Cost = Quantity<f64, 0, 0, 1>;
+pub type Cost = Quantity<0, 0, 1>;
 
 impl Cost {
-    pub const ONE_CENT: Self = Self(0.01);
+    pub const ONE_CENT: Self = Self(OrderedFloat(0.01));
 }
 
 impl Display for Cost {

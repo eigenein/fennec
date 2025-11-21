@@ -7,7 +7,7 @@ use chrono::TimeDelta;
 
 use crate::quantity::{Quantity, energy::KilowattHours};
 
-pub type Kilowatts = Quantity<f64, 1, 0, 0>;
+pub type Kilowatts = Quantity<1, 0, 0>;
 
 impl Display for Kilowatts {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

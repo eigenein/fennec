@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use chrono::{DateTime, Local};
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -53,7 +54,7 @@ impl FromIterator<EnergyState> for Statistics {
             .median_hourly();
         for kilowatts in hourly_stand_by_power.iter_mut().flatten() {
             // Round the power to watts to remove the awkward number of decimal points:
-            kilowatts.0 = (kilowatts.0 * 1000.0).round() / 1000.0;
+            kilowatts.0 = OrderedFloat((kilowatts.0 * 1000.0).round() / 1000.0);
         }
         Self { generated_at: Some(Local::now()), household: Household { hourly_stand_by_power } }
     }

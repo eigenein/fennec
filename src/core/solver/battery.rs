@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use chrono::TimeDelta;
 
 use crate::{
@@ -49,12 +51,12 @@ impl Battery {
 
         // Calculate the internal power:
         let internal_power = external_power
-            * if external_power > Kilowatts::ZERO {
-                self.parameters.charging_efficiency
-            } else if external_power < Kilowatts::ZERO {
-                1.0 / self.parameters.discharging_efficiency
-            } else {
-                return TimeDelta::zero();
+            * match external_power.cmp(&Kilowatts::ZERO) {
+                Ordering::Greater => self.parameters.charging_efficiency,
+                Ordering::Less => 1.0 / self.parameters.discharging_efficiency,
+                Ordering::Equal => {
+                    return TimeDelta::zero();
+                }
             };
 
         // Update the residual energy:

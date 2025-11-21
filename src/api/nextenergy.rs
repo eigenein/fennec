@@ -16,7 +16,7 @@ impl Api {
         Ok(Self(Client::builder().timeout(Duration::from_secs(10)).build()?))
     }
 
-    #[instrument(skip_all, fields(first_date = ?first_date))]
+    #[instrument(skip_all)]
     pub async fn get_hourly_rates_48h(
         &self,
         first_date: NaiveDate,
@@ -31,7 +31,7 @@ impl Api {
         on: NaiveDate,
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
         info!("Fetching…");
-        Ok(self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices_NEW/DataActionGetDataPoints")
+        let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices_NEW/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(on))
             .send()
@@ -44,24 +44,31 @@ impl Api {
             .context("failed to deserialize the response")?
             .data
             .points
-            .list
-            .into_iter()
-            .enumerate()
-            .filter_map(move |(index, point)| {
-                let hour = u32::try_from(index).unwrap();
-                assert_eq!((point.label + 1) % 24, hour, "NextEnergy messed up: index={index} label={}", point.label);
+            .list;
+        info!(n_data_points = data_points.len(), "Fetched");
+        let series = data_points.into_iter().enumerate().filter_map(move |(index, point)| {
+            let hour = u32::try_from(index).unwrap();
+            assert_eq!(
+                (point.label + 1) % 24,
+                hour,
+                "NextEnergy messed up: index={index} label={}",
+                point.label
+            );
 
-                match on.and_hms_nano_opt(hour, 0, 0, 0).unwrap().and_local_timezone(Local) {
-                    MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
-                        let end_time = start_time + TimeDelta::hours(1);
-                        let point = (start_time..end_time, point.value);
-                        Some(point)
-                    },
-
-                    MappedLocalTime::None => None,
+            match on.and_hms_nano_opt(hour, 0, 0, 0).unwrap().and_local_timezone(Local) {
+                MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
+                    let end_time = start_time + TimeDelta::hours(1);
+                    let point = (start_time..end_time, point.value);
+                    Some(point)
                 }
-            })
-        )
+
+                MappedLocalTime::None => {
+                    warn!(point.label, index, "Skipped");
+                    None
+                }
+            }
+        });
+        Ok(series)
     }
 }
 

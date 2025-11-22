@@ -2,7 +2,6 @@ use std::path::Path;
 
 use chrono::{DateTime, Local, TimeDelta};
 use itertools::Itertools;
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -40,11 +39,9 @@ impl Statistics {
 }
 
 impl FromIterator<EnergyState> for Statistics {
-    #[instrument(skip_all)]
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
         info!("Crunching numbers…");
         let series = iterator.into_iter().map(|state| (state.last_changed_at, state)).collect_vec();
-
         let hourly_stand_by_power = series
             .iter()
             .map(|(timestamp, energy_state)| {
@@ -54,8 +51,86 @@ impl FromIterator<EnergyState> for Statistics {
             .filter(|(time_span, _)| time_span.end > time_span.start)
             .differentiate()
             .median_hourly();
+        Self {
+            generated_at: Some(Local::now()),
+            household: Household { hourly_stand_by_power },
+            battery: Some(series.into_iter().collect()),
+        }
+    }
+}
 
-        let battery_deltas = series
+impl EnergyAttributes {
+    pub fn is_importing(&self) -> bool {
+        self.battery_energy_import >= KilowattHours::from(0.001)
+    }
+
+    pub fn is_exporting(&self) -> bool {
+        self.battery_energy_export >= KilowattHours::from(0.001)
+    }
+
+    pub fn is_idling(&self) -> bool {
+        !self.is_importing()
+            && !self.is_exporting()
+            && self.battery_residual_energy <= KilowattHours::ZERO
+    }
+
+    pub fn is_charging(&self) -> bool {
+        self.is_importing()
+            && !self.is_exporting()
+            && self.battery_residual_energy >= KilowattHours::ONE_THOUSANDTH
+    }
+
+    pub fn is_discharging(&self) -> bool {
+        self.is_exporting()
+            && !self.is_importing()
+            && self.battery_residual_energy <= -KilowattHours::ONE_THOUSANDTH
+    }
+
+    pub fn as_charging_efficiency(&self) -> f64 {
+        (self.battery_residual_energy / (self.battery_energy_import - self.battery_energy_export)).0
+    }
+
+    pub fn as_discharging_efficiency(&self) -> f64 {
+        ((self.battery_energy_import - self.battery_energy_export) / self.battery_residual_energy).0
+    }
+}
+
+#[derive(Copy, Clone, derive_more::Add, derive_more::Sum)]
+struct Delta {
+    time: TimeDelta,
+    energy: EnergyAttributes,
+}
+
+impl Delta {
+    pub fn as_parasitic_load(&self) -> Kilowatts {
+        (self.energy.battery_energy_export
+            - self.energy.battery_energy_import
+            - self.energy.battery_residual_energy)
+            / self.time
+    }
+}
+
+#[must_use]
+#[derive(Serialize, Deserialize)]
+pub struct Household {
+    #[serde(rename = "hourly_stand_by_power_kilowatts")]
+    pub hourly_stand_by_power: [Option<Kilowatts>; 24],
+}
+
+#[must_use]
+#[derive(Serialize, Deserialize)]
+pub struct Battery {
+    #[serde(rename = "parasitic_load_kilowatts")]
+    pub parasitic_load: Kilowatts,
+
+    pub charging_efficiency: Option<f64>,
+
+    pub discharging_efficiency: Option<f64>,
+}
+
+impl FromIterator<(DateTime<Local>, EnergyState)> for Battery {
+    fn from_iter<T: IntoIterator<Item = (DateTime<Local>, EnergyState)>>(iterator: T) -> Self {
+        let battery_deltas = iterator
             .into_iter()
             .map(|(timestamp, energy_state)| (timestamp, energy_state.attributes))
             .deltas()
@@ -93,78 +168,16 @@ impl FromIterator<EnergyState> for Statistics {
         let charging_efficiency = charging_samples.median();
         let n_discharging_samples = discharging_samples.len();
         let discharging_efficiency = discharging_samples.median();
-        info!(coefficient = ?charging_efficiency, n_samples = n_charging_samples, "Calculated charging efficiency");
-        info!(coefficient = ?discharging_efficiency, n_samples = n_discharging_samples, "Calculated charging efficiency");
-
-        Self {
-            generated_at: Some(Local::now()),
-            household: Household { hourly_stand_by_power },
-            battery: Some(Battery { parasitic_load }),
-        }
+        info!(coefficient = ?charging_efficiency, n_samples = n_charging_samples);
+        info!(coefficient = ?discharging_efficiency, n_samples = n_discharging_samples);
+        let this = Self { parasitic_load, charging_efficiency, discharging_efficiency };
+        info!(round_trip_efficiency = ?this.round_trip_efficiency());
+        this
     }
 }
 
-impl EnergyAttributes {
-    pub fn is_importing(&self) -> bool {
-        self.battery_energy_import >= KilowattHours::from(0.001)
+impl Battery {
+    pub fn round_trip_efficiency(&self) -> Option<f64> {
+        Some(self.charging_efficiency? * self.discharging_efficiency?)
     }
-
-    pub fn is_exporting(&self) -> bool {
-        self.battery_energy_export >= KilowattHours::from(0.001)
-    }
-
-    pub fn is_idling(&self) -> bool {
-        !self.is_importing()
-            && !self.is_exporting()
-            && self.battery_residual_energy <= KilowattHours::ZERO
-    }
-
-    pub fn is_charging(&self) -> bool {
-        self.is_importing()
-            && !self.is_exporting()
-            && self.battery_residual_energy >= KilowattHours::ONE_THOUSANDTH
-    }
-
-    pub fn is_discharging(&self) -> bool {
-        self.is_exporting()
-            && !self.is_importing()
-            && self.battery_residual_energy <= -KilowattHours::ONE_THOUSANDTH
-    }
-
-    pub fn as_charging_efficiency(&self) -> OrderedFloat<f64> {
-        self.battery_residual_energy / (self.battery_energy_import - self.battery_energy_export)
-    }
-
-    pub fn as_discharging_efficiency(&self) -> OrderedFloat<f64> {
-        (self.battery_energy_import - self.battery_energy_export) / self.battery_residual_energy
-    }
-}
-
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sum)]
-struct Delta {
-    time: TimeDelta,
-    energy: EnergyAttributes,
-}
-
-impl Delta {
-    pub fn as_parasitic_load(&self) -> Kilowatts {
-        (self.energy.battery_energy_export
-            - self.energy.battery_energy_import
-            - self.energy.battery_residual_energy)
-            / self.time
-    }
-}
-
-#[must_use]
-#[derive(Serialize, Deserialize)]
-pub struct Household {
-    #[serde(rename = "hourly_stand_by_power_kilowatts")]
-    pub hourly_stand_by_power: [Option<Kilowatts>; 24],
-}
-
-#[must_use]
-#[derive(Serialize, Deserialize)]
-pub struct Battery {
-    #[serde(rename = "parasitic_load_kilowatts")]
-    pub parasitic_load: Kilowatts,
 }

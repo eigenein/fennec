@@ -1,7 +1,4 @@
-use std::{
-    ops::{RangeInclusive, Sub},
-    time::Duration,
-};
+use std::{ops::RangeInclusive, time::Duration};
 
 use chrono::{DateTime, Local};
 use reqwest::{
@@ -80,11 +77,11 @@ pub struct EnergyState {
     pub attributes: EnergyAttributes,
 }
 
-#[derive(Copy, Clone, serde::Deserialize)]
+#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, derive_more::Sum, serde::Deserialize)]
 pub struct EnergyAttributes {
     #[deprecated]
-    #[serde(default, rename = "custom_total_solar_yield")]
-    pub solar_yield: Option<KilowattHours>,
+    #[serde(default = "KilowattHours::zero", rename = "custom_total_solar_yield")]
+    pub solar_yield: KilowattHours,
 
     #[serde(rename = "custom_battery_energy_import")]
     pub battery_energy_import: KilowattHours,
@@ -94,26 +91,6 @@ pub struct EnergyAttributes {
 
     #[serde(rename = "custom_battery_residual_energy")]
     pub battery_residual_energy: KilowattHours,
-}
-
-impl EnergyAttributes {
-    #[deprecated]
-    pub fn solar_yield(&self) -> KilowattHours {
-        self.solar_yield.unwrap_or(KilowattHours::ZERO)
-    }
-}
-
-impl Sub for EnergyAttributes {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            solar_yield: Some(self.solar_yield() - rhs.solar_yield()),
-            battery_energy_import: self.battery_energy_import - rhs.battery_energy_import,
-            battery_energy_export: self.battery_energy_export - rhs.battery_energy_export,
-            battery_residual_energy: self.battery_residual_energy - rhs.battery_residual_energy,
-        }
-    }
 }
 
 #[cfg(test)]

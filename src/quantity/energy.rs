@@ -4,12 +4,20 @@ use std::{
 };
 
 use chrono::TimeDelta;
+use ordered_float::OrderedFloat;
 
 use crate::quantity::{Quantity, cost::Cost, power::Kilowatts, rate::KilowattHourRate};
 
 pub type KilowattHours = Quantity<1, 1, 0>;
 
 impl KilowattHours {
+    /// 1 Wh.
+    pub const ONE_THOUSANDTH: Self = Self(OrderedFloat(0.001));
+
+    pub const fn zero() -> Self {
+        Self::ZERO
+    }
+
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
         Self::from(f64::from(watt_hours) * 0.001)
     }

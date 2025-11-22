@@ -27,18 +27,18 @@ pub trait Aggregate {
             })
             .into_group_map_by(|(time_range, _)| time_range.start.hour())
         {
-            medians[hour as usize] = values.into_iter().median();
+            medians[hour as usize] = values.into_iter().map(|(_, value)| value).median();
         }
         medians
     }
 
     #[must_use]
-    fn median<K, V>(self) -> Option<V>
+    fn median<V>(self) -> Option<V>
     where
-        Self: Sized + IntoIterator<Item = (K, V)>,
+        Self: Sized + IntoIterator<Item = V>,
         V: Copy + Add<Output = V> + Div<f64, Output = V> + PartialOrd,
     {
-        let mut values = self.into_iter().map(|(_, value)| value).collect_vec();
+        let mut values = self.into_iter().collect_vec();
         if values.is_empty() {
             None
         } else {
@@ -67,13 +67,13 @@ mod tests {
 
     #[test]
     fn test_median_odd() {
-        let median = vec![((), 1.0), ((), 0.0), ((), 2.0)].into_iter().median().unwrap();
+        let median = vec![1.0, 0.0, 2.0].into_iter().median().unwrap();
         assert_eq!(median, 1.0);
     }
 
     #[test]
     fn test_median_even() {
-        let median = vec![((), 1.0), ((), 0.0), ((), 2.0), ((), 3.0)].into_iter().median().unwrap();
+        let median = vec![1.0, 0.0, 2.0, 3.0].into_iter().median().unwrap();
         assert_abs_diff_eq!(median, 1.5);
     }
 }

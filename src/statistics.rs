@@ -48,14 +48,11 @@ impl FromIterator<EnergyState> for Statistics {
             .collect_vec();
         let hourly_stand_by_power = deltas
             .into_iter()
-            .map(|(time_span, (time_delta, state_delta))| {
+            .map(|(time_span, state_delta)| {
                 (
                     time_span,
-                    (
-                        time_delta,
-                        state_delta.net_consumption
-                            - state_delta.attributes.solar_yield.unwrap_or(KilowattHours::ZERO),
-                    ),
+                    state_delta.net_consumption
+                        - state_delta.attributes.solar_yield.unwrap_or(KilowattHours::ZERO),
                 )
             })
             .differentiate()

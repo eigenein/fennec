@@ -55,7 +55,7 @@ spec:
                 type: "FileOrCreate"
           containers:
             - name: "fennec-hunting-job"
-              image: "ghcr.io/eigenein/fennec:0.41.3"
+              image: "ghcr.io/eigenein/fennec:0.42.0"
               volumeMounts:
                 - mountPath: "statistics.toml"
                   name: "statistics"
@@ -67,12 +67,6 @@ spec:
                   value: "..."
                 - name: "FOX_ESS_API_KEY"
                   value: "..."
-                - name: "BATTERY_PARASITIC_LOAD"
-                  value: "0.028"
-                - name: "BATTERY_CHARGING_EFFICIENCY"
-                  value: "1.033"
-                - name: "BATTERY_DISCHARGING_EFFICIENCY"
-                  value: "0.839"
                 - name: "HEARTBEAT_URL"
                   value: "..."
               args:
@@ -114,8 +108,6 @@ spec:
                   value: "sensor.custom_fennec_hourly_total_energy_usage"
                 - name: "HOME_ASSISTANT_ACCESS_TOKEN"
                   value: "..."
-                - name: "STATISTICS_PATH"
-                  value: "statistics.toml"
                 - name: "HEARTBEAT_URL"
                   value: "..."
               args:

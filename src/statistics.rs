@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use chrono::{DateTime, Local};
-use ordered_float::OrderedFloat;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -40,7 +40,7 @@ impl FromIterator<EnergyState> for Statistics {
     #[instrument(skip_all)]
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
         info!("Crunching numbers…");
-        let mut hourly_stand_by_power = iterator
+        let diffs = iterator
             .into_iter()
             .map(|state| {
                 (
@@ -50,12 +50,10 @@ impl FromIterator<EnergyState> for Statistics {
                 )
             })
             .deltas()
+            .filter(|(time_span, _)| time_span.start != time_span.end)
             .differentiate()
-            .median_hourly();
-        for kilowatts in hourly_stand_by_power.iter_mut().flatten() {
-            // Round the power to watts to remove the awkward number of decimal points:
-            kilowatts.0 = OrderedFloat((kilowatts.0 * 1000.0).round() / 1000.0);
-        }
+            .collect_vec();
+        let hourly_stand_by_power = diffs.into_iter().median_hourly();
         Self { generated_at: Some(Local::now()), household: Household { hourly_stand_by_power } }
     }
 }

@@ -12,7 +12,7 @@ use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
-    cli::{BatteryArgs, BatteryParameters},
+    cli::BatteryArgs,
     core::{
         series::Point,
         solver::{
@@ -26,6 +26,7 @@ use crate::{
     },
     prelude::*,
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    statistics::BatteryParameters,
 };
 
 #[derive(Builder)]
@@ -169,7 +170,7 @@ impl Solver<'_> {
                     .simulate_step()
                     .conditions(conditions)
                     .initial_residual_energy(initial_residual_energy)
-                    .battery(battery.clone())
+                    .battery(battery)
                     .working_mode(working_mode)
                     .duration(duration)
                     .call();

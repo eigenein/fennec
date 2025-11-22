@@ -60,18 +60,6 @@ pub struct BatteryArgs {
     pub min_soc_percent: u32,
 }
 
-#[derive(Copy, Clone, Parser)]
-pub struct BatteryParameters {
-    #[clap(long = "battery-parasitic-load", env = "BATTERY_PARASITIC_LOAD")]
-    pub parasitic_load: Kilowatts,
-
-    #[clap(long = "battery-charging-efficiency", env = "BATTERY_CHARGING_EFFICIENCY")]
-    pub charging_efficiency: f64,
-
-    #[clap(long = "battery-discharging-efficiency", env = "BATTERY_DISCHARGING_EFFICIENCY")]
-    pub discharging_efficiency: f64,
-}
-
 #[derive(Parser)]
 pub struct HuntArgs {
     /// Do not push the final schedule to FoxESS Cloud (dry run).
@@ -97,10 +85,6 @@ pub struct HuntArgs {
 
     #[clap(flatten)]
     pub battery_args: BatteryArgs,
-
-    /// TODO: remove in favour of `burrow stats`.
-    #[clap(flatten)]
-    pub battery_parameters: BatteryParameters,
 
     #[clap(flatten)]
     pub fox_ess_api: FoxEssApiArgs,

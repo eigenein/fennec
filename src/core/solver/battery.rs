@@ -3,12 +3,12 @@ use std::cmp::Ordering;
 use chrono::TimeDelta;
 
 use crate::{
-    cli::BatteryParameters,
     quantity::{energy::KilowattHours, power::Kilowatts},
+    statistics::BatteryParameters,
 };
 
 /// Battery simulator.
-#[derive(Clone, bon::Builder)]
+#[derive(Copy, Clone, bon::Builder)]
 pub struct Battery {
     capacity: KilowattHours,
 
@@ -20,7 +20,6 @@ pub struct Battery {
     /// Current residual energy.
     residual_energy: KilowattHours,
 
-    /// FIXME: needs only estimated battery parameters.
     parameters: BatteryParameters,
 }
 

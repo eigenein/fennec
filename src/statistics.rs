@@ -15,11 +15,11 @@ use crate::{
 #[derive(Serialize, Deserialize)]
 pub struct Statistics {
     #[serde(default)]
-    pub generated_at: Option<DateTime<Local>>,
+    pub generated_at: DateTime<Local>,
 
-    pub household: Household,
+    pub household: HouseholdParameters,
 
-    pub battery: Option<Battery>,
+    pub battery: BatteryParameters,
 }
 
 impl Statistics {
@@ -52,9 +52,9 @@ impl FromIterator<EnergyState> for Statistics {
             .differentiate()
             .median_hourly();
         Self {
-            generated_at: Some(Local::now()),
-            household: Household { hourly_stand_by_power },
-            battery: Some(series.into_iter().collect()),
+            generated_at: Local::now(),
+            household: HouseholdParameters { hourly_stand_by_power },
+            battery: series.into_iter().collect(),
         }
     }
 }
@@ -112,23 +112,26 @@ impl Delta {
 
 #[must_use]
 #[derive(Serialize, Deserialize)]
-pub struct Household {
+pub struct HouseholdParameters {
     #[serde(rename = "hourly_stand_by_power_kilowatts")]
     pub hourly_stand_by_power: [Option<Kilowatts>; 24],
 }
 
 #[must_use]
-#[derive(Serialize, Deserialize)]
-pub struct Battery {
+#[derive(Copy, Clone, Serialize, Deserialize)]
+pub struct BatteryParameters {
     #[serde(rename = "parasitic_load_kilowatts")]
     pub parasitic_load: Kilowatts,
 
-    pub charging_efficiency: Option<f64>,
+    pub charging_efficiency: f64,
 
-    pub discharging_efficiency: Option<f64>,
+    pub discharging_efficiency: f64,
 }
 
-impl FromIterator<(DateTime<Local>, EnergyState)> for Battery {
+impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
+    /// Analyse battery parameters by the energy state history.
+    ///
+    /// FIXME: properly handle the panics.
     fn from_iter<T: IntoIterator<Item = (DateTime<Local>, EnergyState)>>(iterator: T) -> Self {
         let battery_deltas = iterator
             .into_iter()
@@ -145,14 +148,12 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for Battery {
             })
             .collect_vec();
         info!(count = battery_deltas.len(), "Collected battery delta's");
-        // FIXME: this may be empty – need to somehow return `None`.
+        assert_ne!(battery_deltas.len(), 0);
 
-        let parasitic_load = battery_deltas
-            .iter()
-            .filter(|point| point.energy.is_idling())
-            .copied()
-            .sum::<Delta>()
-            .as_parasitic_load();
+        let idling_delta =
+            battery_deltas.iter().filter(|point| point.energy.is_idling()).copied().sum::<Delta>();
+        assert_ne!(idling_delta.time, TimeDelta::zero());
+        let parasitic_load = idling_delta.as_parasitic_load();
         info!(?parasitic_load);
 
         let mut charging_samples = Vec::new();
@@ -166,9 +167,9 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for Battery {
             }
         }
         let n_charging_samples = charging_samples.len();
-        let charging_efficiency = charging_samples.median();
+        let charging_efficiency = charging_samples.median().unwrap();
         let n_discharging_samples = discharging_samples.len();
-        let discharging_efficiency = discharging_samples.median();
+        let discharging_efficiency = discharging_samples.median().unwrap();
         info!(coefficient = ?charging_efficiency, n_samples = n_charging_samples);
         info!(coefficient = ?discharging_efficiency, n_samples = n_discharging_samples);
         let this = Self { parasitic_load, charging_efficiency, discharging_efficiency };
@@ -177,8 +178,8 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for Battery {
     }
 }
 
-impl Battery {
-    pub fn round_trip_efficiency(&self) -> Option<f64> {
-        Some(self.charging_efficiency? * self.discharging_efficiency?)
+impl BatteryParameters {
+    pub fn round_trip_efficiency(&self) -> f64 {
+        self.charging_efficiency * self.discharging_efficiency
     }
 }

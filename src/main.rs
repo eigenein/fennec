@@ -72,6 +72,11 @@ async fn main() -> Result {
 #[instrument(skip_all)]
 async fn hunt(args: HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
+    info!(?statistics.generated_at);
+    info!(parasitic_load = ?statistics.battery.parasitic_load);
+    info!(charging_efficiency = format!("{:.3}", statistics.battery.charging_efficiency));
+    info!(discharging_efficiency = format!("{:.3}", statistics.battery.discharging_efficiency));
+    info!(round_trip_efficiency = format!("{:.3}", statistics.battery.round_trip_efficiency()));
 
     let fox_ess = foxess::Api::try_new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
@@ -121,7 +126,7 @@ async fn hunt(args: HuntArgs) -> Result {
         .residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery_args(args.battery_args)
-        .battery_parameters(args.battery_parameters)
+        .battery_parameters(statistics.battery)
         .purchase_fee(args.purchase_fee)
         .now(now)
         .solve()

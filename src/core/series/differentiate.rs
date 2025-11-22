@@ -21,11 +21,12 @@ pub trait Differentiate {
 
     fn differentiate<K, DK, DV>(self) -> impl Iterator<Item = (K, <DV as Div<DK>>::Output)>
     where
-        Self: Sized + Iterator<Item = (K, (DK, DV))>,
+        Self: Sized + IntoIterator<Item = (K, (DK, DV))>,
         K: Clone,
         DV: Div<DK>,
     {
-        self.map(|(index, (index_delta, value_delta))| (index, value_delta / index_delta))
+        self.into_iter()
+            .map(|(index, (index_delta, value_delta))| (index, value_delta / index_delta))
     }
 }
 

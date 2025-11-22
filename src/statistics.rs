@@ -53,7 +53,7 @@ impl FromIterator<EnergyState> for Statistics {
             .filter(|(time_span, _)| time_span.start != time_span.end)
             .differentiate()
             .collect_vec();
-        let hourly_stand_by_power = diffs.into_iter().median_hourly();
+        let hourly_stand_by_power = diffs.median_hourly();
         Self { generated_at: Some(Local::now()), household: Household { hourly_stand_by_power } }
     }
 }

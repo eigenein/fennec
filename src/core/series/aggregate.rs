@@ -12,13 +12,14 @@ pub trait Aggregate {
     #[must_use]
     fn median_hourly<Tz, V>(self) -> [Option<V>; 24]
     where
-        Self: Sized + Iterator<Item = (Range<DateTime<Tz>>, V)>,
+        Self: Sized + IntoIterator<Item = (Range<DateTime<Tz>>, V)>,
         Tz: TimeZone,
         V: Copy + PartialOrd + Add<Output = V> + Div<f64, Output = V>,
         DateTime<Tz>: Copy,
     {
         let mut medians = [None; 24];
         for (hour, values) in self
+            .into_iter()
             .filter(|(time_range, _)| {
                 // Filter out cross-hour values:
                 (time_range.start.date_naive() == time_range.end.date_naive())
@@ -34,10 +35,10 @@ pub trait Aggregate {
     #[must_use]
     fn median<K, V>(self) -> Option<V>
     where
-        Self: Sized + Iterator<Item = (K, V)>,
+        Self: Sized + IntoIterator<Item = (K, V)>,
         V: Copy + Add<Output = V> + Div<f64, Output = V> + PartialOrd,
     {
-        let mut values = self.map(|(_, value)| value).collect_vec();
+        let mut values = self.into_iter().map(|(_, value)| value).collect_vec();
         if values.is_empty() {
             None
         } else {

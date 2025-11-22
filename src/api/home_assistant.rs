@@ -1,4 +1,7 @@
-use std::{ops::RangeInclusive, time::Duration};
+use std::{
+    ops::{RangeInclusive, Sub},
+    time::Duration,
+};
 
 use chrono::{DateTime, Local};
 use reqwest::{
@@ -65,7 +68,7 @@ struct EnergyHistory(#[serde_as(as = "serde_with::VecSkipError<_>")] pub Vec<Ene
 
 #[must_use]
 #[serde_as]
-#[derive(serde::Deserialize)]
+#[derive(Copy, Clone, serde::Deserialize)]
 pub struct EnergyState {
     #[serde(rename = "last_changed")]
     pub last_changed_at: DateTime<Local>,
@@ -77,7 +80,19 @@ pub struct EnergyState {
     pub attributes: EnergyAttributes,
 }
 
-#[derive(serde::Deserialize)]
+impl Sub for EnergyState {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            last_changed_at: self.last_changed_at, // FIXME: technically, unneeded.
+            net_consumption: self.net_consumption - rhs.net_consumption,
+            attributes: self.attributes - rhs.attributes,
+        }
+    }
+}
+
+#[derive(Copy, Clone, serde::Deserialize)]
 pub struct EnergyAttributes {
     #[deprecated]
     #[serde(default, rename = "custom_total_solar_yield")]
@@ -88,6 +103,29 @@ pub struct EnergyAttributes {
 
     #[serde(rename = "custom_battery_energy_export")]
     pub battery_energy_export: KilowattHours,
+
+    #[serde(rename = "custom_battery_residual_energy")]
+    pub battery_residual_energy: KilowattHours,
+}
+
+impl EnergyAttributes {
+    #[deprecated]
+    pub fn solar_yield(&self) -> KilowattHours {
+        self.solar_yield.unwrap_or(KilowattHours::ZERO)
+    }
+}
+
+impl Sub for EnergyAttributes {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            solar_yield: Some(self.solar_yield() - rhs.solar_yield()),
+            battery_energy_import: self.battery_energy_import - rhs.battery_energy_import,
+            battery_energy_export: self.battery_energy_export - rhs.battery_energy_export,
+            battery_residual_energy: self.battery_residual_energy - rhs.battery_residual_energy,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -150,6 +188,7 @@ mod tests {
         assert_abs_diff_eq!(state.net_consumption.0.0, 25902.706);
         assert_abs_diff_eq!(state.attributes.battery_energy_import.0.0, 473.809);
         assert_abs_diff_eq!(state.attributes.battery_energy_export.0.0, 388.752);
+        assert_abs_diff_eq!(state.attributes.battery_residual_energy.0.0, 3.86);
 
         Ok(())
     }

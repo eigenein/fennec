@@ -80,18 +80,6 @@ pub struct EnergyState {
     pub attributes: EnergyAttributes,
 }
 
-impl Sub for EnergyState {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            last_changed_at: self.last_changed_at, // FIXME: technically, unneeded.
-            net_consumption: self.net_consumption - rhs.net_consumption,
-            attributes: self.attributes - rhs.attributes,
-        }
-    }
-}
-
 #[derive(Copy, Clone, serde::Deserialize)]
 pub struct EnergyAttributes {
     #[deprecated]

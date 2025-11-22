@@ -40,21 +40,18 @@ impl FromIterator<EnergyState> for Statistics {
     #[instrument(skip_all)]
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
         info!("Crunching numbers…");
-        let deltas = iterator
-            .into_iter()
-            .map(|state| (state.last_changed_at, state))
-            .deltas()
-            .filter(|(time_span, _)| time_span.start != time_span.end)
-            .collect_vec();
-        let hourly_stand_by_power = deltas
-            .into_iter()
-            .map(|(time_span, state_delta)| {
+        let series = iterator.into_iter().map(|state| (state.last_changed_at, state)).collect_vec();
+        let hourly_stand_by_power = series
+            .iter()
+            .copied()
+            .map(|(timestamp, energy_state)| {
                 (
-                    time_span,
-                    state_delta.net_consumption
-                        - state_delta.attributes.solar_yield.unwrap_or(KilowattHours::ZERO),
+                    timestamp,
+                    energy_state.net_consumption
+                        - energy_state.attributes.solar_yield.unwrap_or(KilowattHours::ZERO),
                 )
             })
+            .deltas()
             .differentiate()
             .median_hourly();
         Self { generated_at: Some(Local::now()), household: Household { hourly_stand_by_power } }

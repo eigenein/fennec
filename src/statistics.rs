@@ -145,6 +145,7 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for Battery {
             })
             .collect_vec();
         info!(count = battery_deltas.len(), "Collected battery delta's");
+        // FIXME: this may be empty – need to somehow return `None`.
 
         let parasitic_load = battery_deltas
             .iter()
@@ -152,7 +153,7 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for Battery {
             .copied()
             .sum::<Delta>()
             .as_parasitic_load();
-        info!(?parasitic_load, "Calculated");
+        info!(?parasitic_load);
 
         let mut charging_samples = Vec::new();
         let mut discharging_samples = Vec::new();

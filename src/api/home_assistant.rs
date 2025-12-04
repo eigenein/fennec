@@ -79,18 +79,14 @@ pub struct EnergyState {
 
 #[derive(Copy, Clone, derive_more::Add, derive_more::Sub, derive_more::Sum, serde::Deserialize)]
 pub struct EnergyAttributes {
-    #[deprecated]
-    #[serde(default = "KilowattHours::zero", rename = "custom_total_solar_yield")]
-    pub solar_yield: KilowattHours,
-
     #[serde(rename = "custom_battery_energy_import")]
-    pub battery_energy_import: KilowattHours,
+    pub import: KilowattHours,
 
     #[serde(rename = "custom_battery_energy_export")]
-    pub battery_energy_export: KilowattHours,
+    pub export: KilowattHours,
 
     #[serde(rename = "custom_battery_residual_energy")]
-    pub battery_residual_energy: KilowattHours,
+    pub residual_energy: KilowattHours,
 }
 
 #[cfg(test)]
@@ -151,9 +147,9 @@ mod tests {
         let state = &total_energy_usage[0];
         assert_eq!(state.last_changed_at, expected_timestamp);
         assert_abs_diff_eq!(state.net_consumption.0.0, 25902.706);
-        assert_abs_diff_eq!(state.attributes.battery_energy_import.0.0, 473.809);
-        assert_abs_diff_eq!(state.attributes.battery_energy_export.0.0, 388.752);
-        assert_abs_diff_eq!(state.attributes.battery_residual_energy.0.0, 3.86);
+        assert_abs_diff_eq!(state.attributes.import.0.0, 473.809);
+        assert_abs_diff_eq!(state.attributes.export.0.0, 388.752);
+        assert_abs_diff_eq!(state.attributes.residual_energy.0.0, 3.86);
 
         Ok(())
     }

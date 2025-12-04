@@ -154,7 +154,13 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
             battery_deltas.iter().filter(|point| point.energy.is_idling()).copied().sum::<Delta>();
         assert_ne!(idling_delta.time, TimeDelta::zero());
         let parasitic_load = idling_delta.as_parasitic_load();
-        info!(?parasitic_load);
+        info!(
+            ?parasitic_load,
+            idling_hours = idling_delta.time.as_seconds_f64() / 3600.0,
+            residual_energy_delta = ?idling_delta.energy.battery_residual_energy,
+            import = ?idling_delta.energy.battery_energy_import,
+            export = ?idling_delta.energy.battery_energy_export,
+        );
 
         let mut charging_samples = Vec::new();
         let mut discharging_samples = Vec::new();

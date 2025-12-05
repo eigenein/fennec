@@ -46,7 +46,7 @@ impl FromIterator<EnergyState> for Statistics {
             .iter()
             .map(|(timestamp, energy_state)| (*timestamp, energy_state.net_consumption))
             .deltas()
-            .filter(|(time_span, _)| time_span.end > time_span.start)
+            .filter(|(interval, _)| interval.end > interval.start)
             .differentiate()
             .median_hourly();
         Self {
@@ -130,8 +130,8 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
             .into_iter()
             .map(|(timestamp, energy_state)| (timestamp, energy_state.attributes))
             .deltas()
-            .filter(|(time_span, delta)| {
-                (time_span.end > time_span.start)
+            .filter(|(interval, delta)| {
+                (interval.end > interval.start)
                     && (delta.import >= KilowattHours::ZERO)
                     && (delta.export >= KilowattHours::ZERO)
             })

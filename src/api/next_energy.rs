@@ -12,7 +12,7 @@ use crate::{
     api::{client, energy_provider::EnergyProvider},
     core::series::Point,
     prelude::*,
-    quantity::{rate::KilowattHourRate, time_range::TimeRange},
+    quantity::{interval::Interval, rate::KilowattHourRate},
 };
 
 pub struct Api(Client);
@@ -27,7 +27,7 @@ impl Api {
 impl EnergyProvider for Api {
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
-    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<TimeRange, KilowattHourRate>>> {
+    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");
         let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices_NEW/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
@@ -56,7 +56,7 @@ impl EnergyProvider for Api {
             match on.and_hms_nano_opt(hour, 0, 0, 0).unwrap().and_local_timezone(Local) {
                 MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
                     let end_time = start_time + TimeDelta::hours(1);
-                    let point = (TimeRange::new(start_time, end_time), point.value);
+                    let point = (Interval::new(start_time, end_time), point.value);
                     Some(point)
                 }
 

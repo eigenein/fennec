@@ -1,6 +1,6 @@
 use crate::{
     core::{series::Series, solver::step::Step},
-    quantity::{cost::Cost, time_range::TimeRange},
+    quantity::{cost::Cost, interval::Interval},
 };
 
 pub struct Solution {
@@ -10,7 +10,7 @@ pub struct Solution {
     pub net_loss_without_battery: Cost,
 
     /// The simulated working plan.
-    pub steps: Series<TimeRange, Step>,
+    pub steps: Series<Interval, Step>,
 }
 
 impl Solution {

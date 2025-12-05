@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use chrono::{DateTime, Local};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct TimeRange {
+pub struct Interval {
     /// Inclusive.
     pub start: DateTime<Local>,
 
@@ -11,13 +11,13 @@ pub struct TimeRange {
     pub end: DateTime<Local>,
 }
 
-impl Debug for TimeRange {
+impl Debug for Interval {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}..{:?}", self.start, self.end)
     }
 }
 
-impl TimeRange {
+impl Interval {
     pub const fn new(start: DateTime<Local>, end: DateTime<Local>) -> Self {
         Self { start, end }
     }

@@ -1,8 +1,8 @@
 pub mod cost;
 pub mod energy;
+pub mod interval;
 pub mod power;
 pub mod rate;
-pub mod time_range;
 
 use std::ops::{Div, Mul};
 

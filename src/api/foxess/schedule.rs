@@ -13,8 +13,8 @@ use crate::{
     core::working_mode::WorkingMode as CoreWorkingMode,
     prelude::*,
     quantity::{
+        interval::Interval,
         power::{Kilowatts, Watts},
-        time_range::TimeRange,
     },
 };
 
@@ -121,7 +121,7 @@ pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
 impl TimeSlotSequence {
     #[instrument(skip_all)]
     pub fn from_schedule(
-        schedule: impl IntoIterator<Item = (TimeRange, CoreWorkingMode)>,
+        schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
         since: DateTime<Local>,
         battery_args: &BatteryArgs,
     ) -> Result<Self> {
@@ -129,18 +129,18 @@ impl TimeSlotSequence {
         info!(%since, %until_exclusive, "Building a FoxESS schedule…");
         schedule
             .into_iter()
-            .filter_map(|(time_span, working_mode)| {
+            .filter_map(|(interval, working_mode)| {
                 // We can only build a time slot sequence for 24 hours:
                 // FIXME: extract and test:
-                if time_span.contains(since) {
+                if interval.contains(since) {
                     // Truncate the past:
-                    Some((TimeRange::new(since, time_span.end), working_mode))
-                } else if time_span.contains(until_exclusive) {
+                    Some((Interval::new(since, interval.end), working_mode))
+                } else if interval.contains(until_exclusive) {
                     // Truncate the future:
-                    Some((TimeRange::new(time_span.start, until_exclusive), working_mode))
-                } else if since <= time_span.start && time_span.end <= until_exclusive {
+                    Some((Interval::new(interval.start, until_exclusive), working_mode))
+                } else if since <= interval.start && interval.end <= until_exclusive {
                     // Actual time span:
-                    Some((time_span, working_mode))
+                    Some((interval, working_mode))
                 } else {
                     // Irrelevant time span:
                     None
@@ -151,15 +151,15 @@ impl TimeSlotSequence {
                 *mode
             })
             .into_iter()
-            .flat_map(|(working_mode, time_spans)| -> Result<_> {
+            .flat_map(|(working_mode, intervals)| -> Result<_> {
                 // Compress the time spans:
-                let time_spans = time_spans.into_iter().collect_vec();
-                let time_span = TimeRange::new(
-                    time_spans.first().unwrap().0.start,
-                    time_spans.last().unwrap().0.end,
+                let intervals = intervals.into_iter().collect_vec();
+                let interval = Interval::new(
+                    intervals.first().unwrap().0.start,
+                    intervals.last().unwrap().0.end,
                 );
                 // And convert into FoxESS time slots:
-                Ok(into_time_slots(time_span)
+                Ok(into_time_slots(interval)
                     .flatten()
                     .map(move |(start_time, end_time)| (working_mode, start_time, end_time)))
             })
@@ -222,16 +222,16 @@ pub enum WorkingMode {
     BackUp,
 }
 
-fn into_time_slots(time_span: TimeRange) -> impl Iterator<Item = Option<(StartTime, EndTime)>> {
-    let start_time = StartTime::from(time_span.start);
+fn into_time_slots(interval: Interval) -> impl Iterator<Item = Option<(StartTime, EndTime)>> {
+    let start_time = StartTime::from(interval.start);
 
-    let end_time = EndTime::from(time_span.end);
+    let end_time = EndTime::from(interval.end);
     if end_time.hour == 0 && end_time.minute == 0 {
         // FoxESS intervals are half-open, but they won't accept 00:00 as end time 🤦:
         return once(Some((start_time, EndTime::LAST_MINUTE))).chain(once(None));
     }
 
-    if time_span.start.date_naive() == time_span.end.date_naive() {
+    if interval.start.date_naive() == interval.end.date_naive() {
         once(Some((start_time, end_time))).chain(once(None))
     } else {
         // Split cross-day time spans because we cannot have time slots like 22:00-02:00:
@@ -250,7 +250,7 @@ mod tests {
     fn test_try_into_time_slots_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 17, 23, 15, 0).unwrap();
-        let slots = into_time_slots(TimeRange::new(start_time, end_time)).flatten().collect_vec();
+        let slots = into_time_slots(Interval::new(start_time, end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 15 })],
@@ -261,7 +261,7 @@ mod tests {
     fn test_try_into_time_slots_midnight_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 18, 0, 0, 0).unwrap();
-        let slots = into_time_slots(TimeRange::new(start_time, end_time)).flatten().collect_vec();
+        let slots = into_time_slots(Interval::new(start_time, end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 59 })],
@@ -272,7 +272,7 @@ mod tests {
     fn test_try_into_time_slots_cross_day_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 18, 1, 15, 0).unwrap();
-        let slots = into_time_slots(TimeRange::new(start_time, end_time)).flatten().collect_vec();
+        let slots = into_time_slots(Interval::new(start_time, end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![

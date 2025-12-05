@@ -4,7 +4,7 @@ use chrono::{DateTime, Days, Local, NaiveDate};
 use crate::{
     core::series::Point,
     prelude::*,
-    quantity::{rate::KilowattHourRate, time_range::TimeRange},
+    quantity::{interval::Interval, rate::KilowattHourRate},
 };
 
 #[async_trait]
@@ -13,7 +13,7 @@ pub trait EnergyProvider: Sync {
     async fn get_upcoming_rates(
         &self,
         since: DateTime<Local>,
-    ) -> Result<Vec<Point<TimeRange, KilowattHourRate>>> {
+    ) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         let mut rates = self.get_rates(since.date_naive()).await?;
         let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
         rates.extend(self.get_rates(next_date).await?);
@@ -21,5 +21,5 @@ pub trait EnergyProvider: Sync {
         Ok(rates)
     }
 
-    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<TimeRange, KilowattHourRate>>>;
+    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>>;
 }

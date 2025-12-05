@@ -11,15 +11,15 @@ use crate::{
     quantity::{
         cost::Cost,
         energy::KilowattHours,
+        interval::Interval,
         power::{Kilowatts, Watts},
         rate::KilowattHourRate,
-        time_range::TimeRange,
     },
 };
 
 pub fn build_steps_table(
-    conditions: &[Point<TimeRange, Conditions>],
-    steps: &[Point<TimeRange, Step>],
+    conditions: &[Point<Interval, Conditions>],
+    steps: &[Point<Interval, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Table {

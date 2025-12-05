@@ -7,7 +7,7 @@ use crate::{
     api::{client, energy_provider::EnergyProvider},
     core::series::Point,
     prelude::*,
-    quantity::{rate::KilowattHourRate, time_range::TimeRange},
+    quantity::{interval::Interval, rate::KilowattHourRate},
 };
 
 pub struct Api {
@@ -24,7 +24,7 @@ impl Api {
 #[async_trait]
 impl EnergyProvider for Api {
     #[instrument(fields(on = ?on), skip_all)]
-    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<TimeRange, KilowattHourRate>>> {
+    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");
         Ok(self
             .client
@@ -38,7 +38,7 @@ impl EnergyProvider for Api {
             .market_prices
             .electricity
             .into_iter()
-            .map(|item| (TimeRange::new(item.from, item.till), KilowattHourRate::from(item.all_in)))
+            .map(|item| (Interval::new(item.from, item.till), KilowattHourRate::from(item.all_in)))
             .collect())
     }
 }

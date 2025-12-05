@@ -28,9 +28,9 @@ use crate::{
     quantity::{
         cost::Cost,
         energy::KilowattHours,
+        interval::Interval,
         power::Kilowatts,
         rate::KilowattHourRate,
-        time_range::TimeRange,
     },
     statistics::BatteryParameters,
 };
@@ -38,7 +38,7 @@ use crate::{
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
-    conditions: &'a [(TimeRange, Conditions)],
+    conditions: &'a [(Interval, Conditions)],
     working_modes: EnumSet<WorkingMode>,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
@@ -79,7 +79,7 @@ impl Solver<'_> {
             ?min_residual_energy,
             residual_energy = ?self.residual_energy,
             ?max_energy,
-            n_time_spans = self.conditions.len(),
+            n_intervals = self.conditions.len(),
             "Optimizing…",
         );
 
@@ -155,7 +155,7 @@ impl Solver<'_> {
     #[builder]
     fn optimise_step(
         &self,
-        time_range: TimeRange,
+        time_range: Interval,
         conditions: &Conditions,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
@@ -266,7 +266,7 @@ struct PartialSolution {
     /// Technically, it is not needed to store the timestamp here because I could always zip
     /// the back track with the original metrics, but having it here makes it much easier to work with
     /// (and to ensure it is working properly).
-    step: Option<(TimeRange, Step)>,
+    step: Option<(Interval, Step)>,
 }
 
 impl PartialSolution {
@@ -275,7 +275,7 @@ impl PartialSolution {
     }
 
     /// Track the optimal solution till the end.
-    fn backtrack(&self) -> impl Iterator<Item = Point<TimeRange, Step>> {
+    fn backtrack(&self) -> impl Iterator<Item = Point<Interval, Step>> {
         let mut pointer = Some(self);
         from_fn(move || {
             // I'll need to yield the current step, so clone:

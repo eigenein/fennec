@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeDelta};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Interval {
@@ -20,6 +20,20 @@ impl Debug for Interval {
 impl Interval {
     pub const fn new(start: DateTime<Local>, end: DateTime<Local>) -> Self {
         Self { start, end }
+    }
+
+    pub const fn with_start(mut self, start: DateTime<Local>) -> Self {
+        self.start = start;
+        self
+    }
+
+    pub const fn with_end(mut self, end: DateTime<Local>) -> Self {
+        self.end = end;
+        self
+    }
+
+    pub fn duration(self) -> TimeDelta {
+        self.end - self.start
     }
 
     pub fn contains(self, other: DateTime<Local>) -> bool {

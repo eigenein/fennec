@@ -133,11 +133,11 @@ impl TimeSlotSequence {
                 // We can only build a time slot sequence for 24 hours:
                 // FIXME: extract and test:
                 if interval.contains(since) {
-                    // Truncate the past:
-                    Some((Interval::new(since, interval.end), working_mode))
+                    // This interval has already begun:
+                    Some((interval.with_start(since), working_mode))
                 } else if interval.contains(until_exclusive) {
-                    // Truncate the future:
-                    Some((Interval::new(interval.start, until_exclusive), working_mode))
+                    // This interval runs into the next day:
+                    Some((interval.with_end(until_exclusive), working_mode))
                 } else if since <= interval.start && interval.end <= until_exclusive {
                     // Actual time span:
                     Some((interval, working_mode))

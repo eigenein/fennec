@@ -102,7 +102,7 @@ impl Solver<'_> {
             let step_duration = if time_range.contains(self.now) {
                 time_range.end - self.now
             } else {
-                time_range.end - time_range.start
+                time_range.duration()
             };
 
             // Average stand-by power at this hour of a day:

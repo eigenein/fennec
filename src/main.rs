@@ -14,7 +14,7 @@ use clap::{Parser, crate_version};
 use itertools::Itertools;
 
 use crate::{
-    api::{foxess, heartbeat, nextenergy},
+    api::{energy_provider::EnergyProvider, foxess, heartbeat, nextenergy},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
         series::Series,

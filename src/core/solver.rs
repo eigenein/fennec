@@ -41,7 +41,7 @@ pub struct Solver<'a> {
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
-    pub fn solve(self) -> Option<Rc<PartialSolution>> {
+    pub fn solve(self) -> Option<Rc<Solution>> {
         self.build().solve()
     }
 }
@@ -62,7 +62,7 @@ impl Solver<'_> {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    fn solve(self) -> Option<Rc<PartialSolution>> {
+    fn solve(self) -> Option<Rc<Solution>> {
         let start_instant = Instant::now();
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
@@ -84,7 +84,7 @@ impl Solver<'_> {
         // They are wrapped in `Rc`, because the vector is going to be replaced every hour,
         // but we still need to backtrack the entire solution path.
         let mut next_partial_solutions = (0..=usize::from(max_energy))
-            .map(|_| PartialSolution::new())
+            .map(|_| Solution::new())
             .map(Rc::new)
             .map(Some)
             .collect_vec();
@@ -149,10 +149,10 @@ impl Solver<'_> {
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
-        next_partial_solutions: &[Option<Rc<PartialSolution>>],
+        next_partial_solutions: &[Option<Rc<Solution>>],
         max_energy: WattHours,
         duration: TimeDelta,
-    ) -> Option<PartialSolution> {
+    ) -> Option<Solution> {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
             .min_residual_energy(min_residual_energy)
@@ -177,7 +177,7 @@ impl Solver<'_> {
                     next_partial_solutions[usize::from(next_energy)].clone()
                 }?;
                 if step.residual_energy_after >= min_residual_energy {
-                    Some(PartialSolution {
+                    Some(Solution {
                         net_loss: step.loss + next_partial_solution.net_loss,
                         next: Some(next_partial_solution),
                         step: Some(step),
@@ -243,8 +243,7 @@ impl Solver<'_> {
     }
 }
 
-/// TODO: this could be named just `Solution` – and potentially, the original `Solution` could be gone.
-pub struct PartialSolution {
+pub struct Solution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
 
@@ -256,13 +255,13 @@ pub struct PartialSolution {
     /// links via [`Rc`].
     ///
     /// TODO: these two [`Option`] attributes are linked, so join them.
-    next: Option<Rc<PartialSolution>>,
+    next: Option<Rc<Solution>>,
 
     /// The current (first step of the partial solution) step metrics.
     step: Option<Step>,
 }
 
-impl PartialSolution {
+impl Solution {
     pub const fn new() -> Self {
         Self { net_loss: Cost::ZERO, next: None, step: None }
     }

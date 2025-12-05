@@ -151,13 +151,14 @@ impl TimeSlotSequence {
                 *mode
             })
             .into_iter()
-            .flat_map(|(working_mode, intervals)| -> Result<_> {
-                // Compress the time spans:
-                let intervals = intervals.into_iter().collect_vec();
-                let interval = Interval::new(
-                    intervals.first().unwrap().0.start,
-                    intervals.last().unwrap().0.end,
-                );
+            .flat_map(|(working_mode, chunk)| -> Result<_> {
+                // Compress the intervals:
+                let interval = {
+                    let mut chunk = chunk.into_iter();
+                    let first = chunk.next().unwrap().0;
+                    let last = chunk.last().map_or_else(|| first, |(last, _)| last);
+                    Interval::new(first.start, last.end)
+                };
                 // And convert into FoxESS time slots:
                 Ok(into_time_slots(interval)
                     .flatten()

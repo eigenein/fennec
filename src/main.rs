@@ -81,7 +81,7 @@ async fn hunt(args: HuntArgs) -> Result {
 
     let now = Local::now().with_nanosecond(0).unwrap();
     let grid_rates: Series<_, _> =
-        nextenergy::Api::try_new()?.get_hourly_rates_48h(now.date_naive()).await?.collect();
+        nextenergy::Api::try_new()?.get_upcoming_rates(now).await?.collect();
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
 
@@ -99,7 +99,6 @@ async fn hunt(args: HuntArgs) -> Result {
                 statistics.household.hourly_stand_by_power[hour].unwrap_or(Kilowatts::ZERO);
             (time_range, Conditions { grid_rate, stand_by_power })
         })
-        .filter(move |(time_range, _)| time_range.end > now)
         .collect_vec();
     let solution = Solver::builder()
         .conditions(&conditions)

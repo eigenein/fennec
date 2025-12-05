@@ -17,16 +17,21 @@ impl Api {
     }
 
     #[instrument(skip_all)]
-    pub async fn get_hourly_rates_48h(
+    pub async fn get_upcoming_rates(
         &self,
-        first_date: NaiveDate,
+        since: DateTime<Local>,
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
-        let next_date = first_date.checked_add_days(Days::new(1)).unwrap();
-        Ok(self.get_hourly_rates(first_date).await?.chain(self.get_hourly_rates(next_date).await?))
+        let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
+        Ok(self
+            .get_hourly_rates(since.date_naive())
+            .await?
+            .chain(self.get_hourly_rates(next_date).await?)
+            .filter(move |(time_range, _)| time_range.end > since))
     }
 
+    /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
-    pub async fn get_hourly_rates(
+    async fn get_hourly_rates(
         &self,
         on: NaiveDate,
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
@@ -187,13 +192,13 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "makes the API request"]
-    async fn test_get_hourly_rates_48h_ok() -> Result {
-        let series =
-            Api::try_new()?.get_hourly_rates_48h(Local::now().date_naive()).await?.collect_vec();
+    async fn test_get_upcoming_rates_ok() -> Result {
+        let now = Local::now();
+        let series = Api::try_new()?.get_upcoming_rates(now).await?.collect_vec();
         assert!(series.len() >= 1);
         assert!(series.len() <= 48);
         let (time_range, _) = &series[0];
-        assert_eq!(time_range.start.hour(), 0);
+        assert_eq!(time_range.start.hour(), now.hour());
         Ok(())
     }
 }

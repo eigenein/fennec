@@ -4,7 +4,7 @@ mod energy;
 pub mod solution;
 pub mod step;
 
-use std::{iter::from_fn, ops::Range, rc::Rc, time::Instant};
+use std::{iter::from_fn, rc::Rc, time::Instant};
 
 use bon::{Builder, bon, builder};
 use chrono::{DateTime, Local, TimeDelta};
@@ -25,14 +25,20 @@ use crate::{
         working_mode::WorkingMode,
     },
     prelude::*,
-    quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    quantity::{
+        cost::Cost,
+        energy::KilowattHours,
+        power::Kilowatts,
+        rate::KilowattHourRate,
+        time_range::TimeRange,
+    },
     statistics::BatteryParameters,
 };
 
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
-    conditions: &'a [(Range<DateTime<Local>>, Conditions)],
+    conditions: &'a [(TimeRange, Conditions)],
     working_modes: EnumSet<WorkingMode>,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
@@ -93,7 +99,7 @@ impl Solver<'_> {
 
         // Going backwards:
         for (time_range, conditions) in self.conditions.iter().rev() {
-            let step_duration = if time_range.contains(&self.now) {
+            let step_duration = if time_range.contains(self.now) {
                 time_range.end - self.now
             } else {
                 time_range.end - time_range.start
@@ -107,7 +113,7 @@ impl Solver<'_> {
             next_partial_solutions = (0..=max_energy.0)
                 .map(|initial_residual_energy_watt_hours| {
                     self.optimise_step()
-                        .time_range(time_range.clone())
+                        .time_range(*time_range)
                         .conditions(conditions)
                         .initial_residual_energy(KilowattHours::from(WattHours(
                             initial_residual_energy_watt_hours,
@@ -149,7 +155,7 @@ impl Solver<'_> {
     #[builder]
     fn optimise_step(
         &self,
-        time_range: Range<DateTime<Local>>,
+        time_range: TimeRange,
         conditions: &Conditions,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
@@ -182,7 +188,7 @@ impl Solver<'_> {
                     Some(PartialSolution {
                         net_loss: step.loss + next_partial_solution.net_loss,
                         next: Some(next_partial_solution),
-                        step: Some((time_range.clone(), step)),
+                        step: Some((time_range, step)),
                     })
                 } else {
                     // Do not allow dropping below the minimally allowed state-of-charge:
@@ -260,7 +266,7 @@ struct PartialSolution {
     /// Technically, it is not needed to store the timestamp here because I could always zip
     /// the back track with the original metrics, but having it here makes it much easier to work with
     /// (and to ensure it is working properly).
-    step: Option<(Range<DateTime<Local>>, Step)>,
+    step: Option<(TimeRange, Step)>,
 }
 
 impl PartialSolution {
@@ -269,14 +275,14 @@ impl PartialSolution {
     }
 
     /// Track the optimal solution till the end.
-    fn backtrack(&self) -> impl Iterator<Item = Point<Range<DateTime<Local>>, Step>> {
+    fn backtrack(&self) -> impl Iterator<Item = Point<TimeRange, Step>> {
         let mut pointer = Some(self);
         from_fn(move || {
             // I'll need to yield the current step, so clone:
             let current_solution = pointer?;
             // …and advance:
             pointer = current_solution.next.as_deref();
-            current_solution.step.clone() // TODO: can I do without `clone()`?
+            current_solution.step
         })
     }
 }

@@ -1,9 +1,11 @@
-use std::ops::Range;
-
 use async_trait::async_trait;
 use chrono::{DateTime, Days, Local, NaiveDate};
 
-use crate::{core::series::Point, prelude::*, quantity::rate::KilowattHourRate};
+use crate::{
+    core::series::Point,
+    prelude::*,
+    quantity::{rate::KilowattHourRate, time_range::TimeRange},
+};
 
 #[async_trait]
 pub trait EnergyProvider: Sync {
@@ -11,7 +13,7 @@ pub trait EnergyProvider: Sync {
     async fn get_upcoming_rates(
         &self,
         since: DateTime<Local>,
-    ) -> Result<Vec<Point<Range<DateTime<Local>>, KilowattHourRate>>> {
+    ) -> Result<Vec<Point<TimeRange, KilowattHourRate>>> {
         let mut rates = self.get_rates(since.date_naive()).await?;
         let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
         rates.extend(self.get_rates(next_date).await?);
@@ -19,8 +21,5 @@ pub trait EnergyProvider: Sync {
         Ok(rates)
     }
 
-    async fn get_rates(
-        &self,
-        on: NaiveDate,
-    ) -> Result<Vec<Point<Range<DateTime<Local>>, KilowattHourRate>>>;
+    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<TimeRange, KilowattHourRate>>>;
 }

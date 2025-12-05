@@ -1,10 +1,6 @@
-use std::ops::Range;
-
-use chrono::{DateTime, Local};
-
 use crate::{
     core::{series::Series, solver::step::Step},
-    quantity::cost::Cost,
+    quantity::{cost::Cost, time_range::TimeRange},
 };
 
 pub struct Solution {
@@ -14,7 +10,7 @@ pub struct Solution {
     pub net_loss_without_battery: Cost,
 
     /// The simulated working plan.
-    pub steps: Series<Range<DateTime<Local>>, Step>,
+    pub steps: Series<TimeRange, Step>,
 }
 
 impl Solution {

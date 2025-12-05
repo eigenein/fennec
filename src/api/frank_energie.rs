@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use async_trait::async_trait;
 use chrono::{DateTime, Local, NaiveDate};
 use reqwest::Client;
@@ -9,7 +7,7 @@ use crate::{
     api::{client, energy_provider::EnergyProvider},
     core::series::Point,
     prelude::*,
-    quantity::rate::KilowattHourRate,
+    quantity::{rate::KilowattHourRate, time_range::TimeRange},
 };
 
 pub struct Api {
@@ -26,10 +24,7 @@ impl Api {
 #[async_trait]
 impl EnergyProvider for Api {
     #[instrument(fields(on = ?on), skip_all)]
-    async fn get_rates(
-        &self,
-        on: NaiveDate,
-    ) -> Result<Vec<Point<Range<DateTime<Local>>, KilowattHourRate>>> {
+    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<TimeRange, KilowattHourRate>>> {
         info!("Fetching…");
         Ok(self
             .client
@@ -43,7 +38,7 @@ impl EnergyProvider for Api {
             .market_prices
             .electricity
             .into_iter()
-            .map(|item| (item.from..item.till, KilowattHourRate::from(item.all_in)))
+            .map(|item| (TimeRange::new(item.from, item.till), KilowattHourRate::from(item.all_in)))
             .collect())
     }
 }

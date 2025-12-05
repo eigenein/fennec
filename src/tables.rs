@@ -1,6 +1,3 @@
-use std::ops::Range;
-
-use chrono::{DateTime, Local};
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
@@ -16,12 +13,13 @@ use crate::{
         energy::KilowattHours,
         power::{Kilowatts, Watts},
         rate::KilowattHourRate,
+        time_range::TimeRange,
     },
 };
 
 pub fn build_steps_table(
-    conditions: &[Point<Range<DateTime<Local>>, Conditions>],
-    steps: &[Point<Range<DateTime<Local>>, Step>],
+    conditions: &[Point<TimeRange, Conditions>],
+    steps: &[Point<TimeRange, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Table {

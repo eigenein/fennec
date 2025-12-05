@@ -205,14 +205,22 @@ pub enum EnergyProvider {
     NextEnergy,
 
     /// https://www.frankenergie.nl
-    FrankEnergie,
+    FrankEnergieQuarterly,
+
+    /// https://www.frankenergie.nl
+    FrankEnergieHourly,
 }
 
 impl EnergyProvider {
     pub fn try_new(self) -> Result<Box<dyn api::energy_provider::EnergyProvider>> {
         Ok(match self {
             Self::NextEnergy => Box::new(next_energy::Api::try_new()?),
-            Self::FrankEnergie => Box::new(frank_energie::Api::try_new()?),
+            Self::FrankEnergieQuarterly => {
+                Box::new(frank_energie::Api::try_new(frank_energie::Resolution::Quarterly)?)
+            }
+            Self::FrankEnergieHourly => {
+                Box::new(frank_energie::Api::try_new(frank_energie::Resolution::Hourly)?)
+            }
         })
     }
 }

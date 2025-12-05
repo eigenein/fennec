@@ -12,11 +12,14 @@ use crate::{
     quantity::rate::KilowattHourRate,
 };
 
-pub struct Api(Client);
+pub struct Api {
+    client: Client,
+    resolution: Resolution,
+}
 
 impl Api {
-    pub fn try_new() -> Result<Self> {
-        Ok(Self(client::try_new()?))
+    pub fn try_new(resolution: Resolution) -> Result<Self> {
+        Ok(Self { client: client::try_new()?, resolution })
     }
 }
 
@@ -29,9 +32,9 @@ impl EnergyProvider for Api {
     ) -> Result<Vec<Point<Range<DateTime<Local>>, KilowattHourRate>>> {
         info!("Fetching…");
         Ok(self
-            .0
+            .client
             .post("https://www.frankenergie.nl/graphql")
-            .json(&Request::new(on))
+            .json(&Request::new(on, self.resolution))
             .send()
             .await?
             .json::<Response>()
@@ -56,11 +59,11 @@ struct Request {
 }
 
 impl Request {
-    const fn new(date: NaiveDate) -> Self {
+    const fn new(date: NaiveDate, resolution: Resolution) -> Self {
         Self {
             operation_name: "MarketPrices",
             query: "query MarketPrices($date: String!, $resolution: PriceResolution!) { marketPrices(date: $date, resolution: $resolution) { electricityPrices { from till allInPrice } } }",
-            variables: Variables::new(date),
+            variables: Variables { date, resolution },
         }
     }
 }
@@ -71,14 +74,8 @@ struct Variables {
     resolution: Resolution,
 }
 
-impl Variables {
-    const fn new(date: NaiveDate) -> Self {
-        Self { date, resolution: Resolution::Quarterly }
-    }
-}
-
-#[derive(Serialize)]
-enum Resolution {
+#[derive(Copy, Clone, Serialize)]
+pub enum Resolution {
     #[serde(rename = "PT15M")]
     Quarterly,
 
@@ -122,7 +119,7 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new()?.get_upcoming_rates(now).await?;
+        let series = Api::try_new(Resolution::Quarterly)?.get_upcoming_rates(now).await?;
         assert!(series.len() >= 1);
         assert!(series.len() <= 2 * 24 * 4);
         let (time_range, _) = &series[0];

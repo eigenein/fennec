@@ -11,17 +11,12 @@ mod tables;
 
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
-use itertools::Itertools;
 
 use crate::{
     api::{foxess, heartbeat},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
-    core::{
-        series::Series,
-        solver::{Solver, conditions::Conditions},
-    },
+    core::{series::Series, solver::Solver},
     prelude::*,
-    quantity::power::Kilowatts,
     statistics::Statistics,
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
@@ -94,17 +89,9 @@ async fn hunt(args: HuntArgs) -> Result {
         fox_ess.get_device_details(&args.fox_ess_api.serial_number).await?.total_capacity();
     info!(?residual_energy, ?total_capacity, "Fetched battery details");
 
-    let conditions = grid_rates
-        .into_iter()
-        .map(|(time_range, grid_rate)| {
-            let hour = time_range.start.hour() as usize;
-            let stand_by_power =
-                statistics.household.hourly_stand_by_power[hour].unwrap_or(Kilowatts::ZERO);
-            (time_range, Conditions { grid_rate, stand_by_power })
-        })
-        .collect_vec();
     let solution = Solver::builder()
-        .conditions(&conditions)
+        .grid_rates(&grid_rates)
+        .hourly_stand_by_power(&statistics.household.hourly_stand_by_power)
         .working_modes(working_modes)
         .residual_energy(residual_energy)
         .capacity(total_capacity)
@@ -114,10 +101,7 @@ async fn hunt(args: HuntArgs) -> Result {
         .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
-    println!(
-        "{}",
-        build_steps_table(&conditions, &solution.steps, args.battery_args, total_capacity),
-    );
+    println!("{}", build_steps_table(&solution.steps, args.battery_args, total_capacity),);
 
     let schedule: Series<_, _> =
         solution.steps.into_iter().map(|(time, step)| (time, step.working_mode)).collect();

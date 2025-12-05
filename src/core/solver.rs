@@ -1,5 +1,4 @@
 mod battery;
-pub mod conditions;
 mod energy;
 pub mod solution;
 pub mod step;
@@ -7,21 +6,14 @@ pub mod step;
 use std::{iter::from_fn, rc::Rc, time::Instant};
 
 use bon::{Builder, bon, builder};
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local, TimeDelta, Timelike};
 use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
     cli::BatteryArgs,
     core::{
-        series::Point,
-        solver::{
-            battery::Battery,
-            conditions::Conditions,
-            energy::WattHours,
-            solution::Solution,
-            step::Step,
-        },
+        solver::{battery::Battery, energy::WattHours, solution::Solution, step::Step},
         working_mode::WorkingMode,
     },
     prelude::*,
@@ -38,7 +30,8 @@ use crate::{
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
-    conditions: &'a [(Interval, Conditions)],
+    grid_rates: &'a [(Interval, KilowattHourRate)],
+    hourly_stand_by_power: &'a [Option<Kilowatts>; 24],
     working_modes: EnumSet<WorkingMode>,
     residual_energy: KilowattHours,
     capacity: KilowattHours,
@@ -79,7 +72,7 @@ impl Solver<'_> {
             ?min_residual_energy,
             residual_energy = ?self.residual_energy,
             ?max_energy,
-            n_intervals = self.conditions.len(),
+            n_intervals = self.grid_rates.len(),
             "Optimizing…",
         );
 
@@ -98,7 +91,7 @@ impl Solver<'_> {
             .collect_vec();
 
         // Going backwards:
-        for (interval, conditions) in self.conditions.iter().rev() {
+        for (interval, grid_rate) in self.grid_rates.iter().rev().copied() {
             let step_duration = if interval.contains(self.now) {
                 interval.end - self.now
             } else {
@@ -106,15 +99,17 @@ impl Solver<'_> {
             };
 
             // Average stand-by power at this hour of a day:
-            net_loss_without_battery +=
-                self.loss(conditions.grid_rate, conditions.stand_by_power * step_duration);
+            let stand_by_power = self.hourly_stand_by_power[interval.start.hour() as usize]
+                .unwrap_or(Kilowatts::ZERO);
+            net_loss_without_battery += self.loss(grid_rate, stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:
             next_partial_solutions = (0..=max_energy.0)
                 .map(|initial_residual_energy_watt_hours| {
                     self.optimise_step()
-                        .interval(*interval)
-                        .conditions(conditions)
+                        .interval(interval)
+                        .stand_by_power(stand_by_power)
+                        .grid_rate(grid_rate)
                         .initial_residual_energy(KilowattHours::from(WattHours(
                             initial_residual_energy_watt_hours,
                         )))
@@ -136,7 +131,7 @@ impl Solver<'_> {
         let solution = Solution {
             net_loss: initial_partial_solution.net_loss,
             net_loss_without_battery,
-            steps: initial_partial_solution.backtrack().collect(),
+            steps: initial_partial_solution.backtrack().cloned().collect(),
         };
         info!(
             net_loss = ?solution.net_loss,
@@ -156,7 +151,8 @@ impl Solver<'_> {
     fn optimise_step(
         &self,
         interval: Interval,
-        conditions: &Conditions,
+        stand_by_power: Kilowatts,
+        grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
         next_partial_solutions: &[Option<Rc<PartialSolution>>],
@@ -174,7 +170,8 @@ impl Solver<'_> {
             .filter_map(|working_mode| {
                 let step = self
                     .simulate_step()
-                    .conditions(conditions)
+                    .grid_rate(grid_rate)
+                    .stand_by_power(stand_by_power)
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery)
                     .working_mode(working_mode)
@@ -204,7 +201,8 @@ impl Solver<'_> {
     fn simulate_step(
         &self,
         mut battery: Battery,
-        conditions: &Conditions,
+        stand_by_power: Kilowatts,
+        grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
         duration: TimeDelta,
@@ -212,10 +210,10 @@ impl Solver<'_> {
         // Requested external power flow to (positive) or from (negative) the battery:
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
-            WorkingMode::Backup => (-conditions.stand_by_power).max(Kilowatts::ZERO),
+            WorkingMode::Backup => (-stand_by_power).max(Kilowatts::ZERO),
             WorkingMode::Charge => self.battery_args.charging_power,
             WorkingMode::Discharge => -self.battery_args.discharging_power,
-            WorkingMode::Balance => (-conditions.stand_by_power)
+            WorkingMode::Balance => (-stand_by_power)
                 .clamp(-self.battery_args.discharging_power, self.battery_args.charging_power),
         };
 
@@ -224,14 +222,16 @@ impl Solver<'_> {
 
         // Total household energy balance:
         let grid_consumption =
-            battery_external_power * battery_active_time + conditions.stand_by_power * duration;
+            battery_external_power * battery_active_time + stand_by_power * duration;
 
         Step {
+            grid_rate,
+            stand_by_power,
             working_mode,
             residual_energy_before: initial_residual_energy,
             residual_energy_after: battery.residual_energy(),
             grid_consumption,
-            loss: self.loss(conditions.grid_rate, grid_consumption),
+            loss: self.loss(grid_rate, grid_consumption),
         }
     }
 
@@ -275,14 +275,14 @@ impl PartialSolution {
     }
 
     /// Track the optimal solution till the end.
-    fn backtrack(&self) -> impl Iterator<Item = Point<Interval, Step>> {
+    fn backtrack(&self) -> impl Iterator<Item = &(Interval, Step)> {
         let mut pointer = Some(self);
         from_fn(move || {
             // I'll need to yield the current step, so clone:
             let current_solution = pointer?;
             // …and advance:
             pointer = current_solution.next.as_deref();
-            current_solution.step
+            current_solution.step.as_ref()
         })
     }
 }

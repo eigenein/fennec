@@ -4,8 +4,8 @@ use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     cli::BatteryArgs,
     core::{
-        series::Point,
-        solver::{conditions::Conditions, step::Step},
+        series::{Aggregate, Point},
+        solver::step::Step,
         working_mode::WorkingMode as CoreWorkingMode,
     },
     quantity::{
@@ -18,16 +18,12 @@ use crate::{
 };
 
 pub fn build_steps_table(
-    conditions: &[Point<Interval, Conditions>],
     steps: &[Point<Interval, Step>],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Table {
-    #[expect(clippy::cast_precision_loss)]
-    let average_rate =
-        conditions.iter().map(|(_, conditions)| conditions.grid_rate).sum::<KilowattHourRate>()
-            / conditions.len() as f64;
-
+    let median_rate =
+        steps.iter().map(|(_, step)| step.grid_rate).median().unwrap_or(KilowattHourRate::ZERO);
     let min_residual_energy = capacity * (f64::from(battery_args.min_soc_percent) / 100.0);
 
     let mut table = Table::new();
@@ -44,20 +40,19 @@ pub fn build_steps_table(
         "Grid usage",
         "Loss",
     ]);
-    for ((rate_range, conditions), (step_range, step)) in conditions.iter().zip(steps) {
-        assert_eq!(rate_range, step_range);
+    for (interval, step) in steps {
         table.add_row(vec![
-            Cell::new(rate_range.start.format("%H:%M")),
-            Cell::new(rate_range.end.format("%H:%M")).add_attribute(Attribute::Dim),
-            Cell::new(conditions.grid_rate).fg(if conditions.grid_rate >= average_rate {
+            Cell::new(interval.start.format("%H:%M")),
+            Cell::new(interval.end.format("%H:%M")).add_attribute(Attribute::Dim),
+            Cell::new(step.grid_rate).fg(if step.grid_rate >= median_rate {
                 Color::Red
             } else {
                 Color::Green
             }),
-            Cell::new(conditions.stand_by_power).set_alignment(CellAlignment::Right).fg(
-                if conditions.stand_by_power <= Kilowatts::ZERO {
+            Cell::new(step.stand_by_power).set_alignment(CellAlignment::Right).fg(
+                if step.stand_by_power <= Kilowatts::ZERO {
                     Color::Green
-                } else if conditions.stand_by_power <= battery_args.discharging_power {
+                } else if step.stand_by_power <= battery_args.discharging_power {
                     Color::DarkYellow
                 } else {
                     Color::Red

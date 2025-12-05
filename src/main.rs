@@ -9,8 +9,6 @@ mod quantity;
 mod statistics;
 mod tables;
 
-use std::iter::once;
-
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
@@ -100,23 +98,6 @@ async fn hunt(args: HuntArgs) -> Result {
             let stand_by_power =
                 statistics.household.hourly_stand_by_power[hour].unwrap_or(Kilowatts::ZERO);
             (time_range, Conditions { grid_rate, stand_by_power })
-        })
-        .flat_map(|(time_range, conditions)| {
-            // TODO: extract and test:
-            let step = (time_range.end - time_range.start) / (i32::from(args.n_hour_splits) + 1);
-            (0..args.n_hour_splits)
-                .map(move |i| {
-                    // First N time spans:
-                    let i = i32::from(i);
-                    ((time_range.start + step * i)..(time_range.start + step * (i + 1)), conditions)
-                })
-                .chain(once(
-                    // Last time span:
-                    (
-                        (time_range.start + step * i32::from(args.n_hour_splits))..time_range.end,
-                        conditions,
-                    ),
-                ))
         })
         .filter(move |(time_range, _)| time_range.end > now)
         .collect_vec();

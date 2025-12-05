@@ -1,19 +1,19 @@
 //! [NextEnergy](https://www.nextenergy.nl/actuele-energieprijzen) client.
 
-use std::{ops::Range, str::FromStr, time::Duration};
+use std::{ops::Range, str::FromStr};
 
 use chrono::{DateTime, Days, Local, MappedLocalTime, NaiveDate, TimeDelta};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{core::series::Point, prelude::*, quantity::rate::KilowattHourRate};
+use crate::{api::client, core::series::Point, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api(Client);
 
 impl Api {
     pub fn try_new() -> Result<Self> {
-        Ok(Self(Client::builder().timeout(Duration::from_secs(10)).build()?))
+        Ok(Self(client::try_new()?))
     }
 
     #[instrument(skip_all)]

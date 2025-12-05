@@ -1,15 +1,10 @@
-use std::time::Duration;
-
 use reqwest::Url;
 
-use crate::prelude::*;
+use crate::{api::client, prelude::*};
 
 #[instrument(skip_all)]
-pub async fn send(url: Url) {
+pub async fn send(url: Url) -> Result {
     info!(%url, "Sending a heartbeat…");
-    if let Err(error) =
-        reqwest::Client::new().post(url).timeout(Duration::from_secs(10)).send().await
-    {
-        warn!("Failed to send the heartbeat: {error:#}");
-    }
+    client::try_new()?.post(url).send().await?;
+    Ok(())
 }

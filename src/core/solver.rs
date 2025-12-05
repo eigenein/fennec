@@ -1,6 +1,5 @@
 mod battery;
 mod energy;
-pub mod solution;
 pub mod step;
 
 use std::{iter::from_fn, rc::Rc, time::Instant};
@@ -13,7 +12,7 @@ use itertools::Itertools;
 use crate::{
     cli::BatteryArgs,
     core::{
-        solver::{battery::Battery, energy::WattHours, solution::Solution, step::Step},
+        solver::{battery::Battery, energy::WattHours, step::Step},
         working_mode::WorkingMode,
     },
     prelude::*,
@@ -42,7 +41,7 @@ pub struct Solver<'a> {
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
-    pub fn solve(self) -> Option<Solution> {
+    pub fn solve(self) -> Option<Rc<PartialSolution>> {
         self.build().solve()
     }
 }
@@ -63,7 +62,7 @@ impl Solver<'_> {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    fn solve(self) -> Option<Solution> {
+    fn solve(self) -> Option<Rc<PartialSolution>> {
         let start_instant = Instant::now();
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
@@ -125,14 +124,13 @@ impl Solver<'_> {
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
         let initial_energy = WattHours::from(self.residual_energy);
-        let initial_partial_solution =
+        let solution =
             next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
-        let solution = Solution { initial_partial_solution, net_loss_without_battery };
         info!(
-            net_loss = ?solution.initial_partial_solution.net_loss,
-            without_battery = ?solution.net_loss_without_battery,
-            profit = ?solution.profit(),
+            net_loss = ?solution.net_loss,
+            without_battery = ?net_loss_without_battery,
+            profit = ?(net_loss_without_battery - solution.net_loss),
             elapsed = ?start_instant.elapsed(),
             "Optimized",
         );

@@ -102,7 +102,7 @@ async fn hunt(args: HuntArgs) -> Result {
         .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
-    let steps = solution.initial_partial_solution.backtrack().collect_vec();
+    let steps = solution.backtrack().collect_vec();
     println!("{}", build_steps_table(&steps, args.battery_args, total_capacity));
 
     let schedule: Series<_, _> =

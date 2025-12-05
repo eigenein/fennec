@@ -3,7 +3,7 @@
 # Fennec
 
 [FoxESS plug-in home battery](https://www.nextenergy.nl/artikelen/voor-batterij-fanaten) steering based
-on [NextEnergy real-time prices](https://www.nextenergy.nl/actuele-energieprijzen).
+on [Next Energy](https://www.nextenergy.nl/actuele-energieprijzen) or [Frank Energie](https://www.frankenergie.nl/nl/dynamisch-energiecontract/dynamische-energieprijzen) real-time rates.
 
 [![Build status](https://img.shields.io/github/actions/workflow/status/eigenein/fennec/check.yaml?style=for-the-badge)](https://github.com/eigenein/fennec/actions/workflows/check.yaml)
 [![Codecov](https://img.shields.io/codecov/c/github/eigenein/fennec?style=for-the-badge)](https://app.codecov.io/gh/eigenein/fennec)

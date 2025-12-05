@@ -1,7 +1,4 @@
-use crate::{
-    core::{series::Series, solver::step::Step},
-    quantity::{cost::Cost, interval::Interval},
-};
+use crate::{core::solver::step::Step, quantity::cost::Cost};
 
 pub struct Solution {
     pub net_loss: Cost,
@@ -10,7 +7,7 @@ pub struct Solution {
     pub net_loss_without_battery: Cost,
 
     /// The simulated working plan.
-    pub steps: Series<Interval, Step>,
+    pub steps: Vec<Step>,
 }
 
 impl Solution {

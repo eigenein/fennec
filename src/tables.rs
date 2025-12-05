@@ -3,27 +3,22 @@ use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, prese
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     cli::BatteryArgs,
-    core::{
-        series::{Aggregate, Point},
-        solver::step::Step,
-        working_mode::WorkingMode as CoreWorkingMode,
-    },
+    core::{series::Aggregate, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     quantity::{
         cost::Cost,
         energy::KilowattHours,
-        interval::Interval,
         power::{Kilowatts, Watts},
         rate::KilowattHourRate,
     },
 };
 
 pub fn build_steps_table(
-    steps: &[Point<Interval, Step>],
+    steps: &[Step],
     battery_args: BatteryArgs,
     capacity: KilowattHours,
 ) -> Table {
     let median_rate =
-        steps.iter().map(|(_, step)| step.grid_rate).median().unwrap_or(KilowattHourRate::ZERO);
+        steps.iter().map(|step| step.grid_rate).median().unwrap_or(KilowattHourRate::ZERO);
     let min_residual_energy = capacity * (f64::from(battery_args.min_soc_percent) / 100.0);
 
     let mut table = Table::new();
@@ -40,10 +35,10 @@ pub fn build_steps_table(
         "Grid usage",
         "Loss",
     ]);
-    for (interval, step) in steps {
+    for step in steps {
         table.add_row(vec![
-            Cell::new(interval.start.format("%H:%M")),
-            Cell::new(interval.end.format("%H:%M")).add_attribute(Attribute::Dim),
+            Cell::new(step.interval.start.format("%H:%M")),
+            Cell::new(step.interval.end.format("%H:%M")).add_attribute(Attribute::Dim),
             Cell::new(step.grid_rate).fg(if step.grid_rate >= median_rate {
                 Color::Red
             } else {

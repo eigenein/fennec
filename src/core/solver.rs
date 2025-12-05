@@ -170,6 +170,7 @@ impl Solver<'_> {
             .filter_map(|working_mode| {
                 let step = self
                     .simulate_step()
+                    .interval(interval)
                     .grid_rate(grid_rate)
                     .stand_by_power(stand_by_power)
                     .initial_residual_energy(initial_residual_energy)
@@ -185,7 +186,7 @@ impl Solver<'_> {
                     Some(PartialSolution {
                         net_loss: step.loss + next_partial_solution.net_loss,
                         next: Some(next_partial_solution),
-                        step: Some((interval, step)),
+                        step: Some(step),
                     })
                 } else {
                     // Do not allow dropping below the minimally allowed state-of-charge:
@@ -201,6 +202,7 @@ impl Solver<'_> {
     fn simulate_step(
         &self,
         mut battery: Battery,
+        interval: Interval,
         stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
@@ -225,6 +227,7 @@ impl Solver<'_> {
             battery_external_power * battery_active_time + stand_by_power * duration;
 
         Step {
+            interval,
             grid_rate,
             stand_by_power,
             working_mode,
@@ -261,12 +264,8 @@ struct PartialSolution {
     /// TODO: these two [`Option`] attributes are linked, so join them.
     next: Option<Rc<PartialSolution>>,
 
-    /// The current step metrics.
-    ///
-    /// Technically, it is not needed to store the timestamp here because I could always zip
-    /// the back track with the original metrics, but having it here makes it much easier to work with
-    /// (and to ensure it is working properly).
-    step: Option<(Interval, Step)>,
+    /// The current (first step of the partial solution) step metrics.
+    step: Option<Step>,
 }
 
 impl PartialSolution {
@@ -275,7 +274,7 @@ impl PartialSolution {
     }
 
     /// Track the optimal solution till the end.
-    fn backtrack(&self) -> impl Iterator<Item = &(Interval, Step)> {
+    fn backtrack(&self) -> impl Iterator<Item = &Step> {
         let mut pointer = Some(self);
         from_fn(move || {
             // I'll need to yield the current step, so clone:

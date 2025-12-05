@@ -98,11 +98,11 @@ impl Solver<'_> {
             .collect_vec();
 
         // Going backwards:
-        for (time_range, conditions) in self.conditions.iter().rev() {
-            let step_duration = if time_range.contains(self.now) {
-                time_range.end - self.now
+        for (interval, conditions) in self.conditions.iter().rev() {
+            let step_duration = if interval.contains(self.now) {
+                interval.end - self.now
             } else {
-                time_range.duration()
+                interval.duration()
             };
 
             // Average stand-by power at this hour of a day:
@@ -113,7 +113,7 @@ impl Solver<'_> {
             next_partial_solutions = (0..=max_energy.0)
                 .map(|initial_residual_energy_watt_hours| {
                     self.optimise_step()
-                        .time_range(*time_range)
+                        .interval(*interval)
                         .conditions(conditions)
                         .initial_residual_energy(KilowattHours::from(WattHours(
                             initial_residual_energy_watt_hours,
@@ -155,7 +155,7 @@ impl Solver<'_> {
     #[builder]
     fn optimise_step(
         &self,
-        time_range: Interval,
+        interval: Interval,
         conditions: &Conditions,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
@@ -188,7 +188,7 @@ impl Solver<'_> {
                     Some(PartialSolution {
                         net_loss: step.loss + next_partial_solution.net_loss,
                         next: Some(next_partial_solution),
-                        step: Some((time_range, step)),
+                        step: Some((interval, step)),
                     })
                 } else {
                     // Do not allow dropping below the minimally allowed state-of-charge:

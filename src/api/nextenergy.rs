@@ -2,7 +2,7 @@
 
 use std::{ops::Range, str::FromStr};
 
-use chrono::{DateTime, Days, Local, MappedLocalTime, NaiveDate, TimeDelta};
+use chrono::{DateTime, Local, MappedLocalTime, NaiveDate, TimeDelta};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
@@ -20,7 +20,9 @@ impl Api {
     pub fn try_new() -> Result<Self> {
         Ok(Self(client::try_new()?))
     }
+}
 
+impl EnergyProvider for Api {
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
     async fn get_rates(
@@ -66,21 +68,6 @@ impl Api {
             }
         });
         Ok(series)
-    }
-}
-
-impl EnergyProvider for Api {
-    #[instrument(skip_all)]
-    async fn get_upcoming_rates(
-        &self,
-        since: DateTime<Local>,
-    ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
-        let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
-        Ok(self
-            .get_rates(since.date_naive())
-            .await?
-            .chain(self.get_rates(next_date).await?)
-            .filter(move |(time_range, _)| time_range.end > since))
     }
 }
 

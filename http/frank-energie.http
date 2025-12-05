@@ -1,0 +1,8 @@
+POST https://www.frankenergie.nl/graphql
+Content-Type: application/json
+
+{
+  "variables": {"date": "2025-12-05", "resolution": "PT15M"},
+  "operationName": "MarketPrices",
+  "query": "query MarketPrices($date: String!, $resolution: PriceResolution!) { marketPrices(date: $date, resolution: $resolution) { electricityPrices { from till allInPrice } } }"
+}

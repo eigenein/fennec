@@ -128,13 +128,9 @@ impl Solver<'_> {
         let initial_partial_solution =
             next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
-        let solution = Solution {
-            net_loss: initial_partial_solution.net_loss,
-            net_loss_without_battery,
-            steps: initial_partial_solution.backtrack().cloned().collect(),
-        };
+        let solution = Solution { initial_partial_solution, net_loss_without_battery };
         info!(
-            net_loss = ?solution.net_loss,
+            net_loss = ?solution.initial_partial_solution.net_loss,
             without_battery = ?solution.net_loss_without_battery,
             profit = ?solution.profit(),
             elapsed = ?start_instant.elapsed(),
@@ -250,7 +246,7 @@ impl Solver<'_> {
 }
 
 /// TODO: this could be named just `Solution` – and potentially, the original `Solution` could be gone.
-struct PartialSolution {
+pub struct PartialSolution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
 
@@ -274,14 +270,14 @@ impl PartialSolution {
     }
 
     /// Track the optimal solution till the end.
-    fn backtrack(&self) -> impl Iterator<Item = &Step> {
+    pub fn backtrack(&self) -> impl Iterator<Item = Step> {
         let mut pointer = Some(self);
         from_fn(move || {
             // I'll need to yield the current step, so clone:
             let current_solution = pointer?;
             // …and advance:
             pointer = current_solution.next.as_deref();
-            current_solution.step.as_ref()
+            current_solution.step.clone()
         })
     }
 }

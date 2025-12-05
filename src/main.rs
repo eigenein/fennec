@@ -11,6 +11,7 @@ mod tables;
 
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
+use itertools::Itertools;
 
 use crate::{
     api::{foxess, heartbeat},
@@ -101,10 +102,11 @@ async fn hunt(args: HuntArgs) -> Result {
         .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
-    println!("{}", build_steps_table(&solution.steps, args.battery_args, total_capacity),);
+    let steps = solution.initial_partial_solution.backtrack().collect_vec();
+    println!("{}", build_steps_table(&steps, args.battery_args, total_capacity));
 
     let schedule: Series<_, _> =
-        solution.steps.into_iter().map(|step| (step.interval, step.working_mode)).collect();
+        steps.into_iter().map(|step| (step.interval, step.working_mode)).collect();
     let time_slot_sequence =
         foxess::TimeSlotSequence::from_schedule(schedule, now, &args.battery_args)?;
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));

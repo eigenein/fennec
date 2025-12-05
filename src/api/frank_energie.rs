@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use async_trait::async_trait;
 use chrono::{DateTime, Local, NaiveDate};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -19,12 +20,13 @@ impl Api {
     }
 }
 
+#[async_trait]
 impl EnergyProvider for Api {
     #[instrument(fields(on = ?on), skip_all)]
     async fn get_rates(
         &self,
         on: NaiveDate,
-    ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
+    ) -> Result<Vec<Point<Range<DateTime<Local>>, KilowattHourRate>>> {
         info!("Fetching…");
         Ok(self
             .0
@@ -38,7 +40,8 @@ impl EnergyProvider for Api {
             .market_prices
             .electricity
             .into_iter()
-            .map(|item| (item.from..item.till, KilowattHourRate::from(item.all_in))))
+            .map(|item| (item.from..item.till, KilowattHourRate::from(item.all_in)))
+            .collect())
     }
 }
 
@@ -78,6 +81,9 @@ impl Variables {
 enum Resolution {
     #[serde(rename = "PT15M")]
     Quarterly,
+
+    #[serde(rename = "PT60M")]
+    Hourly,
 }
 
 #[derive(Deserialize)]
@@ -109,7 +115,6 @@ struct ElectricityPrice {
 #[cfg(test)]
 mod tests {
     use chrono::Timelike;
-    use itertools::Itertools;
 
     use super::*;
 
@@ -117,7 +122,7 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new()?.get_upcoming_rates(now).await?.collect_vec();
+        let series = Api::try_new()?.get_upcoming_rates(now).await?;
         assert!(series.len() >= 1);
         assert!(series.len() <= 2 * 24 * 4);
         let (time_range, _) = &series[0];

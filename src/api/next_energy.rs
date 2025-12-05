@@ -2,6 +2,7 @@
 
 use std::{ops::Range, str::FromStr};
 
+use async_trait::async_trait;
 use chrono::{DateTime, Local, MappedLocalTime, NaiveDate, TimeDelta};
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
@@ -22,13 +23,14 @@ impl Api {
     }
 }
 
+#[async_trait]
 impl EnergyProvider for Api {
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
     async fn get_rates(
         &self,
         on: NaiveDate,
-    ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
+    ) -> Result<Vec<Point<Range<DateTime<Local>>, KilowattHourRate>>> {
         info!("Fetching…");
         let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices_NEW/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
@@ -67,7 +69,7 @@ impl EnergyProvider for Api {
                 }
             }
         });
-        Ok(series)
+        Ok(series.collect())
     }
 }
 
@@ -188,7 +190,7 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new()?.get_upcoming_rates(now).await?.collect_vec();
+        let series = Api::try_new()?.get_upcoming_rates(now).await?;
         assert!(series.len() >= 1);
         assert!(series.len() <= 48);
         let (time_range, _) = &series[0];

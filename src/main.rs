@@ -14,7 +14,7 @@ use clap::{Parser, crate_version};
 use itertools::Itertools;
 
 use crate::{
-    api::{energy_provider::EnergyProvider, foxess, heartbeat, nextenergy},
+    api::{foxess, heartbeat},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{
         series::Series,
@@ -69,6 +69,7 @@ async fn main() -> Result {
     Ok(())
 }
 
+#[expect(clippy::future_not_send)]
 #[instrument(skip_all)]
 async fn hunt(args: HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
@@ -82,8 +83,8 @@ async fn hunt(args: HuntArgs) -> Result {
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
-    let grid_rates: Series<_, _> =
-        nextenergy::Api::try_new()?.get_upcoming_rates(now).await?.collect();
+    let grid_rates: Series<_, _> = args.primary_provider.try_new()?.get_upcoming_rates(now).await?;
+
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
 

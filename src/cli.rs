@@ -6,7 +6,8 @@ use enumset::EnumSet;
 use reqwest::Url;
 
 use crate::{
-    api::home_assistant,
+    api,
+    api::{frank_energie, home_assistant, next_energy},
     core::working_mode::WorkingMode,
     prelude::*,
     quantity::{power::Kilowatts, rate::KilowattHourRate},
@@ -66,6 +67,9 @@ pub struct HuntArgs {
     #[expect(clippy::doc_markdown)]
     #[clap(long)]
     pub scout: bool,
+
+    #[clap(long = "primary-provider", env = "PRIMARY_PROVIDER", default_value = "next-energy")]
+    pub primary_provider: EnergyProvider,
 
     #[clap(
         long = "working-modes",
@@ -193,4 +197,22 @@ pub enum BurrowFoxEssCommand {
 
     /// Get the schedule.
     Schedule,
+}
+
+#[derive(Copy, Clone, clap::ValueEnum)]
+pub enum EnergyProvider {
+    /// https://www.nextenergy.nl
+    NextEnergy,
+
+    /// https://www.frankenergie.nl
+    FrankEnergie,
+}
+
+impl EnergyProvider {
+    pub fn try_new(self) -> Result<Box<dyn api::energy_provider::EnergyProvider>> {
+        Ok(match self {
+            Self::NextEnergy => Box::new(next_energy::Api::try_new()?),
+            Self::FrankEnergie => Box::new(frank_energie::Api::try_new()?),
+        })
+    }
 }

@@ -1,11 +1,134 @@
-use reqwest::Client;
+use std::ops::Range;
 
-use crate::{api::client, prelude::*};
+use chrono::{DateTime, Days, Local, NaiveDate};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+
+use crate::{api::client, core::series::Point, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api(Client);
 
 impl Api {
     pub fn try_new() -> Result<Self> {
         Ok(Self(client::try_new()?))
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_upcoming_rates(
+        &self,
+        since: DateTime<Local>,
+    ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
+        let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
+        Ok(self
+            .get_rates(since.date_naive())
+            .await?
+            .chain(self.get_rates(next_date).await?)
+            .filter(move |(time_range, _)| time_range.end > since))
+    }
+
+    #[instrument(fields(on = ?on), skip_all)]
+    async fn get_rates(
+        &self,
+        on: NaiveDate,
+    ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
+        info!("Fetching…");
+        Ok(self
+            .0
+            .post("https://www.frankenergie.nl/graphql")
+            .json(&Request::new(on))
+            .send()
+            .await?
+            .json::<Response>()
+            .await?
+            .data
+            .market_prices
+            .electricity
+            .into_iter()
+            .map(|item| (item.from..item.till, KilowattHourRate::from(item.all_in))))
+    }
+}
+
+#[derive(Serialize)]
+struct Request {
+    #[serde(rename = "MarketPrices")]
+    operation_name: &'static str,
+
+    query: &'static str,
+
+    variables: Variables,
+}
+
+impl Request {
+    const fn new(date: NaiveDate) -> Self {
+        Self {
+            operation_name: "MarketPrices",
+            query: "query MarketPrices($date: String!, $resolution: PriceResolution!) { marketPrices(date: $date, resolution: $resolution) { electricityPrices { from till allInPrice } } }",
+            variables: Variables::new(date),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct Variables {
+    date: NaiveDate,
+    resolution: Resolution,
+}
+
+impl Variables {
+    const fn new(date: NaiveDate) -> Self {
+        Self { date, resolution: Resolution::Quarterly }
+    }
+}
+
+#[derive(Serialize)]
+enum Resolution {
+    #[serde(rename = "PT15M")]
+    Quarterly,
+}
+
+#[derive(Deserialize)]
+struct Response {
+    data: Data,
+}
+
+#[derive(Deserialize)]
+struct Data {
+    #[serde(rename = "marketPrices")]
+    market_prices: MarketPrices,
+}
+
+#[derive(Deserialize)]
+struct MarketPrices {
+    #[serde(rename = "electricityPrices")]
+    electricity: Vec<ElectricityPrice>,
+}
+
+#[derive(Deserialize)]
+struct ElectricityPrice {
+    from: DateTime<Local>,
+    till: DateTime<Local>,
+
+    #[serde(rename = "allInPrice")]
+    all_in: f64,
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Timelike;
+    use itertools::Itertools;
+
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "makes the API request"]
+    async fn test_get_upcoming_rates_ok() -> Result {
+        let now = Local::now();
+        let series = Api::try_new()?.get_upcoming_rates(now).await?.collect_vec();
+        assert!(series.len() >= 1);
+        assert!(series.len() <= 2 * 24 * 4);
+        let (time_range, _) = &series[0];
+        assert_eq!(time_range.start.hour(), now.hour());
+        assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start));
+        Ok(())
     }
 }

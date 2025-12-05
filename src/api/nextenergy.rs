@@ -23,15 +23,15 @@ impl Api {
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
         let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
         Ok(self
-            .get_hourly_rates(since.date_naive())
+            .get_rates(since.date_naive())
             .await?
-            .chain(self.get_hourly_rates(next_date).await?)
+            .chain(self.get_rates(next_date).await?)
             .filter(move |(time_range, _)| time_range.end > since))
     }
 
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
-    async fn get_hourly_rates(
+    async fn get_rates(
         &self,
         on: NaiveDate,
     ) -> Result<impl Iterator<Item = Point<Range<DateTime<Local>>, KilowattHourRate>>> {
@@ -199,6 +199,7 @@ mod tests {
         assert!(series.len() <= 48);
         let (time_range, _) = &series[0];
         assert_eq!(time_range.start.hour(), now.hour());
+        assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start));
         Ok(())
     }
 }

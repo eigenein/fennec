@@ -179,7 +179,6 @@ struct Filter {
 #[cfg(test)]
 mod tests {
     use chrono::{Local, Timelike};
-    use itertools::Itertools;
 
     use super::*;
 

@@ -1,7 +1,4 @@
-use std::{
-    cmp::Ordering,
-    ops::{Add, Div, Range},
-};
+use std::ops::{Add, Div, Range};
 
 use chrono::{DateTime, TimeZone, Timelike};
 use itertools::Itertools;
@@ -14,7 +11,7 @@ pub trait Aggregate {
     where
         Self: Sized + IntoIterator<Item = (Range<DateTime<Tz>>, V)>,
         Tz: TimeZone,
-        V: Copy + PartialOrd + Add<Output = V> + Div<f64, Output = V>,
+        V: Copy + Ord + Add<Output = V> + Div<f64, Output = V>,
         DateTime<Tz>: Copy,
     {
         let mut medians = [None; 24];
@@ -36,44 +33,41 @@ pub trait Aggregate {
     fn median<V>(self) -> Option<V>
     where
         Self: Sized + IntoIterator<Item = V>,
-        V: Copy + Add<Output = V> + Div<f64, Output = V> + PartialOrd,
+        V: Copy + Add<Output = V> + Div<f64, Output = V> + Ord,
     {
         let mut values = self.into_iter().collect_vec();
         if values.is_empty() {
             None
         } else {
-            values.sort_unstable_by(compare);
+            values.sort_unstable();
             let index = values.len() / 2;
-            let index_value = *values.select_nth_unstable_by(index, compare).1;
+            let index_value = *values.select_nth_unstable(index).1;
             if values.len() % 2 == 1 {
                 Some(index_value)
             } else {
-                let leading_value = *values.select_nth_unstable_by(index - 1, compare).1;
+                let leading_value = *values.select_nth_unstable(index - 1).1;
                 Some((leading_value + index_value) / 2.0)
             }
         }
     }
 }
 
-fn compare<V: PartialOrd>(lhs: &V, rhs: &V) -> Ordering {
-    lhs.partial_cmp(rhs).unwrap()
-}
-
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;
+    use ordered_float::OrderedFloat;
 
     use super::*;
 
     #[test]
     fn test_median_odd() {
-        let median = vec![1.0, 0.0, 2.0].into_iter().median().unwrap();
-        assert_eq!(median, 1.0);
+        let median = vec![1.0, 0.0, 2.0].into_iter().map(OrderedFloat).median().unwrap();
+        assert_eq!(median.0, 1.0);
     }
 
     #[test]
     fn test_median_even() {
-        let median = vec![1.0, 0.0, 2.0, 3.0].into_iter().median().unwrap();
-        assert_abs_diff_eq!(median, 1.5);
+        let median = vec![1.0, 0.0, 2.0, 3.0].into_iter().map(OrderedFloat).median().unwrap();
+        assert_abs_diff_eq!(median.0, 1.5);
     }
 }

@@ -2,6 +2,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Local, TimeDelta};
 use itertools::Itertools;
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -160,9 +161,9 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
         for mut delta in battery_deltas {
             delta.energy.residual_energy += parasitic_load * delta.time;
             if delta.energy.is_charging() {
-                charging_samples.push(delta.energy.as_charging_efficiency());
+                charging_samples.push(OrderedFloat(delta.energy.as_charging_efficiency()));
             } else if delta.energy.is_discharging() {
-                discharging_samples.push(delta.energy.as_discharging_efficiency());
+                discharging_samples.push(OrderedFloat(delta.energy.as_discharging_efficiency()));
             }
         }
         let n_charging_samples = charging_samples.len();
@@ -171,7 +172,11 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
         let discharging_efficiency = discharging_samples.median().unwrap();
         info!(coefficient = ?charging_efficiency, n_samples = n_charging_samples);
         info!(coefficient = ?discharging_efficiency, n_samples = n_discharging_samples);
-        let this = Self { parasitic_load, charging_efficiency, discharging_efficiency };
+        let this = Self {
+            parasitic_load,
+            charging_efficiency: charging_efficiency.0,
+            discharging_efficiency: discharging_efficiency.0,
+        };
         info!(round_trip_efficiency = ?this.round_trip_efficiency());
         this
     }

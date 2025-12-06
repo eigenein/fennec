@@ -80,7 +80,8 @@ impl Solver<'_> {
 
         // Since we're going backwards in time, we only need to store the next hour's partial solutions
         // to find the current hour's solutions.
-        let mut partial_solutions = vec![Some(Solution::new()); usize::from(max_energy) + 1];
+        // Here, `None` means there's no solution for the respective residual energy.
+        let mut solutions = vec![Some(Solution::new()); usize::from(max_energy) + 1];
 
         // Going backwards:
         for (interval, grid_rate) in self.grid_rates.iter().rev().copied() {
@@ -96,14 +97,12 @@ impl Solver<'_> {
             net_loss_without_battery += self.loss(grid_rate, stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:
-            partial_solutions = {
+            solutions = {
                 // Solutions from the past iteration become «next» in relation to the current step.
                 // They are wrapped in `Rc`, because we're replacing the vector,
                 // but we still need to backtrack the entire solution path.
-                let next_partial_solutions = partial_solutions
-                    .into_iter()
-                    .map(|solution| solution.map(Rc::new))
-                    .collect_vec();
+                let next_solutions =
+                    solutions.into_iter().map(|solution| solution.map(Rc::new)).collect_vec();
                 (0..=max_energy.0)
                     .map(|initial_residual_energy_watt_hours| {
                         self.optimise_step()
@@ -114,7 +113,7 @@ impl Solver<'_> {
                                 initial_residual_energy_watt_hours,
                             )))
                             .min_residual_energy(min_residual_energy)
-                            .next_partial_solutions(&next_partial_solutions)
+                            .next_solutions(&next_solutions)
                             .max_energy(max_energy)
                             .duration(step_duration)
                             .call()
@@ -125,7 +124,7 @@ impl Solver<'_> {
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
         let initial_energy = WattHours::from(self.residual_energy);
-        let solution = partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
+        let solution = solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
         info!(
             net_loss = ?solution.net_loss,
@@ -149,7 +148,7 @@ impl Solver<'_> {
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         min_residual_energy: KilowattHours,
-        next_partial_solutions: &[Option<Rc<Solution>>],
+        next_solutions: &[Option<Rc<Solution>>],
         max_energy: WattHours,
         duration: TimeDelta,
     ) -> Option<Solution> {
@@ -174,7 +173,7 @@ impl Solver<'_> {
                     .call();
                 let next_partial_solution = {
                     let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
-                    next_partial_solutions[usize::from(next_energy)].clone()
+                    next_solutions[usize::from(next_energy)].clone()
                 }?;
                 if step.residual_energy_after >= min_residual_energy {
                     Some(Solution {

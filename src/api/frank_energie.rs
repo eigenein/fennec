@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Local, NaiveDate};
+use ordered_float::OrderedFloat;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +8,7 @@ use crate::{
     api::{client, energy_provider::EnergyProvider},
     core::series::Point,
     prelude::*,
-    quantity::{interval::Interval, rate::KilowattHourRate},
+    quantity::{Quantity, interval::Interval, rate::KilowattHourRate},
 };
 
 pub struct Api {
@@ -23,6 +24,10 @@ impl Api {
 
 #[async_trait]
 impl EnergyProvider for Api {
+    fn purchase_fee(&self) -> KilowattHourRate {
+        Quantity(OrderedFloat(0.0182))
+    }
+
     #[instrument(fields(on = ?on), skip_all)]
     async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");

@@ -9,6 +9,8 @@ use crate::{
 
 #[async_trait]
 pub trait EnergyProvider: Sync {
+    fn purchase_fee(&self) -> KilowattHourRate;
+
     #[instrument(skip_all)]
     async fn get_upcoming_rates(
         &self,

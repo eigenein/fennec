@@ -79,7 +79,8 @@ async fn hunt(args: HuntArgs) -> Result {
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
-    let grid_rates: Series<_, _> = args.primary_provider.try_new()?.get_upcoming_rates(now).await?;
+    let energy_provider = args.primary_provider.try_new()?;
+    let grid_rates: Series<_, _> = energy_provider.get_upcoming_rates(now).await?;
 
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
@@ -98,7 +99,7 @@ async fn hunt(args: HuntArgs) -> Result {
         .capacity(total_capacity)
         .battery_args(args.battery_args)
         .battery_parameters(statistics.battery)
-        .purchase_fee(args.purchase_fee)
+        .purchase_fee(energy_provider.purchase_fee())
         .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;

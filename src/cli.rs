@@ -10,7 +10,7 @@ use crate::{
     api::{frank_energie, home_assistant, next_energy},
     core::working_mode::WorkingMode,
     prelude::*,
-    quantity::{power::Kilowatts, rate::KilowattHourRate},
+    quantity::power::Kilowatts,
 };
 
 #[derive(Parser)]
@@ -79,10 +79,6 @@ pub struct HuntArgs {
         default_value = "backup,balance,charge",
     )]
     pub working_modes: Vec<WorkingMode>,
-
-    /// Energy purchase fees («inkoopvergoeding»).
-    #[clap(long = "purchase-fee-per-kwh", default_value = "0.021", env = "PURCHASE_FEE_PER_KWH")]
-    pub purchase_fee: KilowattHourRate,
 
     #[clap(flatten)]
     pub battery_args: BatteryArgs,

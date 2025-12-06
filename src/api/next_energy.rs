@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
+use ordered_float::OrderedFloat;
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
@@ -12,7 +13,7 @@ use crate::{
     api::{client, energy_provider::EnergyProvider},
     core::series::Point,
     prelude::*,
-    quantity::{interval::Interval, rate::KilowattHourRate},
+    quantity::{Quantity, interval::Interval, rate::KilowattHourRate},
 };
 
 pub struct Api(Client);
@@ -25,6 +26,10 @@ impl Api {
 
 #[async_trait]
 impl EnergyProvider for Api {
+    fn purchase_fee(&self) -> KilowattHourRate {
+        Quantity(OrderedFloat(0.021))
+    }
+
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
     async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {

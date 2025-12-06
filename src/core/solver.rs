@@ -41,7 +41,7 @@ pub struct Solver<'a> {
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
-    pub fn solve(self) -> Option<Rc<Solution>> {
+    pub fn solve(self) -> Option<Solution> {
         self.build().solve()
     }
 }
@@ -62,7 +62,7 @@ impl Solver<'_> {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    fn solve(self) -> Option<Rc<Solution>> {
+    fn solve(self) -> Option<Solution> {
         let start_instant = Instant::now();
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
@@ -80,14 +80,7 @@ impl Solver<'_> {
 
         // Since we're going backwards in time, we only need to store the next hour's partial solutions
         // to find the current hour's solutions.
-        //
-        // They are wrapped in `Rc`, because the vector is going to be replaced every hour,
-        // but we still need to backtrack the entire solution path.
-        let mut next_partial_solutions = (0..=usize::from(max_energy))
-            .map(|_| Solution::new())
-            .map(Rc::new)
-            .map(Some)
-            .collect_vec();
+        let mut partial_solutions = vec![Some(Solution::new()); usize::from(max_energy) + 1];
 
         // Going backwards:
         for (interval, grid_rate) in self.grid_rates.iter().rev().copied() {
@@ -103,29 +96,36 @@ impl Solver<'_> {
             net_loss_without_battery += self.loss(grid_rate, stand_by_power * step_duration);
 
             // Calculate partial solutions for the current hour:
-            next_partial_solutions = (0..=max_energy.0)
-                .map(|initial_residual_energy_watt_hours| {
-                    self.optimise_step()
-                        .interval(interval)
-                        .stand_by_power(stand_by_power)
-                        .grid_rate(grid_rate)
-                        .initial_residual_energy(KilowattHours::from(WattHours(
-                            initial_residual_energy_watt_hours,
-                        )))
-                        .min_residual_energy(min_residual_energy)
-                        .next_partial_solutions(&next_partial_solutions)
-                        .max_energy(max_energy)
-                        .duration(step_duration)
-                        .call()
-                        .map(Rc::new)
-                })
-                .collect();
+            partial_solutions = {
+                // Solutions from the past iteration become «next» in relation to the current step.
+                // They are wrapped in `Rc`, because we're replacing the vector,
+                // but we still need to backtrack the entire solution path.
+                let next_partial_solutions = partial_solutions
+                    .into_iter()
+                    .map(|solution| solution.map(Rc::new))
+                    .collect_vec();
+                (0..=max_energy.0)
+                    .map(|initial_residual_energy_watt_hours| {
+                        self.optimise_step()
+                            .interval(interval)
+                            .stand_by_power(stand_by_power)
+                            .grid_rate(grid_rate)
+                            .initial_residual_energy(KilowattHours::from(WattHours(
+                                initial_residual_energy_watt_hours,
+                            )))
+                            .min_residual_energy(min_residual_energy)
+                            .next_partial_solutions(&next_partial_solutions)
+                            .max_energy(max_energy)
+                            .duration(step_duration)
+                            .call()
+                    })
+                    .collect_vec()
+            };
         }
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
         let initial_energy = WattHours::from(self.residual_energy);
-        let solution =
-            next_partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
+        let solution = partial_solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
         info!(
             net_loss = ?solution.net_loss,
@@ -243,6 +243,7 @@ impl Solver<'_> {
     }
 }
 
+#[derive(Clone)]
 pub struct Solution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
@@ -270,7 +271,6 @@ impl Solution {
     pub fn backtrack(&self) -> impl Iterator<Item = Step> {
         let mut pointer = Some(self);
         from_fn(move || {
-            // I'll need to yield the current step, so clone:
             let current_solution = pointer?;
             // …and advance:
             pointer = current_solution.next.as_deref();

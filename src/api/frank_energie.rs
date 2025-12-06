@@ -26,7 +26,7 @@ impl EnergyProvider for Api {
     #[instrument(fields(on = ?on), skip_all)]
     async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");
-        Ok(self
+        let Some(data) = self
             .client
             .post("https://www.frankenergie.nl/graphql")
             .json(&Request::new(on, self.resolution))
@@ -35,6 +35,10 @@ impl EnergyProvider for Api {
             .json::<Response>()
             .await?
             .data
+        else {
+            return Ok(Vec::new());
+        };
+        Ok(data
             .market_prices
             .electricity
             .into_iter()
@@ -80,7 +84,7 @@ pub enum Resolution {
 
 #[derive(Deserialize)]
 struct Response {
-    data: Data,
+    data: Option<Data>,
 }
 
 #[derive(Deserialize)]

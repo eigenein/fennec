@@ -41,7 +41,7 @@ anyhow = "=1.0.100"
 async-trait = "=0.1.89"
 bon = "=3.8.1"
 comfy-table = "=7.2.1"
-derive_more = { version = "=2.0.1", features = ["full"] }
+derive_more = { version = "=2.1.0", features = ["full"] }
 dotenvy = "=0.15.7"
 enumset = "=1.1.10"
 itertools = "=0.14.0"
@@ -50,15 +50,15 @@ ordered-float = { version = "=5.1.0", features = ["serde"] }
 serde = "=1.0.228"
 serde_json = "=1.0.145"
 toml = "=0.9.8"
-tracing = "=0.1.41"
+tracing = "=0.1.43"
 tracing-subscriber = "0.3.20"
 
 [dependencies.serde_with]
-version = "=3.16.0"
+version = "=3.16.1"
 features = ["chrono"]
 
 [dependencies.clap]
-version = "=4.5.51"
+version = "=4.5.53"
 features = ["cargo", "derive", "env", "unicode"]
 
 [dependencies.chrono]

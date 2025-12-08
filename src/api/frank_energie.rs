@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use async_trait::async_trait;
 use chrono::{DateTime, Local, NaiveDate};
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
@@ -26,14 +25,13 @@ impl Api {
     }
 }
 
-#[async_trait]
 impl EnergyProvider for Api {
     fn purchase_fee(&self) -> KilowattHourRate {
         Quantity(OrderedFloat(0.0182))
     }
 
     #[instrument(fields(on = ?on), skip_all)]
-    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+    fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");
         let Some(data) = self
             .client
@@ -121,11 +119,11 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[test]
     #[ignore = "makes the API request"]
-    async fn test_get_upcoming_rates_ok() -> Result {
+    fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::new(Resolution::Quarterly).get_upcoming_rates(now).await?;
+        let series = Api::new(Resolution::Quarterly).get_upcoming_rates(now)?;
         assert!(series.len() >= 1);
         assert!(series.len() <= 2 * 24 * 4);
         let (time_range, _) = &series[0];

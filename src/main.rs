@@ -22,8 +22,7 @@ use crate::{
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
-#[tokio::main]
-async fn main() -> Result {
+fn main() -> Result {
     let _ = dotenvy::dotenv();
     tracing_subscriber::fmt().without_time().compact().init();
     info!(version = crate_version!(), "Starting…");
@@ -32,7 +31,7 @@ async fn main() -> Result {
 
     match args.command {
         Command::Hunt(hunt_args) => {
-            hunt(*hunt_args).await?;
+            hunt(&hunt_args)?;
         }
         Command::Burrow(burrow_args) => match burrow_args.command {
             BurrowCommand::Statistics(statistics_args) => {
@@ -50,7 +49,7 @@ async fn main() -> Result {
             }
 
             BurrowCommand::FoxEss(burrow_args) => {
-                burrow_fox_ess(burrow_args).await?;
+                burrow_fox_ess(burrow_args)?;
             }
         },
     }
@@ -64,9 +63,8 @@ async fn main() -> Result {
     Ok(())
 }
 
-#[expect(clippy::future_not_send)]
 #[instrument(skip_all)]
-async fn hunt(args: HuntArgs) -> Result {
+fn hunt(args: &HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
     info!(?statistics.generated_at);
     info!(parasitic_load = ?statistics.battery.parasitic_load);
@@ -79,7 +77,7 @@ async fn hunt(args: HuntArgs) -> Result {
 
     let now = Local::now().with_nanosecond(0).unwrap();
     let energy_provider: Box<dyn EnergyProvider> = args.primary_provider.into();
-    let grid_rates: Series<_, _> = energy_provider.get_upcoming_rates(now).await?;
+    let grid_rates: Series<_, _> = energy_provider.get_upcoming_rates(now)?;
 
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
@@ -119,7 +117,7 @@ async fn hunt(args: HuntArgs) -> Result {
 }
 
 #[instrument(skip_all)]
-async fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
+fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key);
 
     match args.command {

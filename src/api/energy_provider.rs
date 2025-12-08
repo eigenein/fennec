@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use chrono::{DateTime, Days, Local, NaiveDate};
 
 use crate::{
@@ -7,21 +6,20 @@ use crate::{
     quantity::{interval::Interval, rate::KilowattHourRate},
 };
 
-#[async_trait]
-pub trait EnergyProvider: Sync {
+pub trait EnergyProvider {
     fn purchase_fee(&self) -> KilowattHourRate;
 
     #[instrument(skip_all)]
-    async fn get_upcoming_rates(
+    fn get_upcoming_rates(
         &self,
         since: DateTime<Local>,
     ) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
-        let mut rates = self.get_rates(since.date_naive()).await?;
+        let mut rates = self.get_rates(since.date_naive())?;
         let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
-        rates.extend(self.get_rates(next_date).await?);
+        rates.extend(self.get_rates(next_date)?);
         rates.retain(|(time_range, _)| time_range.end > since);
         Ok(rates)
     }
 
-    async fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>>;
+    fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>>;
 }

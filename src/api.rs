@@ -1,4 +1,3 @@
-mod client;
 pub mod energy_provider;
 pub mod foxess;
 pub mod frank_energie;

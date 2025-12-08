@@ -4,7 +4,6 @@ use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
 use enumset::EnumSet;
 use http::Uri;
-use reqwest::Url;
 
 use crate::{
     api,
@@ -17,7 +16,7 @@ use crate::{
 #[command(author, version, about, propagate_version = true)]
 pub struct Args {
     #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
-    pub heartbeat_url: Option<Url>,
+    pub heartbeat_url: Option<Uri>,
 
     #[command(subcommand)]
     pub command: Command,

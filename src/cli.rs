@@ -3,6 +3,7 @@ use std::{ops::RangeInclusive, path::PathBuf};
 use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
 use enumset::EnumSet;
+use http::Uri;
 use reqwest::Url;
 
 use crate::{
@@ -129,12 +130,12 @@ pub struct HomeAssistantConnectionArgs {
 
     /// Home Assistant API base URL. For example: `http://localhost:8123/api`.
     #[clap(long = "home-assistant-api-base-url", env = "HOME_ASSISTANT_API_BASE_URL")]
-    pub base_url: Url,
+    pub base_url: Uri,
 }
 
 impl HomeAssistantConnectionArgs {
-    pub fn try_new_client(&self) -> Result<home_assistant::Api<'_>> {
-        home_assistant::Api::try_new(&self.access_token, &self.base_url)
+    pub fn new_client(&self) -> home_assistant::Api {
+        home_assistant::Api::new(&self.access_token, self.base_url.clone())
     }
 }
 

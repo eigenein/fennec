@@ -43,6 +43,7 @@ bon = "=3.8.1"
 comfy-table = "=7.2.1"
 derive_more = { version = "=2.0.1", features = ["full"] }
 dotenvy = "=0.15.7"
+http = "1.4.0"
 enumset = "=1.1.10"
 itertools = "=0.14.0"
 md5 = "=0.8.0"
@@ -75,6 +76,10 @@ features = ["macros", "rt-multi-thread"]
 version = "=0.12.24"
 default-features = false
 features = ["http2", "rustls-tls", "gzip", "brotli", "zstd", "deflate", "json"]
+
+[dependencies.ureq]
+version = "3.1.4"
+features = ["json", "brotli", "gzip"]
 
 [dev-dependencies]
 approx = "=0.5.1"

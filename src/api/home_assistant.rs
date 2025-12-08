@@ -1,54 +1,46 @@
 use std::{ops::RangeInclusive, time::Duration};
 
 use chrono::{DateTime, Local};
-use reqwest::{
-    Client,
-    ClientBuilder,
-    Url,
-    header::{HeaderMap, HeaderName, HeaderValue},
-};
+use http::Uri;
 use serde_with::serde_as;
+use ureq::{Agent, tls::TlsConfig};
 
 use crate::{prelude::*, quantity::energy::KilowattHours};
 
-pub struct Api<'u> {
-    client: Client,
-    base_url: &'u Url,
+pub struct Api {
+    client: Agent,
+    base_uri: Uri,
+    authorization: String,
 }
 
-impl<'u> Api<'u> {
-    pub fn try_new(access_token: &str, base_url: &'u Url) -> Result<Self> {
-        let headers = HeaderMap::from_iter([(
-            HeaderName::from_static("authorization"),
-            HeaderValue::from_str(&format!("Bearer {access_token}"))?,
-        )]);
-        let client = ClientBuilder::new()
-            .default_headers(headers)
-            .danger_accept_invalid_certs(true) // FIXME
-            .danger_accept_invalid_hostnames(true) // FIXME
-            .timeout(Duration::from_secs(10))
-            .build()?;
-        Ok(Self { client, base_url })
+impl Api {
+    pub fn new(access_token: &str, base_uri: Uri) -> Self {
+        let authorization = format!("Bearer {access_token}");
+        let tls_config = TlsConfig::builder().disable_verification(true).build(); // FIXME
+        let client = Agent::config_builder()
+            .tls_config(tls_config)
+            .timeout_global(Some(Duration::from_secs(10)))
+            .build()
+            .into();
+        Self { client, base_uri, authorization }
     }
 
     #[instrument(skip_all)]
-    pub async fn get_energy_history(
+    pub fn get_energy_history(
         &self,
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
     ) -> Result<Vec<EnergyState>> {
-        let mut url = self.base_url.clone();
-        url.path_segments_mut()
-            .map_err(|()| anyhow!("invalid base URL"))?
-            .push("history")
-            .push("period")
-            .push(&period.start().to_rfc3339());
-        url.query_pairs_mut()
-            .append_pair("filter_entity_id", entity_id)
-            .append_pair("end_time", &period.end().to_rfc3339());
         info!(entity_id, since = ?period.start(), until = ?period.end(), "Fetching…");
-        let entities_history: Vec<EnergyHistory> =
-            self.client.get(url).send().await?.error_for_status()?.json().await?;
+        let entities_history: Vec<EnergyHistory> = self
+            .client
+            .get(format!("{}/history/period/{}", self.base_uri, period.start().to_rfc3339()))
+            .query("filter_entity_id", entity_id)
+            .query("end_time", period.end().to_rfc3339())
+            .header("Authorization", &self.authorization)
+            .call()?
+            .body_mut()
+            .read_json()?;
         let entity_history = entities_history
             .into_iter()
             .next()

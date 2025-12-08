@@ -39,12 +39,11 @@ async fn main() -> Result {
                 statistics_args
                     .home_assistant
                     .connection
-                    .try_new_client()?
+                    .new_client()
                     .get_energy_history(
                         &statistics_args.home_assistant.entity_id,
                         &statistics_args.home_assistant.history_period(),
-                    )
-                    .await?
+                    )?
                     .into_iter()
                     .collect::<Statistics>()
                     .write_to(&statistics_args.output_path)?;

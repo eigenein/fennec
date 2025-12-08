@@ -1,26 +1,28 @@
 //! [NextEnergy](https://www.nextenergy.nl/actuele-energieprijzen) client.
 
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
 use ordered_float::OrderedFloat;
-use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
+use ureq::Agent;
 
 use crate::{
-    api::{client, energy_provider::EnergyProvider},
+    api::energy_provider::EnergyProvider,
     core::series::Point,
     prelude::*,
     quantity::{Quantity, interval::Interval, rate::KilowattHourRate},
 };
 
-pub struct Api(Client);
+pub struct Api(Agent);
 
 impl Api {
-    pub fn try_new() -> Result<Self> {
-        Ok(Self(client::try_new()?))
+    pub fn new() -> Self {
+        let client =
+            Agent::config_builder().timeout_global(Some(Duration::from_secs(10))).build().into();
+        Self(client)
     }
 }
 
@@ -36,14 +38,10 @@ impl EnergyProvider for Api {
         info!("Fetching…");
         let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices_NEW/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
-            .json(&GetDataPointsRequest::new(on))
-            .send()
-            .await
-            .context("failed to call")?
-            .error_for_status()
+            .send_json(GetDataPointsRequest::new(on))
             .context("request failed")?
-            .json::<GetDataPointsResponse>()
-            .await
+            .body_mut()
+            .read_json::<GetDataPointsResponse>()
             .context("failed to deserialize the response")?
             .data
             .points
@@ -191,7 +189,7 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new()?.get_upcoming_rates(now).await?;
+        let series = Api::new().get_upcoming_rates(now).await?;
         assert!(series.len() >= 1);
         assert!(series.len() <= 48);
         let (time_range, _) = &series[0];

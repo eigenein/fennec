@@ -211,7 +211,7 @@ pub enum EnergyProvider {
 impl EnergyProvider {
     pub fn try_new(self) -> Result<Box<dyn api::energy_provider::EnergyProvider>> {
         Ok(match self {
-            Self::NextEnergy => Box::new(next_energy::Api::try_new()?),
+            Self::NextEnergy => Box::new(next_energy::Api::new()),
             Self::FrankEnergieQuarterly => {
                 Box::new(frank_energie::Api::try_new(frank_energie::Resolution::Quarterly)?)
             }

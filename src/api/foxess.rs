@@ -6,42 +6,33 @@ use std::time::Duration;
 
 use chrono::Utc;
 use models::DeviceDetails;
-use reqwest::{
-    Client,
-    Method,
-    header::{HeaderMap, HeaderValue},
-};
-use response::Response;
 use serde::{Serialize, de::DeserializeOwned};
+use ureq::Agent;
 
 pub use self::schedule::{TimeSlot, TimeSlotSequence, WorkingMode};
 use self::{
     models::{DeviceRealTimeData, DeviceVariables},
     schedule::Schedule,
 };
-use crate::prelude::*;
+use crate::{api::foxess::response::Response, prelude::*};
 
 pub struct Api {
-    client: Client,
+    client: Agent,
     api_key: String,
 }
 
 impl Api {
-    pub fn try_new(api_key: String) -> Result<Self> {
-        let mut headers = HeaderMap::new();
-        headers.insert("Timezone", HeaderValue::from_static("Europe/Amsterdam"));
-        headers.insert("Lang", HeaderValue::from_static("en"));
-        headers.insert("Token", HeaderValue::from_str(&api_key)?);
-        let client = Client::builder()
+    pub fn new(api_key: String) -> Self {
+        let client = Agent::config_builder()
             .user_agent("fennec")
-            .default_headers(headers)
-            .timeout(Duration::from_secs(15))
-            .build()?;
-        Ok(Self { client, api_key })
+            .timeout_global(Some(Duration::from_secs(15)))
+            .build()
+            .into();
+        Self { client, api_key }
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub async fn get_device_details(&self, serial_number: &str) -> Result<DeviceDetails> {
+    pub fn get_device_details(&self, serial_number: &str) -> Result<DeviceDetails> {
         info!("Fetching…");
 
         #[derive(Serialize)]
@@ -50,16 +41,14 @@ impl Api {
             serial_number: &'a str,
         }
 
-        self.call(Method::GET, "op/v0/device/detail", GetDeviceDetailsRequest { serial_number }, ())
-            .await
+        self.get("op/v0/device/detail", GetDeviceDetailsRequest { serial_number })
             .context("failed to request the device details")
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub async fn get_device_variables(&self, serial_number: &str) -> Result<DeviceVariables> {
+    pub fn get_device_variables(&self, serial_number: &str) -> Result<DeviceVariables> {
         let variables = self
-            .get_devices_variables_raw(&[serial_number])
-            .await?
+            .get_devices_variables_raw(&[serial_number])?
             .pop()
             .with_context(|| format!("no device `{serial_number}` in the response"))?
             .variables
@@ -75,7 +64,7 @@ impl Api {
         level = Level::DEBUG,
         fields(serial_numbers = ?serial_numbers),
     )]
-    pub async fn get_devices_variables_raw(
+    pub fn get_devices_variables_raw(
         &self,
         serial_numbers: &[&str],
     ) -> Result<Vec<DeviceRealTimeData>> {
@@ -87,36 +76,24 @@ impl Api {
             serial_numbers: &'a [&'a str],
         }
 
-        self.call(
-            Method::POST,
-            "op/v1/device/real/query",
-            (),
-            &GetDeviceRealTimeDataRequest { serial_numbers },
-        )
-        .await
-        .context("failed to get the devices variables")
+        self.post("op/v1/device/real/query", &GetDeviceRealTimeDataRequest { serial_numbers })
+            .context("failed to get the devices variables")
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub async fn get_schedule(&self, serial_number: &str) -> Result<Schedule> {
+    pub fn get_schedule(&self, serial_number: &str) -> Result<Schedule> {
         #[derive(Serialize)]
         struct GetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]
             serial_number: &'a str,
         }
 
-        self.call(
-            Method::POST,
-            "op/v1/device/scheduler/get",
-            (),
-            &GetScheduleRequest { serial_number },
-        )
-        .await
-        .context("failed to get the schedule")
+        self.post("op/v1/device/scheduler/get", &GetScheduleRequest { serial_number })
+            .context("failed to get the schedule")
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub async fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
+    pub fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
         info!(n_groups = groups.len(), "Setting…");
 
         #[derive(Serialize)]
@@ -128,43 +105,52 @@ impl Api {
             groups: &'a [TimeSlot],
         }
 
-        self.call(
-            Method::POST,
-            "op/v1/device/scheduler/enable",
-            (),
-            SetScheduleRequest { serial_number, groups },
-        )
-        .await
+        self.post("op/v1/device/scheduler/enable", SetScheduleRequest { serial_number, groups })
     }
 
     #[instrument(skip_all, level = Level::DEBUG, fields(path = path))]
-    async fn call<Q: Serialize, B: Serialize, R: DeserializeOwned>(
-        &self,
-        method: Method,
-        path: &str,
-        query: Q,
-        body: B,
-    ) -> Result<R> {
+    fn get<Q, R>(&self, path: &str, query: Q) -> Result<R>
+    where
+        Q: Serialize,
+        R: DeserializeOwned,
+    {
         let (timestamp, signature) = self.build_signature(path);
-        let response = Result::<serde_json::Value>::from(
-            self.client
-                .request(method, format!("https://www.foxesscloud.com/{path}"))
-                .header("Timestamp", timestamp)
-                .header("Signature", signature)
-                .query(&query)
-                .json(&body)
-                .send()
-                .await
-                .with_context(|| format!("failed to call `{path}`"))?
-                .error_for_status()
-                .with_context(|| format!("`{path}` failed"))?
-                .json::<Response>()
-                .await
-                .with_context(|| format!("failed to deserialize `{path}` response JSON"))?,
-        )?;
-        debug!(?response, "Call succeeded");
-        serde_json::from_value(response)
-            .with_context(|| format!("failed to deserialize `{path}` response structure"))
+        let query_string = serde_qs::to_string(&query)?;
+        self.client
+            .get(format!("https://www.foxesscloud.com/{path}?{query_string}"))
+            .header("Timestamp", timestamp)
+            .header("Signature", signature)
+            .header("Timezone", "Europe/Amsterdam")
+            .header("Lang", "en")
+            .header("Token", &self.api_key)
+            .call()
+            .with_context(|| format!("failed to call `{path}`"))?
+            .body_mut()
+            .read_json::<Response<R>>()
+            .with_context(|| format!("failed to deserialize `{path}` response JSON"))?
+            .into()
+    }
+
+    #[instrument(skip_all, level = Level::DEBUG, fields(path = path))]
+    fn post<B, R>(&self, path: &str, body: B) -> Result<R>
+    where
+        B: Serialize,
+        R: DeserializeOwned,
+    {
+        let (timestamp, signature) = self.build_signature(path);
+        self.client
+            .post(format!("https://www.foxesscloud.com/{path}"))
+            .header("Timestamp", timestamp)
+            .header("Signature", signature)
+            .header("Timezone", "Europe/Amsterdam")
+            .header("Lang", "en")
+            .header("Token", &self.api_key)
+            .send_json(body)
+            .with_context(|| format!("failed to call `{path}`"))?
+            .body_mut()
+            .read_json::<Response<R>>()
+            .with_context(|| format!("failed to deserialize `{path}` response JSON"))?
+            .into()
     }
 
     /// WHOA-MEGA-SUPER-SECURE AUTHENTICATION!

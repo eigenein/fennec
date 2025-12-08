@@ -6,7 +6,7 @@ use serde::Deserialize;
 /// I first read the response into [`serde_json::Value`] in order to log it.
 /// And only then, I do parse it.
 #[derive(Deserialize)]
-pub struct Response {
+pub struct Response<R> {
     /// Error code (when the result is not equal to zero, the request failed).
     #[serde(rename = "errno")]
     error_code: i32,
@@ -15,11 +15,11 @@ pub struct Response {
     message: Option<String>,
 
     #[serde(rename = "result")]
-    result: serde_json::Value,
+    result: R,
 }
 
-impl From<Response> for crate::prelude::Result<serde_json::Value> {
-    fn from(response: Response) -> Self {
+impl<R> From<Response<R>> for crate::prelude::Result<R> {
+    fn from(response: Response<R>) -> Self {
         if response.error_code == 0 {
             Ok(response.result)
         } else if let Some(message) = response.message {

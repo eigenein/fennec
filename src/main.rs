@@ -74,7 +74,7 @@ async fn hunt(args: HuntArgs) -> Result {
     info!(discharging_efficiency = format!("{:.3}", statistics.battery.discharging_efficiency));
     info!(round_trip_efficiency = format!("{:.3}", statistics.battery.round_trip_efficiency()));
 
-    let fox_ess = foxess::Api::try_new(args.fox_ess_api.api_key.clone())?;
+    let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone());
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
@@ -85,9 +85,9 @@ async fn hunt(args: HuntArgs) -> Result {
     info!(len = grid_rates.len(), "Fetched energy rates");
 
     let residual_energy =
-        fox_ess.get_device_variables(&args.fox_ess_api.serial_number).await?.residual_energy;
+        fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?.residual_energy;
     let total_capacity =
-        fox_ess.get_device_details(&args.fox_ess_api.serial_number).await?.total_capacity();
+        fox_ess.get_device_details(&args.fox_ess_api.serial_number)?.total_capacity();
     info!(?residual_energy, ?total_capacity, "Fetched battery details");
 
     let solution = Solver::builder()
@@ -112,7 +112,7 @@ async fn hunt(args: HuntArgs) -> Result {
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 
     if !args.scout {
-        fox_ess.set_schedule(&args.fox_ess_api.serial_number, time_slot_sequence.as_ref()).await?;
+        fox_ess.set_schedule(&args.fox_ess_api.serial_number, time_slot_sequence.as_ref())?;
     }
 
     Ok(())
@@ -120,22 +120,21 @@ async fn hunt(args: HuntArgs) -> Result {
 
 #[instrument(skip_all)]
 async fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
-    let fox_ess = foxess::Api::try_new(args.fox_ess_api.api_key)?;
+    let fox_ess = foxess::Api::new(args.fox_ess_api.api_key);
 
     match args.command {
         BurrowFoxEssCommand::DeviceDetails => {
-            let details = fox_ess.get_device_details(&args.fox_ess_api.serial_number).await?;
+            let details = fox_ess.get_device_details(&args.fox_ess_api.serial_number)?;
             info!(total_capacity = ?details.total_capacity(), "Gotcha");
         }
 
         BurrowFoxEssCommand::DeviceVariables => {
-            let variables = fox_ess.get_device_variables(&args.fox_ess_api.serial_number).await?;
+            let variables = fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?;
             info!(?variables.residual_energy, "Gotcha");
         }
 
         BurrowFoxEssCommand::RawDeviceVariables => {
-            let response =
-                fox_ess.get_devices_variables_raw(&[&args.fox_ess_api.serial_number]).await?;
+            let response = fox_ess.get_devices_variables_raw(&[&args.fox_ess_api.serial_number])?;
             info!("Gotcha!");
             for device in response {
                 for variable in device.variables {
@@ -152,7 +151,7 @@ async fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
         }
 
         BurrowFoxEssCommand::Schedule => {
-            let schedule = fox_ess.get_schedule(&args.fox_ess_api.serial_number).await?;
+            let schedule = fox_ess.get_schedule(&args.fox_ess_api.serial_number)?;
             info!(schedule.is_enabled, "Gotcha");
             println!("{}", build_time_slot_sequence_table(&schedule.groups));
         }

@@ -10,7 +10,6 @@ use crate::{
     api,
     api::{frank_energie, home_assistant, next_energy},
     core::working_mode::WorkingMode,
-    prelude::*,
     quantity::power::Kilowatts,
 };
 
@@ -208,16 +207,16 @@ pub enum EnergyProvider {
     FrankEnergieHourly,
 }
 
-impl EnergyProvider {
-    pub fn try_new(self) -> Result<Box<dyn api::energy_provider::EnergyProvider>> {
-        Ok(match self {
-            Self::NextEnergy => Box::new(next_energy::Api::new()),
-            Self::FrankEnergieQuarterly => {
-                Box::new(frank_energie::Api::try_new(frank_energie::Resolution::Quarterly)?)
+impl From<EnergyProvider> for Box<dyn api::energy_provider::EnergyProvider> {
+    fn from(provider: EnergyProvider) -> Self {
+        match provider {
+            EnergyProvider::NextEnergy => Box::new(next_energy::Api::new()),
+            EnergyProvider::FrankEnergieQuarterly => {
+                Box::new(frank_energie::Api::new(frank_energie::Resolution::Quarterly))
             }
-            Self::FrankEnergieHourly => {
-                Box::new(frank_energie::Api::try_new(frank_energie::Resolution::Hourly)?)
+            EnergyProvider::FrankEnergieHourly => {
+                Box::new(frank_energie::Api::new(frank_energie::Resolution::Hourly))
             }
-        })
+        }
     }
 }

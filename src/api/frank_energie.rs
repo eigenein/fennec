@@ -1,24 +1,28 @@
+use std::time::Duration;
+
 use async_trait::async_trait;
 use chrono::{DateTime, Local, NaiveDate};
 use ordered_float::OrderedFloat;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use ureq::Agent;
 
 use crate::{
-    api::{client, energy_provider::EnergyProvider},
+    api::energy_provider::EnergyProvider,
     core::series::Point,
     prelude::*,
     quantity::{Quantity, interval::Interval, rate::KilowattHourRate},
 };
 
 pub struct Api {
-    client: Client,
+    client: Agent,
     resolution: Resolution,
 }
 
 impl Api {
-    pub fn try_new(resolution: Resolution) -> Result<Self> {
-        Ok(Self { client: client::try_new()?, resolution })
+    pub fn new(resolution: Resolution) -> Self {
+        let client =
+            Agent::config_builder().timeout_global(Some(Duration::from_secs(10))).build().into();
+        Self { client, resolution }
     }
 }
 
@@ -34,11 +38,9 @@ impl EnergyProvider for Api {
         let Some(data) = self
             .client
             .post("https://www.frankenergie.nl/graphql")
-            .json(&Request::new(on, self.resolution))
-            .send()
-            .await?
-            .json::<Response>()
-            .await?
+            .send_json(Request::new(on, self.resolution))?
+            .body_mut()
+            .read_json::<Response>()?
             .data
         else {
             return Ok(Vec::new());
@@ -123,7 +125,7 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::try_new(Resolution::Quarterly)?.get_upcoming_rates(now).await?;
+        let series = Api::new(Resolution::Quarterly).get_upcoming_rates(now).await?;
         assert!(series.len() >= 1);
         assert!(series.len() <= 2 * 24 * 4);
         let (time_range, _) = &series[0];

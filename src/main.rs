@@ -14,7 +14,7 @@ use clap::{Parser, crate_version};
 use itertools::Itertools;
 
 use crate::{
-    api::{foxess, heartbeat},
+    api::{energy_provider::EnergyProvider, foxess, heartbeat},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver},
     prelude::*,
@@ -78,7 +78,7 @@ async fn hunt(args: HuntArgs) -> Result {
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
-    let energy_provider = args.primary_provider.try_new()?;
+    let energy_provider: Box<dyn EnergyProvider> = args.primary_provider.into();
     let grid_rates: Series<_, _> = energy_provider.get_upcoming_rates(now).await?;
 
     ensure!(!grid_rates.is_empty());

@@ -34,7 +34,7 @@ impl EnergyProvider for Api {
     #[instrument(fields(on = ?on), skip_all)]
     fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");
-        let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices_NEW/DataActionGetDataPoints")
+        let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .send_json(GetDataPointsRequest::new(on))
             .context("request failed")?

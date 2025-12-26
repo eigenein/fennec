@@ -4,8 +4,8 @@ pub mod step;
 
 use std::{iter::from_fn, rc::Rc, time::Instant};
 
-use bon::{Builder, bon, builder};
-use chrono::{DateTime, Local, TimeDelta, Timelike};
+use bon::{Builder, bon};
+use chrono::{DateTime, Local, Timelike};
 use enumset::EnumSet;
 use itertools::Itertools;
 
@@ -84,17 +84,16 @@ impl Solver<'_> {
         let mut solutions = vec![Some(Solution::new()); usize::from(max_energy) + 1];
 
         // Going backwards:
-        for (interval, grid_rate) in self.grid_rates.iter().rev().copied() {
-            let step_duration = if interval.contains(self.now) {
-                interval.end - self.now
-            } else {
-                interval.duration()
-            };
+        for (mut interval, grid_rate) in self.grid_rates.iter().rev().copied() {
+            if interval.contains(self.now) {
+                // The interval has already started, trim the start time:
+                interval = interval.with_start(self.now);
+            }
 
             // Average stand-by power at this hour of a day:
             let stand_by_power = self.hourly_stand_by_power[interval.start.hour() as usize]
                 .unwrap_or(Kilowatts::ZERO);
-            net_loss_without_battery += self.loss(grid_rate, stand_by_power * step_duration);
+            net_loss_without_battery += self.loss(grid_rate, stand_by_power * interval.duration());
 
             // Calculate partial solutions for the current hour:
             solutions = {
@@ -115,7 +114,6 @@ impl Solver<'_> {
                             .min_residual_energy(min_residual_energy)
                             .next_solutions(&next_solutions)
                             .max_energy(max_energy)
-                            .duration(step_duration)
                             .call()
                     })
                     .collect_vec()
@@ -150,7 +148,6 @@ impl Solver<'_> {
         min_residual_energy: KilowattHours,
         next_solutions: &[Option<Rc<Solution>>],
         max_energy: WattHours,
-        duration: TimeDelta,
     ) -> Option<Solution> {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
@@ -169,7 +166,6 @@ impl Solver<'_> {
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery)
                     .working_mode(working_mode)
-                    .duration(duration)
                     .call();
                 let next_partial_solution = {
                     let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
@@ -200,8 +196,9 @@ impl Solver<'_> {
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
-        duration: TimeDelta,
     ) -> Step {
+        let duration = interval.duration();
+
         // Requested external power flow to (positive) or from (negative) the battery:
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
@@ -255,7 +252,7 @@ pub struct Solution {
     /// links via [`Rc`].
     ///
     /// TODO: these two [`Option`] attributes are linked, so join them.
-    next: Option<Rc<Solution>>,
+    next: Option<Rc<Self>>,
 
     /// The current (first step of the partial solution) step metrics.
     step: Option<Step>,

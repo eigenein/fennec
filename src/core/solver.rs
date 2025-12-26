@@ -32,7 +32,7 @@ pub struct Solver<'a> {
     grid_rates: &'a [(Interval, KilowattHourRate)],
     hourly_stand_by_power: &'a [Option<Kilowatts>; 24],
     working_modes: EnumSet<WorkingMode>,
-    residual_energy: KilowattHours,
+    initial_residual_energy: KilowattHours,
     capacity: KilowattHours,
     battery_args: BatteryArgs,
     battery_parameters: BatteryParameters,
@@ -66,10 +66,10 @@ impl Solver<'_> {
         let start_instant = Instant::now();
         let min_residual_energy =
             self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
-        let max_energy = WattHours::from(self.residual_energy.max(self.capacity));
+        let max_energy = WattHours::from(self.initial_residual_energy.max(self.capacity));
         info!(
             ?min_residual_energy,
-            residual_energy = ?self.residual_energy,
+            initial_residual_energy = ?self.initial_residual_energy,
             ?max_energy,
             n_intervals = self.grid_rates.len(),
             "Optimizing…",
@@ -121,7 +121,7 @@ impl Solver<'_> {
         }
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
-        let initial_energy = WattHours::from(self.residual_energy);
+        let initial_energy = WattHours::from(self.initial_residual_energy);
         let solution = solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
         info!(

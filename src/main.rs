@@ -92,7 +92,7 @@ fn hunt(args: &HuntArgs) -> Result {
         .grid_rates(&grid_rates)
         .hourly_stand_by_power(&statistics.household.hourly_stand_by_power)
         .working_modes(working_modes)
-        .residual_energy(residual_energy)
+        .initial_residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery_args(args.battery_args)
         .battery_parameters(statistics.battery)

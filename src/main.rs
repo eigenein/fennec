@@ -98,6 +98,7 @@ fn hunt(args: &HuntArgs) -> Result {
         .battery_parameters(statistics.battery)
         .purchase_fee(energy_provider.purchase_fee())
         .now(now)
+        .cyclic_constraint(args.cyclic_constraint)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
     let steps = solution.backtrack().collect_vec();

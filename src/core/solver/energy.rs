@@ -6,6 +6,10 @@ use crate::quantity::energy::KilowattHours;
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct WattHours(pub u32);
 
+impl WattHours {
+    pub const ZERO: Self = Self(0);
+}
+
 impl Debug for WattHours {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:.0}Wh", self.0)

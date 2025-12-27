@@ -93,6 +93,10 @@ pub struct HuntArgs {
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
     pub statistics_path: PathBuf,
+
+    /// Experimental: require that the final residual energy is equal or greater the initial residual energy.
+    #[clap(long = "cyclic-constraint", env = "CYCLIC_CONSTRAINT")]
+    pub cyclic_constraint: bool,
 }
 
 impl HuntArgs {

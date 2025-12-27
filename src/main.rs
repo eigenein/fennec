@@ -101,7 +101,7 @@ fn hunt(args: &HuntArgs) -> Result {
         .solve()
         .context("no solution found, try allowing additional working modes")?;
     let steps = solution.backtrack().collect_vec();
-    println!("{}", build_steps_table(&steps, args.battery_args, total_capacity));
+    println!("{}", build_steps_table(&steps, args.battery_args));
 
     let schedule: Series<_, _> =
         steps.into_iter().map(|step| (step.interval, step.working_mode)).collect();

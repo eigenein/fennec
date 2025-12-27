@@ -64,8 +64,7 @@ impl Solver<'_> {
     #[instrument(skip_all)]
     fn solve(self) -> Option<Solution> {
         let start_instant = Instant::now();
-        let min_residual_energy =
-            self.capacity * (f64::from(self.battery_args.min_soc_percent) / 100.0);
+        let min_residual_energy = self.capacity * self.battery_args.min_soc();
         let max_energy = WattHours::from(self.initial_residual_energy.max(self.capacity));
         info!(
             ?min_residual_energy,

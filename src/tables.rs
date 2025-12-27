@@ -6,20 +6,14 @@ use crate::{
     core::{series::Aggregate, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
     quantity::{
         cost::Cost,
-        energy::KilowattHours,
         power::{Kilowatts, Watts},
         rate::KilowattHourRate,
     },
 };
 
-pub fn build_steps_table(
-    steps: &[Step],
-    battery_args: BatteryArgs,
-    capacity: KilowattHours,
-) -> Table {
+pub fn build_steps_table(steps: &[Step], battery_args: BatteryArgs) -> Table {
     let median_rate =
         steps.iter().map(|step| step.grid_rate).median().unwrap_or(KilowattHourRate::ZERO);
-    let min_residual_energy = capacity * (f64::from(battery_args.min_soc_percent) / 100.0);
 
     let mut table = Table::new();
     table.load_preset(presets::UTF8_FULL_CONDENSED).apply_modifier(modifiers::UTF8_ROUND_CORNERS);
@@ -60,20 +54,8 @@ pub fn build_steps_table(
                 CoreWorkingMode::Backup => Color::Magenta,
                 CoreWorkingMode::Idle => Color::Reset,
             }),
-            Cell::new(step.residual_energy_before).set_alignment(CellAlignment::Right).fg(
-                if step.residual_energy_before > min_residual_energy {
-                    Color::Reset
-                } else {
-                    Color::Red
-                },
-            ),
-            Cell::new(step.residual_energy_after).set_alignment(CellAlignment::Right).fg(
-                if step.residual_energy_after > min_residual_energy {
-                    Color::Reset
-                } else {
-                    Color::Red
-                },
-            ),
+            Cell::new(step.residual_energy_before).set_alignment(CellAlignment::Right),
+            Cell::new(step.residual_energy_after).set_alignment(CellAlignment::Right),
             Cell::new(step.grid_consumption).set_alignment(CellAlignment::Right),
             Cell::new(step.loss)
                 .set_alignment(CellAlignment::Right)

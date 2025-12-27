@@ -60,6 +60,12 @@ pub struct BatteryArgs {
     pub min_soc_percent: u32,
 }
 
+impl BatteryArgs {
+    pub fn min_soc(&self) -> f64 {
+        f64::from(self.min_soc_percent) / 100.0
+    }
+}
+
 #[derive(Parser)]
 pub struct HuntArgs {
     /// Do not push the final schedule to FoxESS Cloud (dry run).

@@ -180,17 +180,16 @@ impl Solver<'_> {
                     .battery(battery)
                     .working_mode(working_mode)
                     .call();
-                let next_partial_solution = {
+                let next_solution = {
                     let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
                     next_solutions[usize::from(next_energy)].clone()
                 }?;
                 if step.residual_energy_after >= min_residual_energy {
                     Some(Solution {
-                        net_loss: step.loss + next_partial_solution.net_loss,
-                        charge: step.charge() + next_partial_solution.charge,
-                        discharge: step.discharge() + next_partial_solution.discharge,
-                        next: Some(next_partial_solution),
-                        step: Some(step),
+                        net_loss: step.loss + next_solution.net_loss,
+                        charge: step.charge() + next_solution.charge,
+                        discharge: step.discharge() + next_solution.discharge,
+                        payload: Some(Payload { step, next_solution }),
                     })
                 } else {
                     // Do not allow dropping below the minimally allowed state-of-charge:
@@ -254,7 +253,6 @@ impl Solver<'_> {
     }
 }
 
-#[derive(Clone)]
 pub struct Solution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
@@ -265,18 +263,7 @@ pub struct Solution {
     /// Cumulative discharge.
     discharge: KilowattHours,
 
-    /// Next partial solution – allows backtracking the entire sequence.
-    ///
-    /// I use [`Rc`] here to avoid storing the entire state matrix. That way, I calculate hour by
-    /// hour, while moving from the future to the present. When all the states for the current hour
-    /// are calculated, I can safely drop the previous hour states, because I keep the relevant
-    /// links via [`Rc`].
-    ///
-    /// TODO: these two [`Option`] attributes are linked, so join them.
-    next: Option<Rc<Self>>,
-
-    /// The current (first step of the partial solution) step metrics.
-    step: Option<Step>,
+    payload: Option<Payload>,
 }
 
 impl Solution {
@@ -285,19 +272,32 @@ impl Solution {
             net_loss: Cost::ZERO,
             charge: Quantity::ZERO,
             discharge: Quantity::ZERO,
-            next: None,
-            step: None,
+            payload: None,
         }
     }
 
     /// Track the optimal solution till the end.
     pub fn backtrack(&self) -> impl Iterator<Item = Step> {
-        let mut pointer = Some(self);
+        let mut pointer = self;
         from_fn(move || {
-            let current_solution = pointer?;
+            let current_payload = pointer.payload.as_ref()?;
             // …and advance:
-            pointer = current_solution.next.as_deref();
-            current_solution.step.clone()
+            pointer = current_payload.next_solution.as_ref();
+            Some(current_payload.step.clone())
         })
     }
+}
+
+/// Solution payload.
+pub struct Payload {
+    /// The current (first step of the partial solution) step metrics.
+    step: Step,
+
+    /// Next partial solution – allows backtracking the entire sequence.
+    ///
+    /// I use [`Rc`] here to avoid storing the entire state matrix. That way, I calculate hour by
+    /// hour, while moving from the future to the present. When all the states for the current hour
+    /// are calculated, I can safely drop the previous hour states, because I keep the relevant
+    /// links via [`Rc`].
+    next_solution: Rc<Solution>,
 }

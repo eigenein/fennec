@@ -35,13 +35,11 @@ impl Battery {
     /// Battery active time.
     #[must_use]
     pub fn apply_load(&mut self, power: Kilowatts, for_: TimeDelta) -> TimeDelta {
-        let active_time = self.apply_active_load(power, for_);
-
         // FIXME: technically, I should also take the parasitic load into account when calculating the active time:
         self.apply_parasitic_load(for_);
 
         // This will be used to calculate the loss:
-        active_time
+        self.apply_active_load(power, for_)
     }
 
     #[must_use]

@@ -17,6 +17,7 @@ use crate::{
     },
     prelude::*,
     quantity::{
+        Quantity,
         cost::Cost,
         energy::KilowattHours,
         interval::Interval,
@@ -138,6 +139,8 @@ impl Solver<'_> {
             net_loss = ?solution.net_loss,
             without_battery = ?net_loss_without_battery,
             profit = ?(net_loss_without_battery - solution.net_loss),
+            charge = ?solution.charge,
+            discharge = ?solution.discharge,
             elapsed = ?start_instant.elapsed(),
             "Optimized",
         );
@@ -184,6 +187,8 @@ impl Solver<'_> {
                 if step.residual_energy_after >= min_residual_energy {
                     Some(Solution {
                         net_loss: step.loss + next_partial_solution.net_loss,
+                        charge: step.charge() + next_partial_solution.charge,
+                        discharge: step.discharge() + next_partial_solution.discharge,
                         next: Some(next_partial_solution),
                         step: Some(step),
                     })
@@ -254,6 +259,12 @@ pub struct Solution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
 
+    /// Cumulative charge.
+    charge: KilowattHours,
+
+    /// Cumulative discharge.
+    discharge: KilowattHours,
+
     /// Next partial solution – allows backtracking the entire sequence.
     ///
     /// I use [`Rc`] here to avoid storing the entire state matrix. That way, I calculate hour by
@@ -270,7 +281,13 @@ pub struct Solution {
 
 impl Solution {
     pub const fn new() -> Self {
-        Self { net_loss: Cost::ZERO, next: None, step: None }
+        Self {
+            net_loss: Cost::ZERO,
+            charge: Quantity::ZERO,
+            discharge: Quantity::ZERO,
+            next: None,
+            step: None,
+        }
     }
 
     /// Track the optimal solution till the end.

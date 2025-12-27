@@ -10,18 +10,33 @@ use crate::{
 };
 
 /// Single-hour working plan step.
+///
+/// Technically, it is not needed to store all the attributes here because I could always zip
+/// the back track with the original metrics, but having it here makes it much easier to work with.
 #[derive(Clone)]
 pub struct Step {
-    /// Technically, it is not needed to store the timestamp here because I could always zip
-    /// the back track with the original metrics, but having it here makes it much easier to work with
-    /// (and to ensure it is working properly).
-    pub interval: Interval,
+    /// Loss within this single step.
+    pub loss: Cost,
 
+    pub interval: Interval,
     pub grid_rate: KilowattHourRate,
     pub stand_by_power: Kilowatts,
     pub working_mode: WorkingMode,
     pub residual_energy_before: KilowattHours,
     pub residual_energy_after: KilowattHours,
     pub grid_consumption: KilowattHours,
-    pub loss: Cost,
+}
+
+impl Step {
+    pub fn residual_energy_change(&self) -> KilowattHours {
+        self.residual_energy_after - self.residual_energy_before
+    }
+
+    pub fn charge(&self) -> KilowattHours {
+        self.residual_energy_change().max(KilowattHours::ZERO)
+    }
+
+    pub fn discharge(&self) -> KilowattHours {
+        -self.residual_energy_change().min(KilowattHours::ZERO)
+    }
 }

@@ -39,9 +39,6 @@ pub struct Solver<'a> {
     battery_parameters: BatteryParameters,
     purchase_fee: KilowattHourRate,
     now: DateTime<Local>,
-
-    /// Require that the final residual energy is equal or greater than the initial residual energy.
-    cyclic_constraint: bool,
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
@@ -81,18 +78,10 @@ impl Solver<'_> {
         // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
 
-        let min_final_residual_energy = if self.cyclic_constraint {
-            WattHours::from(self.initial_residual_energy)
-        } else {
-            WattHours::ZERO
-        };
-
         // Since we're going backwards in time, we only need to store the next hour's partial solutions
         // to find the current hour's solutions.
         // Here, `None` means there's no solution for the respective residual energy.
-        let mut solutions = (0..=max_energy.0)
-            .map(|watt_hours| (watt_hours >= min_final_residual_energy.0).then(Solution::new))
-            .collect_vec();
+        let mut solutions = vec![Some(Solution::new()); max_energy.0 as usize + 1];
 
         // Going backwards:
         for (mut interval, grid_rate) in self.grid_rates.iter().rev().copied() {
@@ -253,6 +242,7 @@ impl Solver<'_> {
     }
 }
 
+#[derive(Clone)]
 pub struct Solution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.
     net_loss: Cost,
@@ -289,6 +279,7 @@ impl Solution {
 }
 
 /// Solution payload.
+#[derive(Clone)]
 pub struct Payload {
     /// The current (first step of the partial solution) step metrics.
     step: Step,

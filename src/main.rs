@@ -4,9 +4,9 @@
 mod api;
 mod cli;
 mod core;
-mod persistence;
 mod prelude;
 mod quantity;
+mod statistics;
 mod tables;
 
 use chrono::{Local, Timelike};
@@ -17,8 +17,8 @@ use crate::{
     api::{energy_provider::EnergyProvider, foxess, heartbeat},
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver},
-    persistence::statistics::Statistics,
     prelude::*,
+    statistics::Statistics,
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 

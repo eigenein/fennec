@@ -3,7 +3,6 @@
 use std::{str::FromStr, time::Duration};
 
 use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 use ureq::Agent;
@@ -12,7 +11,7 @@ use crate::{
     api::energy_provider::EnergyProvider,
     core::series::Point,
     prelude::*,
-    quantity::{Quantity, interval::Interval, rate::KilowattHourRate},
+    quantity::{interval::Interval, rate::KilowattHourRate},
 };
 
 pub struct Api(Agent);
@@ -26,10 +25,6 @@ impl Api {
 }
 
 impl EnergyProvider for Api {
-    fn purchase_fee(&self) -> KilowattHourRate {
-        Quantity(OrderedFloat(0.021))
-    }
-
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
     fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {

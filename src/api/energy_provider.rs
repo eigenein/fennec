@@ -8,8 +8,6 @@ use crate::{
 
 /// TODO: merge into the enum.
 pub trait EnergyProvider {
-    fn purchase_fee(&self) -> KilowattHourRate;
-
     #[instrument(skip_all)]
     fn get_upcoming_rates(
         &self,

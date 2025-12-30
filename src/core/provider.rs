@@ -1,6 +1,9 @@
+use ordered_float::OrderedFloat;
+
 use crate::{
     api,
     api::{frank_energie, next_energy},
+    quantity::{Quantity, rate::KilowattHourRate},
 };
 
 #[derive(
@@ -15,6 +18,18 @@ pub enum Provider {
 
     /// https://www.frankenergie.nl
     FrankEnergieHourly,
+}
+
+impl Provider {
+    pub const fn purchase_fee(self) -> KilowattHourRate {
+        match self {
+            Self::NextEnergy => Quantity(OrderedFloat(0.021)),
+
+            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => {
+                Quantity(OrderedFloat(0.0182))
+            }
+        }
+    }
 }
 
 impl From<Provider> for Box<dyn api::energy_provider::EnergyProvider> {

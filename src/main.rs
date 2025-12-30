@@ -103,7 +103,7 @@ fn hunt(args: &HuntArgs) -> Result {
         .capacity(total_capacity)
         .battery_args(args.battery_args)
         .battery_parameters(statistics.energy.battery)
-        .purchase_fee(energy_provider.purchase_fee())
+        .purchase_fee(args.provider.purchase_fee())
         .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;

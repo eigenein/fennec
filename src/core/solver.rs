@@ -24,7 +24,7 @@ use crate::{
         power::Kilowatts,
         rate::KilowattHourRate,
     },
-    statistics::BatteryParameters,
+    statistics::energy::BatteryParameters,
 };
 
 #[derive(Builder)]

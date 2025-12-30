@@ -18,7 +18,7 @@ use crate::{
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver},
     prelude::*,
-    statistics::{EnergyStatistics, Statistics},
+    statistics::{Statistics, energy::EnergyStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 

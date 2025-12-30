@@ -4,7 +4,7 @@ use chrono::TimeDelta;
 
 use crate::{
     quantity::{energy::KilowattHours, power::Kilowatts},
-    statistics::BatteryParameters,
+    statistics::energy::BatteryParameters,
 };
 
 /// Battery simulator.

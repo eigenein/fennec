@@ -15,7 +15,15 @@ use itertools::Itertools;
 
 use crate::{
     api::{foxess, heartbeat},
-    cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
+    cli::{
+        Args,
+        BurrowCommand,
+        BurrowFoxEssArgs,
+        BurrowFoxEssCommand,
+        BurrowStatisticsArgs,
+        Command,
+        HuntArgs,
+    },
     core::{series::Series, solver::Solver},
     prelude::*,
     statistics::{Statistics, energy::EnergyStatistics, rates::RateStatistics},
@@ -30,29 +38,15 @@ fn main() -> Result {
     let args = Args::parse();
 
     match args.command {
-        Command::Hunt(hunt_args) => {
-            hunt(&hunt_args)?;
+        Command::Hunt(args) => {
+            hunt(&args)?;
         }
-        Command::Burrow(burrow_args) => match burrow_args.command {
+        Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(statistics_args) => {
-                let energy_statistics = statistics_args
-                    .home_assistant
-                    .connection
-                    .new_client()
-                    .get_energy_history(
-                        &statistics_args.home_assistant.entity_id,
-                        &statistics_args.home_assistant.history_period(),
-                    )?
-                    .into_iter()
-                    .collect::<EnergyStatistics>();
-                Statistics::builder()
-                    .energy(energy_statistics)
-                    .rates(RateStatistics::default()) // TODO
-                    .write_to(&statistics_args.output_path)?;
+                burrow_statistics(&statistics_args)?;
             }
-
-            BurrowCommand::FoxEss(burrow_args) => {
-                burrow_fox_ess(burrow_args)?;
+            BurrowCommand::FoxEss(args) => {
+                burrow_fox_ess(args)?;
             }
         },
     }
@@ -119,6 +113,22 @@ fn hunt(args: &HuntArgs) -> Result {
         fox_ess.set_schedule(&args.fox_ess_api.serial_number, time_slot_sequence.as_ref())?;
     }
 
+    Ok(())
+}
+
+#[instrument(skip_all)]
+fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
+    let energy_statistics = args
+        .home_assistant
+        .connection
+        .new_client()
+        .get_energy_history(&args.home_assistant.entity_id, &args.home_assistant.history_period())?
+        .into_iter()
+        .collect::<EnergyStatistics>();
+    Statistics::builder()
+        .energy(energy_statistics)
+        .rates(RateStatistics::default()) // TODO
+        .write_to(&args.output_path)?;
     Ok(())
 }
 

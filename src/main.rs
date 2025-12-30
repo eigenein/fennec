@@ -18,7 +18,7 @@ use crate::{
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver},
     prelude::*,
-    statistics::Statistics,
+    statistics::{EnergyStatistics, Statistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -35,7 +35,7 @@ fn main() -> Result {
         }
         Command::Burrow(burrow_args) => match burrow_args.command {
             BurrowCommand::Statistics(statistics_args) => {
-                statistics_args
+                let energy_statistics = statistics_args
                     .home_assistant
                     .connection
                     .new_client()
@@ -44,7 +44,9 @@ fn main() -> Result {
                         &statistics_args.home_assistant.history_period(),
                     )?
                     .into_iter()
-                    .collect::<Statistics>()
+                    .collect::<EnergyStatistics>();
+                Statistics::builder()
+                    .energy(energy_statistics)
                     .write_to(&statistics_args.output_path)?;
             }
 
@@ -67,10 +69,14 @@ fn main() -> Result {
 fn hunt(args: &HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
     info!(?statistics.generated_at);
-    info!(parasitic_load = ?statistics.battery.parasitic_load);
-    info!(charging_efficiency = format!("{:.3}", statistics.battery.charging_efficiency));
-    info!(discharging_efficiency = format!("{:.3}", statistics.battery.discharging_efficiency));
-    info!(round_trip_efficiency = format!("{:.3}", statistics.battery.round_trip_efficiency()));
+    info!(parasitic_load = ?statistics.energy.battery.parasitic_load);
+    info!(charging_efficiency = format!("{:.3}", statistics.energy.battery.charging_efficiency));
+    info!(
+        discharging_efficiency = format!("{:.3}", statistics.energy.battery.discharging_efficiency)
+    );
+    info!(
+        round_trip_efficiency = format!("{:.3}", statistics.energy.battery.round_trip_efficiency())
+    );
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone());
     let working_modes = args.working_modes();
@@ -90,12 +96,12 @@ fn hunt(args: &HuntArgs) -> Result {
 
     let solution = Solver::builder()
         .grid_rates(&grid_rates)
-        .hourly_stand_by_power(&statistics.household.hourly_stand_by_power)
+        .hourly_stand_by_power(&statistics.energy.household.hourly_stand_by_power)
         .working_modes(working_modes)
         .initial_residual_energy(residual_energy)
         .capacity(total_capacity)
         .battery_args(args.battery_args)
-        .battery_parameters(statistics.battery)
+        .battery_parameters(statistics.energy.battery)
         .purchase_fee(energy_provider.purchase_fee())
         .now(now)
         .solve()

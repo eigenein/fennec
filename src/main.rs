@@ -83,7 +83,7 @@ fn hunt(args: &HuntArgs) -> Result {
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
-    let energy_provider: Box<dyn EnergyProvider> = args.primary_provider.into();
+    let energy_provider: Box<dyn EnergyProvider> = args.provider.into();
     let grid_rates: Series<_, _> = energy_provider.get_upcoming_rates(now)?;
 
     ensure!(!grid_rates.is_empty());

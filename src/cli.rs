@@ -6,9 +6,8 @@ use enumset::EnumSet;
 use http::Uri;
 
 use crate::{
-    api,
-    api::{frank_energie, home_assistant, next_energy},
-    core::working_mode::WorkingMode,
+    api::home_assistant,
+    core::{provider::Provider, working_mode::WorkingMode},
     quantity::power::Kilowatts,
 };
 
@@ -73,8 +72,8 @@ pub struct HuntArgs {
     #[clap(long)]
     pub scout: bool,
 
-    #[clap(long = "primary-provider", env = "PRIMARY_PROVIDER", default_value = "next-energy")]
-    pub primary_provider: EnergyProvider,
+    #[clap(long = "provider", env = "PROVIDER", default_value = "next-energy")]
+    pub provider: Provider,
 
     #[clap(
         long = "working-modes",
@@ -198,32 +197,4 @@ pub enum BurrowFoxEssCommand {
 
     /// Get the schedule.
     Schedule,
-}
-
-#[derive(
-    Copy, Clone, Hash, Eq, PartialEq, clap::ValueEnum, serde::Serialize, serde::Deserialize,
-)]
-pub enum EnergyProvider {
-    /// https://www.nextenergy.nl
-    NextEnergy,
-
-    /// https://www.frankenergie.nl
-    FrankEnergieQuarterly,
-
-    /// https://www.frankenergie.nl
-    FrankEnergieHourly,
-}
-
-impl From<EnergyProvider> for Box<dyn api::energy_provider::EnergyProvider> {
-    fn from(provider: EnergyProvider) -> Self {
-        match provider {
-            EnergyProvider::NextEnergy => Box::new(next_energy::Api::new()),
-            EnergyProvider::FrankEnergieQuarterly => {
-                Box::new(frank_energie::Api::new(frank_energie::Resolution::Quarterly))
-            }
-            EnergyProvider::FrankEnergieHourly => {
-                Box::new(frank_energie::Api::new(frank_energie::Resolution::Hourly))
-            }
-        }
-    }
 }

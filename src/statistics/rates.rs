@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
-use crate::{cli::EnergyProvider, quantity::rate::KilowattHourRate};
+use crate::{core::provider::Provider, quantity::rate::KilowattHourRate};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct RateStatistics {
-    pub of: HashMap<EnergyProvider, PerProviderRates>,
+    pub of: HashMap<Provider, PerProviderRates>,
 }
 
 #[derive(Serialize, Deserialize)]

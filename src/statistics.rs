@@ -1,4 +1,5 @@
 pub mod energy;
+pub mod rates;
 
 use std::path::Path;
 
@@ -9,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     prelude::{instrument, *},
-    statistics::energy::EnergyStatistics,
+    statistics::{energy::EnergyStatistics, rates::RateStatistics},
 };
 
 #[must_use]
@@ -21,6 +22,9 @@ pub struct Statistics {
 
     #[serde(flatten)]
     pub energy: EnergyStatistics,
+
+    #[serde(default)]
+    pub rates: RateStatistics,
 }
 
 impl<S: statistics_builder::IsComplete> StatisticsBuilder<S> {

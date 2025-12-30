@@ -18,7 +18,7 @@ use crate::{
     cli::{Args, BurrowCommand, BurrowFoxEssArgs, BurrowFoxEssCommand, Command, HuntArgs},
     core::{series::Series, solver::Solver},
     prelude::*,
-    statistics::{Statistics, energy::EnergyStatistics},
+    statistics::{Statistics, energy::EnergyStatistics, rates::RateStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -47,6 +47,7 @@ fn main() -> Result {
                     .collect::<EnergyStatistics>();
                 Statistics::builder()
                     .energy(energy_statistics)
+                    .rates(RateStatistics::default()) // TODO
                     .write_to(&statistics_args.output_path)?;
             }
 

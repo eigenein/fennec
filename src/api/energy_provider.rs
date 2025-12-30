@@ -6,6 +6,7 @@ use crate::{
     quantity::{interval::Interval, rate::KilowattHourRate},
 };
 
+/// TODO: merge into the enum.
 pub trait EnergyProvider {
     fn purchase_fee(&self) -> KilowattHourRate;
 

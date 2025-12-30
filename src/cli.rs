@@ -200,7 +200,9 @@ pub enum BurrowFoxEssCommand {
     Schedule,
 }
 
-#[derive(Copy, Clone, clap::ValueEnum)]
+#[derive(
+    Copy, Clone, Hash, Eq, PartialEq, clap::ValueEnum, serde::Serialize, serde::Deserialize,
+)]
 pub enum EnergyProvider {
     /// https://www.nextenergy.nl
     NextEnergy,

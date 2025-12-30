@@ -17,10 +17,10 @@ pub trait Aggregate {
         let mut medians = [None; 24];
         for (hour, values) in self
             .into_iter()
-            .filter(|(time_range, _)| {
+            .filter(|(interval, _)| {
                 // Filter out cross-hour values:
-                (time_range.start.date_naive() == time_range.end.date_naive())
-                    && (time_range.start.hour() == time_range.end.hour())
+                (interval.start.date_naive() == interval.end.date_naive())
+                    && (interval.start.hour() == interval.end.hour())
             })
             .into_group_map_by(|(time_range, _)| time_range.start.hour())
         {

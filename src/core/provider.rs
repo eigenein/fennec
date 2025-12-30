@@ -12,13 +12,13 @@ use crate::{
     Copy, Clone, Hash, Eq, PartialEq, clap::ValueEnum, serde::Serialize, serde::Deserialize,
 )]
 pub enum Provider {
-    /// https://www.nextenergy.nl
+    /// [NextEnergy](https://www.nextenergy.nl).
     NextEnergy,
 
-    /// https://www.frankenergie.nl
+    /// Quarterly [Frank Energie](https://www.frankenergie.nl).
     FrankEnergieQuarterly,
 
-    /// https://www.frankenergie.nl
+    /// Hourly [Frank Energie](https://www.frankenergie.nl).
     FrankEnergieHourly,
 }
 

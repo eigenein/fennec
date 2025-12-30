@@ -114,12 +114,11 @@ mod tests {
     #[test]
     #[ignore = "makes the API request"]
     fn test_get_upcoming_rates_ok() -> Result {
-        let now = Local::now();
-        let series = Api::new(Resolution::Quarterly).get_rates(now.date_naive())?;
+        let series = Api::new(Resolution::Quarterly).get_rates(Local::now().date_naive())?;
         assert!(series.len() >= 1);
         assert!(series.len() <= 24 * 4);
         let (time_range, _) = &series[0];
-        assert_eq!(time_range.start.hour(), now.hour());
+        assert_eq!(time_range.start.hour(), 0);
         assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start));
         Ok(())
     }

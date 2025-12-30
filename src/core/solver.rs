@@ -15,6 +15,7 @@ use crate::{
         solver::{battery::Battery, energy::WattHours, step::Step},
         working_mode::WorkingMode,
     },
+    persistence::statistics::BatteryParameters,
     prelude::*,
     quantity::{
         Quantity,
@@ -24,7 +25,6 @@ use crate::{
         power::Kilowatts,
         rate::KilowattHourRate,
     },
-    statistics::BatteryParameters,
 };
 
 #[derive(Builder)]

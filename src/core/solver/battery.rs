@@ -3,8 +3,8 @@ use std::cmp::Ordering;
 use chrono::TimeDelta;
 
 use crate::{
+    persistence::statistics::BatteryParameters,
     quantity::{energy::KilowattHours, power::Kilowatts},
-    statistics::BatteryParameters,
 };
 
 /// Battery simulator.

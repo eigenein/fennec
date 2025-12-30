@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use ureq::Agent;
 
 use crate::{
-    api::energy_provider::EnergyProvider,
     core::series::Point,
     prelude::*,
     quantity::{interval::Interval, rate::KilowattHourRate},
@@ -22,11 +21,9 @@ impl Api {
             Agent::config_builder().timeout_global(Some(Duration::from_secs(10))).build().into();
         Self { client, resolution }
     }
-}
 
-impl EnergyProvider for Api {
     #[instrument(fields(on = ?on), skip_all)]
-    fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+    pub fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");
         let Some(data) = self
             .client
@@ -118,9 +115,9 @@ mod tests {
     #[ignore = "makes the API request"]
     fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::new(Resolution::Quarterly).get_upcoming_rates(now)?;
+        let series = Api::new(Resolution::Quarterly).get_rates(now.date_naive())?;
         assert!(series.len() >= 1);
-        assert!(series.len() <= 2 * 24 * 4);
+        assert!(series.len() <= 24 * 4);
         let (time_range, _) = &series[0];
         assert_eq!(time_range.start.hour(), now.hour());
         assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start));

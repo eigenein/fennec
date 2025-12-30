@@ -1,9 +1,11 @@
+use chrono::{DateTime, Days, Local, NaiveDate};
 use ordered_float::OrderedFloat;
 
 use crate::{
-    api,
-    api::{frank_energie, next_energy},
-    quantity::{Quantity, rate::KilowattHourRate},
+    api::{frank_energie, frank_energie::Resolution, next_energy},
+    core::series::Point,
+    prelude::*,
+    quantity::{Quantity, interval::Interval, rate::KilowattHourRate},
 };
 
 #[derive(
@@ -30,18 +32,26 @@ impl Provider {
             }
         }
     }
-}
 
-impl From<Provider> for Box<dyn api::energy_provider::EnergyProvider> {
-    fn from(provider: Provider) -> Self {
-        match provider {
-            Provider::NextEnergy => Box::new(next_energy::Api::new()),
-            Provider::FrankEnergieQuarterly => {
-                Box::new(frank_energie::Api::new(frank_energie::Resolution::Quarterly))
+    #[instrument(skip_all)]
+    pub fn get_upcoming_rates(
+        self,
+        since: DateTime<Local>,
+    ) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+        let mut rates = self.get_rates(since.date_naive())?;
+        let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
+        rates.extend(self.get_rates(next_date)?);
+        rates.retain(|(time_range, _)| time_range.end > since);
+        Ok(rates)
+    }
+
+    fn get_rates(self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+        match self {
+            Self::NextEnergy => next_energy::Api::new().get_rates(on),
+            Self::FrankEnergieQuarterly => {
+                frank_energie::Api::new(Resolution::Quarterly).get_rates(on)
             }
-            Provider::FrankEnergieHourly => {
-                Box::new(frank_energie::Api::new(frank_energie::Resolution::Hourly))
-            }
+            Self::FrankEnergieHourly => frank_energie::Api::new(Resolution::Hourly).get_rates(on),
         }
     }
 }

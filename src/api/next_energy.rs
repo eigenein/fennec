@@ -8,7 +8,6 @@ use serde_with::serde_as;
 use ureq::Agent;
 
 use crate::{
-    api::energy_provider::EnergyProvider,
     core::series::Point,
     prelude::*,
     quantity::{interval::Interval, rate::KilowattHourRate},
@@ -22,12 +21,10 @@ impl Api {
             Agent::config_builder().timeout_global(Some(Duration::from_secs(10))).build().into();
         Self(client)
     }
-}
 
-impl EnergyProvider for Api {
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
-    fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+    pub fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         info!("Fetching…");
         let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
@@ -182,9 +179,9 @@ mod tests {
     #[ignore = "makes the API request"]
     fn test_get_upcoming_rates_ok() -> Result {
         let now = Local::now();
-        let series = Api::new().get_upcoming_rates(now)?;
+        let series = Api::new().get_rates(now.date_naive())?;
         assert!(series.len() >= 1);
-        assert!(series.len() <= 48);
+        assert!(series.len() <= 24);
         let (time_range, _) = &series[0];
         assert_eq!(time_range.start.hour(), now.hour());
         assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start));

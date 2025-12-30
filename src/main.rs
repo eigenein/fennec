@@ -26,7 +26,7 @@ use crate::{
     },
     core::{series::Series, solver::Solver},
     prelude::*,
-    statistics::{Statistics, energy::EnergyStatistics, rates::RateStatistics},
+    statistics::{Statistics, energy::EnergyStatistics, rates::PerProviderRates},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -118,17 +118,22 @@ fn hunt(args: &HuntArgs) -> Result {
 
 #[instrument(skip_all)]
 fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
-    let energy_statistics = args
+    let mut statistics = Statistics::read_from(&args.statistics_path)?;
+    statistics.generated_at = Local::now();
+    let history_period = args.home_assistant.history_period();
+    statistics.energy = args
         .home_assistant
         .connection
         .new_client()
-        .get_energy_history(&args.home_assistant.entity_id, &args.home_assistant.history_period())?
+        .get_energy_history(&args.home_assistant.entity_id, &history_period)?
         .into_iter()
         .collect::<EnergyStatistics>();
-    Statistics::builder()
-        .energy(energy_statistics)
-        .rates(RateStatistics::default()) // TODO
-        .write_to(&args.output_path)?;
+    let rates = statistics.rates.of.entry(args.provider).or_insert_with(PerProviderRates::default);
+    for (interval, rate) in args.provider.get_rates(Local::now().date_naive())? {
+        rates.history.insert(interval.start, rate);
+    }
+    rates.history.retain(|start_time, _| history_period.contains(start_time));
+    statistics.write_to(&args.statistics_path)?;
     Ok(())
 }
 

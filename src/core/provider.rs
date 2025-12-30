@@ -13,12 +13,15 @@ use crate::{
 )]
 pub enum Provider {
     /// [NextEnergy](https://www.nextenergy.nl).
+    #[serde(rename = "next_energy")]
     NextEnergy,
 
     /// Quarterly [Frank Energie](https://www.frankenergie.nl).
+    #[serde(rename = "frank_energie_quarterly")]
     FrankEnergieQuarterly,
 
     /// Hourly [Frank Energie](https://www.frankenergie.nl).
+    #[serde(rename = "frank_energie_hourly")]
     FrankEnergieHourly,
 }
 
@@ -33,7 +36,6 @@ impl Provider {
         }
     }
 
-    #[instrument(skip_all)]
     pub fn get_upcoming_rates(
         self,
         since: DateTime<Local>,
@@ -45,7 +47,8 @@ impl Provider {
         Ok(rates)
     }
 
-    fn get_rates(self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+    #[instrument(skip_all)]
+    pub fn get_rates(self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
         match self {
             Self::NextEnergy => next_energy::Api::new().get_rates(on),
             Self::FrankEnergieQuarterly => {

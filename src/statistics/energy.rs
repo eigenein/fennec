@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local, TimeDelta};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use tracing::info;
 
 use crate::{
@@ -85,19 +85,57 @@ impl Delta {
 #[must_use]
 #[derive(Serialize, Deserialize)]
 pub struct HouseholdParameters {
-    #[serde(rename = "hourly_stand_by_power_kilowatts")]
+    #[serde(
+        rename = "hourly_stand_by_power_kilowatts",
+        serialize_with = "HouseholdParameters::serialize_hourly_stand_by_power"
+    )]
     pub hourly_stand_by_power: [Option<Kilowatts>; 24],
+}
+
+impl HouseholdParameters {
+    /// Serialize the array with the items rounded to watts.
+    fn serialize_hourly_stand_by_power<S: Serializer>(
+        hourly_stand_by_power: &[Option<Kilowatts>],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(
+            hourly_stand_by_power.iter().map(|kilowatts| kilowatts.map(Kilowatts::round_to_watts)),
+        )
+    }
 }
 
 #[must_use]
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct BatteryParameters {
-    #[serde(rename = "parasitic_load_kilowatts")]
+    #[serde(
+        rename = "parasitic_load_kilowatts",
+        serialize_with = "BatteryParameters::serialize_kilowatts"
+    )]
     pub parasitic_load: Kilowatts,
 
+    #[serde(serialize_with = "BatteryParameters::serialize_efficiency")]
     pub charging_efficiency: f64,
 
+    #[serde(serialize_with = "BatteryParameters::serialize_efficiency")]
     pub discharging_efficiency: f64,
+}
+
+impl BatteryParameters {
+    #[expect(clippy::trivially_copy_pass_by_ref)]
+    fn serialize_kilowatts<S: Serializer>(
+        kilowatts: &Kilowatts,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        kilowatts.round_to_watts().serialize(serializer)
+    }
+
+    #[expect(clippy::trivially_copy_pass_by_ref)]
+    fn serialize_efficiency<S: Serializer>(
+        efficiency: &f64,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_f64((efficiency * 1000.0).round() / 1000.0)
+    }
 }
 
 impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {

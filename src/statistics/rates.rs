@@ -1,17 +1,15 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, NaiveTime};
 use serde::{Deserialize, Serialize};
 
-use crate::{core::provider::Provider, quantity::rate::KilowattHourRate};
-
-#[derive(Default, Serialize, Deserialize)]
-pub struct RateStatistics {
-    pub of: HashMap<Provider, PerProviderRates>,
-}
+use crate::quantity::rate::KilowattHourRate;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct PerProviderRates {
     /// Note: key refers to the interval start time.
     pub history: BTreeMap<DateTime<Local>, KilowattHourRate>,
+
+    #[serde(default)]
+    pub medians: BTreeMap<NaiveTime, KilowattHourRate>,
 }

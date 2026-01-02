@@ -3,7 +3,6 @@ use ordered_float::OrderedFloat;
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
-    core::series::Point,
     prelude::*,
     quantity::{Quantity, interval::Interval, rate::KilowattHourRate},
 };
@@ -46,7 +45,7 @@ impl Provider {
     pub fn get_upcoming_rates(
         self,
         since: DateTime<Local>,
-    ) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+    ) -> Result<Vec<(Interval, KilowattHourRate)>> {
         let mut rates = self.get_rates(since.date_naive())?;
         let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
         rates.extend(self.get_rates(next_date)?);
@@ -55,7 +54,7 @@ impl Provider {
     }
 
     #[instrument(skip_all)]
-    pub fn get_rates(self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+    pub fn get_rates(self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
         match self {
             Self::NextEnergy => next_energy::Api::new().get_rates(on),
             Self::FrankEnergieQuarterly => {

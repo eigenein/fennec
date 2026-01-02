@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use ureq::Agent;
 
 use crate::{
-    core::series::Point,
     prelude::*,
     quantity::{interval::Interval, rate::KilowattHourRate},
 };

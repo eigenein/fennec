@@ -9,7 +9,7 @@ mod quantity;
 mod statistics;
 mod tables;
 
-use chrono::{DurationRound, Local, TimeDelta, Timelike};
+use chrono::{Local, TimeDelta, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
 
@@ -24,7 +24,10 @@ use crate::{
         Command,
         HuntArgs,
     },
-    core::{series::Aggregate, solver::Solver},
+    core::{
+        series::{Aggregate, Extend},
+        solver::Solver,
+    },
     prelude::*,
     quantity::interval::Interval,
     statistics::{Statistics, energy::EnergyStatistics, rates::ProviderStatistics},
@@ -86,22 +89,11 @@ fn hunt(args: &HuntArgs) -> Result {
     if let Some(provider_statistics) = statistics.providers.get(&args.provider) {
         let look_ahead_timestamp = now + TimeDelta::from_std(*args.look_ahead_duration)?;
         info!(?look_ahead_timestamp, "Using median rates until the forecast horizon");
-        loop {
-            let start_timestamp = match grid_rates.last() {
-                Some((interval, _)) => interval.start + args.provider.rate_time_delta(),
-                None => now.duration_trunc(args.provider.rate_time_delta())?,
-            };
-            if start_timestamp >= look_ahead_timestamp {
-                break;
-            }
-            let Some(median_rate) = provider_statistics.medians.get(&start_timestamp.time()) else {
-                break;
-            };
-            grid_rates.push((
-                Interval::new(start_timestamp, start_timestamp + args.provider.rate_time_delta()),
-                *median_rate,
-            ));
-        }
+        grid_rates.extend_grid_rates(
+            args.provider,
+            provider_statistics,
+            Interval::new(now, look_ahead_timestamp),
+        );
     }
 
     let residual_energy =

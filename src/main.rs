@@ -9,7 +9,7 @@ mod quantity;
 mod statistics;
 mod tables;
 
-use chrono::{Local, Timelike};
+use chrono::{DurationRound, Local, TimeDelta, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
 
@@ -24,12 +24,10 @@ use crate::{
         Command,
         HuntArgs,
     },
-    core::{
-        series::{Aggregate, Series},
-        solver::Solver,
-    },
+    core::{series::Aggregate, solver::Solver},
     prelude::*,
-    statistics::{Statistics, energy::EnergyStatistics, rates::PerProviderRates},
+    quantity::interval::Interval,
+    statistics::{Statistics, energy::EnergyStatistics, rates::ProviderStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -80,10 +78,31 @@ fn hunt(args: &HuntArgs) -> Result {
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
-    let grid_rates: Series<_, _> = args.provider.get_upcoming_rates(now)?;
+    let mut grid_rates = args.provider.get_upcoming_rates(now)?;
 
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
+
+    if let Some(provider_statistics) = statistics.providers.get(&args.provider) {
+        let look_ahead_timestamp = now + TimeDelta::from_std(*args.look_ahead_duration)?;
+        info!(?look_ahead_timestamp, "Using median rates until the forecast horizon");
+        loop {
+            let start_timestamp = match grid_rates.last() {
+                Some((interval, _)) => interval.start + args.provider.rate_time_delta(),
+                None => now.duration_trunc(args.provider.rate_time_delta())?,
+            };
+            if start_timestamp >= look_ahead_timestamp {
+                break;
+            }
+            let Some(median_rate) = provider_statistics.medians.get(&start_timestamp.time()) else {
+                break;
+            };
+            grid_rates.push((
+                Interval::new(start_timestamp, start_timestamp + args.provider.rate_time_delta()),
+                *median_rate,
+            ));
+        }
+    }
 
     let residual_energy =
         fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?.residual_energy;
@@ -106,8 +125,7 @@ fn hunt(args: &HuntArgs) -> Result {
     let steps = solution.backtrack().collect_vec();
     println!("{}", build_steps_table(&steps, args.battery_args));
 
-    let schedule: Series<_, _> =
-        steps.into_iter().map(|step| (step.interval, step.working_mode)).collect();
+    let schedule = steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
     let time_slot_sequence =
         foxess::TimeSlotSequence::from_schedule(schedule, now, &args.battery_args)?;
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
@@ -132,7 +150,8 @@ fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .get_energy_history(&args.home_assistant.entity_id, &history_period)?
         .into_iter()
         .collect::<EnergyStatistics>();
-    let rates = statistics.providers.entry(args.provider).or_insert_with(PerProviderRates::default);
+    let rates =
+        statistics.providers.entry(args.provider).or_insert_with(ProviderStatistics::default);
     for (interval, rate) in args.provider.get_rates(Local::now().date_naive())? {
         rates.history.insert(interval.start, rate);
     }

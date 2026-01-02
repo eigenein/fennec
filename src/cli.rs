@@ -92,6 +92,9 @@ pub struct HuntArgs {
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
     pub statistics_path: PathBuf,
+
+    #[clap(default_value = "48h")]
+    pub look_ahead_duration: humantime::Duration,
 }
 
 impl HuntArgs {

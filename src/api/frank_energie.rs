@@ -23,7 +23,7 @@ impl Api {
     }
 
     #[instrument(fields(on = ?on), skip_all)]
-    pub fn get_rates(&self, on: NaiveDate) -> Result<Vec<Point<Interval, KilowattHourRate>>> {
+    pub fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
         info!("Fetching…");
         let Some(data) = self
             .client

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::quantity::rate::KilowattHourRate;
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct PerProviderRates {
+pub struct ProviderStatistics {
     /// Note: key refers to the interval start time.
     pub history: BTreeMap<DateTime<Local>, KilowattHourRate>,
 

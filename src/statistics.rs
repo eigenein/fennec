@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::provider::Provider,
     prelude::{instrument, *},
-    statistics::{energy::EnergyStatistics, rates::PerProviderRates},
+    statistics::{energy::EnergyStatistics, rates::ProviderStatistics},
 };
 
 #[must_use]
@@ -23,7 +23,7 @@ pub struct Statistics {
     pub energy: EnergyStatistics,
 
     #[serde(default)]
-    pub providers: HashMap<Provider, PerProviderRates>,
+    pub providers: HashMap<Provider, ProviderStatistics>,
 }
 
 impl Statistics {

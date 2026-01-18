@@ -140,7 +140,7 @@ template:
           }}
         attributes:
           custom_now: "{{ now() }}" # force update
-          custom_battery_residual_energy: "{{ states('sensor.foxess_residual_energy') }}"
+          custom_battery_residual_energy: "{{ 8.44 * states('sensor.foxess_bat_soc') | float }}"
           custom_battery_energy_import: "{{ states('sensor.battery_socket_energy_import') }}"
           custom_battery_energy_export: "{{ states('sensor.battery_socket_energy_export') }}"
 ```

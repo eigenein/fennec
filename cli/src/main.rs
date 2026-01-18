@@ -96,10 +96,13 @@ fn hunt(args: &HuntArgs) -> Result {
         );
     }
 
-    let residual_energy =
-        fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?.residual_energy;
     let total_capacity =
         fox_ess.get_device_details(&args.fox_ess_api.serial_number)?.total_capacity();
+    let residual_energy = {
+        // `ResidualEnergy` seems to be unreliable and somehow corrected on server side.
+        total_capacity
+            * fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?.state_of_charge()
+    };
     info!(?residual_energy, ?total_capacity, "Fetched battery details");
 
     let solution = Solver::builder()
@@ -173,7 +176,11 @@ fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
 
         BurrowFoxEssCommand::DeviceVariables => {
             let variables = fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?;
-            info!(?variables.residual_energy, "Gotcha");
+            info!(
+                ?variables.residual_energy,
+                variables.state_of_charge_percent,
+                "Gotcha",
+            );
         }
 
         BurrowFoxEssCommand::RawDeviceVariables => {

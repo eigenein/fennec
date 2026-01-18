@@ -28,6 +28,15 @@ pub struct DeviceRealTimeData {
 pub struct DeviceVariables {
     #[serde(rename = "ResidualEnergy")]
     pub residual_energy: KilowattHours,
+
+    #[serde(rename = "SoC")]
+    pub state_of_charge_percent: f64,
+}
+
+impl DeviceVariables {
+    pub const fn state_of_charge(&self) -> f64 {
+        self.state_of_charge_percent * 0.01
+    }
 }
 
 #[derive(Deserialize)]

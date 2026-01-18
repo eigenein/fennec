@@ -3,12 +3,13 @@
 version: 2
 
 builds:
-  - builder: rust
-    binary: "fennec"
+  - builder: "rust"
+    binary: "cli"
     flags:
-      - --release
+      - "--release"
+      - "-p=cli"
     targets:
-      - aarch64-unknown-linux-gnu
+      - "aarch64-unknown-linux-gnu"
 
 source:
   enabled: false
@@ -17,7 +18,7 @@ dockers_v2:
   - ids:
       - "fennec"
     platforms:
-      - linux/arm64
+      - "linux/arm64"
     images:
       - "ghcr.io/eigenein/fennec"
     tags:
@@ -31,7 +32,7 @@ dockers_v2:
       "org.opencontainers.image.source": "{{ .GitURL }}"
 
 docker_signs:
-  - cmd: cosign
+  - cmd: "cosign"
     args:
       - "sign"
       - "${artifact}"

@@ -55,7 +55,7 @@ spec:
                 type: "FileOrCreate"
           containers:
             - name: "fennec-hunting-job"
-              image: "ghcr.io/eigenein/fennec:0.42.0"
+              image: "ghcr.io/eigenein/fennec:0.47.0"
               volumeMounts:
                 - mountPath: "statistics.toml"
                   name: "statistics"
@@ -94,7 +94,7 @@ spec:
                 type: "FileOrCreate"
           containers:
             - name: "fennec-statistics-job"
-              image: "ghcr.io/eigenein/fennec:0.41.3"
+              image: "ghcr.io/eigenein/fennec:0.47.0"
               volumeMounts:
                 - mountPath: "statistics.toml"
                   name: "statistics"

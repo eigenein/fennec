@@ -1,79 +1,23 @@
-[package]
-name = "fennec"
-authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
-categories = ["command-line-utilities"]
-description = "FoxESS home battery steering based on Next Energy or Frank Energie real-time prices"
-edition = "2024"
-keywords = ["foxess", "nextenergy", "home-battery"]
-license = "MIT"
-publish = false
-readme = "README.md"
-repository = "https://github.com/eigenein/fennec"
-version = "0.46.2"
-rust-version = "1.92"
+[workspace]
+resolver = "3"
+members = ["cli"]
 
-[badges]
-is-it-maintained-issue-resolution = { repository = "eigenein/fennec" }
-is-it-maintained-open-issues = { repository = "eigenein/fennec" }
+[workspace.lints.clippy]
+type_repetition_in_bounds = "allow"
+
+[workspace.lints.clippy.pedantic]
+level = "warn"
+priority = -1
+
+[workspace.lints.clippy.nursery]
+level = "warn"
+priority = -1
+
+[workspace.lints.clippy.all]
+level = "warn"
+priority = -1
 
 [profile.release]
 codegen-units = 1
 debug = "full"
 lto = "thin"
-
-[lints.clippy]
-type_repetition_in_bounds = "allow"
-
-[lints.clippy.pedantic]
-level = "warn"
-priority = -1
-
-[lints.clippy.nursery]
-level = "warn"
-priority = -1
-
-[lints.clippy.all]
-level = "warn"
-priority = -1
-
-[dependencies]
-anyhow = "=1.0.100"
-bon = "=3.8.1"
-comfy-table = "=7.2.1"
-derive_more = { version = "=2.1.1", features = ["full"] }
-dotenvy = "=0.15.7"
-http = "=1.4.0"
-enumset = "=1.1.10"
-humantime = "=2.3.0"
-itertools = "=0.14.0"
-md5 = "=0.8.0"
-ordered-float = { version = "=5.1.0", features = ["serde"] }
-serde_json = "=1.0.148"
-serde_qs = "=1.0.0-rc.4"
-toml = "=0.9.10"
-tracing = "=0.1.44"
-tracing-subscriber = "=0.3.22"
-
-[dependencies.serde]
-version = "=1.0.228"
-features = ["derive"]
-
-[dependencies.serde_with]
-version = "=3.16.1"
-features = ["chrono"]
-
-[dependencies.clap]
-version = "=4.5.54"
-features = ["cargo", "derive", "env", "unicode"]
-
-[dependencies.chrono]
-version = "=0.4.42"
-default-features = false
-features = ["clock", "serde"]
-
-[dependencies.ureq]
-version = "=3.1.4"
-features = ["json", "brotli", "gzip"]
-
-[dev-dependencies]
-approx = "=0.5.1"

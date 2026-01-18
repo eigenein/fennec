@@ -233,6 +233,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
+name = "cli"
+version = "0.47.0"
+dependencies = [
+ "anyhow",
+ "approx",
+ "bon",
+ "chrono",
+ "clap",
+ "comfy-table",
+ "derive_more",
+ "dotenvy",
+ "enumset",
+ "http",
+ "humantime",
+ "itertools",
+ "md5",
+ "ordered-float",
+ "serde",
+ "serde_json",
+ "serde_qs",
+ "serde_with",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "ureq",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -466,34 +494,6 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "fennec"
-version = "0.46.2"
-dependencies = [
- "anyhow",
- "approx",
- "bon",
- "chrono",
- "clap",
- "comfy-table",
- "derive_more",
- "dotenvy",
- "enumset",
- "http",
- "humantime",
- "itertools",
- "md5",
- "ordered-float",
- "serde",
- "serde_json",
- "serde_qs",
- "serde_with",
- "toml",
- "tracing",
- "tracing-subscriber",
- "ureq",
 ]
 
 [[package]]

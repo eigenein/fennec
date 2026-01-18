@@ -1,6 +1,9 @@
 [workspace]
+members = [
+    "cli",
+    "energy-monitor",
+]
 resolver = "3"
-members = ["cli"]
 
 [workspace.lints.clippy]
 type_repetition_in_bounds = "allow"

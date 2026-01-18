@@ -1,5 +1,6 @@
 .env
 flamegraph.svg
+node_modules
 rates.toml
 statistics.toml
 

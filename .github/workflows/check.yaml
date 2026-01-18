@@ -46,7 +46,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: 🧪 Test
-        run: cargo llvm-cov --codecov --output-path=codecov.json -- --include-ignored
+        run: cargo llvm-cov --codecov --output-path=codecov.json --workspace -- --include-ignored
         env:
           TZ: Europe/Amsterdam
 
@@ -61,6 +61,6 @@ jobs:
         uses: giraffate/clippy-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          clippy_flags: -- -Dwarnings
+          clippy_flags: --workspace -- -Dwarnings
           reporter: github-check
         continue-on-error: true

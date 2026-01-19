@@ -176,7 +176,7 @@ mod tests {
     #[ignore = "makes the API request"]
     fn test_get_upcoming_rates_ok() -> Result {
         let series = Api::new().get_rates(Local::now().date_naive())?;
-        assert!(series.len() >= 1);
+        assert!(!series.is_empty());
         assert!(series.len() <= 24);
         let (time_range, _) = &series[0];
         assert_eq!(time_range.start.hour(), 0);

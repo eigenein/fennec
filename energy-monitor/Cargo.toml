@@ -13,8 +13,9 @@ workspace = true
 
 [dependencies]
 anyhow = "=1.0.100"
-http = "=1.4.0"
+futures = { version = "=0.3.31", default-features = false, features = ["async-await"] }
 serde = "=1.0.228"
+time = { version = "=0.3.45", default-features = false, features = ["formatting"] }
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.22", features = ["json"] }
 tracing-web = "=0.1.3"

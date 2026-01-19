@@ -60,6 +60,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[expect(clippy::float_cmp)]
     fn test_median_odd() {
         let median = vec![1.0, 0.0, 2.0].into_iter().map(OrderedFloat).median().unwrap();
         assert_eq!(median.0, 1.0);

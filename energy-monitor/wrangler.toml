@@ -4,6 +4,9 @@ compatibility_date = "2026-01-18"
 workers_dev = false
 preview_urls = false
 
+[placement]
+mode = "smart"
+
 [build]
 command = "worker-build --release"
 
@@ -12,8 +15,7 @@ crons = ["* * * * *"]
 
 [[d1_databases]]
 binding = "fennecDatabase"
-database_name = "fennec"
-database_id = "62573dab-868e-4fe0-9944-a0f2e81ec898"
+database_id = "72dd7137-2e4c-45c4-9118-731fd5d75899"
 
 [[vpc_services]]
 binding = "p1Service"

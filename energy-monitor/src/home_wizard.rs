@@ -58,7 +58,7 @@ mod tests {
             "active_power_factor": 1.0,
             "active_frequency_hz": 49.99
         }"#;
-        serde_json::from_str::<PowerMeasurement>(body)?;
+        let _ = serde_json::from_str::<PowerMeasurement>(body)?;
         Ok(())
     }
 
@@ -100,7 +100,7 @@ mod tests {
                 }
             ]
         }"#;
-        serde_json::from_str::<PowerMeasurement>(body)?;
+        let _ = serde_json::from_str::<PowerMeasurement>(body)?;
         Ok(())
     }
 }

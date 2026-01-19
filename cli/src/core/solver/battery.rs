@@ -1,11 +1,9 @@
 use std::cmp::Ordering;
 
 use chrono::TimeDelta;
+use quantities::{energy::KilowattHours, power::Kilowatts};
 
-use crate::{
-    quantity::{energy::KilowattHours, power::Kilowatts},
-    statistics::energy::BatteryParameters,
-};
+use crate::statistics::energy::BatteryParameters;
 
 /// Battery simulator.
 #[derive(Copy, Clone, bon::Builder)]

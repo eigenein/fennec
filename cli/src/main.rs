@@ -5,13 +5,13 @@ mod api;
 mod cli;
 mod core;
 mod prelude;
-mod quantity;
 mod statistics;
 mod tables;
 
 use chrono::{Local, TimeDelta, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
+use quantities::interval::Interval;
 
 use crate::{
     api::{foxess, heartbeat},
@@ -29,7 +29,6 @@ use crate::{
         solver::Solver,
     },
     prelude::*,
-    quantity::interval::Interval,
     statistics::{Statistics, energy::EnergyStatistics, rates::ProviderStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };

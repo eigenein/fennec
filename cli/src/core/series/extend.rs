@@ -1,10 +1,7 @@
 use chrono::DurationRound;
+use quantities::{interval::Interval, rate::KilowattHourRate};
 
-use crate::{
-    core::provider::Provider,
-    quantity::{interval::Interval, rate::KilowattHourRate},
-    statistics::rates::ProviderStatistics,
-};
+use crate::{core::provider::Provider, statistics::rates::ProviderStatistics};
 
 pub trait Extend {
     fn extend_grid_rates(

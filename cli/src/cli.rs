@@ -4,11 +4,11 @@ use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
 use enumset::EnumSet;
 use http::Uri;
+use quantities::power::Kilowatts;
 
 use crate::{
     api::home_assistant,
     core::{provider::Provider, working_mode::WorkingMode},
-    quantity::power::Kilowatts,
 };
 
 #[derive(Parser)]

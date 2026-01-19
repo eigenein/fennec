@@ -1,13 +1,13 @@
 use chrono::{DateTime, Local, TimeDelta};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
+use quantities::{energy::KilowattHours, power::Kilowatts};
 use serde::{Deserialize, Serialize, Serializer};
 use tracing::info;
 
 use crate::{
     api::home_assistant::{EnergyAttributes, EnergyState},
     core::series::{Aggregate, Differentiate},
-    quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
 #[must_use]

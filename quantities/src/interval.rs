@@ -3,6 +3,7 @@ use std::fmt::{Debug, Formatter};
 use chrono::{DateTime, Local, TimeDelta};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
+#[must_use]
 pub struct Interval {
     /// Inclusive.
     pub start: DateTime<Local>,
@@ -32,10 +33,12 @@ impl Interval {
         self
     }
 
+    #[must_use]
     pub fn duration(self) -> TimeDelta {
         self.end - self.start
     }
 
+    #[must_use]
     pub fn contains(self, other: DateTime<Local>) -> bool {
         (self.start <= other) && (other < self.end)
     }

@@ -8,6 +8,14 @@ use bon::{Builder, bon};
 use chrono::{DateTime, Local, Timelike};
 use enumset::EnumSet;
 use itertools::Itertools;
+use quantities::{
+    Quantity,
+    cost::Cost,
+    energy::KilowattHours,
+    interval::Interval,
+    power::Kilowatts,
+    rate::KilowattHourRate,
+};
 
 use crate::{
     cli::BatteryArgs,
@@ -16,14 +24,6 @@ use crate::{
         working_mode::WorkingMode,
     },
     prelude::*,
-    quantity::{
-        Quantity,
-        cost::Cost,
-        energy::KilowattHours,
-        interval::Interval,
-        power::Kilowatts,
-        rate::KilowattHourRate,
-    },
     statistics::energy::BatteryParameters,
 };
 

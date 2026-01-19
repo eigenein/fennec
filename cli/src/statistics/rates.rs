@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Local, NaiveTime};
+use quantities::rate::KilowattHourRate;
 use serde::{Deserialize, Serialize};
-
-use crate::quantity::rate::KilowattHourRate;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct ProviderStatistics {

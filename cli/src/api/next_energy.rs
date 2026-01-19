@@ -3,14 +3,12 @@
 use std::{str::FromStr, time::Duration};
 
 use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
+use quantities::{interval::Interval, rate::KilowattHourRate};
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 use ureq::Agent;
 
-use crate::{
-    prelude::*,
-    quantity::{interval::Interval, rate::KilowattHourRate},
-};
+use crate::prelude::*;
 
 pub struct Api(Agent);
 

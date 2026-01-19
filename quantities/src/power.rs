@@ -6,7 +6,7 @@ use std::{
 use chrono::TimeDelta;
 use ordered_float::OrderedFloat;
 
-use crate::quantity::{Quantity, energy::KilowattHours};
+use crate::{Quantity, energy::KilowattHours};
 
 pub type Kilowatts = Quantity<1, 0, 0>;
 

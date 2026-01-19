@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
-use crate::quantity::energy::KilowattHours;
+use quantities::energy::KilowattHours;
 
 /// Quantized energy for the solver's dynamic programming state space.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -44,8 +44,9 @@ impl From<WattHours> for usize {
 
 #[cfg(test)]
 mod tests {
+    use quantities::Quantity;
+
     use super::*;
-    use crate::quantity::Quantity;
 
     #[test]
     fn test_from_positive_kilowatt_hours() {

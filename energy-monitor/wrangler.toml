@@ -22,7 +22,7 @@ remote = true
 
 [[vpc_services]]
 binding = "batteryMeterService"
-service_id = "019bd1e9-88c5-7951-a3d4-253d3493eb65"
+service_id = "019bd5fe-f8b5-7122-a99b-219f6a7f2160"
 remote = true
 
 [observability]

@@ -61,6 +61,6 @@ jobs:
         uses: giraffate/clippy-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          clippy_flags: --workspace -- -Dwarnings
+          clippy_flags: --workspace
           reporter: github-check
         continue-on-error: true

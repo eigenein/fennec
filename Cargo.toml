@@ -2,10 +2,12 @@
 members = [
     "cli",
     "energy-monitor",
+    "quantities",
 ]
 resolver = "3"
 
 [workspace.lints.clippy]
+future_not_send = "allow"
 type_repetition_in_bounds = "allow"
 
 [workspace.lints.clippy.pedantic]

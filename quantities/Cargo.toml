@@ -1,0 +1,11 @@
+[package]
+name = "quantities"
+version = "0.1.0"
+authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
+edition = "2024"
+rust-version = "1.92"
+
+[lints]
+workspace = true
+
+[dependencies]

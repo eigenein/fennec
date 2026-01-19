@@ -127,8 +127,8 @@ template:
     sensor:
       - name: "Fennec total energy usage"
         unit_of_measurement: "kWh"
-        unique_id: "custom_fennec_hourly_total_energy_usage"
-        default_entity_id: "sensor.custom_fennec_hourly_total_energy_usage"
+        unique_id: "custom_fennec_total_energy_usage"
+        default_entity_id: "sensor.custom_fennec_total_energy_usage"
         icon: "mdi:flash"
         state_class: "total"
         state: |
@@ -140,7 +140,7 @@ template:
           }}
         attributes:
           custom_now: "{{ now() }}" # force update
-          custom_battery_residual_energy: "{{ 8.44 * states('sensor.foxess_bat_soc') | float }}"
+          custom_battery_residual_energy: "{{ 8.44 * 0.01 * states('sensor.foxess_bat_soc') | float }}"
           custom_battery_energy_import: "{{ states('sensor.battery_socket_energy_import') }}"
           custom_battery_energy_export: "{{ states('sensor.battery_socket_energy_export') }}"
 ```

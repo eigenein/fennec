@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Local, NaiveDate};
-use quantities::{interval::Interval, rate::KilowattHourRate};
+use quantities::rate::KilowattHourRate;
 use serde::{Deserialize, Serialize};
 use ureq::Agent;
 
-use crate::prelude::*;
+use crate::{core::interval::Interval, prelude::*};
 
 pub struct Api {
     client: Agent,

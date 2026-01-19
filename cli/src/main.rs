@@ -11,7 +11,6 @@ mod tables;
 use chrono::{Local, TimeDelta, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
-use quantities::interval::Interval;
 
 use crate::{
     api::{foxess, heartbeat},
@@ -25,6 +24,7 @@ use crate::{
         HuntArgs,
     },
     core::{
+        interval::Interval,
         series::{Aggregate, Extend},
         solver::Solver,
     },

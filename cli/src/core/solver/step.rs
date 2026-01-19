@@ -1,12 +1,6 @@
-use quantities::{
-    cost::Cost,
-    energy::KilowattHours,
-    interval::Interval,
-    power::Kilowatts,
-    rate::KilowattHourRate,
-};
+use quantities::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate};
 
-use crate::core::working_mode::WorkingMode;
+use crate::core::{interval::Interval, working_mode::WorkingMode};
 
 /// Single-hour working plan step.
 ///

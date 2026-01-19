@@ -22,6 +22,7 @@ is-it-maintained-open-issues = { repository = "eigenein/fennec" }
 [dependencies]
 anyhow = "=1.0.100"
 bon = "=3.8.1"
+chrono = { version = "=0.4.43", default-features = false, features = ["clock", "serde"] }
 comfy-table = "=7.2.2"
 derive_more = { version = "=2.1.1", features = ["full"] }
 dotenvy = "=0.15.7"
@@ -49,11 +50,6 @@ features = ["chrono"]
 [dependencies.clap]
 version = "=4.5.54"
 features = ["cargo", "derive", "env", "unicode"]
-
-[dependencies.chrono]
-version = "=0.4.43"
-default-features = false
-features = ["clock", "serde"]
 
 [dependencies.ureq]
 version = "=3.1.4"

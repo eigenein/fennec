@@ -17,7 +17,7 @@ database_id = "62573dab-868e-4fe0-9944-a0f2e81ec898"
 
 [[vpc_services]]
 binding = "p1Service"
-service_id = "019bd1ea-846b-7182-8c09-ece10adff21b"
+service_id = "019bd1e9-88c5-7951-a3d4-253d3493eb65"
 remote = true
 
 [[vpc_services]]

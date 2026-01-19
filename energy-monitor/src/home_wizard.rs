@@ -1,17 +1,20 @@
 use anyhow::Context;
 use quantities::energy::KilowattHours;
 use serde::{Deserialize, de::DeserializeOwned};
+use tracing::info;
 use worker::Fetcher;
 
 use crate::result::Result;
 
-pub struct Client(Fetcher);
+pub struct Client(pub Fetcher);
 
 impl Client {
     /// Fetch the latest measurement.
     ///
     /// API docs: <https://api-documentation.homewizard.com/docs/v1/measurement>.
+    #[tracing::instrument(skip_all)]
     pub async fn get_measurement<R: DeserializeOwned>(&self) -> Result<R> {
+        info!("Fetching a measurement…");
         self.0
             .fetch("http://host/api/v1/data", None)
             .await
@@ -22,6 +25,7 @@ impl Client {
     }
 }
 
+#[must_use]
 #[derive(Deserialize)]
 pub struct PowerMeasurement {
     #[serde(rename = "total_power_import_kwh")]

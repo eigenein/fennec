@@ -5,14 +5,15 @@ use std::{
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
 use itertools::Itertools;
-use quantities::{
-    interval::Interval,
-    power::{Kilowatts, Watts},
-};
+use quantities::power::{Kilowatts, Watts};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{cli::BatteryArgs, core::working_mode::WorkingMode as CoreWorkingMode, prelude::*};
+use crate::{
+    cli::BatteryArgs,
+    core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
+    prelude::*,
+};
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]

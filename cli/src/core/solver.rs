@@ -12,7 +12,6 @@ use quantities::{
     Quantity,
     cost::Cost,
     energy::KilowattHours,
-    interval::Interval,
     power::Kilowatts,
     rate::KilowattHourRate,
 };
@@ -20,6 +19,7 @@ use quantities::{
 use crate::{
     cli::BatteryArgs,
     core::{
+        interval::Interval,
         solver::{battery::Battery, energy::WattHours, step::Step},
         working_mode::WorkingMode,
     },

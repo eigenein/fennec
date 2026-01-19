@@ -1,9 +1,10 @@
 use chrono::{DateTime, Days, Local, NaiveDate, TimeDelta};
 use ordered_float::OrderedFloat;
-use quantities::{Quantity, interval::Interval, rate::KilowattHourRate};
+use quantities::{Quantity, rate::KilowattHourRate};
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
+    core::interval::Interval,
     prelude::*,
 };
 

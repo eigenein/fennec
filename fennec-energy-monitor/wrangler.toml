@@ -14,21 +14,21 @@ command = "worker-build --release"
 crons = ["* * * * *"]
 
 [[d1_databases]]
-binding = "fennecDatabase"
+binding = "fennec"
 database_id = "72dd7137-2e4c-45c4-9118-731fd5d75899"
 
 [[vpc_services]]
-binding = "p1Service"
+binding = "p1"
 service_id = "019bd1e9-88c5-7951-a3d4-253d3493eb65"
 remote = true
 
 [[vpc_services]]
-binding = "batteryMeterService"
+binding = "batteryMeter"
 service_id = "019bd5fe-f8b5-7122-a99b-219f6a7f2160"
 remote = true
 
 [[vpc_services]]
-binding = "batteryService"
+binding = "battery"
 service_id = "019bdc09-c6fd-7f10-9ae8-a568dc0414dd"
 remote = true
 

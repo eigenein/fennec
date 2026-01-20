@@ -21,12 +21,14 @@ use serde::{Deserialize, Serialize};
     derive_more::AddAssign,
     derive_more::From,
     derive_more::FromStr,
+    derive_more::Into,
     derive_more::Neg,
     derive_more::Sub,
     derive_more::SubAssign,
     derive_more::Sum,
 )]
 #[from(i32, f64, OrderedFloat<f64>)]
+#[into(f64)]
 #[must_use]
 pub struct Quantity<const POWER: isize, const TIME: isize, const COST: isize>(
     pub OrderedFloat<f64>,

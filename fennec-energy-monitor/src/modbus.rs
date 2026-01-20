@@ -16,6 +16,12 @@ pub struct BatteryStatus {
     pub design_capacity: KilowattHours,
 }
 
+impl BatteryStatus {
+    pub fn residual_energy(&self) -> KilowattHours {
+        self.design_capacity * self.state_of_charge * self.state_of_health
+    }
+}
+
 pub struct Client(pub Fetcher);
 
 impl Client {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+    <data-source source="LOCAL" name="d3d075a5cad1d9120616d7a75564ca1328c2533eba6ef924bd5e0ac924e3011c.sqlite" uuid="ef670ea8-1845-46ca-89d8-30302f704b12">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:$PROJECT_DIR$/fennec-energy-monitor/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/d3d075a5cad1d9120616d7a75564ca1328c2533eba6ef924bd5e0ac924e3011c.sqlite</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+  </component>
+</project>

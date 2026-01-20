@@ -9,7 +9,7 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 use tracing_web::{MakeConsoleWriter, performance_layer};
-use worker::{Env, ScheduleContext, ScheduledEvent};
+use worker::{Date, Env, ScheduleContext, ScheduledEvent, wasm_bindgen::JsValue};
 use worker_macros::event;
 
 use crate::{homewizard::PowerMeasurement, result::Result};
@@ -31,9 +31,9 @@ async fn scheduled(_event: ScheduledEvent, env: Env, _context: ScheduleContext) 
 
 async fn try_scheduled(env: Env) -> Result {
     let (p1_measurement, battery_measurement, battery_status) = {
-        let p1_client = homewizard::Client(env.service("p1Service")?);
-        let battery_meter_client = homewizard::Client(env.service("batteryMeterService")?);
-        let modbus_client = modbus::Client(env.service("batteryService")?);
+        let p1_client = homewizard::Client(env.service("p1")?);
+        let battery_meter_client = homewizard::Client(env.service("batteryMeter")?);
+        let modbus_client = modbus::Client(env.service("battery")?);
         futures::try_join!(
             p1_client.get_measurement::<PowerMeasurement>(),
             battery_meter_client.get_measurement::<PowerMeasurement>(),
@@ -48,6 +48,32 @@ async fn try_scheduled(env: Env) -> Result {
         state_of_health = battery_status.state_of_health,
         design_capacity = ?battery_status.design_capacity,
     );
+
+    let database = env.d1("fennec")?;
+
+    // language=sqlite
+    let query = r"
+        INSERT INTO meters (
+            timestamp,
+            p1_import_kwh,
+            p1_export_kwh,
+            battery_import_kwh,
+            battery_export_kwh,
+            battery_residual_energy_kwh
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+    ";
+    database
+        .prepare(query)
+        .bind(&[
+            JsValue::from(u32::try_from(Date::now().as_millis() / 1000)?),
+            JsValue::from(f64::from(p1_measurement.total_power_import)),
+            JsValue::from(f64::from(p1_measurement.total_power_export)),
+            JsValue::from(f64::from(battery_measurement.total_power_import)),
+            JsValue::from(f64::from(battery_measurement.total_power_export)),
+            JsValue::from(f64::from(battery_status.residual_energy())),
+        ])?
+        .run()
+        .await?;
 
     Ok(())
 }

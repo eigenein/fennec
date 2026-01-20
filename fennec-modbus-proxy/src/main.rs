@@ -74,12 +74,12 @@ async fn get_battery_status_internal(args: &BatteryArgs) -> Result<BatteryStatus
             .context("failed to connect to the battery")?;
     info!("Connected via Modbus");
     let response = {
-        let soc_percent = *context
+        let state_of_charge_percentage = *context
             .read_holding_registers(args.registers.state_of_charge, 1)
             .await??
             .first()
             .context("empty SoC register response")?;
-        let soh_percent = *context
+        let state_of_health_percentage = *context
             .read_holding_registers(args.registers.state_of_health, 1)
             .await??
             .first()
@@ -90,8 +90,8 @@ async fn get_battery_status_internal(args: &BatteryArgs) -> Result<BatteryStatus
             .first()
             .context("empty SoH register response")?;
         BatteryStatus {
-            state_of_charge: f64::from(soc_percent) / 100.0,
-            state_of_health: f64::from(soh_percent) / 100.0,
+            state_of_charge: f64::from(state_of_charge_percentage) / 100.0,
+            state_of_health: f64::from(state_of_health_percentage) / 100.0,
             design_capacity_kwh: f64::from(design_energy_decawatts) * 0.01,
         }
     };

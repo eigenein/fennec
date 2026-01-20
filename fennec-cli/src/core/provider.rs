@@ -1,4 +1,4 @@
-use chrono::{DateTime, Days, Local, NaiveDate, TimeDelta};
+use chrono::{DateTime, Days, Local, NaiveDate};
 use fennec_quantities::{Quantity, rate::KilowattHourRate};
 use ordered_float::OrderedFloat;
 
@@ -26,13 +26,6 @@ pub enum Provider {
 }
 
 impl Provider {
-    pub const fn rate_time_delta(self) -> TimeDelta {
-        match self {
-            Self::NextEnergy | Self::FrankEnergieHourly => TimeDelta::hours(1),
-            Self::FrankEnergieQuarterly => TimeDelta::minutes(15),
-        }
-    }
-
     pub const fn purchase_fee(self) -> KilowattHourRate {
         match self {
             Self::NextEnergy => Quantity(OrderedFloat(0.021)),

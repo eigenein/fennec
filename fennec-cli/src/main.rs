@@ -8,7 +8,7 @@ mod prelude;
 mod statistics;
 mod tables;
 
-use chrono::{Local, TimeDelta, Timelike};
+use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
 
@@ -23,11 +23,7 @@ use crate::{
         Command,
         HuntArgs,
     },
-    core::{
-        interval::Interval,
-        series::{Aggregate, Extend},
-        solver::Solver,
-    },
+    core::{series::Aggregate, solver::Solver},
     prelude::*,
     statistics::{Statistics, energy::EnergyStatistics, rates::ProviderStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
@@ -80,20 +76,10 @@ fn hunt(args: &HuntArgs) -> Result {
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
-    let mut grid_rates = args.provider.get_upcoming_rates(now)?;
+    let grid_rates = args.provider.get_upcoming_rates(now)?;
 
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
-
-    if let Some(provider_statistics) = statistics.providers.get(&args.provider) {
-        let look_ahead_timestamp = now + TimeDelta::from_std(*args.look_ahead_duration)?;
-        info!(?look_ahead_timestamp, "Using median rates until the forecast horizon");
-        grid_rates.extend_grid_rates(
-            args.provider,
-            provider_statistics,
-            Interval::new(now, look_ahead_timestamp),
-        );
-    }
 
     let total_capacity =
         fox_ess.get_device_details(&args.fox_ess_api.serial_number)?.total_capacity();

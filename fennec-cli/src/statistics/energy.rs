@@ -37,34 +37,37 @@ impl FromIterator<EnergyState> for EnergyStatistics {
 }
 
 impl EnergyAttributes {
-    pub fn is_importing(&self) -> bool {
-        self.import >= KilowattHours::from(0.001)
+    #[must_use]
+    pub const fn is_importing(&self) -> bool {
+        self.import.is_significant()
     }
 
-    pub fn is_exporting(&self) -> bool {
-        self.export >= KilowattHours::from(0.001)
+    #[must_use]
+    pub const fn is_exporting(&self) -> bool {
+        self.export.is_significant()
     }
 
-    pub fn is_idling(&self) -> bool {
-        !self.is_importing() && !self.is_exporting() && self.residual_energy <= KilowattHours::ZERO
+    #[must_use]
+    pub const fn is_idling(&self) -> bool {
+        !self.is_importing() && !self.is_exporting()
     }
 
-    pub fn is_charging(&self) -> bool {
-        self.is_importing()
-            && !self.is_exporting()
-            && self.residual_energy >= KilowattHours::ONE_THOUSANDTH
+    #[must_use]
+    pub const fn is_charging(&self) -> bool {
+        self.is_importing() && !self.is_exporting()
     }
 
-    pub fn is_discharging(&self) -> bool {
-        self.is_exporting()
-            && !self.is_importing()
-            && self.residual_energy <= -KilowattHours::ONE_THOUSANDTH
+    #[must_use]
+    pub const fn is_discharging(&self) -> bool {
+        self.is_exporting() && !self.is_importing()
     }
 
+    #[must_use]
     pub fn as_charging_efficiency(&self) -> f64 {
         (self.residual_energy / (self.import - self.export)).0
     }
 
+    #[must_use]
     pub fn as_discharging_efficiency(&self) -> f64 {
         ((self.import - self.export) / self.residual_energy).0
     }

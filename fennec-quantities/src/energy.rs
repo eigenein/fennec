@@ -18,6 +18,11 @@ impl KilowattHours {
         Self::ZERO
     }
 
+    #[must_use]
+    pub const fn is_significant(self) -> bool {
+        self.0.0 >= Self::ONE_THOUSANDTH.0.0
+    }
+
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
         Self::from(f64::from(watt_hours) * 0.001)
     }

@@ -6,7 +6,8 @@ use std::{sync::Arc, time::Duration};
 use anyhow::Context;
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use clap::{Parser, crate_version};
-use serde::Serialize;
+use fennec_energy_monitor::modbus::BatteryStatus;
+use fennec_quantities::energy::KilowattHours;
 use tokio::net::{TcpListener, lookup_host};
 use tokio_modbus::{
     Slave,
@@ -68,13 +69,6 @@ struct AppState {
     battery_args: BatteryArgs,
 }
 
-#[derive(Serialize)]
-struct BatteryStatus {
-    state_of_charge: f64,
-    state_of_health: f64,
-    design_capacity_kwh: f64,
-}
-
 #[instrument(skip_all)]
 async fn get_battery_status(
     State(args): State<Arc<AppState>>,
@@ -119,10 +113,10 @@ async fn get_battery_status_internal(args: &BatteryArgs) -> Result<BatteryStatus
         BatteryStatus {
             state_of_charge: f64::from(state_of_charge_percentage) / 100.0,
             state_of_health: f64::from(state_of_health_percentage) / 100.0,
-            design_capacity_kwh: f64::from(design_energy_decawatts) * 0.01,
+            design_capacity: KilowattHours::from(f64::from(design_energy_decawatts) * 0.01),
         }
     };
-    info!(response.state_of_charge, response.state_of_health, response.design_capacity_kwh);
+    info!(response.state_of_charge, response.state_of_health, ?response.design_capacity);
     let _ = context.disconnect().await;
     Ok(response)
 }

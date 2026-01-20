@@ -2,6 +2,9 @@ use time::{UtcDateTime, format_description::well_known::Iso8601};
 use tracing_subscriber::fmt::{format::Writer, time::FormatTime};
 use worker::Date;
 
+/// Custom timestamp formatter for [`tracing`] on Cloudflare.
+///
+/// The built-in formatters use the time APIs unavailable to workers.
 pub struct WorkerFormatTime;
 
 impl FormatTime for WorkerFormatTime {

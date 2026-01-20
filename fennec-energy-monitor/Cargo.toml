@@ -11,7 +11,8 @@ rust-version.workspace = true
 version.workspace = true
 
 [lib]
-crate-type = ["cdylib"]
+# TODO: remove "lib" when the Modbus proxy goes away:
+crate-type = ["cdylib", "lib"]
 
 [lints]
 workspace = true

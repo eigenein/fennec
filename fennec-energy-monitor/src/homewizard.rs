@@ -14,9 +14,9 @@ impl Client {
     /// API docs: <https://api-documentation.homewizard.com/docs/v1/measurement>.
     #[tracing::instrument(skip_all)]
     pub async fn get_measurement<R: DeserializeOwned>(&self) -> Result<R> {
-        info!("Fetching a measurement…");
+        info!("fetching a measurement…");
         self.0
-            .fetch("http://host/api/v1/data", None)
+            .fetch("http://homewizard/api/v1/data", None)
             .await
             .context("failed to fetch the URL")?
             .json()

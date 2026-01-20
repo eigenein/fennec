@@ -18,6 +18,8 @@ anyhow = "=1.0.100"
 axum = { version = "=0.8.8", features = ["tracing"] }
 clap = { version = "=4.5.54", features = ["cargo", "derive", "env", "unicode"] }
 dotenvy = "=0.15.7"
+fennec-energy-monitor = { path = "../fennec-energy-monitor" }
+fennec-quantities = { path = "../fennec-quantities" }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "=1.49.0", features = ["rt", "signal"] }
 tokio-modbus = { version = "=0.17.0", default-features = false, features = ["tcp"] }

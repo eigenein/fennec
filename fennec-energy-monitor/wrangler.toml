@@ -27,6 +27,11 @@ binding = "batteryMeterService"
 service_id = "019bd5fe-f8b5-7122-a99b-219f6a7f2160"
 remote = true
 
+[[vpc_services]]
+binding = "batteryService"
+service_id = "019bdb5d-6eee-7c70-b627-a9a3070efa41"
+remote = true
+
 [observability]
 enabled = true
 head_sampling_rate = 1

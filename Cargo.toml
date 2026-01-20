@@ -7,6 +7,17 @@ members = [
 ]
 resolver = "3"
 
+[workspace.package]
+authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
+edition = "2024"
+keywords = ["foxess", "nextenergy", "home-battery"]
+license = "MIT"
+publish = false
+readme = "README.md"
+repository = "https://github.com/eigenein/fennec"
+rust-version = "1.92"
+version = "0.48.0"
+
 [workspace.lints.clippy]
 future_not_send = "allow"
 type_repetition_in_bounds = "allow"

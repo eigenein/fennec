@@ -1,0 +1,19 @@
+[package]
+name = "modbus-proxy"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "=1.0.100"
+axum = { version = "=0.8.8", features = ["tracing"] }
+clap = { version = "=4.5.54", features = ["cargo", "derive", "env", "unicode"] }
+dotenvy = "=0.15.7"
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "=1.49.0", features = ["rt"] }
+tokio-modbus = { version = "=0.17.0", default-features = false, features = ["tcp"] }
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.22" }

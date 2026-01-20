@@ -7,11 +7,11 @@
   </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/cli/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/energy-monitor/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/quantities/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/modbus-proxy/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fennec-cli/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

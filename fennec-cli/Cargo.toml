@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "fennec-cli"
 authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
 categories = ["command-line-utilities"]
 description = "FoxESS home battery steering based on Next Energy or Frank Energie real-time prices"

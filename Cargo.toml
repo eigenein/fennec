@@ -1,7 +1,8 @@
 [workspace]
 members = [
-    "cli",
-    "energy-monitor", "modbus-proxy",
+    "energy-monitor",
+    "fennec-cli",
+    "modbus-proxy",
     "quantities",
 ]
 resolver = "3"

@@ -159,7 +159,7 @@ fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .filter_map(|(time, rates)| Some((time, rates.median()?)))
         .collect();
 
-    statistics.write_to(&args.statistics_path)?;
+    statistics.write_to(&args.statistics_path).context("failed to write the statistics file")?;
     Ok(())
 }
 

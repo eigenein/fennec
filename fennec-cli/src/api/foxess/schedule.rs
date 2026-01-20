@@ -4,8 +4,8 @@ use std::{
 };
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
+use fennec_quantities::power::{Kilowatts, Watts};
 use itertools::Itertools;
-use quantities::power::{Kilowatts, Watts};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 

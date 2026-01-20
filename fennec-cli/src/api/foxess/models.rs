@@ -1,4 +1,4 @@
-use quantities::energy::KilowattHours;
+use fennec_quantities::energy::KilowattHours;
 use serde::Deserialize;
 
 #[derive(Deserialize)]

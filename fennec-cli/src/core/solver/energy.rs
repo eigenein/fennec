@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
-use quantities::energy::KilowattHours;
+use fennec_quantities::energy::KilowattHours;
 
 /// Quantized energy for the solver's dynamic programming state space.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -44,7 +44,7 @@ impl From<WattHours> for usize {
 
 #[cfg(test)]
 mod tests {
-    use quantities::Quantity;
+    use fennec_quantities::Quantity;
 
     use super::*;
 

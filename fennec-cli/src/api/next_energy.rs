@@ -3,7 +3,7 @@
 use std::{str::FromStr, time::Duration};
 
 use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
-use quantities::rate::KilowattHourRate;
+use fennec_quantities::rate::KilowattHourRate;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 use ureq::Agent;

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local, TimeDelta};
+use fennec_quantities::{energy::KilowattHours, power::Kilowatts};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use quantities::{energy::KilowattHours, power::Kilowatts};
 use serde::{Deserialize, Serialize, Serializer};
 use tracing::info;
 

@@ -1,5 +1,5 @@
 use anyhow::Context;
-use quantities::energy::KilowattHours;
+use fennec_quantities::energy::KilowattHours;
 use serde::{Deserialize, de::DeserializeOwned};
 use tracing::info;
 use worker::Fetcher;

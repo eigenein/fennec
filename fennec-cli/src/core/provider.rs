@@ -1,6 +1,6 @@
 use chrono::{DateTime, Days, Local, NaiveDate, TimeDelta};
+use fennec_quantities::{Quantity, rate::KilowattHourRate};
 use ordered_float::OrderedFloat;
-use quantities::{Quantity, rate::KilowattHourRate};
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},

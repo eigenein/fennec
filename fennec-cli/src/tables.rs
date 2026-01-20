@@ -1,5 +1,5 @@
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
-use quantities::{
+use fennec_quantities::{
     cost::Cost,
     power::{Kilowatts, Watts},
     rate::KilowattHourRate,

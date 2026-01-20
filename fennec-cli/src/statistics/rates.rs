@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Local, NaiveTime};
-use quantities::rate::KilowattHourRate;
+use fennec_quantities::rate::KilowattHourRate;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Serialize, Deserialize)]

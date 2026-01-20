@@ -1,5 +1,5 @@
 use chrono::DurationRound;
-use quantities::rate::KilowattHourRate;
+use fennec_quantities::rate::KilowattHourRate;
 
 use crate::{
     core::{interval::Interval, provider::Provider},

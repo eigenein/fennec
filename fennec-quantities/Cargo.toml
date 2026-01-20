@@ -1,5 +1,5 @@
 [package]
-name = "quantities"
+name = "fennec-quantities"
 version = "0.1.0"
 authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
 edition = "2024"

@@ -1,4 +1,9 @@
-use quantities::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate};
+use fennec_quantities::{
+    cost::Cost,
+    energy::KilowattHours,
+    power::Kilowatts,
+    rate::KilowattHourRate,
+};
 
 use crate::core::{interval::Interval, working_mode::WorkingMode};
 

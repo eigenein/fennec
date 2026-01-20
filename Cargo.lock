@@ -524,23 +524,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
-name = "energy-monitor"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "quantities",
- "serde",
- "serde_json",
- "time",
- "tracing",
- "tracing-subscriber",
- "tracing-web",
- "worker",
- "worker-macros",
-]
-
-[[package]]
 name = "enumset"
 version = "1.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -590,12 +573,12 @@ dependencies = [
  "derive_more",
  "dotenvy",
  "enumset",
+ "fennec-quantities",
  "http",
  "humantime",
  "itertools",
  "md5",
  "ordered-float",
- "quantities",
  "serde",
  "serde_json",
  "serde_qs",
@@ -604,6 +587,48 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ureq",
+]
+
+[[package]]
+name = "fennec-energy-monitor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "fennec-quantities",
+ "futures",
+ "serde",
+ "serde_json",
+ "time",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-web",
+ "worker",
+ "worker-macros",
+]
+
+[[package]]
+name = "fennec-modbus-proxy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "dotenvy",
+ "serde",
+ "tokio",
+ "tokio-modbus",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "fennec-quantities"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "derive_more",
+ "ordered-float",
+ "serde",
 ]
 
 [[package]]
@@ -1119,21 +1144,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "modbus-proxy"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "dotenvy",
- "serde",
- "tokio",
- "tokio-modbus",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1273,16 +1283,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ee95bc4ef87b8d5ba32e8b7714ccc834865276eab0aed5c9958d00ec45f49e8"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "quantities"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "derive_more",
- "ordered-float",
- "serde",
 ]
 
 [[package]]

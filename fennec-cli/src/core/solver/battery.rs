@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use chrono::TimeDelta;
-use quantities::{energy::KilowattHours, power::Kilowatts};
+use fennec_quantities::{energy::KilowattHours, power::Kilowatts};
 
 use crate::statistics::energy::BatteryParameters;
 

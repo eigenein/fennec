@@ -1,8 +1,8 @@
 use std::{ops::RangeInclusive, time::Duration};
 
 use chrono::{DateTime, Local};
+use fennec_quantities::energy::KilowattHours;
 use http::Uri;
-use quantities::energy::KilowattHours;
 use serde_with::serde_as;
 use ureq::{Agent, tls::TlsConfig};
 

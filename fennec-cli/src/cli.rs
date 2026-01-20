@@ -3,8 +3,8 @@ use std::{ops::RangeInclusive, path::PathBuf};
 use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
 use enumset::EnumSet;
+use fennec_quantities::power::Kilowatts;
 use http::Uri;
-use quantities::power::Kilowatts;
 
 use crate::{
     api::home_assistant,

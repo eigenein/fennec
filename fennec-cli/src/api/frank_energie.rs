@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Local, NaiveDate};
-use quantities::rate::KilowattHourRate;
+use fennec_quantities::rate::KilowattHourRate;
 use serde::{Deserialize, Serialize};
 use ureq::Agent;
 

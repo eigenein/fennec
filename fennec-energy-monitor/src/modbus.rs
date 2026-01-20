@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{Context, bail};
 use fennec_quantities::energy::KilowattHours;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -22,12 +22,14 @@ impl Client {
     #[instrument(skip_all)]
     pub async fn get_battery_status(&self) -> Result<BatteryStatus> {
         info!("fetching the battery status…");
-        self.0
-            .fetch("http://modbus-proxy/battery-status", None)
+        let mut response = self
+            .0
+            .fetch("http://fennec-modbus-proxy/battery-status", None)
             .await
-            .context("failed to fetch the URL")?
-            .json()
-            .await
-            .context("failed to deserialize the response")
+            .context("failed to fetch the Modbus proxy URL")?;
+        if response.status_code() != 200 {
+            bail!("Modbus proxy returned {}", response.status_code());
+        }
+        response.json().await.context("failed to deserialize the response")
     }
 }

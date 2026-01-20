@@ -29,7 +29,7 @@ remote = true
 
 [[vpc_services]]
 binding = "batteryService"
-service_id = "019bdb5d-6eee-7c70-b627-a9a3070efa41"
+service_id = "019bdc09-c6fd-7f10-9ae8-a568dc0414dd"
 remote = true
 
 [observability]

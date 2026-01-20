@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{Context, bail};
 use fennec_quantities::energy::KilowattHours;
 use serde::{Deserialize, de::DeserializeOwned};
 use tracing::info;
@@ -15,13 +15,15 @@ impl Client {
     #[tracing::instrument(skip_all)]
     pub async fn get_measurement<R: DeserializeOwned>(&self) -> Result<R> {
         info!("fetching a measurement…");
-        self.0
+        let mut response = self
+            .0
             .fetch("http://homewizard/api/v1/data", None)
             .await
-            .context("failed to fetch the URL")?
-            .json()
-            .await
-            .context("failed to deserialize the response")
+            .context("failed to fetch the measurement URL")?;
+        if response.status_code() != 200 {
+            bail!("HomeWizard API returned {}", response.status_code());
+        }
+        response.json().await.context("failed to deserialize the response")
     }
 }
 

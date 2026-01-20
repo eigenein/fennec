@@ -1,7 +1,7 @@
 mod cli;
 mod result;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
@@ -12,6 +12,7 @@ use tokio_modbus::{
     Slave,
     client::{Client, Reader},
 };
+use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use tracing::{error, info, instrument};
 
 use crate::{
@@ -29,13 +30,38 @@ async fn main() -> Result {
     let listener =
         TcpListener::bind(args.bind_address).await.context("failed to bind to the address")?;
     let state = AppState { battery_args: args.battery };
-    let app =
-        Router::new().route("/battery-status", get(get_battery_status)).with_state(Arc::new(state));
+    let app = Router::new()
+        .route("/battery-status", get(get_battery_status))
+        .with_state(Arc::new(state))
+        .layer((TraceLayer::new_for_http(), TimeoutLayer::new(Duration::from_secs(10))));
 
     info!("Serving…");
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()).await?;
 
     Ok(())
+}
+
+/// Per <https://github.com/tokio-rs/axum/blob/main/examples/graceful-shutdown/src/main.rs>.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => {},
+        () = terminate => {},
+    }
 }
 
 struct AppState {

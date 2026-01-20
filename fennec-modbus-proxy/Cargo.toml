@@ -19,7 +19,8 @@ axum = { version = "=0.8.8", features = ["tracing"] }
 clap = { version = "=4.5.54", features = ["cargo", "derive", "env", "unicode"] }
 dotenvy = "=0.15.7"
 serde = { version = "1.0.228", features = ["derive"] }
-tokio = { version = "=1.49.0", features = ["rt"] }
+tokio = { version = "=1.49.0", features = ["rt", "signal"] }
 tokio-modbus = { version = "=0.17.0", default-features = false, features = ["tcp"] }
+tower-http = { version = "=0.6.1", features = ["timeout", "trace"] }
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.22" }

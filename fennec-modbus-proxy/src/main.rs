@@ -29,7 +29,8 @@ async fn main() -> Result {
     let listener =
         TcpListener::bind(args.bind_address).await.context("failed to bind to the address")?;
     let state = AppState { battery_args: args.battery };
-    let app = Router::new().route("/", get(get_battery_status)).with_state(Arc::new(state));
+    let app =
+        Router::new().route("/battery-status", get(get_battery_status)).with_state(Arc::new(state));
 
     info!("Serving…");
     axum::serve(listener, app).await?;

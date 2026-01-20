@@ -7,3 +7,4 @@ LABEL org.opencontainers.image.source="https://github.com/eigenein/fennec"
 
 ENTRYPOINT ["/fennec-cli"]
 ADD $TARGETPLATFORM/fennec-cli /
+ADD $TARGETPLATFORM/fennec-modbus-proxy /

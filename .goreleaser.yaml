@@ -4,10 +4,19 @@ version: 2
 
 builds:
   - builder: "rust"
-    binary: "cli"
+    id: "fennec-cli"
+    binary: "fennec-cli"
     flags:
       - "--release"
       - "-p=fennec-cli"
+    targets:
+      - "aarch64-unknown-linux-gnu"
+  - builder: "rust"
+    id: "fennec-modbus-proxy"
+    binary: "fennec-modbus-proxy"
+    flags:
+      - "--release"
+      - "-p=fennec-modbus-proxy"
     targets:
       - "aarch64-unknown-linux-gnu"
 
@@ -16,7 +25,8 @@ source:
 
 dockers_v2:
   - ids:
-      - "fennec"
+      - "fennec-cli"
+      - "fennec-modbus-proxy"
     platforms:
       - "linux/arm64"
     images:

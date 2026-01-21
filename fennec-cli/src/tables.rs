@@ -7,11 +7,10 @@ use fennec_quantities::{
 
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
-    cli::BatteryArgs,
     core::{series::Aggregate, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
 };
 
-pub fn build_steps_table(steps: &[Step], battery_args: BatteryArgs) -> Table {
+pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -> Table {
     let median_rate =
         steps.iter().map(|step| step.grid_rate).median().unwrap_or(KilowattHourRate::ZERO);
 
@@ -41,7 +40,7 @@ pub fn build_steps_table(steps: &[Step], battery_args: BatteryArgs) -> Table {
             Cell::new(step.stand_by_power).set_alignment(CellAlignment::Right).fg(
                 if step.stand_by_power <= Kilowatts::ZERO {
                     Color::Green
-                } else if step.stand_by_power <= battery_args.discharging_power {
+                } else if step.stand_by_power <= battery_discharging_power {
                     Color::DarkYellow
                 } else {
                     Color::Red

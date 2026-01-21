@@ -13,6 +13,7 @@ use crate::{
 
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
+#[must_use]
 pub struct Args {
     #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
     pub heartbeat_url: Option<Uri>,
@@ -32,8 +33,20 @@ pub enum Command {
     Burrow(Box<BurrowArgs>),
 }
 
-#[derive(Copy, Clone, Parser)]
+#[derive(Parser)]
 pub struct BatteryArgs {
+    #[clap(flatten)]
+    pub power: BatteryPowerParameters,
+
+    #[clap(flatten)]
+    pub connection: BatteryConnectionArgs,
+
+    #[clap(flatten)]
+    pub registers: BatteryRegisterArgs,
+}
+
+#[derive(Copy, Clone, Parser)]
+pub struct BatteryPowerParameters {
     /// Charging power in kilowatts.
     ///
     /// TODO: split into «technical» and «actual» (1185 W).
@@ -59,10 +72,31 @@ pub struct BatteryArgs {
     pub min_soc_percent: u32,
 }
 
-impl BatteryArgs {
+impl BatteryPowerParameters {
     pub fn min_soc(&self) -> f64 {
         f64::from(self.min_soc_percent) / 100.0
     }
+}
+
+#[derive(Parser)]
+pub struct BatteryConnectionArgs {
+    #[clap(long, env = "BATTERY_ADDRESS")]
+    pub address: String,
+
+    #[clap(long, default_value = "1", env = "SLAVE_ID")]
+    pub slave_id: u8,
+}
+
+#[derive(Copy, Clone, Parser)]
+pub struct BatteryRegisterArgs {
+    #[clap(long, default_value = "39424", env = "SOC_REGISTER")]
+    pub state_of_charge: u16,
+
+    #[clap(long, default_value = "37624", env = "SOH_REGISTER")]
+    pub state_of_health: u16,
+
+    #[clap(long, default_value = "37635", env = "DESIGN_ENERGY_REGISTER")]
+    pub design_energy: u16,
 }
 
 #[derive(Parser)]
@@ -85,7 +119,7 @@ pub struct HuntArgs {
     pub working_modes: Vec<WorkingMode>,
 
     #[clap(flatten)]
-    pub battery_args: BatteryArgs,
+    pub battery: BatteryArgs,
 
     #[clap(flatten)]
     pub fox_ess_api: FoxEssApiArgs,

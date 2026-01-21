@@ -17,14 +17,14 @@ use fennec_quantities::{
 use itertools::Itertools;
 
 use crate::{
-    cli::BatteryArgs,
+    cli::BatteryPowerParameters,
     core::{
         interval::Interval,
         solver::{battery::Battery, energy::WattHours, step::Step},
         working_mode::WorkingMode,
     },
     prelude::*,
-    statistics::energy::BatteryParameters,
+    statistics::energy::BatteryEfficiencyParameters,
 };
 
 #[derive(Builder)]
@@ -35,8 +35,8 @@ pub struct Solver<'a> {
     working_modes: EnumSet<WorkingMode>,
     initial_residual_energy: KilowattHours,
     capacity: KilowattHours,
-    battery_args: BatteryArgs,
-    battery_parameters: BatteryParameters,
+    battery_power_parameters: BatteryPowerParameters,
+    battery_efficiency_parameters: BatteryEfficiencyParameters,
     purchase_fee: KilowattHourRate,
     now: DateTime<Local>,
 }
@@ -65,7 +65,7 @@ impl Solver<'_> {
     #[instrument(skip_all)]
     fn solve(self) -> Option<Solution> {
         let start_instant = Instant::now();
-        let min_residual_energy = self.capacity * self.battery_args.min_soc();
+        let min_residual_energy = self.capacity * self.battery_power_parameters.min_soc();
         let max_energy = WattHours::from(self.initial_residual_energy.max(self.capacity));
         info!(
             ?min_residual_energy,
@@ -155,7 +155,7 @@ impl Solver<'_> {
             .residual_energy(initial_residual_energy)
             .min_residual_energy(min_residual_energy)
             .capacity(self.capacity)
-            .parameters(self.battery_parameters)
+            .parameters(self.battery_efficiency_parameters)
             .build();
         self.working_modes
             .iter()
@@ -206,10 +206,12 @@ impl Solver<'_> {
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Backup => (-stand_by_power).max(Kilowatts::ZERO),
-            WorkingMode::Charge => self.battery_args.charging_power,
-            WorkingMode::Discharge => -self.battery_args.discharging_power,
-            WorkingMode::Balance => (-stand_by_power)
-                .clamp(-self.battery_args.discharging_power, self.battery_args.charging_power),
+            WorkingMode::Charge => self.battery_power_parameters.charging_power,
+            WorkingMode::Discharge => -self.battery_power_parameters.discharging_power,
+            WorkingMode::Balance => (-stand_by_power).clamp(
+                -self.battery_power_parameters.discharging_power,
+                self.battery_power_parameters.charging_power,
+            ),
         };
 
         // Apply the load to the battery:

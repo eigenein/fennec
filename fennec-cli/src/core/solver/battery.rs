@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use chrono::TimeDelta;
 use fennec_quantities::{energy::KilowattHours, power::Kilowatts};
 
-use crate::statistics::energy::BatteryParameters;
+use crate::statistics::energy::BatteryEfficiencyParameters;
 
 /// Battery simulator.
 #[derive(Copy, Clone, bon::Builder)]
@@ -18,7 +18,7 @@ pub struct Battery {
     /// Current residual energy.
     residual_energy: KilowattHours,
 
-    parameters: BatteryParameters,
+    parameters: BatteryEfficiencyParameters,
 }
 
 impl Battery {

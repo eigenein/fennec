@@ -1,31 +1,7 @@
-use anyhow::{Context, bail};
 use fennec_quantities::energy::KilowattHours;
-use serde::{Deserialize, de::DeserializeOwned};
-use tracing::info;
-use worker::Fetcher;
+use serde::Deserialize;
 
-use crate::result::Result;
-
-pub struct Client(pub Fetcher);
-
-impl Client {
-    /// Fetch the latest measurement.
-    ///
-    /// API docs: <https://api-documentation.homewizard.com/docs/v1/measurement>.
-    #[tracing::instrument(skip_all)]
-    pub async fn get_measurement<R: DeserializeOwned>(&self) -> Result<R> {
-        info!("fetching a measurement…");
-        let mut response = self
-            .0
-            .fetch("http://homewizard/api/v1/data", None)
-            .await
-            .context("failed to fetch the measurement URL")?;
-        if response.status_code() != 200 {
-            bail!("HomeWizard API returned {}", response.status_code());
-        }
-        response.json().await.context("failed to deserialize the response")
-    }
-}
+use crate::prelude::*;
 
 #[must_use]
 #[derive(Deserialize)]

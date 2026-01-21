@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
-    cli::BatteryArgs,
+    cli::BatteryPowerParameters,
     core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
 };
@@ -120,7 +120,7 @@ impl TimeSlotSequence {
     pub fn from_schedule(
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
         since: DateTime<Local>,
-        battery_args: &BatteryArgs,
+        battery_args: &BatteryPowerParameters,
     ) -> Result<Self> {
         let until_exclusive = since + TimeDelta::days(1);
         info!(%since, %until_exclusive, "Building a FoxESS schedule…");

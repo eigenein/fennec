@@ -14,7 +14,7 @@ use crate::{
 pub struct EnergyStatistics {
     pub household: HouseholdParameters,
 
-    pub battery: BatteryParameters,
+    pub battery: BatteryEfficiencyParameters,
 }
 
 impl FromIterator<EnergyState> for EnergyStatistics {
@@ -114,21 +114,21 @@ impl HouseholdParameters {
 
 #[must_use]
 #[derive(Copy, Clone, Serialize, Deserialize)]
-pub struct BatteryParameters {
+pub struct BatteryEfficiencyParameters {
     #[serde(
         rename = "parasitic_load_kilowatts",
-        serialize_with = "BatteryParameters::serialize_kilowatts"
+        serialize_with = "BatteryEfficiencyParameters::serialize_kilowatts"
     )]
     pub parasitic_load: Kilowatts,
 
-    #[serde(serialize_with = "BatteryParameters::serialize_efficiency")]
+    #[serde(serialize_with = "BatteryEfficiencyParameters::serialize_efficiency")]
     pub charging_efficiency: f64,
 
-    #[serde(serialize_with = "BatteryParameters::serialize_efficiency")]
+    #[serde(serialize_with = "BatteryEfficiencyParameters::serialize_efficiency")]
     pub discharging_efficiency: f64,
 }
 
-impl BatteryParameters {
+impl BatteryEfficiencyParameters {
     #[expect(clippy::trivially_copy_pass_by_ref)]
     fn serialize_kilowatts<S: Serializer>(
         kilowatts: &Kilowatts,
@@ -146,7 +146,7 @@ impl BatteryParameters {
     }
 }
 
-impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
+impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryEfficiencyParameters {
     /// Analyse battery parameters by the energy state history.
     ///
     /// FIXME: properly handle the panics.
@@ -214,7 +214,7 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
     }
 }
 
-impl BatteryParameters {
+impl BatteryEfficiencyParameters {
     pub fn round_trip_efficiency(&self) -> f64 {
         self.charging_efficiency * self.discharging_efficiency
     }

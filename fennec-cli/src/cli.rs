@@ -80,9 +80,8 @@ impl BatteryPowerParameters {
 
 #[derive(Parser)]
 pub struct BatteryConnectionArgs {
-    #[clap(long, env = "BATTERY_ADDRESS")]
-    pub address: String,
-
+    // #[clap(long, env = "BATTERY_ADDRESS")]
+    // pub address: String,
     #[clap(long, default_value = "1", env = "SLAVE_ID")]
     pub slave_id: u8,
 }

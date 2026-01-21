@@ -4,7 +4,6 @@ use std::{
 };
 
 use chrono::TimeDelta;
-use ordered_float::OrderedFloat;
 
 use crate::quantity::{Quantity, cost::Cost, power::Kilowatts, rate::KilowattHourRate};
 
@@ -12,7 +11,7 @@ pub type KilowattHours = Quantity<1, 1, 0>;
 
 impl KilowattHours {
     /// 1 Wh.
-    pub const ONE_THOUSANDTH: Self = Self(OrderedFloat(0.001));
+    pub const ONE_THOUSANDTH: Self = Self(0.001);
 
     pub const fn zero() -> Self {
         Self::ZERO
@@ -20,7 +19,7 @@ impl KilowattHours {
 
     #[must_use]
     pub const fn is_significant(self) -> bool {
-        self.0.0 >= Self::ONE_THOUSANDTH.0.0
+        self.0 >= Self::ONE_THOUSANDTH.0
     }
 
     pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
@@ -55,7 +54,7 @@ impl Div<Kilowatts> for KilowattHours {
         let hours = self.0 / rhs.0;
 
         #[expect(clippy::cast_possible_truncation)]
-        TimeDelta::seconds((hours.0 * 3600.0) as i64)
+        TimeDelta::seconds((hours * 3600.0) as i64)
     }
 }
 

@@ -4,7 +4,6 @@ use std::{
 };
 
 use chrono::TimeDelta;
-use ordered_float::OrderedFloat;
 
 use crate::quantity::{Quantity, energy::KilowattHours};
 
@@ -51,6 +50,6 @@ impl Display for Watts {
 
 impl Kilowatts {
     pub fn round_to_watts(self) -> Self {
-        Self(OrderedFloat((self.0.0 * 1000.0).round() / 1000.0))
+        Self((self.0 * 1000.0).round() / 1000.0)
     }
 }

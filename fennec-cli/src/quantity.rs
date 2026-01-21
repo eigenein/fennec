@@ -3,17 +3,17 @@ pub mod energy;
 pub mod power;
 pub mod rate;
 
-use std::ops::{Div, Mul};
+use std::{
+    cmp::Ordering,
+    ops::{Div, Mul},
+};
 
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 #[derive(
     Clone,
     Copy,
     Deserialize,
-    Eq,
-    Ord,
     PartialEq,
     PartialOrd,
     Serialize,
@@ -27,18 +27,24 @@ use serde::{Deserialize, Serialize};
     derive_more::SubAssign,
     derive_more::Sum,
 )]
-#[from(i32, f64, OrderedFloat<f64>)]
+#[from(i32, f64)]
 #[into(f64)]
 #[must_use]
-pub struct Quantity<const POWER: isize, const TIME: isize, const COST: isize>(
-    pub OrderedFloat<f64>,
-);
+pub struct Quantity<const POWER: isize, const TIME: isize, const COST: isize>(pub f64);
+
+impl<const POWER: isize, const TIME: isize, const COST: isize> Eq for Quantity<POWER, TIME, COST> {}
+
+impl<const POWER: isize, const TIME: isize, const COST: isize> Ord for Quantity<POWER, TIME, COST> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
 
 impl<const POWER: isize, const TIME: isize, const COST: isize> Quantity<POWER, TIME, COST> {
-    pub const ZERO: Self = Self(OrderedFloat(0.0));
+    pub const ZERO: Self = Self(0.0);
 
     pub const fn abs(mut self) -> Self {
-        self.0 = OrderedFloat(self.0.0.abs());
+        self.0 = self.0.abs();
         self
     }
 }
@@ -66,7 +72,7 @@ impl<const POWER: isize, const TIME: isize, const COST: isize> Div<f64>
 impl<const POWER: isize, const TIME: isize, const COST: isize> Div<Self>
     for Quantity<POWER, TIME, COST>
 {
-    type Output = OrderedFloat<f64>;
+    type Output = f64;
 
     fn div(self, rhs: Self) -> Self::Output {
         self.0 / rhs.0

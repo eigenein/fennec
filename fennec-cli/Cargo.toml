@@ -30,9 +30,8 @@ enumset = "=1.1.10"
 humantime = "=2.3.0"
 itertools = "=0.14.0"
 md5 = "=0.8.0"
-ordered-float = { version = "=5.1.0", features = ["serde"] }
-serde_json = "=1.0.148"
-serde_qs = "=1.0.0-rc.4"
+serde_json = "=1.0.149"
+serde_qs = "=1.0.0-rc.5"
 toml = "=0.9.10"
 tracing = "=0.1.44"
 tracing-subscriber = "=0.3.22"
@@ -55,3 +54,4 @@ features = ["json", "brotli", "gzip"]
 
 [dev-dependencies]
 approx = "=0.5.1"
+ordered-float = "=5.1.0"

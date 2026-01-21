@@ -138,10 +138,10 @@ mod tests {
 
         let state = &total_energy_usage[0];
         assert_eq!(state.last_changed_at, expected_timestamp);
-        assert_abs_diff_eq!(state.net_consumption.0.0, 25902.706);
-        assert_abs_diff_eq!(state.attributes.import.0.0, 473.809);
-        assert_abs_diff_eq!(state.attributes.export.0.0, 388.752);
-        assert_abs_diff_eq!(state.attributes.residual_energy.0.0, 3.86);
+        assert_abs_diff_eq!(state.net_consumption.0, 25902.706);
+        assert_abs_diff_eq!(state.attributes.import.0, 473.809);
+        assert_abs_diff_eq!(state.attributes.export.0, 388.752);
+        assert_abs_diff_eq!(state.attributes.residual_energy.0, 3.86);
 
         Ok(())
     }

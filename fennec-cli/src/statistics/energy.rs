@@ -63,12 +63,12 @@ impl EnergyAttributes {
 
     #[must_use]
     pub fn as_charging_efficiency(&self) -> f64 {
-        (self.residual_energy / (self.import - self.export)).0
+        self.residual_energy / (self.import - self.export)
     }
 
     #[must_use]
     pub fn as_discharging_efficiency(&self) -> f64 {
-        ((self.import - self.export) / self.residual_energy).0
+        (self.import - self.export) / self.residual_energy
     }
 }
 

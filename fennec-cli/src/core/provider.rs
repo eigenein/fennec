@@ -1,5 +1,4 @@
 use chrono::{DateTime, Days, Local, NaiveDate};
-use ordered_float::OrderedFloat;
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
@@ -28,11 +27,8 @@ pub enum Provider {
 impl Provider {
     pub const fn purchase_fee(self) -> KilowattHourRate {
         match self {
-            Self::NextEnergy => Quantity(OrderedFloat(0.021)),
-
-            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => {
-                Quantity(OrderedFloat(0.0182))
-            }
+            Self::NextEnergy => Quantity(0.021),
+            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => Quantity(0.0182),
         }
     }
 

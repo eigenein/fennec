@@ -23,9 +23,9 @@ use crate::{
         Command,
         HuntArgs,
     },
-    core::{series::Aggregate, solver::Solver},
+    core::solver::Solver,
     prelude::*,
-    statistics::{Statistics, energy::EnergyStatistics, rates::ProviderStatistics},
+    statistics::{Statistics, energy::EnergyStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -130,20 +130,6 @@ fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .get_energy_history(&args.home_assistant.entity_id, &history_period)?
         .into_iter()
         .collect::<EnergyStatistics>();
-    let rates =
-        statistics.providers.entry(args.provider).or_insert_with(ProviderStatistics::default);
-    for (interval, rate) in args.provider.get_rates(Local::now().date_naive())? {
-        rates.history.insert(interval.start, rate);
-    }
-    rates.history.retain(|start_time, _| start_time >= history_period.start());
-    rates.medians = rates
-        .history
-        .iter()
-        .map(|(start_time, rate)| (start_time.time(), *rate))
-        .into_group_map()
-        .into_iter()
-        .filter_map(|(time, rates)| Some((time, rates.median()?)))
-        .collect();
 
     statistics.write_to(&args.statistics_path).context("failed to write the statistics file")?;
     Ok(())

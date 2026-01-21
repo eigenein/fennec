@@ -1,16 +1,14 @@
 pub mod energy;
-pub mod rates;
 
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use anyhow::Context;
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    core::provider::Provider,
     prelude::{instrument, *},
-    statistics::{energy::EnergyStatistics, rates::ProviderStatistics},
+    statistics::energy::EnergyStatistics,
 };
 
 #[must_use]
@@ -21,9 +19,6 @@ pub struct Statistics {
 
     #[serde(flatten)]
     pub energy: EnergyStatistics,
-
-    #[serde(default)]
-    pub providers: HashMap<Provider, ProviderStatistics>,
 }
 
 impl Statistics {

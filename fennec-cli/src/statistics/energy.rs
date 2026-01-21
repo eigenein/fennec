@@ -1,7 +1,6 @@
 use chrono::{DateTime, Local, TimeDelta};
 use fennec_quantities::{energy::KilowattHours, power::Kilowatts};
 use itertools::Itertools;
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize, Serializer};
 use tracing::info;
 
@@ -74,6 +73,7 @@ impl EnergyAttributes {
 }
 
 #[derive(Copy, Clone, derive_more::Add, derive_more::Sum)]
+#[must_use]
 struct Delta {
     time: TimeDelta,
     energy: EnergyAttributes,
@@ -82,6 +82,11 @@ struct Delta {
 impl Delta {
     pub fn as_parasitic_load(&self) -> Kilowatts {
         (self.energy.export - self.energy.import - self.energy.residual_energy) / self.time
+    }
+
+    pub fn without_parasitic_load(mut self, parasitic_load: Kilowatts) -> Self {
+        self.energy.residual_energy += parasitic_load * self.time;
+        self
     }
 }
 
@@ -175,27 +180,35 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryParameters {
             export = ?idling_delta.energy.export,
         );
 
-        let mut charging_samples = Vec::new();
-        let mut discharging_samples = Vec::new();
-        for mut delta in battery_deltas {
-            delta.energy.residual_energy += parasitic_load * delta.time;
-            if delta.energy.is_charging() {
-                charging_samples.push(OrderedFloat(delta.energy.as_charging_efficiency()));
-            } else if delta.energy.is_discharging() {
-                discharging_samples.push(OrderedFloat(delta.energy.as_discharging_efficiency()));
-            }
-        }
-        let n_charging_samples = charging_samples.len();
-        let charging_efficiency = charging_samples.median().unwrap();
-        let n_discharging_samples = discharging_samples.len();
-        let discharging_efficiency = discharging_samples.median().unwrap();
-        info!(coefficient = ?charging_efficiency, n_samples = n_charging_samples);
-        info!(coefficient = ?discharging_efficiency, n_samples = n_discharging_samples);
-        let this = Self {
-            parasitic_load,
-            charging_efficiency: charging_efficiency.0,
-            discharging_efficiency: discharging_efficiency.0,
-        };
+        let charging_delta = battery_deltas
+            .iter()
+            .filter(|point| point.energy.is_charging())
+            .map(|delta| delta.without_parasitic_load(parasitic_load))
+            .sum::<Delta>();
+        let charging_efficiency = charging_delta.energy.as_charging_efficiency();
+        info!(
+            ?charging_efficiency,
+            charging_hours = charging_delta.time.as_seconds_f64() / 3600.0,
+            residual_energy_delta = ?charging_delta.energy.residual_energy,
+            import = ?charging_delta.energy.import,
+            export = ?charging_delta.energy.export,
+        );
+
+        let discharging_delta = battery_deltas
+            .iter()
+            .filter(|point| point.energy.is_discharging())
+            .map(|delta| delta.without_parasitic_load(parasitic_load))
+            .sum::<Delta>();
+        let discharging_efficiency = discharging_delta.energy.as_discharging_efficiency();
+        info!(
+            ?discharging_efficiency,
+            discharging_hours = discharging_delta.time.as_seconds_f64() / 3600.0,
+            residual_energy_delta = ?discharging_delta.energy.residual_energy,
+            import = ?discharging_delta.energy.import,
+            export = ?discharging_delta.energy.export,
+        );
+
+        let this = Self { parasitic_load, charging_efficiency, discharging_efficiency };
         info!(round_trip_efficiency = ?this.round_trip_efficiency());
         this
     }

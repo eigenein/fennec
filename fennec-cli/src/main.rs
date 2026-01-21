@@ -121,17 +121,16 @@ fn hunt(args: &HuntArgs) -> Result {
 #[instrument(skip_all)]
 fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
     let history_period = args.home_assistant.history_period();
-    let mut statistics = Statistics::read_from(&args.statistics_path)?;
-
-    statistics.generated_at = *history_period.end();
-    statistics.energy = args
-        .home_assistant
-        .connection
-        .new_client()
-        .get_energy_history(&args.home_assistant.entity_id, &history_period)?
-        .into_iter()
-        .collect::<EnergyStatistics>();
-
+    let statistics = Statistics {
+        generated_at: *history_period.end(),
+        energy: args
+            .home_assistant
+            .connection
+            .new_client()
+            .get_energy_history(&args.home_assistant.entity_id, &history_period)?
+            .into_iter()
+            .collect::<EnergyStatistics>(),
+    };
     statistics.write_to(&args.statistics_path).context("failed to write the statistics file")?;
     Ok(())
 }

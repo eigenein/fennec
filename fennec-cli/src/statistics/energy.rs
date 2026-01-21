@@ -1,11 +1,11 @@
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local, TimeDelta, Timelike};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
 use tracing::info;
 
 use crate::{
     api::home_assistant::{EnergyAttributes, EnergyState},
-    core::series::{Aggregate, Differentiate},
+    core::series::Deltas,
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
@@ -21,17 +21,34 @@ impl FromIterator<EnergyState> for EnergyStatistics {
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
         info!("Crunching numbers…");
         let series = iterator.into_iter().map(|state| (state.last_changed_at, state)).collect_vec();
-        let hourly_stand_by_power = series
+        let mut this = Self {
+            household: HouseholdParameters { hourly_stand_by_power: [None; 24] },
+            battery: series.iter().copied().collect(),
+        };
+        for (hour, mean_power) in series
             .iter()
             .map(|(timestamp, energy_state)| (*timestamp, energy_state.net_consumption))
             .deltas()
-            .filter(|(interval, _)| interval.end > interval.start)
-            .differentiate()
-            .median_hourly();
-        Self {
-            household: HouseholdParameters { hourly_stand_by_power },
-            battery: series.into_iter().collect(),
+            .filter(|(interval, _)| {
+                // Filter out cross-hour values:
+                (interval.start.date_naive() == interval.end.date_naive())
+                    && (interval.start.hour() == interval.end.hour())
+            })
+            .into_group_map_by(|(interval, _)| interval.start.hour())
+            .into_iter()
+            .map(|(hour, values)| {
+                let (total_time, total_energy) = values.into_iter().fold(
+                    (TimeDelta::zero(), KilowattHours::ZERO),
+                    |(total_time, total_energy), (interval, energy)| {
+                        (total_time + (interval.end - interval.start), total_energy + energy)
+                    },
+                );
+                (hour, total_energy / total_time)
+            })
+        {
+            this.household.hourly_stand_by_power[hour as usize] = Some(mean_power);
         }
+        this
     }
 }
 
@@ -91,7 +108,7 @@ impl Delta {
 }
 
 #[must_use]
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct HouseholdParameters {
     #[serde(
         rename = "hourly_stand_by_power_kilowatts",

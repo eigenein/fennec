@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::Quantity;
+use crate::quantity::Quantity;
 
 /// Euro per kilowatt-hour.
 pub type KilowattHourRate = Quantity<1, 1, -1>;

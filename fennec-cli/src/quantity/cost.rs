@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 use ordered_float::OrderedFloat;
 
-use crate::Quantity;
+use crate::quantity::Quantity;
 
 pub type Cost = Quantity<0, 0, 1>;
 

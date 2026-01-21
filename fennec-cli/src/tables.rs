@@ -1,13 +1,13 @@
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
-use fennec_quantities::{
-    cost::Cost,
-    power::{Kilowatts, Watts},
-    rate::KilowattHourRate,
-};
 
 use crate::{
     api::foxess::{TimeSlotSequence, WorkingMode as FoxEssWorkingMode},
     core::{series::Aggregate, solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
+    quantity::{
+        cost::Cost,
+        power::{Kilowatts, Watts},
+        rate::KilowattHourRate,
+    },
 };
 
 pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -> Table {

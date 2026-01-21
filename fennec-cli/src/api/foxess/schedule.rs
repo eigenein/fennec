@@ -4,7 +4,6 @@ use std::{
 };
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
-use fennec_quantities::power::{Kilowatts, Watts};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -13,6 +12,7 @@ use crate::{
     cli::BatteryPowerParameters,
     core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
+    quantity::power::{Kilowatts, Watts},
 };
 
 #[serde_as]

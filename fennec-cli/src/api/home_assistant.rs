@@ -1,12 +1,11 @@
 use std::{ops::RangeInclusive, time::Duration};
 
 use chrono::{DateTime, Local};
-use fennec_quantities::energy::KilowattHours;
 use http::Uri;
 use serde_with::serde_as;
 use ureq::{Agent, tls::TlsConfig};
 
-use crate::prelude::*;
+use crate::{prelude::*, quantity::energy::KilowattHours};
 
 pub struct Api {
     client: Agent,

@@ -3,12 +3,11 @@
 use std::{str::FromStr, time::Duration};
 
 use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
-use fennec_quantities::rate::KilowattHourRate;
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 use ureq::Agent;
 
-use crate::{core::interval::Interval, prelude::*};
+use crate::{core::interval::Interval, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api(Agent);
 

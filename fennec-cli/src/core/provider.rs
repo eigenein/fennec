@@ -1,11 +1,11 @@
 use chrono::{DateTime, Days, Local, NaiveDate};
-use fennec_quantities::{Quantity, rate::KilowattHourRate};
 use ordered_float::OrderedFloat;
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
     core::interval::Interval,
     prelude::*,
+    quantity::{Quantity, rate::KilowattHourRate},
 };
 
 #[derive(

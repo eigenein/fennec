@@ -1,11 +1,7 @@
-use fennec_quantities::{
-    cost::Cost,
-    energy::KilowattHours,
-    power::Kilowatts,
-    rate::KilowattHourRate,
+use crate::{
+    core::{interval::Interval, working_mode::WorkingMode},
+    quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
-
-use crate::core::{interval::Interval, working_mode::WorkingMode};
 
 /// Single-hour working plan step.
 ///

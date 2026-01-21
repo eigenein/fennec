@@ -1,5 +1,6 @@
-use fennec_quantities::energy::KilowattHours;
 use serde::Deserialize;
+
+use crate::quantity::energy::KilowattHours;
 
 #[derive(Deserialize)]
 pub struct RealTimeRawVariable {

@@ -1,9 +1,11 @@
 use std::cmp::Ordering;
 
 use chrono::TimeDelta;
-use fennec_quantities::{energy::KilowattHours, power::Kilowatts};
 
-use crate::statistics::energy::BatteryEfficiencyParameters;
+use crate::{
+    quantity::{energy::KilowattHours, power::Kilowatts},
+    statistics::energy::BatteryEfficiencyParameters,
+};
 
 /// Battery simulator.
 #[derive(Copy, Clone, bon::Builder)]

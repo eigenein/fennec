@@ -1,7 +1,6 @@
-use fennec_quantities::energy::KilowattHours;
 use serde::Deserialize;
 
-use crate::prelude::*;
+use crate::{prelude::*, quantity::energy::KilowattHours};
 
 #[must_use]
 #[derive(Deserialize)]

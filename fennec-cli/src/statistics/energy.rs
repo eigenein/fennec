@@ -1,5 +1,4 @@
 use chrono::{DateTime, Local, TimeDelta};
-use fennec_quantities::{energy::KilowattHours, power::Kilowatts};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
 use tracing::info;
@@ -7,6 +6,7 @@ use tracing::info;
 use crate::{
     api::home_assistant::{EnergyAttributes, EnergyState},
     core::series::{Aggregate, Differentiate},
+    quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
 #[must_use]

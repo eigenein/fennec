@@ -1,11 +1,10 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Local, NaiveDate};
-use fennec_quantities::rate::KilowattHourRate;
 use serde::{Deserialize, Serialize};
 use ureq::Agent;
 
-use crate::{core::interval::Interval, prelude::*};
+use crate::{core::interval::Interval, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api {
     client: Agent,

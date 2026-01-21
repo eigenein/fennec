@@ -7,13 +7,6 @@ use std::{iter::from_fn, rc::Rc, time::Instant};
 use bon::{Builder, bon};
 use chrono::{DateTime, Local, Timelike};
 use enumset::EnumSet;
-use fennec_quantities::{
-    Quantity,
-    cost::Cost,
-    energy::KilowattHours,
-    power::Kilowatts,
-    rate::KilowattHourRate,
-};
 use itertools::Itertools;
 
 use crate::{
@@ -24,6 +17,13 @@ use crate::{
         working_mode::WorkingMode,
     },
     prelude::*,
+    quantity::{
+        Quantity,
+        cost::Cost,
+        energy::KilowattHours,
+        power::Kilowatts,
+        rate::KilowattHourRate,
+    },
     statistics::energy::BatteryEfficiencyParameters,
 };
 

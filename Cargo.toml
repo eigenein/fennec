@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "fennec-cli",
-    "fennec-quantities",
 ]
 resolver = "3"
 

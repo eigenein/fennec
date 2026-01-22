@@ -78,7 +78,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
-    let grid_rates = args.provider.get_upcoming_rates(now)?;
+    let grid_rates = args.provider.get_upcoming_rates(now).await?;
 
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");

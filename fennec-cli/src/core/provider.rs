@@ -32,21 +32,21 @@ impl Provider {
         }
     }
 
-    pub fn get_upcoming_rates(
+    pub async fn get_upcoming_rates(
         self,
         since: DateTime<Local>,
     ) -> Result<Vec<(Interval, KilowattHourRate)>> {
-        let mut rates = self.get_rates(since.date_naive())?;
+        let mut rates = self.get_rates(since.date_naive()).await?;
         let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
-        rates.extend(self.get_rates(next_date)?);
+        rates.extend(self.get_rates(next_date).await?);
         rates.retain(|(time_range, _)| time_range.end > since);
         Ok(rates)
     }
 
     #[instrument(skip_all)]
-    pub fn get_rates(self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
+    pub async fn get_rates(self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
         match self {
-            Self::NextEnergy => next_energy::Api::new().get_rates(on),
+            Self::NextEnergy => next_energy::Api::new()?.get_rates(on).await,
             Self::FrankEnergieQuarterly => {
                 frank_energie::Api::new(Resolution::Quarterly).get_rates(on)
             }

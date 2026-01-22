@@ -6,7 +6,7 @@ use tokio_modbus::{
 use crate::{
     cli::{BatteryConnectionArgs, BatteryRegisters},
     prelude::*,
-    quantity::energy::KilowattHours,
+    quantity::{Quantity, energy::KilowattHours},
 };
 
 #[must_use]
@@ -28,15 +28,15 @@ impl Client {
         registers: BatteryRegisters,
     ) -> Result<BatteryState> {
         info!("Reading the battery state…");
-        let design_energy = KilowattHours::from(
+        let design_capacity = KilowattHours::from(
             // Stored in decawatts:
-            0.01 * f64::from(self.read_holding_register(registers.design_energy).await?),
+            0.01 * f64::from(self.read_holding_register(registers.design_capacity).await?),
         );
         let state_of_charge =
             0.01 * f64::from(self.read_holding_register(registers.state_of_charge).await?);
         let state_of_health =
             0.01 * f64::from(self.read_holding_register(registers.state_of_health).await?);
-        Ok(BatteryState::new(design_energy, state_of_health, state_of_charge))
+        Ok(BatteryState { design_capacity, state_of_charge, state_of_health })
     }
 
     #[instrument(skip_all, fields(register = register), ret)]
@@ -51,12 +51,19 @@ impl Client {
 
 #[must_use]
 pub struct BatteryState {
-    pub capacity: KilowattHours,
-    pub residual_energy: KilowattHours,
+    design_capacity: KilowattHours,
+    state_of_charge: f64,
+    state_of_health: f64,
 }
 
 impl BatteryState {
-    pub fn new(capacity: KilowattHours, state_of_health: f64, state_of_charge: f64) -> Self {
-        Self { capacity, residual_energy: capacity * state_of_health * state_of_charge }
+    /// Battery capacity corrected on the state of health.
+    pub const fn actual_capacity(&self) -> KilowattHours {
+        Quantity(self.design_capacity.0 * self.state_of_health)
+    }
+
+    /// Residual energy corrected on the state of health.
+    pub const fn residual_energy(&self) -> KilowattHours {
+        Quantity(self.actual_capacity().0 * self.state_of_charge)
     }
 }

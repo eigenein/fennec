@@ -95,14 +95,14 @@ pub struct BatteryRegisters {
     #[clap(long, default_value = "37624", env = "SOH_REGISTER")]
     pub state_of_health: u16,
 
-    #[clap(long, default_value = "37635", env = "DESIGN_ENERGY_REGISTER")]
-    pub design_energy: u16,
+    #[clap(long, default_value = "37635", env = "DESIGN_CAPACITY_REGISTER")]
+    pub design_capacity: u16,
 
     #[clap(long, default_value = "46611", env = "MIN_SOC_ON_GRID_REGISTER")]
-    pub minimum_state_of_charge_on_grid: u16,
+    pub min_state_of_charge_on_grid: u16,
 
     #[clap(long, default_value = "46610", env = "MAX_SOC_REGISTER")]
-    pub maximum_state_of_charge: u16,
+    pub max_state_of_charge: u16,
 }
 
 #[derive(Parser)]

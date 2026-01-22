@@ -4,6 +4,7 @@
 mod api;
 mod cli;
 mod core;
+mod db;
 mod prelude;
 mod quantity;
 mod statistics;
@@ -88,8 +89,8 @@ async fn hunt(args: &HuntArgs) -> Result {
         .read_battery_state(args.battery.registers)
         .await?;
     info!(
-        residual_energy = ?battery_state.residual_energy,
-        capacity = ?battery_state.capacity,
+        residual_energy = ?battery_state.residual_energy(),
+        actual_capacity = ?battery_state.actual_capacity(),
         "Fetched battery state",
     );
 
@@ -97,8 +98,8 @@ async fn hunt(args: &HuntArgs) -> Result {
         .grid_rates(&grid_rates)
         .hourly_stand_by_power(&statistics.energy.household.hourly_stand_by_power)
         .working_modes(working_modes)
-        .initial_residual_energy(battery_state.residual_energy)
-        .capacity(battery_state.capacity)
+        .initial_residual_energy(battery_state.residual_energy())
+        .capacity(battery_state.actual_capacity())
         .battery_power_parameters(args.battery.power)
         .battery_efficiency_parameters(statistics.energy.battery)
         .purchase_fee(args.provider.purchase_fee())

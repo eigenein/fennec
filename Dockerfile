@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/cc-debian12
+FROM scratch
 ARG TARGETPLATFORM
 
 LABEL org.opencontainers.image.description="FoxESS home battery steering based on NextEnergy real-time prices"

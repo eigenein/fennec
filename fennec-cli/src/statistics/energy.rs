@@ -14,14 +14,18 @@ use crate::{
 pub struct EnergyStatistics {
     pub household: HouseholdParameters,
 
-    pub battery: BatteryEfficiencyParameters,
+    #[serde(rename = "battery")]
+    pub battery_efficiency: BatteryEfficiency,
 }
 
 impl FromIterator<EnergyState> for EnergyStatistics {
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
         info!("Crunching numbers…");
         let series = iterator.into_iter().map(|state| (state.last_changed_at, state)).collect_vec();
-        Self { household: series.iter().copied().collect(), battery: series.into_iter().collect() }
+        Self {
+            household: series.iter().copied().collect(),
+            battery_efficiency: series.into_iter().collect(),
+        }
     }
 }
 
@@ -134,21 +138,29 @@ impl HouseholdParameters {
 
 #[must_use]
 #[derive(Copy, Clone, Serialize, Deserialize)]
-pub struct BatteryEfficiencyParameters {
+pub struct BatteryEfficiency {
     #[serde(
         rename = "parasitic_load_kilowatts",
-        serialize_with = "BatteryEfficiencyParameters::serialize_kilowatts"
+        serialize_with = "BatteryEfficiency::serialize_kilowatts"
     )]
     pub parasitic_load: Kilowatts,
 
-    #[serde(serialize_with = "BatteryEfficiencyParameters::serialize_efficiency")]
-    pub charging_efficiency: f64,
+    /// Charging efficiency, `0..=1`.
+    #[serde(
+        rename = "charging_efficiency",
+        serialize_with = "BatteryEfficiency::serialize_efficiency"
+    )]
+    pub charging: f64,
 
-    #[serde(serialize_with = "BatteryEfficiencyParameters::serialize_efficiency")]
-    pub discharging_efficiency: f64,
+    /// Discharging efficiency, `0..=1`.
+    #[serde(
+        rename = "discharging_efficiency",
+        serialize_with = "BatteryEfficiency::serialize_efficiency"
+    )]
+    pub discharging: f64,
 }
 
-impl BatteryEfficiencyParameters {
+impl BatteryEfficiency {
     #[expect(clippy::trivially_copy_pass_by_ref)]
     fn serialize_kilowatts<S: Serializer>(
         kilowatts: &Kilowatts,
@@ -166,7 +178,7 @@ impl BatteryEfficiencyParameters {
     }
 }
 
-impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryEfficiencyParameters {
+impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryEfficiency {
     /// Analyse battery parameters by the energy state history.
     ///
     /// FIXME: properly handle the panics.
@@ -228,14 +240,18 @@ impl FromIterator<(DateTime<Local>, EnergyState)> for BatteryEfficiencyParameter
             export = ?discharging_delta.energy.export,
         );
 
-        let this = Self { parasitic_load, charging_efficiency, discharging_efficiency };
+        let this = Self {
+            parasitic_load,
+            charging: charging_efficiency,
+            discharging: discharging_efficiency,
+        };
         info!(round_trip_efficiency = ?this.round_trip_efficiency());
         this
     }
 }
 
-impl BatteryEfficiencyParameters {
+impl BatteryEfficiency {
     pub fn round_trip_efficiency(&self) -> f64 {
-        self.charging_efficiency * self.discharging_efficiency
+        self.charging * self.discharging
     }
 }

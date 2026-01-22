@@ -50,11 +50,18 @@ impl Client {
         registers: BatterySettingRegisters,
     ) -> Result<BatterySettings> {
         info!("Reading the battery settings…");
-        let min_state_of_charge = 0.01
-            * f64::from(self.read_holding_register(registers.min_state_of_charge_on_grid).await?);
-        let max_state_of_charge =
-            0.01 * f64::from(self.read_holding_register(registers.max_state_of_charge).await?);
-        Ok(BatterySettings { min_state_of_charge, max_state_of_charge })
+        let min_state_of_charge_percent =
+            self.read_holding_register(registers.min_state_of_charge_on_grid).await?;
+        let min_state_of_charge = 0.01 * f64::from(min_state_of_charge_percent);
+        let max_state_of_charge_percent =
+            self.read_holding_register(registers.max_state_of_charge).await?;
+        let max_state_of_charge = 0.01 * f64::from(max_state_of_charge_percent);
+        Ok(BatterySettings {
+            min_state_of_charge_percent,
+            min_state_of_charge,
+            max_state_of_charge_percent,
+            max_state_of_charge,
+        })
     }
 
     #[instrument(skip_all)]
@@ -99,7 +106,10 @@ impl BatteryEnergyState {
 
 #[must_use]
 pub struct BatterySettings {
+    pub min_state_of_charge_percent: u16,
     pub min_state_of_charge: f64,
+
+    pub max_state_of_charge_percent: u16,
     pub max_state_of_charge: f64,
 }
 
@@ -107,4 +117,14 @@ pub struct BatterySettings {
 pub struct BatteryState {
     pub energy: BatteryEnergyState,
     pub settings: BatterySettings,
+}
+
+impl BatteryState {
+    pub const fn min_residual_energy(&self) -> KilowattHours {
+        Quantity(self.energy.actual_capacity().0 * self.settings.min_state_of_charge)
+    }
+
+    pub const fn max_residual_energy(&self) -> KilowattHours {
+        Quantity(self.energy.actual_capacity().0 * self.settings.max_state_of_charge)
+    }
 }

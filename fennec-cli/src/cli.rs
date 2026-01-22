@@ -36,7 +36,7 @@ pub enum Command {
 #[derive(Parser)]
 pub struct BatteryArgs {
     #[clap(flatten)]
-    pub power: BatteryPowerParameters,
+    pub power_limits: BatteryPowerLimits,
 
     #[clap(flatten)]
     pub connection: BatteryConnectionArgs,
@@ -46,7 +46,7 @@ pub struct BatteryArgs {
 }
 
 #[derive(Copy, Clone, Parser)]
-pub struct BatteryPowerParameters {
+pub struct BatteryPowerLimits {
     /// Charging power in kilowatts.
     #[clap(
         long = "charging-power-kilowatts",
@@ -62,18 +62,6 @@ pub struct BatteryPowerParameters {
         env = "DISCHARGING_POWER_KILOWATTS"
     )]
     pub discharging_power: Kilowatts,
-
-    /// Minimal state-of-charge percent.
-    #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
-    #[deprecated]
-    pub min_soc_percent: u32,
-}
-
-impl BatteryPowerParameters {
-    #[deprecated]
-    pub fn min_soc(&self) -> f64 {
-        f64::from(self.min_soc_percent) / 100.0
-    }
 }
 
 #[derive(Parser)]

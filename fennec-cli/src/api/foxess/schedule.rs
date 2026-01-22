@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
-    cli::BatteryPowerParameters,
+    cli::BatteryPowerLimits,
     core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
     quantity::power::{Kilowatts, Watts},
@@ -40,17 +40,17 @@ pub struct TimeSlot {
     pub end_time: EndTime,
 
     #[serde(rename = "maxSoc")]
-    pub max_soc: u32,
+    pub max_soc: u16,
 
     /// The minimum SoC value of the offline battery (minimal safe SoC value?).
     #[expect(clippy::doc_markdown)]
     #[serde(rename = "minSocOnGrid")]
-    pub min_soc_on_grid: u32,
+    pub min_soc_on_grid: u16,
 
     /// Discharge SoC value (minimal safe SoC value?).
     #[expect(clippy::doc_markdown)]
     #[serde(rename = "fdSoc")]
-    pub feed_soc: u32,
+    pub feed_soc: u16,
 
     /// The maximum discharge power value (but also, maximum charge power?).
     #[serde(rename = "fdPwr")]
@@ -120,7 +120,9 @@ impl TimeSlotSequence {
     pub fn from_schedule(
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
         since: DateTime<Local>,
-        battery_args: &BatteryPowerParameters,
+        battery_power_limits: BatteryPowerLimits,
+        min_state_of_charge_percent: u16,
+        max_state_of_charge_percent: u16,
     ) -> Result<Self> {
         let until_exclusive = since + TimeDelta::days(1);
         info!(%since, %until_exclusive, "Building a FoxESS schedule…");
@@ -172,15 +174,17 @@ impl TimeSlotSequence {
                         // Forced charging at 0W is effectively idling:
                         (WorkingMode::ForceCharge, Kilowatts::ZERO)
                     }
-                    CoreWorkingMode::Backup => (WorkingMode::BackUp, battery_args.charging_power),
+                    CoreWorkingMode::Backup => {
+                        (WorkingMode::BackUp, battery_power_limits.charging_power)
+                    }
                     CoreWorkingMode::Charge => {
-                        (WorkingMode::ForceCharge, battery_args.charging_power)
+                        (WorkingMode::ForceCharge, battery_power_limits.charging_power)
                     }
                     CoreWorkingMode::Balance => {
-                        (WorkingMode::SelfUse, battery_args.discharging_power)
+                        (WorkingMode::SelfUse, battery_power_limits.discharging_power)
                     }
                     CoreWorkingMode::Discharge => {
-                        (WorkingMode::ForceDischarge, battery_args.discharging_power)
+                        (WorkingMode::ForceDischarge, battery_power_limits.discharging_power)
                     }
                 };
                 // TODO: extract a method:
@@ -188,9 +192,9 @@ impl TimeSlotSequence {
                     is_enabled: true,
                     start_time,
                     end_time,
-                    max_soc: 100,
-                    min_soc_on_grid: battery_args.min_soc_percent,
-                    feed_soc: battery_args.min_soc_percent,
+                    max_soc: max_state_of_charge_percent,
+                    min_soc_on_grid: min_state_of_charge_percent,
+                    feed_soc: min_state_of_charge_percent,
                     feed_power: feed_power.into(),
                     working_mode,
                 };

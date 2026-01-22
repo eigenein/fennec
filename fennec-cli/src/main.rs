@@ -66,13 +66,14 @@ async fn main() -> Result {
 async fn hunt(args: &HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
     info!(?statistics.generated_at);
-    info!(parasitic_load = ?statistics.energy.battery.parasitic_load);
-    info!(charging_efficiency = format!("{:.3}", statistics.energy.battery.charging_efficiency));
+    info!(parasitic_load = ?statistics.energy.battery_efficiency.parasitic_load);
+    info!(charging_efficiency = format!("{:.3}", statistics.energy.battery_efficiency.charging));
     info!(
-        discharging_efficiency = format!("{:.3}", statistics.energy.battery.discharging_efficiency)
+        discharging_efficiency = format!("{:.3}", statistics.energy.battery_efficiency.discharging)
     );
     info!(
-        round_trip_efficiency = format!("{:.3}", statistics.energy.battery.round_trip_efficiency())
+        round_trip_efficiency =
+            format!("{:.3}", statistics.energy.battery_efficiency.round_trip_efficiency())
     );
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone());
@@ -88,6 +89,8 @@ async fn hunt(args: &HuntArgs) -> Result {
         .await?
         .read_battery_state(args.battery.registers)
         .await?;
+    let min_state_of_charge_percent = battery_state.settings.min_state_of_charge_percent;
+    let max_state_of_charge_percent = battery_state.settings.max_state_of_charge_percent;
     info!(
         residual_energy = ?battery_state.energy.residual(),
         actual_capacity = ?battery_state.energy.actual_capacity(),
@@ -100,20 +103,24 @@ async fn hunt(args: &HuntArgs) -> Result {
         .grid_rates(&grid_rates)
         .hourly_stand_by_power(&statistics.energy.household.hourly_stand_by_power)
         .working_modes(working_modes)
-        .initial_residual_energy(battery_state.energy.residual())
-        .capacity(battery_state.energy.actual_capacity())
-        .battery_power_settings(args.battery.power)
-        .battery_efficiency_parameters(statistics.energy.battery)
+        .battery_state(battery_state)
+        .battery_power_limits(args.battery.power_limits)
+        .battery_efficiency(statistics.energy.battery_efficiency)
         .purchase_fee(args.provider.purchase_fee())
         .now(now)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
     let steps = solution.backtrack().collect_vec();
-    println!("{}", build_steps_table(&steps, args.battery.power.discharging_power));
+    println!("{}", build_steps_table(&steps, args.battery.power_limits.discharging_power));
 
     let schedule = steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-    let time_slot_sequence =
-        foxess::TimeSlotSequence::from_schedule(schedule, now, &args.battery.power)?;
+    let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(
+        schedule,
+        now,
+        args.battery.power_limits,
+        min_state_of_charge_percent,
+        max_state_of_charge_percent,
+    )?;
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 
     if !args.scout {

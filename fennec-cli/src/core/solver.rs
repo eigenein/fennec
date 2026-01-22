@@ -10,7 +10,8 @@ use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
-    cli::BatteryPowerParameters,
+    api::modbus::BatteryState,
+    cli::BatteryPowerLimits,
     core::{
         interval::Interval,
         solver::{battery::Battery, energy::WattHours, step::Step},
@@ -24,7 +25,7 @@ use crate::{
         power::Kilowatts,
         rate::KilowattHourRate,
     },
-    statistics::energy::BatteryEfficiencyParameters,
+    statistics::energy::BatteryEfficiency,
 };
 
 #[derive(Builder)]
@@ -33,10 +34,9 @@ pub struct Solver<'a> {
     grid_rates: &'a [(Interval, KilowattHourRate)],
     hourly_stand_by_power: &'a [Option<Kilowatts>; 24],
     working_modes: EnumSet<WorkingMode>,
-    initial_residual_energy: KilowattHours,
-    capacity: KilowattHours,
-    battery_power_settings: BatteryPowerParameters,
-    battery_efficiency_parameters: BatteryEfficiencyParameters,
+    battery_state: BatteryState,
+    battery_power_limits: BatteryPowerLimits,
+    battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
     now: DateTime<Local>,
 }
@@ -65,15 +65,10 @@ impl Solver<'_> {
     #[instrument(skip_all)]
     fn solve(self) -> Option<Solution> {
         let start_instant = Instant::now();
-        let min_residual_energy = self.capacity * self.battery_power_settings.min_soc();
-        let max_energy = WattHours::from(self.initial_residual_energy.max(self.capacity));
-        info!(
-            ?min_residual_energy,
-            initial_residual_energy = ?self.initial_residual_energy,
-            ?max_energy,
-            n_intervals = self.grid_rates.len(),
-            "Optimizing…",
+        let max_energy = WattHours::from(
+            self.battery_state.energy.residual().max(self.battery_state.max_residual_energy()),
         );
+        info!(?max_energy, n_intervals = self.grid_rates.len(), "Optimizing…");
 
         // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
@@ -111,7 +106,6 @@ impl Solver<'_> {
                             .initial_residual_energy(KilowattHours::from(WattHours(
                                 residual_energy_watt_hours,
                             )))
-                            .min_residual_energy(min_residual_energy)
                             .next_solutions(&next_solutions)
                             .max_energy(max_energy)
                             .call()
@@ -121,7 +115,7 @@ impl Solver<'_> {
         }
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
-        let initial_energy = WattHours::from(self.initial_residual_energy);
+        let initial_energy = WattHours::from(self.battery_state.energy.residual());
         let solution = solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
         info!(
@@ -147,15 +141,14 @@ impl Solver<'_> {
         stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
-        min_residual_energy: KilowattHours,
         next_solutions: &[Option<Rc<Solution>>],
         max_energy: WattHours,
     ) -> Option<Solution> {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
-            .min_residual_energy(min_residual_energy)
-            .capacity(self.capacity)
-            .parameters(self.battery_efficiency_parameters)
+            .min_residual_energy(self.battery_state.min_residual_energy())
+            .max_residual_energy(self.battery_state.max_residual_energy())
+            .efficiency(self.battery_efficiency)
             .build();
         self.working_modes
             .iter()
@@ -173,7 +166,7 @@ impl Solver<'_> {
                     let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
                     next_solutions[usize::from(next_energy)].clone()
                 }?;
-                if step.residual_energy_after >= min_residual_energy {
+                if step.residual_energy_after >= self.battery_state.min_residual_energy() {
                     Some(Solution {
                         net_loss: step.loss + next_solution.net_loss,
                         charge: step.charge() + next_solution.charge,
@@ -206,11 +199,11 @@ impl Solver<'_> {
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Backup => (-stand_by_power).max(Kilowatts::ZERO),
-            WorkingMode::Charge => self.battery_power_settings.charging_power,
-            WorkingMode::Discharge => -self.battery_power_settings.discharging_power,
+            WorkingMode::Charge => self.battery_power_limits.charging_power,
+            WorkingMode::Discharge => -self.battery_power_limits.discharging_power,
             WorkingMode::Balance => (-stand_by_power).clamp(
-                -self.battery_power_settings.discharging_power,
-                self.battery_power_settings.charging_power,
+                -self.battery_power_limits.discharging_power,
+                self.battery_power_limits.charging_power,
             ),
         };
 

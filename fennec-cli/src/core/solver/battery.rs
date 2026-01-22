@@ -4,14 +4,12 @@ use chrono::TimeDelta;
 
 use crate::{
     quantity::{energy::KilowattHours, power::Kilowatts},
-    statistics::energy::BatteryEfficiencyParameters,
+    statistics::energy::BatteryEfficiency,
 };
 
 /// Battery simulator.
 #[derive(Copy, Clone, bon::Builder)]
 pub struct Battery {
-    capacity: KilowattHours,
-
     /// Minimally allowed residual energy.
     ///
     /// This is normally calculated from the capacity and minimal state-of-charge setting.
@@ -20,7 +18,9 @@ pub struct Battery {
     /// Current residual energy.
     residual_energy: KilowattHours,
 
-    parameters: BatteryEfficiencyParameters,
+    max_residual_energy: KilowattHours,
+
+    efficiency: BatteryEfficiency,
 }
 
 impl Battery {
@@ -49,8 +49,8 @@ impl Battery {
         // Calculate the internal power:
         let internal_power = external_power
             * match external_power.cmp(&Kilowatts::ZERO) {
-                Ordering::Greater => self.parameters.charging_efficiency,
-                Ordering::Less => 1.0 / self.parameters.discharging_efficiency,
+                Ordering::Greater => self.efficiency.charging,
+                Ordering::Less => 1.0 / self.efficiency.discharging,
                 Ordering::Equal => {
                     return TimeDelta::zero();
                 }
@@ -61,7 +61,7 @@ impl Battery {
             // At the bottom, it's capped by the minimum SoC or residual energy – when it's already lower:
             self.min_residual_energy.min(initial_residual_energy),
             // At the top, it's capped by the capacity or residual energy – when it's somehow higher:
-            self.capacity.max(initial_residual_energy),
+            self.max_residual_energy.max(initial_residual_energy),
         );
 
         // The energy differential and internal power must have the same sign here:
@@ -73,6 +73,6 @@ impl Battery {
 
     fn apply_parasitic_load(&mut self, for_: TimeDelta) {
         self.residual_energy =
-            (self.residual_energy - self.parameters.parasitic_load * for_).max(KilowattHours::ZERO);
+            (self.residual_energy - self.efficiency.parasitic_load * for_).max(KilowattHours::ZERO);
     }
 }

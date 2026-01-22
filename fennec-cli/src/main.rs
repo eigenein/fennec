@@ -86,11 +86,13 @@ async fn hunt(args: &HuntArgs) -> Result {
 
     let battery_state = modbus::Client::connect(&args.battery.connection)
         .await?
-        .read_battery_state(args.battery.registers.state)
+        .read_battery_state(args.battery.registers)
         .await?;
     info!(
-        residual_energy = ?battery_state.residual_energy(),
-        actual_capacity = ?battery_state.actual_capacity(),
+        residual_energy = ?battery_state.energy.residual(),
+        actual_capacity = ?battery_state.energy.actual_capacity(),
+        min_soc = battery_state.settings.min_state_of_charge,
+        max_soc = battery_state.settings.max_state_of_charge,
         "Fetched battery state",
     );
 
@@ -98,8 +100,8 @@ async fn hunt(args: &HuntArgs) -> Result {
         .grid_rates(&grid_rates)
         .hourly_stand_by_power(&statistics.energy.household.hourly_stand_by_power)
         .working_modes(working_modes)
-        .initial_residual_energy(battery_state.residual_energy())
-        .capacity(battery_state.actual_capacity())
+        .initial_residual_energy(battery_state.energy.residual())
+        .capacity(battery_state.energy.actual_capacity())
         .battery_power_settings(args.battery.power)
         .battery_efficiency_parameters(statistics.energy.battery)
         .purchase_fee(args.provider.purchase_fee())

@@ -91,14 +91,14 @@ pub struct BatteryConnectionArgs {
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryRegisters {
     #[clap(flatten)]
-    pub state: BatteryStateRegisters,
+    pub energy: BatteryEnergyStateRegisters,
 
     #[clap(flatten)]
     pub setting: BatterySettingRegisters,
 }
 
 #[derive(Copy, Clone, Parser)]
-pub struct BatteryStateRegisters {
+pub struct BatteryEnergyStateRegisters {
     #[clap(long, default_value = "39424", env = "SOC_REGISTER")]
     pub state_of_charge: u16,
 

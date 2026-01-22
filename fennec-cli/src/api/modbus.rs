@@ -4,7 +4,12 @@ use tokio_modbus::{
 };
 
 use crate::{
-    cli::{BatteryConnectionArgs, BatterySettingRegisters, BatteryStateRegisters},
+    cli::{
+        BatteryConnectionArgs,
+        BatteryEnergyStateRegisters,
+        BatteryRegisters,
+        BatterySettingRegisters,
+    },
     prelude::*,
     quantity::{Quantity, energy::KilowattHours},
 };
@@ -23,10 +28,10 @@ impl Client {
     }
 
     #[instrument(skip_all)]
-    pub async fn read_battery_state(
+    pub async fn read_energy_state(
         &mut self,
-        registers: BatteryStateRegisters,
-    ) -> Result<BatteryState> {
+        registers: BatteryEnergyStateRegisters,
+    ) -> Result<BatteryEnergyState> {
         info!("Reading the battery state…");
         let design_capacity = KilowattHours::from(
             // Stored in decawatts:
@@ -36,7 +41,7 @@ impl Client {
             0.01 * f64::from(self.read_holding_register(registers.state_of_charge).await?);
         let state_of_health =
             0.01 * f64::from(self.read_holding_register(registers.state_of_health).await?);
-        Ok(BatteryState { design_capacity, state_of_charge, state_of_health })
+        Ok(BatteryEnergyState { design_capacity, state_of_charge, state_of_health })
     }
 
     #[instrument(skip_all)]
@@ -45,11 +50,22 @@ impl Client {
         registers: BatterySettingRegisters,
     ) -> Result<BatterySettings> {
         info!("Reading the battery settings…");
-        let min_state_of_charge_on_grid = 0.01
+        let min_state_of_charge = 0.01
             * f64::from(self.read_holding_register(registers.min_state_of_charge_on_grid).await?);
         let max_state_of_charge =
             0.01 * f64::from(self.read_holding_register(registers.max_state_of_charge).await?);
-        Ok(BatterySettings { max_state_of_charge, min_state_of_charge_on_grid })
+        Ok(BatterySettings { min_state_of_charge, max_state_of_charge })
+    }
+
+    #[instrument(skip_all)]
+    pub async fn read_battery_state(
+        &mut self,
+        registers: BatteryRegisters,
+    ) -> Result<BatteryState> {
+        Ok(BatteryState {
+            energy: self.read_energy_state(registers.energy).await?,
+            settings: self.read_battery_settings(registers.setting).await?,
+        })
     }
 
     #[instrument(skip_all, fields(register = register), ret)]
@@ -63,26 +79,32 @@ impl Client {
 }
 
 #[must_use]
-pub struct BatteryState {
+pub struct BatteryEnergyState {
     design_capacity: KilowattHours,
     state_of_charge: f64,
     state_of_health: f64,
 }
 
-impl BatteryState {
+impl BatteryEnergyState {
     /// Battery capacity corrected on the state of health.
     pub const fn actual_capacity(&self) -> KilowattHours {
         Quantity(self.design_capacity.0 * self.state_of_health)
     }
 
     /// Residual energy corrected on the state of health.
-    pub const fn residual_energy(&self) -> KilowattHours {
+    pub const fn residual(&self) -> KilowattHours {
         Quantity(self.actual_capacity().0 * self.state_of_charge)
     }
 }
 
 #[must_use]
 pub struct BatterySettings {
-    min_state_of_charge_on_grid: f64,
-    max_state_of_charge: f64,
+    pub min_state_of_charge: f64,
+    pub max_state_of_charge: f64,
+}
+
+#[must_use]
+pub struct BatteryState {
+    pub energy: BatteryEnergyState,
+    pub settings: BatterySettings,
 }

@@ -14,7 +14,7 @@ use clap::{Parser, crate_version};
 use itertools::Itertools;
 
 use crate::{
-    api::{foxess, heartbeat},
+    api::{foxess, heartbeat, modbus},
     cli::{
         Args,
         BurrowCommand,
@@ -30,7 +30,8 @@ use crate::{
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
-fn main() -> Result {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result {
     let _ = dotenvy::dotenv();
     tracing_subscriber::fmt().without_time().compact().init();
     info!(version = crate_version!(), "Starting…");
@@ -39,7 +40,7 @@ fn main() -> Result {
 
     match args.command {
         Command::Hunt(args) => {
-            hunt(&args)?;
+            hunt(&args).await?;
         }
         Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(statistics_args) => {
@@ -61,7 +62,7 @@ fn main() -> Result {
 }
 
 #[instrument(skip_all)]
-fn hunt(args: &HuntArgs) -> Result {
+async fn hunt(args: &HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
     info!(?statistics.generated_at);
     info!(parasitic_load = ?statistics.energy.battery.parasitic_load);
@@ -82,8 +83,10 @@ fn hunt(args: &HuntArgs) -> Result {
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
 
-    let battery_state = crate::api::modbus::Client::connect(&args.battery.connection)?
-        .read_battery_state(args.battery.registers)?;
+    let battery_state = modbus::Client::connect(&args.battery.connection)
+        .await?
+        .read_battery_state(args.battery.registers)
+        .await?;
     info!(
         residual_energy = ?battery_state.residual_energy,
         capacity = ?battery_state.capacity,

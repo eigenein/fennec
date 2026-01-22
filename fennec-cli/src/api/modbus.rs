@@ -1,4 +1,7 @@
-use modbus::{Client as _, Config, Transport};
+use tokio_modbus::{
+    Slave,
+    client::{Reader, tcp::attach_slave},
+};
 
 use crate::{
     cli::{BatteryConnectionArgs, BatteryRegisters},
@@ -7,37 +10,40 @@ use crate::{
 };
 
 #[must_use]
-pub struct Client(Transport);
+pub struct Client(tokio_modbus::client::Context);
 
 impl Client {
     #[instrument(skip_all, fields(host = args.host, port = args.port, slave_id = args.slave_id))]
-    pub fn connect(args: &BatteryConnectionArgs) -> Result<Self> {
+    pub async fn connect(args: &BatteryConnectionArgs) -> Result<Self> {
         info!("Connecting to the battery…");
-        let config =
-            Config { tcp_port: args.port, modbus_uid: args.slave_id, ..Default::default() };
-        Transport::new_with_cfg(&args.host, config)
-            .context("failed to connect via Modbus")
-            .map(Self)
+        let tcp_stream = tokio::net::TcpStream::connect((args.host.as_str(), args.port))
+            .await
+            .context("failed to connect to the battery")?;
+        Ok(Self(attach_slave(tcp_stream, Slave(args.slave_id))))
     }
 
     #[instrument(skip_all)]
-    pub fn read_battery_state(&mut self, registers: BatteryRegisters) -> Result<BatteryState> {
+    pub async fn read_battery_state(
+        &mut self,
+        registers: BatteryRegisters,
+    ) -> Result<BatteryState> {
         info!("Reading the battery state…");
         let design_energy = KilowattHours::from(
             // Stored in decawatts:
-            0.01 * f64::from(self.read_holding_register(registers.design_energy)?),
+            0.01 * f64::from(self.read_holding_register(registers.design_energy).await?),
         );
         let state_of_charge =
-            0.01 * f64::from(self.read_holding_register(registers.state_of_charge)?);
+            0.01 * f64::from(self.read_holding_register(registers.state_of_charge).await?);
         let state_of_health =
-            0.01 * f64::from(self.read_holding_register(registers.state_of_health)?);
+            0.01 * f64::from(self.read_holding_register(registers.state_of_health).await?);
         Ok(BatteryState::new(design_energy, state_of_health, state_of_charge))
     }
 
     #[instrument(skip_all, fields(register = register), ret)]
-    fn read_holding_register(&mut self, register: u16) -> Result<u16> {
+    async fn read_holding_register(&mut self, register: u16) -> Result<u16> {
         self.0
-            .read_holding_registers(register, 1)?
+            .read_holding_registers(register, 1)
+            .await??
             .pop()
             .with_context(|| format!("nothing is read from the register #{register}"))
     }

@@ -13,6 +13,7 @@ impl Measurements<'_> {
         battery: PowerMeasurement,
         residual: KilowattHours,
     ) -> Result {
+        info!("Upserting the measurement…");
         // language=sqlite
         const SQL: &str = r"
             INSERT INTO measurements (

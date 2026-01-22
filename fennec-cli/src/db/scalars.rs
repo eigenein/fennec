@@ -17,7 +17,7 @@ impl Scalars<'_> {
         }
     }
 
-    #[instrument(skip_all, fields(key = key), ret)]
+    #[instrument(skip_all, fields(key = key))]
     pub async fn select_integer(&self, key: &str) -> Result<Option<i64>> {
         Ok(self.select(key).await?.and_then(|value| value.as_integer().copied()))
     }

@@ -2,31 +2,31 @@ use std::time::Duration;
 
 use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
-use ureq::Agent;
 
 use crate::{core::interval::Interval, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api {
-    client: Agent,
+    client: reqwest::Client,
     resolution: Resolution,
 }
 
 impl Api {
-    pub fn new(resolution: Resolution) -> Self {
-        let client =
-            Agent::config_builder().timeout_global(Some(Duration::from_secs(10))).build().into();
-        Self { client, resolution }
+    pub fn new(resolution: Resolution) -> Result<Self> {
+        let client = reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?;
+        Ok(Self { client, resolution })
     }
 
     #[instrument(fields(on = ?on), skip_all)]
-    pub fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
+    pub async fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
         info!("Fetching…");
         let Some(data) = self
             .client
             .post("https://www.frankenergie.nl/graphql")
-            .send_json(Request::new(on, self.resolution))?
-            .body_mut()
-            .read_json::<Response>()?
+            .json(&Request::new(on, self.resolution))
+            .send()
+            .await?
+            .json::<Response>()
+            .await?
             .data
         else {
             return Ok(Vec::new());
@@ -107,10 +107,10 @@ mod tests {
 
     use super::*;
 
-    #[test]
+    #[tokio::test]
     #[ignore = "makes the API request"]
-    fn test_get_upcoming_rates_ok() -> Result {
-        let series = Api::new(Resolution::Quarterly).get_rates(Local::now().date_naive())?;
+    async fn test_get_upcoming_rates_ok() -> Result {
+        let series = Api::new(Resolution::Quarterly)?.get_rates(Local::now().date_naive()).await?;
         assert!(!series.is_empty());
         assert!(series.len() <= 24 * 4);
         let (time_range, _) = &series[0];

@@ -48,9 +48,11 @@ impl Provider {
         match self {
             Self::NextEnergy => next_energy::Api::new()?.get_rates(on).await,
             Self::FrankEnergieQuarterly => {
-                frank_energie::Api::new(Resolution::Quarterly).get_rates(on)
+                frank_energie::Api::new(Resolution::Quarterly)?.get_rates(on).await
             }
-            Self::FrankEnergieHourly => frank_energie::Api::new(Resolution::Hourly).get_rates(on),
+            Self::FrankEnergieHourly => {
+                frank_energie::Api::new(Resolution::Hourly)?.get_rates(on).await
+            }
         }
     }
 }

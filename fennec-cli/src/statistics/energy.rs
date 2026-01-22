@@ -98,7 +98,7 @@ struct Delta {
 
 impl Delta {
     pub fn as_parasitic_load(&self) -> Kilowatts {
-        (self.energy.export - self.energy.import - self.energy.residual_energy) / self.time
+        (-self.energy.residual_energy + self.energy.import - self.energy.export) / self.time
     }
 
     pub fn without_parasitic_load(mut self, parasitic_load: Kilowatts) -> Self {

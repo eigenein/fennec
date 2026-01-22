@@ -40,9 +40,6 @@ pub struct BatteryArgs {
 
     #[clap(flatten)]
     pub connection: BatteryConnectionArgs,
-
-    #[clap(flatten)]
-    pub registers: BatteryRegisterArgs,
 }
 
 #[derive(Copy, Clone, Parser)]
@@ -80,9 +77,13 @@ impl BatteryPowerParameters {
 
 #[derive(Parser)]
 pub struct BatteryConnectionArgs {
-    // #[clap(long, env = "BATTERY_ADDRESS")]
-    // pub address: String,
-    #[clap(long, default_value = "1", env = "SLAVE_ID")]
+    #[clap(long = "battery-host", env = "BATTERY_HOST")]
+    pub address: String,
+
+    #[clap(long = "battery-port", env = "BATTERY_PORT", default_value = "502")]
+    pub port: String,
+
+    #[clap(long = "battery-slave-id", default_value = "1", env = "BATTERY_SLAVE_ID")]
     pub slave_id: u8,
 }
 

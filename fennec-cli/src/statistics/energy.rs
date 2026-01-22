@@ -21,34 +21,7 @@ impl FromIterator<EnergyState> for EnergyStatistics {
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
         info!("Crunching numbers…");
         let series = iterator.into_iter().map(|state| (state.last_changed_at, state)).collect_vec();
-        let mut this = Self {
-            household: HouseholdParameters { hourly_stand_by_power: [None; 24] },
-            battery: series.iter().copied().collect(),
-        };
-        for (hour, mean_power) in series
-            .iter()
-            .map(|(timestamp, energy_state)| (*timestamp, energy_state.net_consumption))
-            .deltas()
-            .filter(|(interval, _)| {
-                // Filter out cross-hour values:
-                (interval.start.date_naive() == interval.end.date_naive())
-                    && (interval.start.hour() == interval.end.hour())
-            })
-            .into_group_map_by(|(interval, _)| interval.start.hour())
-            .into_iter()
-            .map(|(hour, values)| {
-                let (total_time, total_energy) = values.into_iter().fold(
-                    (TimeDelta::zero(), KilowattHours::ZERO),
-                    |(total_time, total_energy), (interval, energy)| {
-                        (total_time + (interval.end - interval.start), total_energy + energy)
-                    },
-                );
-                (hour, total_energy / total_time)
-            })
-        {
-            this.household.hourly_stand_by_power[hour as usize] = Some(mean_power);
-        }
-        this
+        Self { household: series.iter().copied().collect(), battery: series.into_iter().collect() }
     }
 }
 
@@ -115,6 +88,36 @@ pub struct HouseholdParameters {
         serialize_with = "HouseholdParameters::serialize_hourly_stand_by_power"
     )]
     pub hourly_stand_by_power: [Option<Kilowatts>; 24],
+}
+
+impl FromIterator<(DateTime<Local>, EnergyState)> for HouseholdParameters {
+    fn from_iter<T: IntoIterator<Item = (DateTime<Local>, EnergyState)>>(iterator: T) -> Self {
+        let mut this = Self { hourly_stand_by_power: [None; 24] };
+        for (hour, mean_power) in iterator
+            .into_iter()
+            .map(|(timestamp, energy_state)| (timestamp, energy_state.net_consumption))
+            .deltas()
+            .filter(|(interval, _)| {
+                // Filter out cross-hour values:
+                (interval.start.date_naive() == interval.end.date_naive())
+                    && (interval.start.hour() == interval.end.hour())
+            })
+            .into_group_map_by(|(interval, _)| interval.start.hour())
+            .into_iter()
+            .map(|(hour, values)| {
+                let (total_time, total_energy) = values.into_iter().fold(
+                    (TimeDelta::zero(), KilowattHours::ZERO),
+                    |(total_time, total_energy), (interval, energy)| {
+                        (total_time + (interval.end - interval.start), total_energy + energy)
+                    },
+                );
+                (hour, total_energy / total_time)
+            })
+        {
+            this.hourly_stand_by_power[hour as usize] = Some(mean_power);
+        }
+        this
+    }
 }
 
 impl HouseholdParameters {

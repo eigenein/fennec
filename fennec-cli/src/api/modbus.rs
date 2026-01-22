@@ -4,7 +4,7 @@ use tokio_modbus::{
 };
 
 use crate::{
-    cli::{BatteryConnectionArgs, BatteryStateRegisters},
+    cli::{BatteryConnectionArgs, BatterySettingRegisters, BatteryStateRegisters},
     prelude::*,
     quantity::{Quantity, energy::KilowattHours},
 };
@@ -39,6 +39,19 @@ impl Client {
         Ok(BatteryState { design_capacity, state_of_charge, state_of_health })
     }
 
+    #[instrument(skip_all)]
+    pub async fn read_battery_settings(
+        &mut self,
+        registers: BatterySettingRegisters,
+    ) -> Result<BatterySettings> {
+        info!("Reading the battery settings…");
+        let min_state_of_charge_on_grid = 0.01
+            * f64::from(self.read_holding_register(registers.min_state_of_charge_on_grid).await?);
+        let max_state_of_charge =
+            0.01 * f64::from(self.read_holding_register(registers.max_state_of_charge).await?);
+        Ok(BatterySettings { max_state_of_charge, min_state_of_charge_on_grid })
+    }
+
     #[instrument(skip_all, fields(register = register), ret)]
     async fn read_holding_register(&mut self, register: u16) -> Result<u16> {
         self.0
@@ -66,4 +79,10 @@ impl BatteryState {
     pub const fn residual_energy(&self) -> KilowattHours {
         Quantity(self.actual_capacity().0 * self.state_of_charge)
     }
+}
+
+#[must_use]
+pub struct BatterySettings {
+    min_state_of_charge_on_grid: f64,
+    max_state_of_charge: f64,
 }

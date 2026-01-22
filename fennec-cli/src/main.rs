@@ -100,7 +100,7 @@ async fn hunt(args: &HuntArgs) -> Result {
         .working_modes(working_modes)
         .initial_residual_energy(battery_state.residual_energy())
         .capacity(battery_state.actual_capacity())
-        .battery_power_parameters(args.battery.power)
+        .battery_power_settings(args.battery.power)
         .battery_efficiency_parameters(statistics.energy.battery)
         .purchase_fee(args.provider.purchase_fee())
         .now(now)

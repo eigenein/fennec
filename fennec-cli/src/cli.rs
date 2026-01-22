@@ -70,6 +70,7 @@ pub struct BatteryPowerParameters {
 }
 
 impl BatteryPowerParameters {
+    #[deprecated]
     pub fn min_soc(&self) -> f64 {
         f64::from(self.min_soc_percent) / 100.0
     }

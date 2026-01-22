@@ -35,7 +35,7 @@ pub struct Solver<'a> {
     working_modes: EnumSet<WorkingMode>,
     initial_residual_energy: KilowattHours,
     capacity: KilowattHours,
-    battery_power_parameters: BatteryPowerParameters,
+    battery_power_settings: BatteryPowerParameters,
     battery_efficiency_parameters: BatteryEfficiencyParameters,
     purchase_fee: KilowattHourRate,
     now: DateTime<Local>,
@@ -65,7 +65,7 @@ impl Solver<'_> {
     #[instrument(skip_all)]
     fn solve(self) -> Option<Solution> {
         let start_instant = Instant::now();
-        let min_residual_energy = self.capacity * self.battery_power_parameters.min_soc();
+        let min_residual_energy = self.capacity * self.battery_power_settings.min_soc();
         let max_energy = WattHours::from(self.initial_residual_energy.max(self.capacity));
         info!(
             ?min_residual_energy,
@@ -103,13 +103,13 @@ impl Solver<'_> {
                 let next_solutions =
                     solutions.into_iter().map(|solution| solution.map(Rc::new)).collect_vec();
                 (0..=max_energy.0)
-                    .map(|initial_residual_energy_watt_hours| {
+                    .map(|residual_energy_watt_hours| {
                         self.optimise_step()
                             .interval(interval)
                             .stand_by_power(stand_by_power)
                             .grid_rate(grid_rate)
                             .initial_residual_energy(KilowattHours::from(WattHours(
-                                initial_residual_energy_watt_hours,
+                                residual_energy_watt_hours,
                             )))
                             .min_residual_energy(min_residual_energy)
                             .next_solutions(&next_solutions)
@@ -206,11 +206,11 @@ impl Solver<'_> {
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Backup => (-stand_by_power).max(Kilowatts::ZERO),
-            WorkingMode::Charge => self.battery_power_parameters.charging_power,
-            WorkingMode::Discharge => -self.battery_power_parameters.discharging_power,
+            WorkingMode::Charge => self.battery_power_settings.charging_power,
+            WorkingMode::Discharge => -self.battery_power_settings.discharging_power,
             WorkingMode::Balance => (-stand_by_power).clamp(
-                -self.battery_power_parameters.discharging_power,
-                self.battery_power_parameters.charging_power,
+                -self.battery_power_settings.discharging_power,
+                self.battery_power_settings.charging_power,
             ),
         };
 

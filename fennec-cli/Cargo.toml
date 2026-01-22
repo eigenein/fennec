@@ -19,7 +19,7 @@ is-it-maintained-issue-resolution = { repository = "eigenein/fennec" }
 is-it-maintained-open-issues = { repository = "eigenein/fennec" }
 
 [dependencies]
-aegis = { version = "*", features = ["pure-rust"] } # Needed for Turso
+aegis = { version = "=0.9.7", features = ["pure-rust"] } # Needed for Turso
 anyhow = "=1.0.100"
 average = "=0.16.0"
 bon = "=3.8.1"

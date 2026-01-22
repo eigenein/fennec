@@ -89,6 +89,15 @@ pub struct BatteryConnectionArgs {
 
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryRegisters {
+    #[clap(flatten)]
+    pub state: BatteryStateRegisters,
+
+    #[clap(flatten)]
+    pub setting: BatterySettingRegisters,
+}
+
+#[derive(Copy, Clone, Parser)]
+pub struct BatteryStateRegisters {
     #[clap(long, default_value = "39424", env = "SOC_REGISTER")]
     pub state_of_charge: u16,
 
@@ -97,7 +106,10 @@ pub struct BatteryRegisters {
 
     #[clap(long, default_value = "37635", env = "DESIGN_CAPACITY_REGISTER")]
     pub design_capacity: u16,
+}
 
+#[derive(Copy, Clone, Parser)]
+pub struct BatterySettingRegisters {
     #[clap(long, default_value = "46611", env = "MIN_SOC_ON_GRID_REGISTER")]
     pub min_state_of_charge_on_grid: u16,
 

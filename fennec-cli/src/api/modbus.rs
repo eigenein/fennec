@@ -4,7 +4,7 @@ use tokio_modbus::{
 };
 
 use crate::{
-    cli::{BatteryConnectionArgs, BatteryRegisters},
+    cli::{BatteryConnectionArgs, BatteryStateRegisters},
     prelude::*,
     quantity::{Quantity, energy::KilowattHours},
 };
@@ -25,7 +25,7 @@ impl Client {
     #[instrument(skip_all)]
     pub async fn read_battery_state(
         &mut self,
-        registers: BatteryRegisters,
+        registers: BatteryStateRegisters,
     ) -> Result<BatteryState> {
         info!("Reading the battery state…");
         let design_capacity = KilowattHours::from(

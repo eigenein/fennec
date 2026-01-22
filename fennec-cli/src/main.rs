@@ -86,7 +86,7 @@ async fn hunt(args: &HuntArgs) -> Result {
 
     let battery_state = modbus::Client::connect(&args.battery.connection)
         .await?
-        .read_battery_state(args.battery.registers)
+        .read_battery_state(args.battery.registers.state)
         .await?;
     info!(
         residual_energy = ?battery_state.residual_energy(),

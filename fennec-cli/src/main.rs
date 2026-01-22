@@ -15,7 +15,7 @@ use clap::{Parser, crate_version};
 use itertools::Itertools;
 
 use crate::{
-    api::{foxess, heartbeat, modbus},
+    api::{foxess, heartbeat, homewizard, modbus},
     cli::{
         Args,
         BurrowCommand,
@@ -26,6 +26,7 @@ use crate::{
         HuntArgs,
     },
     core::solver::Solver,
+    db::{Db, measurements::Measurements},
     prelude::*,
     statistics::{Statistics, energy::EnergyStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
@@ -42,6 +43,19 @@ async fn main() -> Result {
     match args.command {
         Command::Hunt(args) => {
             hunt(&args).await?;
+        }
+        Command::Log(args) => {
+            let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
+            let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
+            let mut battery = modbus::Client::connect(&args.battery_connection).await?;
+            let (total_measurement, battery_measurement, battery_state) = tokio::try_join!(
+                total_energy_meter.get_measurement(),
+                battery_energy_meter.get_measurement(),
+                battery.read_energy_state(args.battery_registers),
+            )?;
+            Measurements(&*Db::connect(&args.database_path).await?)
+                .upsert(total_measurement, battery_measurement, battery_state.residual())
+                .await?;
         }
         Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(statistics_args) => {

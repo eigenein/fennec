@@ -4,6 +4,7 @@ use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
 use enumset::EnumSet;
 use http::Uri;
+use reqwest::Url;
 
 use crate::{
     api::home_assistant,
@@ -27,6 +28,10 @@ pub enum Command {
     /// Main command: fetch the prices, optimize the schedule, and push it to the cloud.
     #[clap(name = "hunt")]
     Hunt(Box<HuntArgs>),
+
+    /// Log meter and battery measurements.
+    #[clap(name = "log")]
+    Log(Box<LogArgs>),
 
     /// Development tools.
     #[clap(name = "burrow")]
@@ -104,6 +109,24 @@ pub struct BatterySettingRegisters {
 
     #[clap(long, default_value = "46610", env = "MAX_SOC_REGISTER")]
     pub max_state_of_charge: u16,
+}
+
+#[derive(Parser)]
+pub struct LogArgs {
+    #[clap(long, env = "DATABASE_PATH", default_value = "fennec.db")]
+    pub database_path: PathBuf,
+
+    #[clap(long, env = "TOTAL_ENERGY_METER_URL")]
+    pub total_energy_meter_url: Url,
+
+    #[clap(long, env = "BATTERY_ENERGY_METER_URL")]
+    pub battery_energy_meter_url: Url,
+
+    #[clap(flatten)]
+    pub battery_connection: BatteryConnectionArgs,
+
+    #[clap(flatten)]
+    pub battery_registers: BatteryEnergyStateRegisters,
 }
 
 #[derive(Parser)]

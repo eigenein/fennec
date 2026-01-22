@@ -1,15 +1,46 @@
+use std::time::Duration;
+
+use reqwest::Url;
 use serde::Deserialize;
 
 use crate::{prelude::*, quantity::energy::KilowattHours};
+
+pub struct Client {
+    inner: reqwest::Client,
+    url: Url,
+}
+
+impl Client {
+    #[instrument(skip_all, fields(url = %url))]
+    pub fn new(url: Url) -> Result<Self> {
+        let inner = reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?;
+        Ok(Self { inner, url })
+    }
+
+    #[instrument(skip_all, fields(url = %self.url))]
+    pub async fn get_measurement(&self) -> Result<PowerMeasurement> {
+        let measurement: PowerMeasurement = self
+            .inner
+            .get(self.url.clone())
+            .send()
+            .await
+            .with_context(|| format!("failed to request a power measurement from `{}`", self.url))?
+            .json()
+            .await
+            .with_context(|| format!("failed to deserialize the response from `{}`", self.url))?;
+        info!(import = ?measurement.import, export = ?measurement.export);
+        Ok(measurement)
+    }
+}
 
 #[must_use]
 #[derive(Deserialize)]
 pub struct PowerMeasurement {
     #[serde(rename = "total_power_import_kwh")]
-    pub total_power_import: KilowattHours,
+    pub import: KilowattHours,
 
     #[serde(rename = "total_power_export_kwh")]
-    pub total_power_export: KilowattHours,
+    pub export: KilowattHours,
 }
 
 #[cfg(test)]

@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
     derive_more::Sum,
 )]
 #[from(u16, i32, f64)]
-#[into(f64)]
+#[into(f64, turso::Value)]
 #[must_use]
 pub struct Quantity<const POWER: isize, const TIME: isize, const COST: isize>(pub f64);
 

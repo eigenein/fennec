@@ -52,15 +52,13 @@ impl Client {
         info!("Reading the battery settings…");
         let min_state_of_charge_percent =
             self.read_holding_register(registers.min_state_of_charge_on_grid).await?;
-        let min_state_of_charge = 0.01 * f64::from(min_state_of_charge_percent);
         let max_state_of_charge_percent =
             self.read_holding_register(registers.max_state_of_charge).await?;
-        let max_state_of_charge = 0.01 * f64::from(max_state_of_charge_percent);
         Ok(BatterySettings {
             min_state_of_charge_percent,
-            min_state_of_charge,
+            min_state_of_charge: 0.01 * f64::from(min_state_of_charge_percent),
             max_state_of_charge_percent,
-            max_state_of_charge,
+            max_state_of_charge: 0.01 * f64::from(max_state_of_charge_percent),
         })
     }
 
@@ -75,13 +73,16 @@ impl Client {
         })
     }
 
-    #[instrument(skip_all, fields(register = register), ret)]
+    #[instrument(skip_all, fields(register = register))]
     async fn read_holding_register(&mut self, register: u16) -> Result<u16> {
-        self.0
+        let value = self
+            .0
             .read_holding_registers(register, 1)
             .await??
             .pop()
-            .with_context(|| format!("nothing is read from the register #{register}"))
+            .with_context(|| format!("nothing is read from the register #{register}"))?;
+        info!(value);
+        Ok(value)
     }
 }
 

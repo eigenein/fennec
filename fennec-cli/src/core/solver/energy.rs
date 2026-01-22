@@ -58,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_decawatt_hours() {
+    fn test_from_watt_hours() {
         assert_eq!(KilowattHours::from(WattHours(1000)), Quantity::from(1.0));
     }
 }

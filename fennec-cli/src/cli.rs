@@ -40,13 +40,14 @@ pub struct BatteryArgs {
 
     #[clap(flatten)]
     pub connection: BatteryConnectionArgs,
+
+    #[clap(flatten)]
+    pub registers: BatteryRegisters,
 }
 
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryPowerParameters {
     /// Charging power in kilowatts.
-    ///
-    /// TODO: split into «technical» and «actual» (1185 W).
     #[clap(
         long = "charging-power-kilowatts",
         default_value = "1.2",
@@ -55,8 +56,6 @@ pub struct BatteryPowerParameters {
     pub charging_power: Kilowatts,
 
     /// Discharging power in kilowatts.
-    ///
-    /// TODO: split into «technical» and «actual» (825 W).
     #[clap(
         long = "discharging-power-kilowatts",
         default_value = "0.8",
@@ -66,6 +65,7 @@ pub struct BatteryPowerParameters {
 
     /// Minimal state-of-charge percent.
     #[clap(long, default_value = "10", env = "MIN_SOC_PERCENT")]
+    #[deprecated]
     pub min_soc_percent: u32,
 }
 
@@ -78,17 +78,17 @@ impl BatteryPowerParameters {
 #[derive(Parser)]
 pub struct BatteryConnectionArgs {
     #[clap(long = "battery-host", env = "BATTERY_HOST")]
-    pub address: String,
+    pub host: String,
 
     #[clap(long = "battery-port", env = "BATTERY_PORT", default_value = "502")]
-    pub port: String,
+    pub port: u16,
 
     #[clap(long = "battery-slave-id", default_value = "1", env = "BATTERY_SLAVE_ID")]
     pub slave_id: u8,
 }
 
 #[derive(Copy, Clone, Parser)]
-pub struct BatteryRegisterArgs {
+pub struct BatteryRegisters {
     #[clap(long, default_value = "39424", env = "SOC_REGISTER")]
     pub state_of_charge: u16,
 
@@ -97,6 +97,12 @@ pub struct BatteryRegisterArgs {
 
     #[clap(long, default_value = "37635", env = "DESIGN_ENERGY_REGISTER")]
     pub design_energy: u16,
+
+    #[clap(long, default_value = "46611", env = "MIN_SOC_ON_GRID_REGISTER")]
+    pub minimum_state_of_charge_on_grid: u16,
+
+    #[clap(long, default_value = "46610", env = "MAX_SOC_REGISTER")]
+    pub maximum_state_of_charge: u16,
 }
 
 #[derive(Parser)]
@@ -143,6 +149,7 @@ pub struct HomeAssistantArgs {
     #[clap(long = "home-assistant-entity-id", env = "HOME_ASSISTANT_ENTITY_ID")]
     pub entity_id: String,
 
+    /// TODO: use `humantime`.
     #[clap(
         long = "home-assistant-history-days",
         default_value = "14",
@@ -220,15 +227,6 @@ pub struct BurrowFoxEssArgs {
 
 #[derive(Subcommand)]
 pub enum BurrowFoxEssCommand {
-    /// Get parsed device variables.
-    DeviceVariables,
-
-    /// Get all device variables in raw format.
-    RawDeviceVariables,
-
-    /// Get device details.
-    DeviceDetails,
-
     /// Get the schedule.
     Schedule,
 }

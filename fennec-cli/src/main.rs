@@ -82,21 +82,20 @@ fn hunt(args: &HuntArgs) -> Result {
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "Fetched energy rates");
 
-    let total_capacity =
-        fox_ess.get_device_details(&args.fox_ess_api.serial_number)?.total_capacity();
-    let residual_energy = {
-        // `ResidualEnergy` seems to be unreliable and somehow corrected on server side.
-        total_capacity
-            * fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?.state_of_charge()
-    };
-    info!(?residual_energy, ?total_capacity, "Fetched battery details");
+    let battery_state = crate::api::modbus::Client::connect(&args.battery.connection)?
+        .read_battery_state(args.battery.registers)?;
+    info!(
+        residual_energy = ?battery_state.residual_energy,
+        capacity = ?battery_state.capacity,
+        "Fetched battery state",
+    );
 
     let solution = Solver::builder()
         .grid_rates(&grid_rates)
         .hourly_stand_by_power(&statistics.energy.household.hourly_stand_by_power)
         .working_modes(working_modes)
-        .initial_residual_energy(residual_energy)
-        .capacity(total_capacity)
+        .initial_residual_energy(battery_state.residual_energy)
+        .capacity(battery_state.capacity)
         .battery_power_parameters(args.battery.power)
         .battery_efficiency_parameters(statistics.energy.battery)
         .purchase_fee(args.provider.purchase_fee())
@@ -140,42 +139,12 @@ fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key);
 
     match args.command {
-        BurrowFoxEssCommand::DeviceDetails => {
-            let details = fox_ess.get_device_details(&args.fox_ess_api.serial_number)?;
-            info!(total_capacity = ?details.total_capacity(), "Gotcha");
-        }
-
-        BurrowFoxEssCommand::DeviceVariables => {
-            let variables = fox_ess.get_device_variables(&args.fox_ess_api.serial_number)?;
-            info!(
-                ?variables.residual_energy,
-                variables.state_of_charge_percent,
-                "Gotcha",
-            );
-        }
-
-        BurrowFoxEssCommand::RawDeviceVariables => {
-            let response = fox_ess.get_devices_variables_raw(&[&args.fox_ess_api.serial_number])?;
-            info!("Gotcha!");
-            for device in response {
-                for variable in device.variables {
-                    info!(
-                        serial_number = &device.serial_number,
-                        name = variable.name,
-                        description = variable.description,
-                        unit = variable.unit,
-                        value = variable.value.to_string(),
-                        "Variable",
-                    );
-                }
-            }
-        }
-
         BurrowFoxEssCommand::Schedule => {
             let schedule = fox_ess.get_schedule(&args.fox_ess_api.serial_number)?;
             info!(schedule.is_enabled, "Gotcha");
             println!("{}", build_time_slot_sequence_table(&schedule.groups));
         }
     }
+
     Ok(())
 }

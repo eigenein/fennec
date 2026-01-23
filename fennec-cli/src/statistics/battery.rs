@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use bon::Builder;
 use futures_core::TryStream;
@@ -18,6 +18,7 @@ use crate::{
         Db,
         measurements::{Measurement, Measurements},
     },
+    fmt::FormattedEfficiency,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},
 };
@@ -51,9 +52,9 @@ impl BatteryEfficiency {
             .context("failed to estimate the battery efficiency")?;
         info!(
             parasitic_load = ?efficiency.parasitic_load,
-            round_trip = efficiency.round_trip(),
-            charging = efficiency.charging,
-            discharging = efficiency.discharging,
+            round_trip = ?FormattedEfficiency(efficiency.round_trip()),
+            charging = ?FormattedEfficiency(efficiency.charging),
+            discharging = ?FormattedEfficiency(efficiency.discharging),
             "completed",
         );
         Ok(efficiency)
@@ -84,9 +85,10 @@ impl BatteryEfficiency {
         }
 
         info!(n_records = dataset.nsamples(), "estimating the battery efficiency…");
+        let start_time = Instant::now();
         let regression = LinearRegression::new().with_intercept(false).fit(&dataset)?;
 
-        info!("evaluating…");
+        info!(elapsed = ?start_time.elapsed(), "evaluating…");
         let r_squared = {
             let predictions = regression.predict(&dataset.records);
             let residual_sum_of_squares =

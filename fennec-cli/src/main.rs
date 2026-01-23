@@ -5,6 +5,7 @@ mod api;
 mod cli;
 mod core;
 mod db;
+mod fmt;
 mod prelude;
 mod quantity;
 mod statistics;

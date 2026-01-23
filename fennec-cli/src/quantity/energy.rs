@@ -10,21 +10,7 @@ use crate::quantity::{Quantity, cost::Cost, power::Kilowatts, rate::KilowattHour
 pub type KilowattHours = Quantity<1, 1, 0>;
 
 impl KilowattHours {
-    /// 1 Wh.
-    pub const ONE_THOUSANDTH: Self = Self(0.001);
-
-    pub const fn zero() -> Self {
-        Self::ZERO
-    }
-
-    #[must_use]
-    pub const fn is_significant(self) -> bool {
-        self.0 >= Self::ONE_THOUSANDTH.0
-    }
-
-    pub fn from_watt_hours_u32(watt_hours: u32) -> Self {
-        Self::from(f64::from(watt_hours) * 0.001)
-    }
+    pub const ONE_WATT_HOUR: Self = Self(0.001);
 }
 
 impl Display for KilowattHours {

@@ -3,11 +3,7 @@ use std::time::{Duration, Instant};
 use bon::Builder;
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
-use linfa::{
-    Dataset,
-    dataset::Records,
-    traits::{Fit, Predict},
-};
+use linfa::{Dataset, dataset::Records, traits::Fit};
 use linfa_linear::LinearRegression;
 use ndarray::{Array1, Array2, Axis, aview0, aview1};
 use tokio::pin;
@@ -92,17 +88,7 @@ impl BatteryEfficiency {
         info!(n_records = dataset.nsamples(), "estimating the battery efficiency…");
         let start_time = Instant::now();
         let regression = LinearRegression::new().with_intercept(false).fit(&dataset)?;
-
-        info!(elapsed = ?start_time.elapsed(), "evaluating…");
-        let r_squared = {
-            let predictions = regression.predict(&dataset.records);
-            let residual_sum_of_squares =
-                (&dataset.targets - predictions).mapv(|value| value.powi(2)).sum();
-            let mean = dataset.targets.mean().unwrap();
-            let total_sum_of_squares = dataset.targets.mapv(|value| (value - mean).powi(2)).sum();
-            1.0 - residual_sum_of_squares / total_sum_of_squares
-        };
-        info!(r_squared, "evaluated");
+        info!(elapsed = ?start_time.elapsed(), "regression has been fit");
 
         Ok(Self::builder()
             .charging(regression.params()[0])

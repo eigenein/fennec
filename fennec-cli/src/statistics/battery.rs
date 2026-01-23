@@ -67,7 +67,8 @@ impl BatteryEfficiency {
     {
         let mut previous_measurement =
             measurements.try_next().await?.context("empty measurement stream")?;
-        let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
+        let mut dataset =
+            Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0)).with_weights(Array1::zeros(0));
 
         info!("reading the measurements…");
         while let Some(measurement) = measurements.try_next().await? {
@@ -75,12 +76,26 @@ impl BatteryEfficiency {
             let exported_energy = measurement.battery.export - previous_measurement.battery.export;
             let residual_differential =
                 measurement.residual_energy - previous_measurement.residual_energy;
+            let duration = measurement.timestamp - previous_measurement.timestamp;
+            let weight = {
+                let energy_signal = imported_energy + exported_energy;
+                let parasitic_signal = Kilowatts::from(0.02) * duration;
+                let weight = energy_signal + parasitic_signal;
+
+                #[expect(clippy::cast_possible_truncation)]
+                let weight = weight.0 as f32;
+
+                weight
+            };
+
             dataset.records.push_row(aview1(&[
                 imported_energy.0,
                 exported_energy.0,
-                (measurement.timestamp - previous_measurement.timestamp).as_seconds_f64() / 3600.0,
+                duration.as_seconds_f64() / 3600.0,
             ]))?;
             dataset.targets.push(Axis(0), aview0(&residual_differential.0))?;
+            dataset.weights.push(Axis(0), aview0(&weight))?;
+
             previous_measurement = measurement;
         }
 

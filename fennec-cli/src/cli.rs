@@ -9,6 +9,8 @@ use reqwest::Url;
 use crate::{
     api::home_assistant,
     core::{provider::Provider, working_mode::WorkingMode},
+    db::Db,
+    prelude::*,
     quantity::power::Kilowatts,
 };
 
@@ -36,6 +38,18 @@ pub enum Command {
     /// Development tools.
     #[clap(name = "burrow")]
     Burrow(Box<BurrowArgs>),
+}
+
+#[derive(Parser)]
+pub struct DatabaseArgs {
+    #[clap(long = "database-path", env = "DATABASE_PATH", default_value = "fennec.db")]
+    pub path: PathBuf,
+}
+
+impl DatabaseArgs {
+    pub async fn connect(&self) -> Result<Db> {
+        Db::connect(&self.path).await
+    }
 }
 
 #[derive(Parser)]
@@ -113,14 +127,14 @@ pub struct BatterySettingRegisters {
 
 #[derive(Parser)]
 pub struct LogArgs {
-    #[clap(long, env = "DATABASE_PATH", default_value = "fennec.db")]
-    pub database_path: PathBuf,
-
     #[clap(long, env = "TOTAL_ENERGY_METER_URL")]
     pub total_energy_meter_url: Url,
 
     #[clap(long, env = "BATTERY_ENERGY_METER_URL")]
     pub battery_energy_meter_url: Url,
+
+    #[clap(flatten)]
+    pub database: DatabaseArgs,
 
     #[clap(flatten)]
     pub battery_connection: BatteryConnectionArgs,
@@ -153,6 +167,12 @@ pub struct HuntArgs {
 
     #[clap(flatten)]
     pub fox_ess_api: FoxEssApiArgs,
+
+    #[clap(flatten)]
+    pub estimation: EstimationArgs,
+
+    #[clap(flatten)]
+    pub database: DatabaseArgs,
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
     pub statistics_path: PathBuf,
@@ -227,6 +247,9 @@ pub enum BurrowCommand {
     /// Gather consumption and battery statistics.
     Statistics(BurrowStatisticsArgs),
 
+    /// Estimate battery efficiency parameters.
+    Battery(BurrowBatteryArgs),
+
     /// Test FoxESS Cloud API connectivity.
     FoxEss(BurrowFoxEssArgs),
 }
@@ -238,6 +261,26 @@ pub struct BurrowStatisticsArgs {
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
     pub statistics_path: PathBuf,
+}
+
+#[derive(Parser)]
+pub struct BurrowBatteryArgs {
+    #[clap(flatten)]
+    pub database: DatabaseArgs,
+
+    #[clap(flatten)]
+    pub estimation: EstimationArgs,
+}
+
+#[derive(Parser)]
+pub struct EstimationArgs {
+    /// Measurement window duration to select from the readings when estimating battery efficiency.
+    #[clap(
+        long = "battery-estimation-interval",
+        env = "BATTERY_ESTIMATION_INTERVAL",
+        default_value = "14d"
+    )]
+    pub duration: humantime::Duration,
 }
 
 #[derive(Parser)]

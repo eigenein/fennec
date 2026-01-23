@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use bon::Builder;
 use reqwest::Url;
 use serde::Deserialize;
 
@@ -34,7 +35,7 @@ impl Client {
 }
 
 #[must_use]
-#[derive(Deserialize)]
+#[derive(Deserialize, Builder)]
 pub struct MeterMeasurement {
     #[serde(rename = "total_power_import_kwh")]
     pub import: KilowattHours,

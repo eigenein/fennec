@@ -1,4 +1,5 @@
-pub mod energy;
+pub mod battery;
+pub mod household;
 
 use std::path::Path;
 
@@ -8,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     prelude::{instrument, *},
-    statistics::energy::EnergyStatistics,
+    statistics::household::EnergyStatistics,
 };
 
 #[must_use]

@@ -13,6 +13,7 @@ mod tables;
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
+use tokio::pin;
 
 use crate::{
     api::{foxess, heartbeat, homewizard, modbus},
@@ -25,13 +26,10 @@ use crate::{
         Command,
         HuntArgs,
     },
-    core::solver::Solver,
-    db::{
-        Db,
-        measurements::{Measurement, Measurements},
-    },
+    core::{interval::Interval, solver::Solver},
+    db::measurements::{Measurement, Measurements},
     prelude::*,
-    statistics::{Statistics, energy::EnergyStatistics},
+    statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -58,16 +56,24 @@ async fn main() -> Result {
                     battery.read_energy_state(args.battery_registers),
                 )?;
                 Measurement::builder()
+                    .timestamp(Local::now())
                     .total(total_measurement)
                     .battery(battery_measurement)
                     .residual_energy(battery_state.residual())
                     .build()
             };
-            Measurements(&*Db::connect(&args.database_path).await?).upsert(&measurement).await?;
+            Measurements(&*args.database.connect().await?).upsert(&measurement).await?;
         }
         Command::Burrow(args) => match args.command {
-            BurrowCommand::Statistics(statistics_args) => {
-                burrow_statistics(&statistics_args)?;
+            BurrowCommand::Statistics(args) => {
+                burrow_statistics(&args)?;
+            }
+            BurrowCommand::Battery(args) => {
+                let _ = BatteryEfficiency::try_estimate_from(
+                    &args.database.connect().await?,
+                    args.estimation.duration.into(),
+                )
+                .await?;
             }
             BurrowCommand::FoxEss(args) => {
                 burrow_fox_ess(args)?;
@@ -78,9 +84,9 @@ async fn main() -> Result {
     if let Some(heartbeat_url) = args.heartbeat_url
         && let Err(error) = heartbeat::send(heartbeat_url)
     {
-        warn!("Failed to send the heartbeat: {error:#}");
+        warn!("failed to send the heartbeat: {error:#}");
     }
-    info!("Done!");
+    info!("done!");
     Ok(())
 }
 
@@ -88,15 +94,6 @@ async fn main() -> Result {
 async fn hunt(args: &HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
     info!(?statistics.generated_at);
-    info!(parasitic_load = ?statistics.energy.battery_efficiency.parasitic_load);
-    info!(charging_efficiency = format!("{:.3}", statistics.energy.battery_efficiency.charging));
-    info!(
-        discharging_efficiency = format!("{:.3}", statistics.energy.battery_efficiency.discharging)
-    );
-    info!(
-        round_trip_efficiency =
-            format!("{:.3}", statistics.energy.battery_efficiency.round_trip_efficiency())
-    );
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone());
     let working_modes = args.working_modes();
@@ -121,13 +118,19 @@ async fn hunt(args: &HuntArgs) -> Result {
         "Fetched battery state",
     );
 
+    let battery_efficiency = BatteryEfficiency::try_estimate_from(
+        &args.database.connect().await?,
+        args.estimation.duration.into(),
+    )
+    .await?;
+
     let solution = Solver::builder()
         .grid_rates(&grid_rates)
         .hourly_stand_by_power(&statistics.energy.household.hourly_stand_by_power)
         .working_modes(working_modes)
         .battery_state(battery_state)
         .battery_power_limits(args.battery.power_limits)
-        .battery_efficiency(statistics.energy.battery_efficiency)
+        .battery_efficiency(battery_efficiency)
         .purchase_fee(args.provider.purchase_fee())
         .now(now)
         .solve()

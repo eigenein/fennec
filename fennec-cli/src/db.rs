@@ -64,11 +64,11 @@ impl Db {
         ];
 
         let current_version = self.get_version().await?;
-        info!(current_version, "Checking migrations…");
+        info!(current_version, "checking migrations…");
 
         for (version, sql) in MIGRATIONS {
             if *version > current_version {
-                info!(version, "Applying migration…");
+                info!(version, "applying migration…");
                 let tx = Transaction::new(self, TransactionBehavior::Deferred).await?;
                 tx.execute_batch(sql).await?;
                 Scalars(&tx).upsert(Self::VERSION_KEY, Value::Integer(*version)).await?;

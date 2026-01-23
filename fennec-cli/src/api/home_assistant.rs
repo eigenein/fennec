@@ -31,7 +31,7 @@ impl Api {
         entity_id: &str,
         period: &RangeInclusive<DateTime<Local>>,
     ) -> Result<Vec<EnergyState>> {
-        info!(entity_id, since = ?period.start(), until = ?period.end(), "Fetching…");
+        info!(entity_id, since = ?period.start(), until = ?period.end(), "fetching…");
         let entities_history: Vec<EnergyHistory> = self
             .client
             .get(format!("{}/history/period/{}", self.base_uri, period.start().to_rfc3339()))
@@ -45,7 +45,7 @@ impl Api {
             .into_iter()
             .next()
             .with_context(|| format!("the API returned no data for `{entity_id}`"))?;
-        info!(len = entity_history.0.len(), "Fetched");
+        info!(len = entity_history.0.len(), "fetched");
         Ok(entity_history.0)
     }
 }

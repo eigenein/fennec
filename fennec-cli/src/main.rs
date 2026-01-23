@@ -36,7 +36,7 @@ use crate::{
 async fn main() -> Result {
     let _ = dotenvy::dotenv();
     tracing_subscriber::fmt().without_time().compact().init();
-    info!(version = crate_version!(), "Starting…");
+    info!(version = crate_version!(), "starting…");
 
     let args = Args::parse();
 
@@ -101,7 +101,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     let grid_rates = args.provider.get_upcoming_rates(now).await?;
 
     ensure!(!grid_rates.is_empty());
-    info!(len = grid_rates.len(), "Fetched energy rates");
+    info!(len = grid_rates.len(), "fetched energy rates");
 
     let battery_state = modbus::Client::connect(&args.battery.connection)
         .await?
@@ -114,7 +114,7 @@ async fn hunt(args: &HuntArgs) -> Result {
         actual_capacity = ?battery_state.energy.actual_capacity(),
         min_soc = battery_state.settings.min_state_of_charge,
         max_soc = battery_state.settings.max_state_of_charge,
-        "Fetched battery state",
+        "fetched battery state",
     );
 
     let battery_efficiency = BatteryEfficiency::try_estimate_from(
@@ -178,7 +178,7 @@ fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
     match args.command {
         BurrowFoxEssCommand::Schedule => {
             let schedule = fox_ess.get_schedule(&args.fox_ess_api.serial_number)?;
-            info!(schedule.is_enabled, "Gotcha");
+            info!(schedule.is_enabled, "gotcha");
             println!("{}", build_time_slot_sequence_table(&schedule.groups));
         }
     }

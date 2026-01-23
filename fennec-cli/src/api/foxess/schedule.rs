@@ -125,7 +125,7 @@ impl TimeSlotSequence {
         max_state_of_charge_percent: u16,
     ) -> Result<Self> {
         let until_exclusive = since + TimeDelta::days(1);
-        info!(%since, %until_exclusive, "Building a FoxESS schedule…");
+        info!(%since, %until_exclusive, "building a FoxESS schedule…");
         schedule
             .into_iter()
             .filter_map(|(interval, working_mode)| {

@@ -20,7 +20,7 @@ pub struct Client(tokio_modbus::client::Context);
 impl Client {
     #[instrument(skip_all, fields(host = args.host, port = args.port, slave_id = args.slave_id))]
     pub async fn connect(args: &BatteryConnectionArgs) -> Result<Self> {
-        info!("Connecting to the battery…");
+        info!("connecting to the battery…");
         let tcp_stream = tokio::net::TcpStream::connect((args.host.as_str(), args.port))
             .await
             .context("failed to connect to the battery")?;
@@ -32,7 +32,7 @@ impl Client {
         &mut self,
         registers: BatteryEnergyStateRegisters,
     ) -> Result<BatteryEnergyState> {
-        info!("Reading the battery state…");
+        info!("reading the battery state…");
         let design_capacity = KilowattHours::from(
             // Stored in decawatts:
             0.01 * f64::from(self.read_holding_register(registers.design_capacity).await?),
@@ -49,7 +49,7 @@ impl Client {
         &mut self,
         registers: BatterySettingRegisters,
     ) -> Result<BatterySettings> {
-        info!("Reading the battery settings…");
+        info!("reading the battery settings…");
         let min_state_of_charge_percent =
             self.read_holding_register(registers.min_state_of_charge_on_grid).await?;
         let max_state_of_charge_percent =

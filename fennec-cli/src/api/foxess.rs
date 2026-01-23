@@ -40,7 +40,7 @@ impl Api {
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
     pub fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
-        info!(n_groups = groups.len(), "Setting…");
+        info!(n_groups = groups.len(), "setting…");
 
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {

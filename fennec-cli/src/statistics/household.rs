@@ -3,7 +3,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
-    api::home_assistant::{EnergyAttributes, EnergyState},
+    api::home_assistant::EnergyState,
     core::series::Deltas,
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
@@ -20,61 +20,6 @@ impl FromIterator<EnergyState> for EnergyStatistics {
         info!("Crunching numbers…");
         let series = iterator.into_iter().map(|state| (state.last_changed_at, state)).collect_vec();
         Self { household: series.into_iter().collect() }
-    }
-}
-
-impl EnergyAttributes {
-    #[must_use]
-    pub const fn is_importing(&self) -> bool {
-        self.import.is_significant()
-    }
-
-    #[must_use]
-    pub const fn is_exporting(&self) -> bool {
-        self.export.is_significant()
-    }
-
-    #[must_use]
-    pub const fn is_idling(&self) -> bool {
-        !self.is_importing() && !self.is_exporting()
-    }
-
-    #[must_use]
-    pub const fn is_charging(&self) -> bool {
-        self.is_importing() && !self.is_exporting()
-    }
-
-    #[must_use]
-    pub const fn is_discharging(&self) -> bool {
-        self.is_exporting() && !self.is_importing()
-    }
-
-    #[must_use]
-    pub fn as_charging_efficiency(&self) -> f64 {
-        self.residual_energy / (self.import - self.export)
-    }
-
-    #[must_use]
-    pub fn as_discharging_efficiency(&self) -> f64 {
-        (self.import - self.export) / self.residual_energy
-    }
-}
-
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sum)]
-#[must_use]
-struct Delta {
-    time: TimeDelta,
-    energy: EnergyAttributes,
-}
-
-impl Delta {
-    pub fn as_parasitic_load(&self) -> Kilowatts {
-        (-self.energy.residual_energy + self.energy.import - self.energy.export) / self.time
-    }
-
-    pub fn without_parasitic_load(mut self, parasitic_load: Kilowatts) -> Self {
-        self.energy.residual_energy += parasitic_load * self.time;
-        self
     }
 }
 

@@ -65,20 +65,6 @@ pub struct EnergyState {
     #[serde_as(as = "serde_with::DisplayFromStr")]
     #[serde(rename = "state")]
     pub net_consumption: KilowattHours,
-
-    pub attributes: EnergyAttributes,
-}
-
-#[derive(Copy, Clone, derive_more::Add, derive_more::Sub, derive_more::Sum, serde::Deserialize)]
-pub struct EnergyAttributes {
-    #[serde(rename = "custom_battery_energy_import")]
-    pub import: KilowattHours,
-
-    #[serde(rename = "custom_battery_energy_export")]
-    pub export: KilowattHours,
-
-    #[serde(rename = "custom_battery_residual_energy")]
-    pub residual_energy: KilowattHours,
 }
 
 #[cfg(test)]
@@ -139,9 +125,6 @@ mod tests {
         let state = &total_energy_usage[0];
         assert_eq!(state.last_changed_at, expected_timestamp);
         assert_abs_diff_eq!(state.net_consumption.0, 25902.706);
-        assert_abs_diff_eq!(state.attributes.import.0, 473.809);
-        assert_abs_diff_eq!(state.attributes.export.0, 388.752);
-        assert_abs_diff_eq!(state.attributes.residual_energy.0, 3.86);
 
         Ok(())
     }

@@ -13,7 +13,6 @@ mod tables;
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
-use tokio::pin;
 
 use crate::{
     api::{foxess, heartbeat, homewizard, modbus},
@@ -26,7 +25,7 @@ use crate::{
         Command,
         HuntArgs,
     },
-    core::{interval::Interval, solver::Solver},
+    core::solver::Solver,
     db::measurements::{Measurement, Measurements},
     prelude::*,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},

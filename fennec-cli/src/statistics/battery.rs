@@ -38,21 +38,15 @@ impl BatteryEfficiency {
     pub const fn round_trip(&self) -> f64 {
         self.charging * self.discharging
     }
-}
-
-impl BatteryEfficiency {
-    pub const fn round_trip_efficiency(&self) -> f64 {
-        self.charging * self.discharging
-    }
 
     pub async fn try_estimate_from(db: &Db, duration: Duration) -> Result<Self> {
-        let measurements = Measurements(&*db);
+        let measurements = Measurements(db);
         let stream = measurements
-            .select(Interval::try_since(duration.into())?)
+            .select(Interval::try_since(duration)?)
             .await
             .context("failed to query the measurements")?;
         pin!(stream);
-        let efficiency = BatteryEfficiency::try_estimate(stream)
+        let efficiency = Self::try_estimate(stream)
             .await
             .context("failed to estimate the battery efficiency")?;
         info!(

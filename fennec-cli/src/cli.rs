@@ -19,7 +19,7 @@ use crate::{
 #[must_use]
 pub struct Args {
     #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
-    pub heartbeat_url: Option<Uri>,
+    pub heartbeat_url: Option<Url>,
 
     #[command(subcommand)]
     pub command: Command,

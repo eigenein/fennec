@@ -68,7 +68,7 @@ impl Solver<'_> {
         let max_energy = WattHours::from(
             self.battery_state.energy.residual().max(self.battery_state.max_residual_energy()),
         );
-        info!(?max_energy, n_intervals = self.grid_rates.len(), "Optimizing…");
+        info!(?max_energy, n_intervals = self.grid_rates.len(), "optimizing…");
 
         // This is calculated in order to estimate the net profit:
         let mut net_loss_without_battery = Cost::ZERO;
@@ -125,7 +125,7 @@ impl Solver<'_> {
             charge = ?solution.charge,
             discharge = ?solution.discharge,
             elapsed = ?start_instant.elapsed(),
-            "Optimized",
+            "optimized",
         );
         Some(solution)
     }

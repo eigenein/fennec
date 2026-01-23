@@ -18,7 +18,7 @@ impl Api {
     /// Get all hourly rates on the specified day.
     #[instrument(fields(on = ?on), skip_all)]
     pub async fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
-        info!("Fetching…");
+        info!("fetching…");
         let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(on))
@@ -29,7 +29,7 @@ impl Api {
             .data
             .points
             .list;
-        info!(n_data_points = data_points.len(), "Fetched");
+        info!(n_data_points = data_points.len(), "fetched");
         let series = data_points.into_iter().enumerate().filter_map(move |(index, point)| {
             let hour = u32::try_from(index).unwrap();
             assert_eq!(

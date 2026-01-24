@@ -108,13 +108,13 @@ async fn hunt(args: &HuntArgs) -> Result {
         .await?
         .read_battery_state(args.battery.registers)
         .await?;
-    let min_state_of_charge_percent = battery_state.settings.min_state_of_charge_percent;
-    let max_state_of_charge_percent = battery_state.settings.max_state_of_charge_percent;
+    let min_state_of_charge = battery_state.settings.min_state_of_charge;
+    let max_state_of_charge = battery_state.settings.max_state_of_charge;
     info!(
         residual_energy = ?battery_state.energy.residual(),
         actual_capacity = ?battery_state.energy.actual_capacity(),
-        min_soc = battery_state.settings.min_state_of_charge,
-        max_soc = battery_state.settings.max_state_of_charge,
+        min_soc = ?battery_state.settings.min_state_of_charge,
+        max_soc = ?battery_state.settings.max_state_of_charge,
         "fetched battery state",
     );
 
@@ -143,8 +143,8 @@ async fn hunt(args: &HuntArgs) -> Result {
         schedule,
         now,
         args.battery.power_limits,
-        min_state_of_charge_percent,
-        max_state_of_charge_percent,
+        min_state_of_charge,
+        max_state_of_charge,
     )?;
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 

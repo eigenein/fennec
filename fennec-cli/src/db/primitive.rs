@@ -32,14 +32,6 @@ macro_rules! selectable {
                 }
             }
         }
-
-        impl Primitive for $ty {
-            async fn select_from(scalars: &Primitives<'_>, key: Key) -> Result<$ty> {
-                Option::<$ty>::select_from(scalars, key)
-                    .await?
-                    .with_context(|| format!("no value stored for `{key:?}`"))
-            }
-        }
     };
 }
 

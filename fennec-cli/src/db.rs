@@ -1,6 +1,7 @@
+mod key;
 pub mod measurement;
 pub mod measurements;
-pub mod scalar;
+pub mod primitive;
 pub mod scalars;
 
 use std::path::Path;
@@ -13,15 +14,16 @@ use turso::{
     transaction::{Transaction, TransactionBehavior},
 };
 
-use crate::{db::scalars::Scalars, prelude::*};
+use crate::{
+    db::{key::Key, scalars::Scalars},
+    prelude::*,
+};
 
 #[must_use]
 #[derive(derive_more::Deref, derive_more::DerefMut)]
 pub struct Db(Connection);
 
 impl Db {
-    const VERSION_KEY: &str = "schema_version";
-
     #[instrument]
     pub async fn connect(path: &Path) -> Result<Self> {
         let connection = Builder::new_local(path.to_str().context("failed to convert the path")?)
@@ -36,7 +38,10 @@ impl Db {
 
     #[instrument(skip_all, ret)]
     pub async fn get_version(&self) -> Result<i64> {
-        Ok(Scalars(self).select::<Option<i64>>(Self::VERSION_KEY).await?.unwrap_or_default())
+        Ok(Scalars(self)
+            .select_primitive::<Option<i64>>(Key::SchemaVersion)
+            .await?
+            .unwrap_or_default())
     }
 
     #[instrument(skip_all)]
@@ -73,7 +78,7 @@ impl Db {
                 info!(version, "applying migration…");
                 let tx = Transaction::new(self, TransactionBehavior::Deferred).await?;
                 tx.execute_batch(sql).await?;
-                Scalars(&tx).upsert(Self::VERSION_KEY, Value::Integer(*version)).await?;
+                Scalars(&tx).upsert(Key::SchemaVersion, Value::Integer(*version)).await?;
                 tx.commit().await?;
             }
         }

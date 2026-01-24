@@ -14,6 +14,7 @@ mod tables;
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
+use turso::transaction::{Transaction, TransactionBehavior};
 
 use crate::{
     api::{foxess, heartbeat, homewizard, modbus},
@@ -27,7 +28,7 @@ use crate::{
         HuntArgs,
     },
     core::solver::Solver,
-    db::{measurement::Measurement, measurements::Measurements},
+    db::{key::Key, measurement::Measurement, measurements::Measurements, scalars::Scalars},
     prelude::*,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
@@ -46,23 +47,28 @@ async fn main() -> Result {
             hunt(&args).await?;
         }
         Command::Log(args) => {
-            let measurement = {
-                let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
-                let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
-                let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-                let (total_measurement, battery_measurement, battery_state) = tokio::try_join!(
-                    total_energy_meter.get_measurement(),
-                    battery_energy_meter.get_measurement(),
-                    battery.read_energy_state(args.battery_registers),
-                )?;
-                Measurement::builder()
-                    .timestamp(Local::now())
-                    .total(total_measurement)
-                    .battery(battery_measurement)
-                    .residual_energy(battery_state.residual())
-                    .build()
-            };
-            Measurements(&*args.database.connect().await?).upsert(&measurement).await?;
+            let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
+            let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
+            let mut battery = modbus::Client::connect(&args.battery_connection).await?;
+            let (total_measurement, battery_measurement, battery_state) = tokio::try_join!(
+                total_energy_meter.get_measurement(),
+                battery_energy_meter.get_measurement(),
+                battery.read_energy_state(args.battery_registers),
+            )?;
+            let measurement = Measurement::builder()
+                .timestamp(Local::now())
+                .total(total_measurement)
+                .battery(battery_measurement)
+                .residual_energy(battery_state.residual())
+                .build();
+
+            let mut db = args.database.connect().await?;
+            let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
+            Measurements(&tx).upsert(&measurement).await?;
+            Scalars(&tx)
+                .upsert(Key::BatteryResidualEnergy, battery_state.residual_millis())
+                .await?;
+            tx.commit().await?;
         }
         Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(args) => {

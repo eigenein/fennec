@@ -12,8 +12,8 @@ use crate::{
     },
     prelude::*,
     quantity::{
-        energy::{DecawattHours, KilowattHours},
-        percent::Percent,
+        energy::{DecawattHours, KilowattHours, MilliwattHours},
+        proportions::Percent,
     },
 };
 
@@ -95,6 +95,11 @@ impl BatteryEnergyState {
     /// Residual energy corrected on the state of health.
     pub fn residual(&self) -> KilowattHours {
         self.actual_capacity() * self.state_of_charge
+    }
+
+    /// Residual energy corrected on the state of health.
+    pub fn residual_millis(&self) -> MilliwattHours {
+        self.design_capacity * (self.state_of_health * self.state_of_charge)
     }
 }
 

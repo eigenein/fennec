@@ -3,6 +3,8 @@ pub mod measurement;
 pub mod measurements;
 pub mod scalars;
 pub mod selectable;
+pub mod transition;
+pub mod transitions;
 
 use std::path::Path;
 
@@ -50,14 +52,26 @@ impl Db {
             // language=sqlite
             (
                 1,
-                "CREATE TABLE measurements (
-                    timestamp_millis   INTEGER NOT NULL PRIMARY KEY,
-                    total_import_kwh   REAL NOT NULL,
-                    total_export_kwh   REAL NOT NULL,
-                    battery_import_kwh REAL NOT NULL,
-                    battery_export_kwh REAL NOT NULL,
-                    battery_energy_kwh REAL NOT NULL
+                "
+                    CREATE TABLE measurements (
+                        timestamp_millis   INTEGER NOT NULL PRIMARY KEY,
+                        total_import_kwh   REAL NOT NULL,
+                        total_export_kwh   REAL NOT NULL,
+                        battery_import_kwh REAL NOT NULL,
+                        battery_export_kwh REAL NOT NULL,
+                        battery_energy_kwh REAL NOT NULL
                 )",
+            ),
+            // language=sqlite
+            (
+                2,
+                "
+                    CREATE TABLE residual_energy_transitions (
+                        timestamp_millis INTEGER NOT NULL PRIMARY KEY,
+                        milliwatt_hours  INTEGER NOT NULL,
+                        FOREIGN KEY (timestamp_millis) REFERENCES measurements(timestamp_millis)
+                    )
+                ",
             ),
         ];
 

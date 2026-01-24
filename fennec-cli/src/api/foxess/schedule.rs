@@ -13,8 +13,8 @@ use crate::{
     core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
     quantity::{
-        percent::Percent,
         power::{Kilowatts, Watts},
+        proportions::Percent,
     },
 };
 

@@ -1,7 +1,7 @@
 pub mod cost;
 pub mod energy;
-pub mod percent;
 pub mod power;
+pub mod proportions;
 pub mod rate;
 
 use std::{
@@ -11,7 +11,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::quantity::percent::Percent;
+use crate::quantity::proportions::Percent;
 
 #[derive(
     Clone,

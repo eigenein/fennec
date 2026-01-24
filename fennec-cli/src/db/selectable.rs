@@ -3,7 +3,7 @@ use turso::Value;
 use crate::{
     db::{key::Key, scalars::Scalars},
     prelude::*,
-    quantity::energy::KilowattHours,
+    quantity::energy::MilliwattHours,
 };
 
 pub trait Selectable: Sized {
@@ -43,10 +43,10 @@ macro_rules! selectable_into {
     ($inner:ty, $outer:ty) => {
         impl Selectable for Option<$outer> {
             async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self> {
-                Ok(scalars.select_scalar::<$inner>(key).await?.map(Into::into))
+                Ok(scalars.select::<$inner>(key).await?.map(Into::into))
             }
         }
     };
 }
 
-selectable_into!(f64, KilowattHours);
+selectable_into!(i64, MilliwattHours);

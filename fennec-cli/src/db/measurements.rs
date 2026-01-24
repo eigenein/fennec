@@ -26,9 +26,15 @@ impl Measurements<'_> {
                 battery_export_kwh,
                 battery_energy_kwh
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT DO UPDATE SET
+                total_import_kwh = ?2,
+                total_export_kwh = ?3,
+                battery_import_kwh = ?4,
+                battery_export_kwh = ?5,
+                battery_energy_kwh = ?6
         ";
 
-        info!("Upserting the measurement…");
+        info!("upserting the measurement…");
         self.0
             .prepare_cached(SQL)
             .await?

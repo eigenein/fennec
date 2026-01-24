@@ -11,7 +11,7 @@ pub struct Scalars<'c>(pub &'c Connection);
 
 impl Scalars<'_> {
     #[instrument(skip_all, fields(key = ?key))]
-    pub async fn select_scalar<T>(&self, key: Key) -> Result<Option<T>>
+    pub async fn select<T>(&self, key: Key) -> Result<Option<T>>
     where
         Option<T>: Selectable,
     {
@@ -40,13 +40,13 @@ mod tests {
     #[tokio::test]
     async fn scalars_ok() -> Result {
         let db = Db::connect(Path::new(":memory:")).await?;
-        assert_eq!(Scalars(&db).select_scalar::<i64>(Key::Test).await?, None);
+        assert_eq!(Scalars(&db).select::<i64>(Key::Test).await?, None);
 
         Scalars(&db).upsert(Key::Test, Value::Integer(42)).await?;
-        assert_eq!(Scalars(&db).select_scalar::<i64>(Key::Test).await?, Some(42));
+        assert_eq!(Scalars(&db).select::<i64>(Key::Test).await?, Some(42));
 
         Scalars(&db).upsert(Key::Test, Value::Integer(43)).await?;
-        assert_eq!(Scalars(&db).select_scalar::<i64>(Key::Test).await?, Some(43));
+        assert_eq!(Scalars(&db).select::<i64>(Key::Test).await?, Some(43));
 
         Ok(())
     }

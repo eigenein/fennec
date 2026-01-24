@@ -35,7 +35,7 @@ impl Db {
 
     #[instrument(skip_all, ret)]
     pub async fn get_version(&self) -> Result<i64> {
-        Ok(Scalars(self).select_integer(Self::VERSION_KEY).await?.unwrap_or_default())
+        Ok(Scalars(self).select::<Option<i64>>(Self::VERSION_KEY).await?.unwrap_or_default())
     }
 
     #[instrument(skip_all)]

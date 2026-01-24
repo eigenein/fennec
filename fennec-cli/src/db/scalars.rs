@@ -1,7 +1,7 @@
 use turso::{Connection, Value};
 
 use crate::{
-    db::{compound::Compound, key::Key, scalar::Primitive},
+    db::{compound::Compound, key::Key, selectable::Selectable},
     prelude::*,
 };
 
@@ -13,7 +13,7 @@ impl Scalars<'_> {
     #[instrument(skip_all, fields(key = ?key))]
     pub async fn select_scalar<T>(&self, key: Key) -> Result<Option<T>>
     where
-        Option<T>: Primitive,
+        Option<T>: Selectable,
     {
         Option::<T>::select_from(self, key).await
     }

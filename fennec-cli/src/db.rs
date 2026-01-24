@@ -2,8 +2,8 @@ pub mod compound;
 mod key;
 pub mod measurement;
 pub mod measurements;
-pub mod scalar;
 pub mod scalars;
+pub mod selectable;
 
 use std::path::Path;
 

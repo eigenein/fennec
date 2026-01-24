@@ -3,13 +3,14 @@ use turso::Value;
 use crate::{
     db::{key::Key, scalars::Scalars},
     prelude::*,
+    quantity::Quantity,
 };
 
-pub trait Primitive: Sized {
+pub trait Selectable: Sized {
     async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self>;
 }
 
-impl Primitive for Value {
+impl Selectable for Value {
     async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self> {
         // language=sqlite
         const SQL: &str = "SELECT value FROM scalars WHERE key = ?1";
@@ -21,9 +22,9 @@ impl Primitive for Value {
     }
 }
 
-macro_rules! selectable {
+macro_rules! scalar {
     ($member:path, $ty:ty) => {
-        impl Primitive for Option<$ty> {
+        impl Selectable for Option<$ty> {
             async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Option<$ty>> {
                 match Value::select_from(scalars, key).await? {
                     Value::Null => Ok(None),
@@ -35,5 +36,13 @@ macro_rules! selectable {
     };
 }
 
-selectable!(Value::Integer, i64);
-selectable!(Value::Real, f64);
+scalar!(Value::Integer, i64);
+scalar!(Value::Real, f64);
+
+impl<const POWER: isize, const TIME: isize, const COST: isize> Selectable
+    for Option<Quantity<POWER, TIME, COST>>
+{
+    async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self> {
+        Ok(scalars.select_scalar::<f64>(key).await?.map(Quantity))
+    }
+}

@@ -11,7 +11,11 @@ use crate::{
         BatterySettingRegisters,
     },
     prelude::*,
-    quantity::{Quantity, energy::KilowattHours, percent::Percent},
+    quantity::{
+        Quantity,
+        energy::{DecawattHours, KilowattHours},
+        percent::Percent,
+    },
 };
 
 #[must_use]
@@ -33,10 +37,7 @@ impl Client {
         registers: BatteryEnergyStateRegisters,
     ) -> Result<BatteryEnergyState> {
         info!("reading the battery state…");
-        let design_capacity = KilowattHours::from(
-            // Stored in decawatts:
-            0.01 * f64::from(self.read_holding_register(registers.design_capacity).await?),
-        );
+        let design_capacity = self.read_holding_register(registers.design_capacity).await?.into();
         let state_of_charge = self.read_holding_register(registers.state_of_charge).await?.into();
         let state_of_health = self.read_holding_register(registers.state_of_health).await?.into();
         Ok(BatteryEnergyState { design_capacity, state_of_charge, state_of_health })
@@ -49,14 +50,14 @@ impl Client {
     ) -> Result<BatterySettings> {
         info!("reading the battery settings…");
         let min_state_of_charge_percent =
-            self.read_holding_register(registers.min_state_of_charge_on_grid).await?;
+            self.read_holding_register(registers.min_state_of_charge_on_grid).await?.into();
         let max_state_of_charge_percent =
-            self.read_holding_register(registers.max_state_of_charge).await?;
+            self.read_holding_register(registers.max_state_of_charge).await?.into();
         Ok(BatterySettings {
             min_state_of_charge_percent,
-            min_state_of_charge: 0.01 * f64::from(min_state_of_charge_percent),
+            min_state_of_charge: min_state_of_charge_percent.to_proportion(),
             max_state_of_charge_percent,
-            max_state_of_charge: 0.01 * f64::from(max_state_of_charge_percent),
+            max_state_of_charge: max_state_of_charge_percent.to_proportion(),
         })
     }
 
@@ -86,29 +87,29 @@ impl Client {
 
 #[must_use]
 pub struct BatteryEnergyState {
-    design_capacity: KilowattHours,
+    design_capacity: DecawattHours,
     state_of_charge: Percent,
     state_of_health: Percent,
 }
 
 impl BatteryEnergyState {
     /// Battery capacity corrected on the state of health.
-    pub const fn actual_capacity(&self) -> KilowattHours {
-        Quantity(self.design_capacity.0 * self.state_of_health.to_proportion())
+    pub fn actual_capacity(&self) -> KilowattHours {
+        KilowattHours::from(self.design_capacity) * self.state_of_health
     }
 
     /// Residual energy corrected on the state of health.
-    pub const fn residual(&self) -> KilowattHours {
-        Quantity(self.actual_capacity().0 * self.state_of_charge.to_proportion())
+    pub fn residual(&self) -> KilowattHours {
+        self.actual_capacity() * self.state_of_charge
     }
 }
 
 #[must_use]
 pub struct BatterySettings {
-    pub min_state_of_charge_percent: u16,
+    pub min_state_of_charge_percent: Percent,
     pub min_state_of_charge: f64,
 
-    pub max_state_of_charge_percent: u16,
+    pub max_state_of_charge_percent: Percent,
     pub max_state_of_charge: f64,
 }
 
@@ -119,11 +120,11 @@ pub struct BatteryState {
 }
 
 impl BatteryState {
-    pub const fn min_residual_energy(&self) -> KilowattHours {
+    pub fn min_residual_energy(&self) -> KilowattHours {
         Quantity(self.energy.actual_capacity().0 * self.settings.min_state_of_charge)
     }
 
-    pub const fn max_residual_energy(&self) -> KilowattHours {
+    pub fn max_residual_energy(&self) -> KilowattHours {
         Quantity(self.energy.actual_capacity().0 * self.settings.max_state_of_charge)
     }
 }

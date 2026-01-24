@@ -11,6 +11,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
+use crate::quantity::percent::Percent;
+
 #[derive(
     Clone,
     Copy,
@@ -57,6 +59,16 @@ impl<const POWER: isize, const TIME: isize, const COST: isize> Mul<f64>
 
     fn mul(self, rhs: f64) -> Self::Output {
         Self(self.0 * rhs)
+    }
+}
+
+impl<const POWER: isize, const TIME: isize, const COST: isize> Mul<Percent>
+    for Quantity<POWER, TIME, COST>
+{
+    type Output = Self;
+
+    fn mul(self, rhs: Percent) -> Self::Output {
+        self * rhs.to_proportion()
     }
 }
 

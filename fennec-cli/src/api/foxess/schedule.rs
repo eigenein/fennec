@@ -12,7 +12,10 @@ use crate::{
     cli::BatteryPowerLimits,
     core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
-    quantity::power::{Kilowatts, Watts},
+    quantity::{
+        percent::Percent,
+        power::{Kilowatts, Watts},
+    },
 };
 
 #[serde_as]
@@ -40,17 +43,17 @@ pub struct TimeSlot {
     pub end_time: EndTime,
 
     #[serde(rename = "maxSoc")]
-    pub max_soc: u16,
+    pub max_soc: Percent,
 
     /// The minimum SoC value of the offline battery (minimal safe SoC value?).
     #[expect(clippy::doc_markdown)]
     #[serde(rename = "minSocOnGrid")]
-    pub min_soc_on_grid: u16,
+    pub min_soc_on_grid: Percent,
 
     /// Discharge SoC value (minimal safe SoC value?).
     #[expect(clippy::doc_markdown)]
     #[serde(rename = "fdSoc")]
-    pub feed_soc: u16,
+    pub feed_soc: Percent,
 
     /// The maximum discharge power value (but also, maximum charge power?).
     #[serde(rename = "fdPwr")]
@@ -121,8 +124,8 @@ impl TimeSlotSequence {
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
         since: DateTime<Local>,
         battery_power_limits: BatteryPowerLimits,
-        min_state_of_charge_percent: u16,
-        max_state_of_charge_percent: u16,
+        min_state_of_charge: Percent,
+        max_state_of_charge: Percent,
     ) -> Result<Self> {
         let until_exclusive = since + TimeDelta::days(1);
         info!(%since, %until_exclusive, "building a FoxESS schedule…");
@@ -192,9 +195,9 @@ impl TimeSlotSequence {
                     is_enabled: true,
                     start_time,
                     end_time,
-                    max_soc: max_state_of_charge_percent,
-                    min_soc_on_grid: min_state_of_charge_percent,
-                    feed_soc: min_state_of_charge_percent,
+                    max_soc: max_state_of_charge,
+                    min_soc_on_grid: min_state_of_charge,
+                    feed_soc: min_state_of_charge,
                     feed_power: feed_power.into(),
                     working_mode,
                 };

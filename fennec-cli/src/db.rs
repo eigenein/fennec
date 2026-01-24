@@ -2,7 +2,7 @@ mod key;
 pub mod measurement;
 pub mod measurements;
 pub mod primitive;
-pub mod scalars;
+pub mod primitives;
 
 use std::path::Path;
 
@@ -15,7 +15,7 @@ use turso::{
 };
 
 use crate::{
-    db::{key::Key, scalars::Scalars},
+    db::{key::Key, primitives::Primitives},
     prelude::*,
 };
 
@@ -38,7 +38,7 @@ impl Db {
 
     #[instrument(skip_all, ret)]
     pub async fn get_version(&self) -> Result<i64> {
-        Ok(Scalars(self)
+        Ok(Primitives(self)
             .select_primitive::<Option<i64>>(Key::SchemaVersion)
             .await?
             .unwrap_or_default())
@@ -78,7 +78,7 @@ impl Db {
                 info!(version, "applying migration…");
                 let tx = Transaction::new(self, TransactionBehavior::Deferred).await?;
                 tx.execute_batch(sql).await?;
-                Scalars(&tx).upsert(Key::SchemaVersion, Value::Integer(*version)).await?;
+                Primitives(&tx).upsert(Key::SchemaVersion, Value::Integer(*version)).await?;
                 tx.commit().await?;
             }
         }

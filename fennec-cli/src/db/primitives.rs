@@ -5,10 +5,11 @@ use crate::{
     prelude::*,
 };
 
+/// Collection of primitive key-value rows.
 #[must_use]
-pub struct Scalars<'c>(pub &'c Connection);
+pub struct Primitives<'c>(pub &'c Connection);
 
-impl Scalars<'_> {
+impl Primitives<'_> {
     #[instrument(skip_all, fields(key = ?key))]
     pub async fn select_primitive<T: Primitive>(&self, key: Key) -> Result<T> {
         T::select_from(self, key).await
@@ -36,13 +37,13 @@ mod tests {
     #[tokio::test]
     async fn scalars_ok() -> Result {
         let db = Db::connect(Path::new(":memory:")).await?;
-        assert_eq!(Scalars(&db).select_primitive::<Option<i64>>(Key::Test).await?, None);
+        assert_eq!(Primitives(&db).select_primitive::<Option<i64>>(Key::Test).await?, None);
 
-        Scalars(&db).upsert(Key::Test, Value::Integer(42)).await?;
-        assert_eq!(Scalars(&db).select_primitive::<Option<i64>>(Key::Test).await?, Some(42));
+        Primitives(&db).upsert(Key::Test, Value::Integer(42)).await?;
+        assert_eq!(Primitives(&db).select_primitive::<Option<i64>>(Key::Test).await?, Some(42));
 
-        Scalars(&db).upsert(Key::Test, Value::Integer(43)).await?;
-        assert_eq!(Scalars(&db).select_primitive::<Option<i64>>(Key::Test).await?, Some(43));
+        Primitives(&db).upsert(Key::Test, Value::Integer(43)).await?;
+        assert_eq!(Primitives(&db).select_primitive::<Option<i64>>(Key::Test).await?, Some(43));
 
         Ok(())
     }

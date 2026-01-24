@@ -1,16 +1,16 @@
 use turso::Value;
 
 use crate::{
-    db::{key::Key, scalars::Scalars},
+    db::{key::Key, primitives::Primitives},
     prelude::*,
 };
 
 pub trait Primitive: Sized {
-    async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self>;
+    async fn select_from(scalars: &Primitives<'_>, key: Key) -> Result<Self>;
 }
 
 impl Primitive for Value {
-    async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self> {
+    async fn select_from(scalars: &Primitives<'_>, key: Key) -> Result<Self> {
         // language=sqlite
         const SQL: &str = "SELECT value FROM scalars WHERE key = ?1";
         match scalars.0.prepare_cached(SQL).await?.query_row((key.as_str(),)).await {
@@ -24,7 +24,7 @@ impl Primitive for Value {
 macro_rules! selectable {
     ($ty:ty, $member:path) => {
         impl Primitive for Option<$ty> {
-            async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Option<$ty>> {
+            async fn select_from(scalars: &Primitives<'_>, key: Key) -> Result<Option<$ty>> {
                 match Value::select_from(scalars, key).await? {
                     Value::Null => Ok(None),
                     $member(value) => Ok(Some(value)),
@@ -34,7 +34,7 @@ macro_rules! selectable {
         }
 
         impl Primitive for $ty {
-            async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<$ty> {
+            async fn select_from(scalars: &Primitives<'_>, key: Key) -> Result<$ty> {
                 Option::<$ty>::select_from(scalars, key)
                     .await?
                     .with_context(|| format!("no value stored for `{key:?}`"))

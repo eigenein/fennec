@@ -1,14 +1,14 @@
 use async_stream::try_stream;
-use bon::Builder;
-use chrono::{DateTime, Local, TimeZone};
+use chrono::{Local, TimeZone};
 use futures_core::stream::Stream;
 use turso::Connection;
 
 use crate::{
     api::homewizard::MeterMeasurement,
     core::interval::Interval,
+    db::measurement::Measurement,
     prelude::*,
-    quantity::{Quantity, energy::KilowattHours},
+    quantity::Quantity,
 };
 
 #[must_use]
@@ -92,12 +92,4 @@ impl Measurements<'_> {
         };
         Ok(stream)
     }
-}
-
-#[derive(Builder)]
-pub struct Measurement {
-    pub timestamp: DateTime<Local>,
-    pub total: MeterMeasurement,
-    pub battery: MeterMeasurement,
-    pub residual_energy: KilowattHours,
 }

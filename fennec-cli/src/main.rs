@@ -27,7 +27,7 @@ use crate::{
         HuntArgs,
     },
     core::solver::Solver,
-    db::measurements::{Measurement, Measurements},
+    db::{measurement::Measurement, measurements::Measurements},
     prelude::*,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},

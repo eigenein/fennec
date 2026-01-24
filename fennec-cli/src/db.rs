@@ -1,3 +1,4 @@
+pub mod measurement;
 pub mod measurements;
 pub mod scalars;
 

@@ -10,10 +10,7 @@ use tokio::pin;
 
 use crate::{
     core::interval::Interval,
-    db::{
-        Db,
-        measurements::{Measurement, Measurements},
-    },
+    db::{Db, measurement::Measurement, measurements::Measurements},
     fmt::FormattedEfficiency,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},

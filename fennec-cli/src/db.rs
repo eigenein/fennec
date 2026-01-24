@@ -1,6 +1,7 @@
 pub mod measurement;
 pub mod measurements;
 pub mod scalars;
+pub mod selectable;
 
 use std::path::Path;
 

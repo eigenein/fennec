@@ -36,19 +36,14 @@ mod tests {
     #[tokio::test]
     async fn scalars_ok() -> Result {
         let db = Db::connect(Path::new(":memory:")).await?;
-        assert_eq!(Scalars(&db).select_primitive::<Option<i64>>(Key::SchemaVersion).await?, None);
+        assert_eq!(Scalars(&db).select_primitive::<Option<i64>>(Key::Test).await?, None);
 
-        Scalars(&db).upsert(Key::SchemaVersion, Value::Integer(42)).await?;
-        assert_eq!(
-            Scalars(&db).select_primitive::<Option<i64>>(Key::SchemaVersion).await?,
-            Some(42)
-        );
+        Scalars(&db).upsert(Key::Test, Value::Integer(42)).await?;
+        assert_eq!(Scalars(&db).select_primitive::<Option<i64>>(Key::Test).await?, Some(42));
 
-        Scalars(&db).upsert(Key::SchemaVersion, Value::Integer(43)).await?;
-        assert_eq!(
-            Scalars(&db).select_primitive::<Option<i64>>(Key::SchemaVersion).await?,
-            Some(43)
-        );
+        Scalars(&db).upsert(Key::Test, Value::Integer(43)).await?;
+        assert_eq!(Scalars(&db).select_primitive::<Option<i64>>(Key::Test).await?, Some(43));
+
         Ok(())
     }
 }

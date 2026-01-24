@@ -1,8 +1,9 @@
+pub mod compound;
 mod key;
 pub mod measurement;
 pub mod measurements;
-pub mod primitive;
-pub mod primitives;
+pub mod scalar;
+pub mod scalars;
 
 use std::path::Path;
 
@@ -10,12 +11,11 @@ use anyhow::Context;
 use turso::{
     Builder,
     Connection,
-    Value,
     transaction::{Transaction, TransactionBehavior},
 };
 
 use crate::{
-    db::{key::Key, primitives::Primitives},
+    db::{compound::SchemaVersion, key::Key, scalars::Scalars},
     prelude::*,
 };
 
@@ -34,14 +34,6 @@ impl Db {
         db.create_scalars().await?;
         db.migrate().await?;
         Ok(db)
-    }
-
-    #[instrument(skip_all, ret)]
-    pub async fn get_version(&self) -> Result<i64> {
-        Ok(Primitives(self)
-            .select_primitive::<Option<i64>>(Key::SchemaVersion)
-            .await?
-            .unwrap_or_default())
     }
 
     #[instrument(skip_all)]
@@ -70,7 +62,7 @@ impl Db {
             ),
         ];
 
-        let current_version = self.get_version().await?;
+        let current_version = Scalars(self).select_compound::<SchemaVersion>().await?.0;
         info!(current_version, "checking migrations…");
 
         for (version, sql) in MIGRATIONS {
@@ -78,7 +70,7 @@ impl Db {
                 info!(version, "applying migration…");
                 let tx = Transaction::new(self, TransactionBehavior::Deferred).await?;
                 tx.execute_batch(sql).await?;
-                Primitives(&tx).upsert(Key::SchemaVersion, Value::Integer(*version)).await?;
+                Scalars(&tx).upsert(Key::SchemaVersion, *version).await?;
                 tx.commit().await?;
             }
         }

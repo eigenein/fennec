@@ -1,13 +1,13 @@
 use turso::{Connection, Value};
 
-use crate::{db::selectable::Selectable, prelude::*};
+use crate::{db::scalar::Scalar, prelude::*};
 
 #[must_use]
 pub struct Scalars<'c>(pub &'c Connection);
 
 impl Scalars<'_> {
     #[instrument(skip_all, fields(key = key))]
-    pub async fn select<T: Selectable>(&self, key: &str) -> Result<T> {
+    pub async fn select<T: Scalar>(&self, key: &str) -> Result<T> {
         T::select_from(self, key).await
     }
 

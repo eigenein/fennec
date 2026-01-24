@@ -2,12 +2,12 @@ use turso::Value;
 
 use crate::{db::scalars::Scalars, prelude::*};
 
-pub trait Selectable: Sized {
-    async fn select_from(scalars: &Scalars<'_>, key: &str) -> crate::prelude::Result<Self>;
+pub trait Scalar: Sized {
+    async fn select_from(scalars: &Scalars<'_>, key: &str) -> Result<Self>;
 }
 
-impl Selectable for Value {
-    async fn select_from(scalars: &Scalars<'_>, key: &str) -> crate::prelude::Result<Self> {
+impl Scalar for Value {
+    async fn select_from(scalars: &Scalars<'_>, key: &str) -> Result<Self> {
         // language=sqlite
         const SQL: &str = "SELECT value FROM scalars WHERE key = ?1";
         match scalars.0.prepare_cached(SQL).await?.query_row((key,)).await {
@@ -20,7 +20,7 @@ impl Selectable for Value {
 
 macro_rules! selectable {
     ($ty:ty, $member:path) => {
-        impl Selectable for Option<$ty> {
+        impl Scalar for Option<$ty> {
             async fn select_from(scalars: &Scalars<'_>, key: &str) -> Result<Option<$ty>> {
                 match Value::select_from(scalars, key).await? {
                     Value::Null => Ok(None),
@@ -30,7 +30,7 @@ macro_rules! selectable {
             }
         }
 
-        impl Selectable for $ty {
+        impl Scalar for $ty {
             async fn select_from(scalars: &Scalars<'_>, key: &str) -> Result<$ty> {
                 Option::<$ty>::select_from(scalars, key)
                     .await?

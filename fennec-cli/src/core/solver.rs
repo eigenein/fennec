@@ -1,5 +1,4 @@
 mod battery;
-mod energy;
 pub mod step;
 
 use std::{iter::from_fn, rc::Rc, time::Instant};
@@ -14,14 +13,14 @@ use crate::{
     cli::BatteryPowerLimits,
     core::{
         interval::Interval,
-        solver::{battery::Battery, energy::WattHours, step::Step},
+        solver::{battery::Battery, step::Step},
         working_mode::WorkingMode,
     },
     prelude::*,
     quantity::{
         Quantity,
         cost::Cost,
-        energy::KilowattHours,
+        energy::{KilowattHours, WattHours},
         power::Kilowatts,
         rate::KilowattHourRate,
     },

@@ -1,5 +1,6 @@
 pub mod cost;
 pub mod energy;
+pub mod percent;
 pub mod power;
 pub mod rate;
 

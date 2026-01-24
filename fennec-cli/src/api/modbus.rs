@@ -11,7 +11,7 @@ use crate::{
         BatterySettingRegisters,
     },
     prelude::*,
-    quantity::{Quantity, energy::KilowattHours},
+    quantity::{Quantity, energy::KilowattHours, percent::Percent},
 };
 
 #[must_use]
@@ -37,10 +37,8 @@ impl Client {
             // Stored in decawatts:
             0.01 * f64::from(self.read_holding_register(registers.design_capacity).await?),
         );
-        let state_of_charge =
-            0.01 * f64::from(self.read_holding_register(registers.state_of_charge).await?);
-        let state_of_health =
-            0.01 * f64::from(self.read_holding_register(registers.state_of_health).await?);
+        let state_of_charge = self.read_holding_register(registers.state_of_charge).await?.into();
+        let state_of_health = self.read_holding_register(registers.state_of_health).await?.into();
         Ok(BatteryEnergyState { design_capacity, state_of_charge, state_of_health })
     }
 
@@ -89,19 +87,19 @@ impl Client {
 #[must_use]
 pub struct BatteryEnergyState {
     design_capacity: KilowattHours,
-    state_of_charge: f64,
-    state_of_health: f64,
+    state_of_charge: Percent,
+    state_of_health: Percent,
 }
 
 impl BatteryEnergyState {
     /// Battery capacity corrected on the state of health.
     pub const fn actual_capacity(&self) -> KilowattHours {
-        Quantity(self.design_capacity.0 * self.state_of_health)
+        Quantity(self.design_capacity.0 * self.state_of_health.to_proportion())
     }
 
     /// Residual energy corrected on the state of health.
     pub const fn residual(&self) -> KilowattHours {
-        Quantity(self.actual_capacity().0 * self.state_of_charge)
+        Quantity(self.actual_capacity().0 * self.state_of_charge.to_proportion())
     }
 }
 

@@ -1,5 +1,4 @@
-pub mod compound;
-mod key;
+pub mod key;
 pub mod measurement;
 pub mod measurements;
 pub mod scalars;
@@ -15,7 +14,7 @@ use turso::{
 };
 
 use crate::{
-    db::{compound::SchemaVersion, key::Key, scalars::Scalars},
+    db::{key::Key, scalars::Scalars},
     prelude::*,
 };
 
@@ -62,7 +61,8 @@ impl Db {
             ),
         ];
 
-        let current_version = Scalars(self).select_compound::<SchemaVersion>().await?.0;
+        let current_version =
+            Scalars(self).select_scalar::<i64>(Key::SchemaVersion).await?.unwrap_or(0);
         info!(current_version, "checking migrations…");
 
         for (version, sql) in MIGRATIONS {

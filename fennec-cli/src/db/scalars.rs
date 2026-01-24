@@ -1,7 +1,7 @@
 use turso::{Connection, Value};
 
 use crate::{
-    db::{compound::Compound, key::Key, selectable::Selectable},
+    db::{key::Key, selectable::Selectable},
     prelude::*,
 };
 
@@ -16,10 +16,6 @@ impl Scalars<'_> {
         Option<T>: Selectable,
     {
         Option::<T>::select_from(self, key).await
-    }
-
-    pub async fn select_compound<T: Compound>(&self) -> Result<T> {
-        T::select_from(self).await
     }
 
     #[instrument(skip_all, fields(key = ?key))]

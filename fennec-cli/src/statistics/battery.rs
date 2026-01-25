@@ -78,15 +78,14 @@ impl BatteryEfficiency {
     {
         let mut previous_measurement =
             battery_logs.try_next().await?.context("empty battery log stream")?;
-        let mut dataset =
-            Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0)).with_weights(Array1::zeros(0));
+        let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
             let imported_energy = log.meter.import - previous_measurement.meter.import;
             let exported_energy = log.meter.export - previous_measurement.meter.export;
-            let residual_differential = log.residual_energy - previous_measurement.residual_energy;
             let duration = log.timestamp - previous_measurement.timestamp;
+            let residual_differential = log.residual_energy - previous_measurement.residual_energy;
 
             dataset.records.push_row(aview1(&[
                 imported_energy.0,
@@ -94,7 +93,6 @@ impl BatteryEfficiency {
                 duration.as_seconds_f64() / 3600.0,
             ]))?;
             dataset.targets.push(Axis(0), aview0(&residual_differential.0))?;
-            dataset.weights.push(Axis(0), aview0(&duration.as_seconds_f32()))?;
 
             previous_measurement = log;
         }

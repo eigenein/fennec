@@ -17,7 +17,7 @@ pub struct EnergyStatistics {
 
 impl FromIterator<EnergyState> for EnergyStatistics {
     fn from_iter<T: IntoIterator<Item = EnergyState>>(iterator: T) -> Self {
-        info!("Crunching numbers…");
+        info!("crunching numbers…");
         let series = iterator.into_iter().map(|state| (state.last_changed_at, state)).collect_vec();
         Self { household: series.into_iter().collect() }
     }

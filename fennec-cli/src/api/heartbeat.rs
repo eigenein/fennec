@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 #[instrument]
 pub async fn send(url: Url) -> Result {
-    info!(?url, "sending a heartbeat…");
+    info!(%url, "sending a heartbeat…");
     Client::builder().timeout(Duration::from_secs(3)).build()?.post(url).send().await?;
     Ok(())
 }

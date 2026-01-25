@@ -32,7 +32,7 @@ use crate::{
         LogArgs,
     },
     core::solver::Solver,
-    db::{battery_log::BatteryLog, key::Key, scalars::Scalars},
+    db::{Db, battery_log::BatteryLog, key::Key, scalars::Scalars},
     prelude::*,
     quantity::energy::MilliwattHours,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
@@ -61,7 +61,7 @@ async fn main() -> Result {
             }
             BurrowCommand::Battery(args) => {
                 let _ = BatteryEfficiency::try_estimate_from(
-                    &args.database.connect().await?,
+                    &Db::connect(&args.database.path, false).await?,
                     args.estimation.duration.into(),
                 )
                 .await?;
@@ -105,7 +105,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     );
 
     let battery_efficiency = BatteryEfficiency::try_estimate_from(
-        &args.database.connect().await?,
+        &Db::connect(&args.database.path, false).await?,
         args.estimation.duration.into(),
     )
     .await?;
@@ -145,7 +145,7 @@ async fn log(args: LogArgs) -> Result {
     let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
     let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-    let mut db = args.database.connect().await?;
+    drop(Db::connect(&args.database.path, true).await?);
     let polling_interval: Duration = args.polling_interval.into();
 
     loop {
@@ -158,6 +158,7 @@ async fn log(args: LogArgs) -> Result {
             )?
         };
 
+        let mut db = Db::connect(&args.database.path, false).await?;
         let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
 
         let last_known_residual =
@@ -176,6 +177,7 @@ async fn log(args: LogArgs) -> Result {
         Scalars(&tx).upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
 
         tx.commit().await?;
+        drop(db);
 
         args.heartbeat.send().await;
         sleep(polling_interval).await;

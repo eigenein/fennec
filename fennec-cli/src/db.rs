@@ -5,7 +5,6 @@ pub mod selectable;
 
 use std::path::Path;
 
-use anyhow::Context;
 use turso::{Builder, Connection};
 
 use crate::prelude::*;
@@ -28,13 +27,13 @@ impl Db {
     ";
 
     #[instrument(skip_all)]
-    pub async fn connect(path: &Path) -> Result<Self> {
-        info!(?path, "connecting to the database…");
-        let connection = Builder::new_local(path.to_str().context("failed to convert the path")?)
-            .build()
-            .await?
-            .connect()?;
-        connection.execute_batch(Self::SCRIPT).await?;
+    pub async fn connect(path: &Path, run_script: bool) -> Result<Self> {
+        // FIXME: concurrent access from different processes. Play around with `ATTACH`?
+        // info!(?path, "connecting to the database…");
+        let connection = Builder::new_local(path.to_str().unwrap()).build().await?.connect()?;
+        if run_script {
+            connection.execute_batch(Self::SCRIPT).await?;
+        }
         Ok(Self(connection))
     }
 }

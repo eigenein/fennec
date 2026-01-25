@@ -9,7 +9,6 @@ use reqwest::Url;
 use crate::{
     api::{heartbeat, home_assistant},
     core::{provider::Provider, working_mode::WorkingMode},
-    db::Db,
     prelude::*,
     quantity::power::Kilowatts,
 };
@@ -57,12 +56,6 @@ pub enum Command {
 pub struct DatabaseArgs {
     #[clap(long = "database-path", env = "DATABASE_PATH", default_value = "fennec.db")]
     pub path: PathBuf,
-}
-
-impl DatabaseArgs {
-    pub async fn connect(&self) -> Result<Db> {
-        Db::connect(&self.path).await
-    }
 }
 
 #[derive(Parser)]

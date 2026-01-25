@@ -28,7 +28,7 @@ impl Db {
 
     #[instrument(skip_all)]
     pub async fn connect(path: &Path, run_script: bool) -> Result<Self> {
-        // FIXME: concurrent access from different processes. Play around with `ATTACH`?
+        // FIXME: <https://github.com/tursodatabase/turso/issues/769>.
         // info!(?path, "connecting to the database…");
         let connection = Builder::new_local(path.to_str().unwrap()).build().await?.connect()?;
         if run_script {

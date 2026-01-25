@@ -16,9 +16,9 @@ impl Api {
         Ok(Self { client, resolution })
     }
 
-    #[instrument(fields(on = ?on), skip_all)]
+    #[instrument(skip_all)]
     pub async fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
-        info!("fetching…");
+        info!(?on, "fetching…");
         let Some(data) = self
             .client
             .post("https://www.frankenergie.nl/graphql")

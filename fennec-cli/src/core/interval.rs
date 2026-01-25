@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local, TimeDelta, Timelike};
 
 use crate::prelude::*;
 
@@ -29,7 +29,7 @@ impl Interval {
     }
 
     pub fn since(duration: TimeDelta) -> Self {
-        let end = Local::now();
+        let end = Local::now().with_nanosecond(0).unwrap();
         Self { start: end - duration, end }
     }
 

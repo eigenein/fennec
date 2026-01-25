@@ -21,9 +21,14 @@ use crate::{
 pub struct Client(tokio_modbus::client::Context);
 
 impl Client {
-    #[instrument(skip_all, fields(host = args.host, port = args.port, slave_id = args.slave_id))]
+    #[instrument(skip_all)]
     pub async fn connect(args: &BatteryConnectionArgs) -> Result<Self> {
-        info!("connecting to the battery…");
+        info!(
+            host = args.host,
+            port = args.port,
+            slave_id = args.slave_id,
+            "connecting to the battery…",
+        );
         let tcp_stream = tokio::net::TcpStream::connect((args.host.as_str(), args.port))
             .await
             .context("failed to connect to the battery")?;

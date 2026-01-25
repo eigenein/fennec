@@ -19,14 +19,7 @@ pub struct BatteryLog {
 }
 
 impl BatteryLog {
-    #[instrument(
-        skip_all,
-        fields(
-            residual = ?self.residual_energy,
-            import = ?self.meter.import,
-            export = ?self.meter.export,
-        ),
-    )]
+    #[instrument(skip_all)]
     pub async fn insert_into(&self, connection: &Connection) -> Result {
         // language=sqlite
         const SQL: &str = r"
@@ -38,7 +31,12 @@ impl BatteryLog {
             ) VALUES (?1, ?2, ?3, ?4)
         ";
 
-        info!("inserting the battery log…");
+        info!(
+            residual = ?self.residual_energy,
+            import = ?self.meter.import,
+            export = ?self.meter.export,
+            "inserting the battery log…",
+        );
         connection
             .prepare_cached(SQL)
             .await?
@@ -69,7 +67,7 @@ impl BatteryLog {
             ORDER BY timestamp_millis
         ";
 
-        info!("querying battery logs…");
+        info!(?interval, "querying battery logs…");
         let mut rows = connection
             .prepare_cached(SQL)
             .await?

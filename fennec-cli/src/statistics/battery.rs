@@ -98,10 +98,16 @@ impl BatteryEfficiency {
 
             previous_measurement = log;
         }
+        if dataset.nsamples() == 0 {
+            bail!("empty dataset, collect samples first");
+        }
 
         info!(n_records = dataset.nsamples(), "estimating the battery efficiency…");
         let start_time = Instant::now();
-        let regression = LinearRegression::new().with_intercept(false).fit(&dataset)?;
+        let regression = LinearRegression::new()
+            .with_intercept(false)
+            .fit(&dataset)
+            .context("failed to fit a regression, try with again with more samples")?;
         info!(elapsed = ?start_time.elapsed(), "regression has been fit");
 
         Self::builder()

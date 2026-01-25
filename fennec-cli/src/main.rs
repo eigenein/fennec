@@ -20,7 +20,7 @@ use tokio::time::sleep;
 use turso::transaction::{Transaction, TransactionBehavior};
 
 use crate::{
-    api::{foxess, heartbeat, homewizard, modbus},
+    api::{foxess, homewizard, modbus},
     cli::{
         Args,
         BurrowCommand,
@@ -50,6 +50,7 @@ async fn main() -> Result {
     match args.command {
         Command::Hunt(args) => {
             hunt(&args).await?;
+            args.heartbeat.send().await;
         }
         Command::Log(args) => {
             log(*args).await?;
@@ -71,9 +72,6 @@ async fn main() -> Result {
         },
     }
 
-    if let Some(heartbeat_url) = args.heartbeat_url {
-        heartbeat::send(heartbeat_url).await;
-    }
     info!("done!");
     Ok(())
 }
@@ -178,6 +176,8 @@ async fn log(args: LogArgs) -> Result {
         Scalars(&tx).upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
 
         tx.commit().await?;
+
+        args.heartbeat.send().await;
         sleep(polling_interval).await;
     }
 }

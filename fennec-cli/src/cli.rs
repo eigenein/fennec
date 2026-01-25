@@ -7,7 +7,7 @@ use http::Uri;
 use reqwest::Url;
 
 use crate::{
-    api::home_assistant,
+    api::{heartbeat, home_assistant},
     core::{provider::Provider, working_mode::WorkingMode},
     db::Db,
     prelude::*,
@@ -18,11 +18,24 @@ use crate::{
 #[command(author, version, about, propagate_version = true)]
 #[must_use]
 pub struct Args {
-    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
-    pub heartbeat_url: Option<Url>,
-
     #[command(subcommand)]
     pub command: Command,
+}
+
+#[derive(Parser)]
+pub struct HeartbeatArgs {
+    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
+    pub url: Option<Url>,
+}
+
+impl HeartbeatArgs {
+    pub async fn send(&self) {
+        if let Some(url) = &self.url
+            && let Err(error) = heartbeat::send(url.clone()).await
+        {
+            warn!("failed to send the heartbeat: {error:#}");
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -144,6 +157,9 @@ pub struct LogArgs {
 
     #[clap(flatten)]
     pub battery_registers: BatteryEnergyStateRegisters,
+
+    #[clap(flatten)]
+    pub heartbeat: HeartbeatArgs,
 }
 
 #[derive(Parser)]
@@ -179,6 +195,9 @@ pub struct HuntArgs {
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
     pub statistics_path: PathBuf,
+
+    #[clap(flatten)]
+    pub heartbeat: HeartbeatArgs,
 }
 
 impl HuntArgs {

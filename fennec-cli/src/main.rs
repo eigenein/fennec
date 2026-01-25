@@ -71,10 +71,8 @@ async fn main() -> Result {
         },
     }
 
-    if let Some(heartbeat_url) = args.heartbeat_url
-        && let Err(error) = heartbeat::send(heartbeat_url).await
-    {
-        warn!("failed to send the heartbeat: {error:#}");
+    if let Some(heartbeat_url) = args.heartbeat_url {
+        heartbeat::send(heartbeat_url).await;
     }
     info!("done!");
     Ok(())

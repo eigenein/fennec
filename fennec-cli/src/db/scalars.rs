@@ -39,7 +39,7 @@ mod tests {
 
     #[tokio::test]
     async fn scalars_ok() -> Result {
-        let db = Db::connect(Path::new(":memory:")).await?;
+        let db = Db::connect(Path::new(":memory:"), true).await?;
         assert_eq!(Scalars(&db).select::<i64>(Key::Test).await?, None);
 
         Scalars(&db).upsert(Key::Test, Value::Integer(42)).await?;

@@ -11,7 +11,13 @@ mod quantity;
 mod statistics;
 mod tables;
 
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
@@ -142,7 +148,11 @@ async fn log(args: LogArgs) -> Result {
     drop(Db::connect(&args.database.path, true).await?);
     let polling_interval: Duration = args.polling_interval.into();
 
-    loop {
+    // TODO: implement proper signal handling with cancelling the `sleep` call.
+    let should_terminate = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
+
+    while !should_terminate.load(Ordering::Relaxed) {
         let now = Local::now();
         let (_total_measurement, battery_measurement, battery_state) = {
             tokio::try_join!(
@@ -176,6 +186,8 @@ async fn log(args: LogArgs) -> Result {
         args.heartbeat.send().await;
         sleep(polling_interval).await;
     }
+
+    Ok(())
 }
 
 #[instrument(skip_all)]

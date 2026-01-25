@@ -97,13 +97,6 @@ async fn hunt(args: &HuntArgs) -> Result {
         .await?;
     let min_state_of_charge = battery_state.settings.min_state_of_charge;
     let max_state_of_charge = battery_state.settings.max_state_of_charge;
-    info!(
-        residual_energy = ?battery_state.energy.residual(),
-        actual_capacity = ?battery_state.energy.actual_capacity(),
-        min_soc = ?battery_state.settings.min_state_of_charge,
-        max_soc = ?battery_state.settings.max_state_of_charge,
-        "fetched battery state",
-    );
 
     let battery_efficiency = BatteryEfficiency::try_estimate_from(
         &Db::connect(&args.database.path, false).await?,

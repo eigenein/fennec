@@ -52,11 +52,11 @@ impl Client {
         &mut self,
         registers: BatterySettingRegisters,
     ) -> Result<BatterySettings> {
-        info!("reading the battery settings…");
         let min_state_of_charge =
             self.read_holding_register(registers.min_state_of_charge_on_grid).await?.into();
         let max_state_of_charge =
             self.read_holding_register(registers.max_state_of_charge).await?.into();
+        info!(?min_state_of_charge, ?max_state_of_charge, "fetched the battery settings");
         Ok(BatterySettings { min_state_of_charge, max_state_of_charge })
     }
 

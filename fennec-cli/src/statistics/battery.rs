@@ -81,7 +81,7 @@ impl BatteryEfficiency {
         let mut dataset =
             Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0)).with_weights(Array1::zeros(0));
 
-        info!("reading the measurements…");
+        info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
             let imported_energy = log.meter.import - previous_measurement.meter.import;
             let exported_energy = log.meter.export - previous_measurement.meter.export;

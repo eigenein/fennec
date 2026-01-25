@@ -29,12 +29,12 @@ use crate::{
     },
     core::solver::Solver,
     db::{
+        battery_log::BatteryLog,
+        battery_logs::BatteryLogs,
         key::Key,
         measurement::Measurement,
         measurements::Measurements,
         scalars::Scalars,
-        transition::ResidualEnergyTransition,
-        transitions::Transitions,
     },
     prelude::*,
     quantity::energy::MilliwattHours,
@@ -71,7 +71,7 @@ async fn main() -> Result {
             let now = Local::now();
 
             Measurements(&tx)
-                .upsert(
+                .insert(
                     &Measurement::builder()
                         .timestamp(now)
                         .total(total_measurement)
@@ -85,11 +85,12 @@ async fn main() -> Result {
             let last_known_residual =
                 scalars.select::<MilliwattHours>(Key::BatteryResidualEnergy).await?;
             if last_known_residual != Some(battery_state.residual_millis()) {
-                Transitions(&tx)
-                    .upsert(
-                        &ResidualEnergyTransition::builder()
+                BatteryLogs(&tx)
+                    .insert(
+                        &BatteryLog::builder()
                             .timestamp(now)
-                            .energy(battery_state.residual_millis())
+                            .residual_energy(battery_state.residual_millis().into())
+                            .meter_measurement(battery_measurement)
                             .build(),
                     )
                     .await?;

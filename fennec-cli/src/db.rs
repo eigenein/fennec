@@ -1,10 +1,10 @@
+pub mod battery_log;
+pub mod battery_logs;
 pub mod key;
 pub mod measurement;
 pub mod measurements;
 pub mod scalars;
 pub mod selectable;
-pub mod transition;
-pub mod transitions;
 
 use std::path::Path;
 
@@ -31,10 +31,11 @@ impl Db {
             battery_energy_kwh REAL NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS residual_energy_transitions (
-            timestamp_millis INTEGER NOT NULL PRIMARY KEY,
-            milliwatt_hours  INTEGER NOT NULL,
-            FOREIGN KEY (timestamp_millis) REFERENCES measurements(timestamp_millis)
+        CREATE TABLE IF NOT EXISTS battery_logs (
+            timestamp_millis    INTEGER NOT NULL PRIMARY KEY,
+            residual_energy_kwh REAL NOT NULL,
+            import_kwh          REAL NOT NULL,
+            export_kwh          REAL NOT NULL
         );
     ";
 

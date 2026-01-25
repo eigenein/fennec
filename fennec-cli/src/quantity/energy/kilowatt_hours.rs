@@ -5,12 +5,24 @@ use std::{
 
 use chrono::TimeDelta;
 
-use crate::quantity::{Quantity, cost::Cost, power::Kilowatts, rate::KilowattHourRate};
+use crate::quantity::{
+    Quantity,
+    cost::Cost,
+    energy::MilliwattHours,
+    power::Kilowatts,
+    rate::KilowattHourRate,
+};
 
 pub type KilowattHours = Quantity<1, 1, 0>;
 
 impl KilowattHours {
     pub const ONE_WATT_HOUR: Self = Self(0.001);
+}
+
+impl From<MilliwattHours> for KilowattHours {
+    fn from(value: MilliwattHours) -> Self {
+        Self(f64::from(value) * 0.000_001)
+    }
 }
 
 impl Display for KilowattHours {

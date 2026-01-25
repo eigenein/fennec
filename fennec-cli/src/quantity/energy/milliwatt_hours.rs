@@ -14,3 +14,10 @@ impl Debug for MilliwattHours {
         write!(f, "{} mWh", self.0)
     }
 }
+
+impl From<MilliwattHours> for f64 {
+    #[expect(clippy::cast_precision_loss)]
+    fn from(value: MilliwattHours) -> Self {
+        value.0 as Self
+    }
+}

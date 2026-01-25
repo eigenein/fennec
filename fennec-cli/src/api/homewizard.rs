@@ -35,7 +35,7 @@ impl Client {
 }
 
 #[must_use]
-#[derive(Deserialize, Builder)]
+#[derive(Copy, Clone, Deserialize, Builder)]
 pub struct MeterMeasurement {
     #[serde(rename = "total_power_import_kwh")]
     pub import: KilowattHours,

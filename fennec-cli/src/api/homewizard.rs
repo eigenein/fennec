@@ -29,7 +29,6 @@ impl Client {
             .json()
             .await
             .with_context(|| format!("failed to deserialize the response from `{}`", self.url))?;
-        info!(import = ?measurement.import, export = ?measurement.export);
         Ok(measurement)
     }
 }

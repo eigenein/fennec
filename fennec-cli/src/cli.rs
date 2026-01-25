@@ -127,6 +127,9 @@ pub struct BatterySettingRegisters {
 
 #[derive(Parser)]
 pub struct LogArgs {
+    #[clap(long, env = "POLLING_INTERVAL", default_value = "5s")]
+    pub polling_interval: humantime::Duration,
+
     #[clap(long, env = "TOTAL_ENERGY_METER_URL")]
     pub total_energy_meter_url: Url,
 

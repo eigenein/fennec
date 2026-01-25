@@ -40,10 +40,10 @@ impl Client {
         &mut self,
         registers: BatteryEnergyStateRegisters,
     ) -> Result<BatteryEnergyState> {
-        info!("reading the battery state…");
         let design_capacity = self.read_holding_register(registers.design_capacity).await?.into();
         let state_of_charge = self.read_holding_register(registers.state_of_charge).await?.into();
         let state_of_health = self.read_holding_register(registers.state_of_health).await?.into();
+        info!(?state_of_charge, ?state_of_health, ?design_capacity, "fetched the battery state");
         Ok(BatteryEnergyState { design_capacity, state_of_charge, state_of_health })
     }
 
@@ -71,7 +71,7 @@ impl Client {
         })
     }
 
-    #[instrument(skip_all, fields(register = register))]
+    #[instrument(skip_all, level = "debug", fields(register = register))]
     async fn read_holding_register(&mut self, register: u16) -> Result<u16> {
         let value = self
             .0
@@ -79,7 +79,7 @@ impl Client {
             .await??
             .pop()
             .with_context(|| format!("nothing is read from the register #{register}"))?;
-        info!(value);
+        debug!(value);
         Ok(value)
     }
 }

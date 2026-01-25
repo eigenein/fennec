@@ -27,8 +27,9 @@ impl Db {
         );
     ";
 
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn connect(path: &Path) -> Result<Self> {
+        info!(?path, "connecting to the database…");
         let connection = Builder::new_local(path.to_str().context("failed to convert the path")?)
             .build()
             .await?

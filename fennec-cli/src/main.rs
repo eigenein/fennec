@@ -11,9 +11,12 @@ mod quantity;
 mod statistics;
 mod tables;
 
+use std::time::Duration;
+
 use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
+use tokio::time::sleep;
 use turso::transaction::{Transaction, TransactionBehavior};
 
 use crate::{
@@ -26,6 +29,7 @@ use crate::{
         BurrowStatisticsArgs,
         Command,
         HuntArgs,
+        LogArgs,
     },
     core::solver::Solver,
     db::{battery_log::BatteryLog, key::Key, scalars::Scalars},
@@ -48,40 +52,7 @@ async fn main() -> Result {
             hunt(&args).await?;
         }
         Command::Log(args) => {
-            let (_total_measurement, battery_measurement, battery_state) = {
-                let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
-                let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
-                let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-                tokio::try_join!(
-                    total_energy_meter.get_measurement(),
-                    battery_energy_meter.get_measurement(),
-                    battery.read_energy_state(args.battery_registers),
-                )?
-            };
-
-            let mut db = args.database.connect().await?;
-            let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
-            let now = Local::now();
-
-            {
-                let scalars = Scalars(&tx);
-                let last_known_residual =
-                    scalars.select::<MilliwattHours>(Key::BatteryResidualEnergy).await?;
-                if let Some(last_known_residual) = last_known_residual
-                    && (last_known_residual != battery_state.residual_millis())
-                {
-                    BatteryLog::builder()
-                        .timestamp(now)
-                        .residual_energy(battery_state.residual_millis().into())
-                        .meter(battery_measurement)
-                        .build()
-                        .insert_into(&tx)
-                        .await?;
-                }
-                scalars.upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
-            }
-
-            tx.commit().await?;
+            log(*args).await?;
         }
         Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(args) => {
@@ -172,6 +143,50 @@ async fn hunt(args: &HuntArgs) -> Result {
     }
 
     Ok(())
+}
+
+async fn log(args: LogArgs) -> Result {
+    let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
+    let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
+    let mut battery = modbus::Client::connect(&args.battery_connection).await?;
+    let mut db = args.database.connect().await?;
+    let polling_interval: Duration = args.polling_interval.into();
+
+    loop {
+        let now = Local::now();
+        let (total_measurement, battery_measurement, battery_state) = {
+            tokio::try_join!(
+                total_energy_meter.get_measurement(),
+                battery_energy_meter.get_measurement(),
+                battery.read_energy_state(args.battery_registers),
+            )?
+        };
+        info!(
+            import = ?total_measurement.import,
+            export = ?total_measurement.export,
+            "fetched the total energy usage",
+        );
+
+        let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
+
+        let last_known_residual =
+            Scalars(&tx).select::<MilliwattHours>(Key::BatteryResidualEnergy).await?;
+        if let Some(last_known_residual) = last_known_residual
+            && (last_known_residual != battery_state.residual_millis())
+        {
+            BatteryLog::builder()
+                .timestamp(now)
+                .residual_energy(battery_state.residual_millis().into())
+                .meter(battery_measurement)
+                .build()
+                .insert_into(&tx)
+                .await?;
+        }
+        Scalars(&tx).upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
+
+        tx.commit().await?;
+        sleep(polling_interval).await;
+    }
 }
 
 #[instrument(skip_all)]

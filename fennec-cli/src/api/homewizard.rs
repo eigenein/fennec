@@ -18,7 +18,7 @@ impl Client {
         Ok(Self { inner, url })
     }
 
-    #[instrument(skip_all, fields(url = %self.url))]
+    #[instrument(skip_all, fields(host = self.url.host_str()))]
     pub async fn get_measurement(&self) -> Result<MeterMeasurement> {
         let measurement: MeterMeasurement = self
             .inner
@@ -29,6 +29,7 @@ impl Client {
             .json()
             .await
             .with_context(|| format!("failed to deserialize the response from `{}`", self.url))?;
+        info!(import = ?measurement.import, export = ?measurement.export);
         Ok(measurement)
     }
 }

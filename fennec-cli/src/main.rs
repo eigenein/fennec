@@ -154,18 +154,13 @@ async fn log(args: LogArgs) -> Result {
 
     loop {
         let now = Local::now();
-        let (total_measurement, battery_measurement, battery_state) = {
+        let (_total_measurement, battery_measurement, battery_state) = {
             tokio::try_join!(
                 total_energy_meter.get_measurement(),
                 battery_energy_meter.get_measurement(),
                 battery.read_energy_state(args.battery_registers),
             )?
         };
-        info!(
-            import = ?total_measurement.import,
-            export = ?total_measurement.export,
-            "fetched the total energy usage",
-        );
 
         let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
 

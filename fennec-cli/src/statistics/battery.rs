@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use bon::Builder;
+use bon::bon;
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use linfa::{Dataset, dataset::Records, traits::Fit};
@@ -10,14 +10,14 @@ use tokio::pin;
 
 use crate::{
     core::interval::Interval,
-    db::{Db, measurement::Measurement, measurements::Measurements},
+    db::{Db, battery_log::BatteryLog},
     fmt::FormattedEfficiency,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},
 };
 
 #[must_use]
-#[derive(Copy, Clone, Builder)]
+#[derive(Copy, Clone)]
 pub struct BatteryEfficiency {
     pub parasitic_load: Kilowatts,
 
@@ -28,15 +28,33 @@ pub struct BatteryEfficiency {
     pub discharging: f64,
 }
 
+#[bon]
+impl BatteryEfficiency {
+    #[builder]
+    pub fn new(parasitic_load: Kilowatts, charging: f64, discharging: f64) -> Result<Self> {
+        if parasitic_load.0.is_nan()
+            || parasitic_load.0.is_infinite()
+            || parasitic_load < Kilowatts::ZERO
+        {
+            bail!("invalid parasitic load: {parasitic_load}");
+        }
+        if charging.is_nan() || charging.is_infinite() {
+            bail!("invalid charging efficiency: {charging}");
+        }
+        if discharging.is_nan() || discharging.is_infinite() {
+            bail!("invalid discharging efficiency: {discharging}");
+        }
+        Ok(Self { parasitic_load, charging, discharging })
+    }
+}
+
 impl BatteryEfficiency {
     pub const fn round_trip(&self) -> f64 {
         self.charging * self.discharging
     }
 
     pub async fn try_estimate_from(db: &Db, duration: Duration) -> Result<Self> {
-        let measurements = Measurements(db);
-        let stream = measurements
-            .select(Interval::try_since(duration)?)
+        let stream = BatteryLog::select_from(db, Interval::try_since(duration)?)
             .await
             .context("failed to query the measurements")?;
         pin!(stream);
@@ -54,22 +72,21 @@ impl BatteryEfficiency {
     }
 
     #[instrument(skip_all)]
-    pub async fn try_estimate<S>(mut measurements: S) -> Result<Self>
+    pub async fn try_estimate<S>(mut battery_logs: S) -> Result<Self>
     where
-        S: TryStream<Ok = Measurement, Error = Error> + Unpin,
+        S: TryStream<Ok = BatteryLog, Error = Error> + Unpin,
     {
         let mut previous_measurement =
-            measurements.try_next().await?.context("empty measurement stream")?;
+            battery_logs.try_next().await?.context("empty battery log stream")?;
         let mut dataset =
             Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0)).with_weights(Array1::zeros(0));
 
         info!("reading the measurements…");
-        while let Some(measurement) = measurements.try_next().await? {
-            let imported_energy = measurement.battery.import - previous_measurement.battery.import;
-            let exported_energy = measurement.battery.export - previous_measurement.battery.export;
-            let residual_differential =
-                measurement.residual_energy - previous_measurement.residual_energy;
-            let duration = measurement.timestamp - previous_measurement.timestamp;
+        while let Some(log) = battery_logs.try_next().await? {
+            let imported_energy = log.meter.import - previous_measurement.meter.import;
+            let exported_energy = log.meter.export - previous_measurement.meter.export;
+            let residual_differential = log.residual_energy - previous_measurement.residual_energy;
+            let duration = log.timestamp - previous_measurement.timestamp;
 
             dataset.records.push_row(aview1(&[
                 imported_energy.0,
@@ -79,7 +96,7 @@ impl BatteryEfficiency {
             dataset.targets.push(Axis(0), aview0(&residual_differential.0))?;
             dataset.weights.push(Axis(0), aview0(&duration.as_seconds_f32()))?;
 
-            previous_measurement = measurement;
+            previous_measurement = log;
         }
 
         info!(n_records = dataset.nsamples(), "estimating the battery efficiency…");
@@ -87,10 +104,10 @@ impl BatteryEfficiency {
         let regression = LinearRegression::new().with_intercept(false).fit(&dataset)?;
         info!(elapsed = ?start_time.elapsed(), "regression has been fit");
 
-        Ok(Self::builder()
+        Self::builder()
             .charging(regression.params()[0])
             .discharging(-1.0 / regression.params()[1])
             .parasitic_load(Quantity(-regression.params()[2]))
-            .build())
+            .build()
     }
 }

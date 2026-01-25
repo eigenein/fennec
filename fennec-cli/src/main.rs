@@ -28,14 +28,7 @@ use crate::{
         HuntArgs,
     },
     core::solver::Solver,
-    db::{
-        battery_log::BatteryLog,
-        battery_logs::BatteryLogs,
-        key::Key,
-        measurement::Measurement,
-        measurements::Measurements,
-        scalars::Scalars,
-    },
+    db::{battery_log::BatteryLog, key::Key, scalars::Scalars},
     prelude::*,
     quantity::energy::MilliwattHours,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
@@ -55,7 +48,7 @@ async fn main() -> Result {
             hunt(&args).await?;
         }
         Command::Log(args) => {
-            let (total_measurement, battery_measurement, battery_state) = {
+            let (_total_measurement, battery_measurement, battery_state) = {
                 let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
                 let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
                 let mut battery = modbus::Client::connect(&args.battery_connection).await?;
@@ -70,28 +63,23 @@ async fn main() -> Result {
             let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
             let now = Local::now();
 
-            let measurement = Measurement::builder()
-                .timestamp(now)
-                .total(total_measurement)
-                .battery(battery_measurement)
-                .residual_energy(battery_state.residual())
-                .build();
-            Measurements(&tx).insert(&measurement).await?;
-
-            let scalars = Scalars(&tx);
-            let last_known_residual =
-                scalars.select::<MilliwattHours>(Key::BatteryResidualEnergy).await?;
-            if let Some(last_known_residual) = last_known_residual
-                && (last_known_residual != battery_state.residual_millis())
             {
-                let battery_log = BatteryLog::builder()
-                    .timestamp(now)
-                    .residual_energy(battery_state.residual_millis().into())
-                    .meter_measurement(battery_measurement)
-                    .build();
-                BatteryLogs(&tx).insert(&battery_log).await?;
+                let scalars = Scalars(&tx);
+                let last_known_residual =
+                    scalars.select::<MilliwattHours>(Key::BatteryResidualEnergy).await?;
+                if let Some(last_known_residual) = last_known_residual
+                    && (last_known_residual != battery_state.residual_millis())
+                {
+                    BatteryLog::builder()
+                        .timestamp(now)
+                        .residual_energy(battery_state.residual_millis().into())
+                        .meter(battery_measurement)
+                        .build()
+                        .insert_into(&tx)
+                        .await?;
+                }
+                scalars.upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
             }
-            scalars.upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
 
             tx.commit().await?;
         }

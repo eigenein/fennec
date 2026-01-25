@@ -70,30 +70,26 @@ async fn main() -> Result {
             let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
             let now = Local::now();
 
-            Measurements(&tx)
-                .insert(
-                    &Measurement::builder()
-                        .timestamp(now)
-                        .total(total_measurement)
-                        .battery(battery_measurement)
-                        .residual_energy(battery_state.residual())
-                        .build(),
-                )
-                .await?;
+            let measurement = Measurement::builder()
+                .timestamp(now)
+                .total(total_measurement)
+                .battery(battery_measurement)
+                .residual_energy(battery_state.residual())
+                .build();
+            Measurements(&tx).insert(&measurement).await?;
 
             let scalars = Scalars(&tx);
             let last_known_residual =
                 scalars.select::<MilliwattHours>(Key::BatteryResidualEnergy).await?;
-            if last_known_residual != Some(battery_state.residual_millis()) {
-                BatteryLogs(&tx)
-                    .insert(
-                        &BatteryLog::builder()
-                            .timestamp(now)
-                            .residual_energy(battery_state.residual_millis().into())
-                            .meter_measurement(battery_measurement)
-                            .build(),
-                    )
-                    .await?;
+            if let Some(last_known_residual) = last_known_residual
+                && (last_known_residual != battery_state.residual_millis())
+            {
+                let battery_log = BatteryLog::builder()
+                    .timestamp(now)
+                    .residual_energy(battery_state.residual_millis().into())
+                    .meter_measurement(battery_measurement)
+                    .build();
+                BatteryLogs(&tx).insert(&battery_log).await?;
             }
             scalars.upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
 

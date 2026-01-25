@@ -260,7 +260,7 @@ pub struct BurrowArgs {
 #[derive(Subcommand)]
 pub enum BurrowCommand {
     /// Gather consumption and battery statistics.
-    Statistics(BurrowStatisticsArgs),
+    Statistics(Box<BurrowStatisticsArgs>),
 
     /// Estimate battery efficiency parameters.
     Battery(BurrowBatteryArgs),
@@ -276,6 +276,9 @@ pub struct BurrowStatisticsArgs {
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
     pub statistics_path: PathBuf,
+
+    #[clap(flatten)]
+    pub heartbeat: HeartbeatArgs,
 }
 
 #[derive(Parser)]

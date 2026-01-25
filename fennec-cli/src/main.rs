@@ -58,6 +58,7 @@ async fn main() -> Result {
         Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(args) => {
                 burrow_statistics(&args)?;
+                args.heartbeat.send().await;
             }
             BurrowCommand::Battery(args) => {
                 let _ = BatteryEfficiency::try_estimate_from(

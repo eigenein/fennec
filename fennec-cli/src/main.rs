@@ -67,6 +67,7 @@ async fn main() -> Result {
                 args.heartbeat.send().await;
             }
             BurrowCommand::Battery(args) => {
+                // TODO: move to a separate module.
                 let _ = BatteryEfficiency::try_estimate_from(
                     &Db::connect(&args.database.path, false).await?,
                     args.estimation.duration.into(),
@@ -83,6 +84,7 @@ async fn main() -> Result {
     Ok(())
 }
 
+/// TODO: move to a separate module.
 #[instrument(skip_all)]
 async fn hunt(args: &HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
@@ -141,6 +143,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     Ok(())
 }
 
+/// TODO: move to a separate module.
 async fn log(args: LogArgs) -> Result {
     // TODO: this one should be independently fallible:
     // let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
@@ -192,6 +195,7 @@ async fn log(args: LogArgs) -> Result {
     Ok(())
 }
 
+/// TODO: move to a separate module.
 #[instrument(skip_all)]
 fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
     let history_period = args.home_assistant.history_period();
@@ -209,6 +213,7 @@ fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
     Ok(())
 }
 
+/// TODO: move to a separate module.
 #[instrument(skip_all)]
 fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key);

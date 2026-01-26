@@ -142,7 +142,9 @@ async fn hunt(args: &HuntArgs) -> Result {
 }
 
 async fn log(args: LogArgs) -> Result {
+    // TODO: this one should be independently fallible:
     // let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
+
     let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
     drop(Db::connect(&args.database.path, true).await?);
@@ -154,6 +156,7 @@ async fn log(args: LogArgs) -> Result {
 
     while !should_terminate.load(Ordering::Relaxed) {
         let now = Local::now();
+        // TODO: these should be independently fallible:
         let (battery_measurement, battery_state) = {
             tokio::try_join!(
                 battery_energy_meter.get_measurement(),

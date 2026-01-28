@@ -121,6 +121,7 @@ async fn hunt(args: &HuntArgs) -> Result {
         .battery_efficiency(battery_efficiency)
         .purchase_fee(args.provider.purchase_fee())
         .now(now)
+        .degradation_rate(args.degradation_rate)
         .solve()
         .context("no solution found, try allowing additional working modes")?;
     let steps = solution.backtrack().collect_vec();

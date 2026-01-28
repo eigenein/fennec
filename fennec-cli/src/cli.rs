@@ -10,7 +10,7 @@ use crate::{
     api::{heartbeat, home_assistant},
     core::{provider::Provider, working_mode::WorkingMode},
     prelude::*,
-    quantity::power::Kilowatts,
+    quantity::{power::Kilowatts, rate::KilowattHourRate},
 };
 
 #[derive(Parser)]
@@ -173,6 +173,10 @@ pub struct HuntArgs {
         default_value = "backup,balance,charge",
     )]
     pub working_modes: Vec<WorkingMode>,
+
+    /// Battery degradation rate per kilowatt-hour of the energy flow.
+    #[clap(long, env = "DEGRADATION_RATE", default_value = "0.03")]
+    pub degradation_rate: KilowattHourRate,
 
     #[clap(flatten)]
     pub battery: BatteryArgs,

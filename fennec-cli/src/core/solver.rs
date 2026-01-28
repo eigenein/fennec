@@ -37,6 +37,7 @@ pub struct Solver<'a> {
     battery_power_limits: BatteryPowerLimits,
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
+    degradation_rate: KilowattHourRate,
     now: DateTime<Local>,
 }
 
@@ -167,7 +168,9 @@ impl Solver<'_> {
                 }?;
                 if step.residual_energy_after >= self.battery_state.min_residual_energy() {
                     Some(Solution {
-                        net_loss: step.loss + next_solution.net_loss,
+                        net_loss: step.loss
+                            + next_solution.net_loss
+                            + step.residual_energy_change().abs() * self.degradation_rate,
                         charge: step.charge() + next_solution.charge,
                         discharge: step.discharge() + next_solution.discharge,
                         payload: Some(Payload { step, next_solution }),

@@ -168,9 +168,7 @@ impl Solver<'_> {
                 }?;
                 if step.residual_energy_after >= self.battery_state.min_residual_energy() {
                     Some(Solution {
-                        net_loss: step.loss
-                            + next_solution.net_loss
-                            + step.residual_energy_change().abs() * self.degradation_rate,
+                        net_loss: step.loss + next_solution.net_loss,
                         charge: step.charge() + next_solution.charge,
                         discharge: step.discharge() + next_solution.discharge,
                         payload: Some(Payload { step, next_solution }),
@@ -224,7 +222,9 @@ impl Solver<'_> {
             residual_energy_before: initial_residual_energy,
             residual_energy_after: battery.residual_energy(),
             grid_consumption,
-            loss: self.loss(grid_rate, grid_consumption),
+            loss: self.loss(grid_rate, grid_consumption)
+                + (initial_residual_energy - battery.residual_energy()).abs()
+                    * self.degradation_rate,
         }
     }
 

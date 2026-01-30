@@ -4,30 +4,35 @@ mod schedule;
 use std::time::Duration;
 
 use chrono::Utc;
+use http::{HeaderMap, HeaderValue};
+use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
-use ureq::Agent;
 
 use self::schedule::Schedule;
 pub use self::schedule::{TimeSlot, TimeSlotSequence, WorkingMode};
 use crate::{api::foxess::response::Response, prelude::*};
 
 pub struct Api {
-    client: Agent,
+    client: Client,
     api_key: String,
 }
 
 impl Api {
-    pub fn new(api_key: String) -> Self {
-        let client = Agent::config_builder()
+    pub fn new(api_key: String) -> Result<Self> {
+        let mut headers = HeaderMap::new();
+        headers.append("Timezone", HeaderValue::from_static("Europe/Amsterdam"));
+        headers.append("Lang", HeaderValue::from_static("en"));
+        headers.append("Token", HeaderValue::from_str(&api_key)?);
+        let client = Client::builder()
             .user_agent("fennec")
-            .timeout_global(Some(Duration::from_secs(15)))
-            .build()
-            .into();
-        Self { client, api_key }
+            .timeout(Duration::from_secs(15))
+            .default_headers(headers)
+            .build()?;
+        Ok(Self { client, api_key })
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub fn get_schedule(&self, serial_number: &str) -> Result<Schedule> {
+    pub async fn get_schedule(&self, serial_number: &str) -> Result<Schedule> {
         #[derive(Serialize)]
         struct GetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]
@@ -35,11 +40,12 @@ impl Api {
         }
 
         self.post("op/v1/device/scheduler/get", &GetScheduleRequest { serial_number })
+            .await
             .context("failed to get the schedule")
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
+    pub async fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
         info!(n_groups = groups.len(), "setting…");
 
         #[derive(Serialize)]
@@ -52,10 +58,11 @@ impl Api {
         }
 
         self.post("op/v1/device/scheduler/enable", SetScheduleRequest { serial_number, groups })
+            .await
     }
 
     #[instrument(skip_all, level = Level::DEBUG, fields(path = path))]
-    fn post<B, R>(&self, path: &str, body: B) -> Result<R>
+    async fn post<B, R>(&self, path: &str, body: B) -> Result<R>
     where
         B: Serialize,
         R: DeserializeOwned,
@@ -65,13 +72,12 @@ impl Api {
             .post(format!("https://www.foxesscloud.com/{path}"))
             .header("Timestamp", timestamp)
             .header("Signature", signature)
-            .header("Timezone", "Europe/Amsterdam")
-            .header("Lang", "en")
-            .header("Token", &self.api_key)
-            .send_json(body)
+            .json(&body)
+            .send()
+            .await
             .with_context(|| format!("failed to call `{path}`"))?
-            .body_mut()
-            .read_json::<Response<R>>()
+            .json::<Response<R>>()
+            .await
             .with_context(|| format!("failed to deserialize `{path}` response JSON"))?
             .into()
     }

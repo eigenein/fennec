@@ -67,7 +67,6 @@ async fn main() -> Result {
                 args.heartbeat.send().await;
             }
             BurrowCommand::Battery(args) => {
-                // TODO: move to a separate module.
                 let _ = BatteryEfficiency::try_estimate_from(
                     &Db::connect(&args.database.path, false).await?,
                     args.estimation.duration.into(),
@@ -75,7 +74,7 @@ async fn main() -> Result {
                 .await?;
             }
             BurrowCommand::FoxEss(args) => {
-                burrow_fox_ess(args)?;
+                burrow_fox_ess(args).await?;
             }
         },
     }
@@ -90,7 +89,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     let statistics = Statistics::read_from(&args.statistics_path)?;
     info!(?statistics.generated_at);
 
-    let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone());
+    let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
 
     let now = Local::now().with_nanosecond(0).unwrap();
@@ -138,7 +137,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
 
     if !args.scout {
-        fox_ess.set_schedule(&args.fox_ess_api.serial_number, time_slot_sequence.as_ref())?;
+        fox_ess.set_schedule(&args.fox_ess_api.serial_number, time_slot_sequence.as_ref()).await?;
     }
 
     Ok(())
@@ -216,12 +215,12 @@ fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
 
 /// TODO: move to a separate module.
 #[instrument(skip_all)]
-fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
-    let fox_ess = foxess::Api::new(args.fox_ess_api.api_key);
+async fn burrow_fox_ess(args: BurrowFoxEssArgs) -> Result {
+    let fox_ess = foxess::Api::new(args.fox_ess_api.api_key)?;
 
     match args.command {
         BurrowFoxEssCommand::Schedule => {
-            let schedule = fox_ess.get_schedule(&args.fox_ess_api.serial_number)?;
+            let schedule = fox_ess.get_schedule(&args.fox_ess_api.serial_number).await?;
             info!(schedule.is_enabled, "gotcha");
             println!("{}", build_time_slot_sequence_table(&schedule.groups));
         }

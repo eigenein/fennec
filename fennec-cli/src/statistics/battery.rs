@@ -3,9 +3,13 @@ use std::time::{Duration, Instant};
 use bon::bon;
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
-use linfa::{Dataset, dataset::Records, traits::Fit};
-use linfa_linear::LinearRegression;
-use ndarray::{Array1, Array2, Axis, aview0, aview1};
+use linfa::{
+    Dataset,
+    dataset::Records,
+    traits::{Fit, Predict},
+};
+use linfa_linear::{FittedLinearRegression, LinearRegression};
+use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
 use tokio::pin;
 
 use crate::{
@@ -97,7 +101,7 @@ impl BatteryEfficiency {
             previous_measurement = log;
         }
         if dataset.nsamples() == 0 {
-            bail!("empty dataset, collect samples first");
+            bail!("empty dataset");
         }
 
         info!(n_records = dataset.nsamples(), "estimating the battery efficiency…");
@@ -108,10 +112,24 @@ impl BatteryEfficiency {
             .context("failed to fit a regression, try with again with more samples")?;
         info!(elapsed = ?start_time.elapsed(), "regression has been fit");
 
+        let r_squared = Self::r_squared(&regression, &dataset);
+        info!(r_squared, "evaluated");
+
         Self::builder()
             .charging(regression.params()[0])
             .discharging(-1.0 / regression.params()[1])
             .parasitic_load(Quantity(-regression.params()[2]))
             .build()
+    }
+
+    fn r_squared(
+        regression: &FittedLinearRegression<f64>,
+        dataset: &Dataset<f64, f64, Ix1>,
+    ) -> f64 {
+        let predicted = regression.predict(dataset);
+        let target_mean = dataset.targets().mean().unwrap();
+        let residual_squared_sum = (dataset.targets() - &predicted).mapv(|diff| diff * diff).sum();
+        let total_squares_sum = (dataset.targets() - target_mean).mapv(|diff| diff * diff).sum();
+        1.0 - residual_squared_sum / total_squares_sum
     }
 }

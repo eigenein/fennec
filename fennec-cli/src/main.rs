@@ -69,7 +69,7 @@ async fn main() -> Result {
             BurrowCommand::Battery(args) => {
                 let _ = BatteryEfficiency::try_estimate_from(
                     &Db::connect(&args.database.path, false).await?,
-                    args.estimation.duration.into(),
+                    args.estimation.duration(),
                 )
                 .await?;
             }
@@ -107,7 +107,7 @@ async fn hunt(args: &HuntArgs) -> Result {
 
     let battery_efficiency = BatteryEfficiency::try_estimate_from(
         &Db::connect(&args.database.path, false).await?,
-        args.estimation.duration.into(),
+        args.estimation.duration(),
     )
     .await?;
 
@@ -143,15 +143,15 @@ async fn hunt(args: &HuntArgs) -> Result {
     Ok(())
 }
 
-/// TODO: move to a separate module.
+/// TODO: move to a separate module and split the battery and household loggers.
 async fn log(args: LogArgs) -> Result {
     // TODO: this one should be independently fallible:
     // let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
 
+    let polling_interval: Duration = args.polling_interval();
     let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
     drop(Db::connect(&args.database.path, true).await?);
-    let polling_interval: Duration = args.polling_interval.into();
 
     // TODO: implement proper signal handling with cancelling the `sleep` call.
     let should_terminate = Arc::new(AtomicBool::new(false));

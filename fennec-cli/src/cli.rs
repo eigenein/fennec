@@ -1,4 +1,4 @@
-use std::{ops::RangeInclusive, path::PathBuf};
+use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
@@ -134,7 +134,7 @@ pub struct BatterySettingRegisters {
 #[derive(Parser)]
 pub struct LogArgs {
     #[clap(long, env = "POLLING_INTERVAL", default_value = "5s")]
-    pub polling_interval: humantime::Duration,
+    polling_interval: humantime::Duration,
 
     #[clap(long, env = "TOTAL_ENERGY_METER_URL")]
     pub total_energy_meter_url: Url,
@@ -153,6 +153,12 @@ pub struct LogArgs {
 
     #[clap(flatten)]
     pub heartbeat: HeartbeatArgs,
+}
+
+impl LogArgs {
+    pub fn polling_interval(&self) -> Duration {
+        self.polling_interval.into()
+    }
 }
 
 #[derive(Parser)]
@@ -302,7 +308,13 @@ pub struct EstimationArgs {
         env = "BATTERY_ESTIMATION_INTERVAL",
         default_value = "14d"
     )]
-    pub duration: humantime::Duration,
+    duration: humantime::Duration,
+}
+
+impl EstimationArgs {
+    pub fn duration(&self) -> Duration {
+        self.duration.into()
+    }
 }
 
 #[derive(Parser)]

@@ -14,7 +14,7 @@ use tokio::pin;
 
 use crate::{
     core::interval::Interval,
-    db::{Db, battery_log::BatteryLog},
+    db::{LegacyDb, battery_log::BatteryLog},
     fmt::FormattedEfficiency,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},
@@ -57,7 +57,7 @@ impl BatteryEfficiency {
         self.charging * self.discharging
     }
 
-    pub async fn try_estimate_from(db: &Db, duration: Duration) -> Result<Self> {
+    pub async fn try_estimate_from(db: &LegacyDb, duration: Duration) -> Result<Self> {
         let stream = BatteryLog::select_from(db, Interval::try_since(duration)?)
             .await
             .context("failed to query the measurements")?;

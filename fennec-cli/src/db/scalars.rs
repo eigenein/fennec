@@ -35,11 +35,11 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::db::Db;
+    use crate::db::LegacyDb;
 
     #[tokio::test]
     async fn scalars_ok() -> Result {
-        let db = Db::connect(Path::new(":memory:"), true).await?;
+        let db = LegacyDb::connect(Path::new(":memory:"), true).await?;
         assert_eq!(Scalars(&db).select::<i64>(Key::Test).await?, None);
 
         Scalars(&db).upsert(Key::Test, Value::Integer(42)).await?;

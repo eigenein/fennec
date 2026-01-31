@@ -11,10 +11,9 @@ use crate::prelude::*;
 
 #[must_use]
 #[derive(derive_more::Deref, derive_more::DerefMut)]
-pub struct Db(Connection);
+pub struct LegacyDb(Connection);
 
-/// TODO: consider switching to MongoDB.
-impl Db {
+impl LegacyDb {
     // language=sqlite
     const SCRIPT: &str = r"
         CREATE TABLE IF NOT EXISTS scalars (key TEXT NOT NULL PRIMARY KEY, value ANY);

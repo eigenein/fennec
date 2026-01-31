@@ -38,7 +38,7 @@ use crate::{
         LogArgs,
     },
     core::solver::Solver,
-    db::{Db, battery_log::BatteryLog, key::Key, scalars::Scalars},
+    db::{LegacyDb, battery_log::BatteryLog, key::Key, scalars::Scalars},
     prelude::*,
     quantity::energy::MilliwattHours,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
@@ -68,7 +68,7 @@ async fn main() -> Result {
             }
             BurrowCommand::Battery(args) => {
                 let _ = BatteryEfficiency::try_estimate_from(
-                    &Db::connect(&args.database.path, false).await?,
+                    &LegacyDb::connect(&args.database.path, false).await?,
                     args.estimation.duration(),
                 )
                 .await?;
@@ -106,7 +106,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
     let battery_efficiency = BatteryEfficiency::try_estimate_from(
-        &Db::connect(&args.database.path, false).await?,
+        &LegacyDb::connect(&args.database.path, false).await?,
         args.estimation.duration(),
     )
     .await?;
@@ -152,7 +152,7 @@ async fn log(args: LogArgs) -> Result {
     let polling_interval: Duration = args.polling_interval();
     let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-    drop(Db::connect(&args.database.path, true).await?);
+    drop(LegacyDb::connect(&args.database.path, true).await?);
 
     // TODO: implement proper signal handling with cancelling the `sleep` call.
     let should_terminate = Arc::new(AtomicBool::new(false));
@@ -168,7 +168,7 @@ async fn log(args: LogArgs) -> Result {
             )?
         };
 
-        let mut db = Db::connect(&args.database.path, false).await?;
+        let mut db = LegacyDb::connect(&args.database.path, false).await?;
         let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
 
         let last_known_residual =

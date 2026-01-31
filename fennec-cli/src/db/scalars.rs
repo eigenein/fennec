@@ -35,7 +35,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::db::LegacyDb;
+    use crate::db::legacy_db::LegacyDb;
 
     #[tokio::test]
     async fn scalars_ok() -> Result {

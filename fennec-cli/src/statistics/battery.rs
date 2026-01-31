@@ -14,7 +14,7 @@ use tokio::pin;
 
 use crate::{
     core::interval::Interval,
-    db::{LegacyDb, battery_log::BatteryLog},
+    db::{battery_log::BatteryLog, legacy_db::LegacyDb},
     fmt::FormattedEfficiency,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},

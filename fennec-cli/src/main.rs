@@ -38,7 +38,7 @@ use crate::{
         LogArgs,
     },
     core::solver::Solver,
-    db::{LegacyDb, battery_log::BatteryLog, key::Key, scalars::Scalars},
+    db::{battery_log::BatteryLog, key::Key, legacy_db::LegacyDb, scalars::Scalars},
     prelude::*,
     quantity::energy::MilliwattHours,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},

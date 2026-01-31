@@ -13,7 +13,7 @@ publish = false
 readme = "README.md"
 repository = "https://github.com/eigenein/fennec"
 rust-version = "1.92"
-version = "0.54.0"
+version = "0.54.1"
 
 [workspace.lints.clippy]
 derive_ord_xor_partial_ord = "allow"

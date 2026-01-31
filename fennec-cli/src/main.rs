@@ -144,6 +144,7 @@ async fn hunt(args: &HuntArgs) -> Result {
 }
 
 /// TODO: move to a separate module and split the battery and household loggers.
+/// TODO: separate loops and intervals for battery and P1 loggers.
 async fn log(args: LogArgs) -> Result {
     // TODO: this one should be independently fallible:
     // let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
@@ -159,7 +160,7 @@ async fn log(args: LogArgs) -> Result {
 
     while !should_terminate.load(Ordering::Relaxed) {
         let now = Local::now();
-        // TODO: these should be independently fallible:
+
         let (battery_measurement, battery_state) = {
             tokio::try_join!(
                 battery_energy_meter.get_measurement(),

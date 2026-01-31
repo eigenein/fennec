@@ -13,6 +13,7 @@ use crate::prelude::*;
 #[derive(derive_more::Deref, derive_more::DerefMut)]
 pub struct Db(Connection);
 
+/// TODO: consider switching to MongoDB.
 impl Db {
     // language=sqlite
     const SCRIPT: &str = r"
@@ -31,7 +32,7 @@ impl Db {
         // FIXME: <https://github.com/tursodatabase/turso/issues/769>.
         let connection = Builder::new_local(path.to_str().unwrap()).build().await?.connect()?;
         if run_script {
-            // TODO: move to a separate function.
+            // TODO: move to a separate function and make it an optional flag in `DatabaseArgs`.
             connection.execute_batch(Self::SCRIPT).await?;
         }
         Ok(Self(connection))

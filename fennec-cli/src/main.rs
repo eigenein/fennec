@@ -48,7 +48,7 @@ use crate::{
     },
     prelude::*,
     quantity::energy::MilliwattHours,
-    statistics::{battery::BatteryEfficiency, household::EnergyStatistics},
+    statistics::battery::BatteryEfficiency,
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -215,18 +215,15 @@ async fn log(args: LogArgs) -> Result {
 #[instrument(skip_all)]
 async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
     let history_period = args.home_assistant.history_period();
-    let statistics = args
+    let hourly_stand_by_power = args
         .home_assistant
         .connection
         .new_client()
         .get_energy_history(&args.home_assistant.entity_id, &history_period)?
         .into_iter()
-        .collect::<EnergyStatistics>();
-    Db::with_uri(&args.db.uri)
-        .await?
-        .states()
-        .upsert(&HourlyStandByPower::from(statistics.household.hourly_stand_by_power))
-        .await?;
+        .map(|state| (state.last_changed_at, state))
+        .collect::<HourlyStandByPower>();
+    Db::with_uri(&args.db.uri).await?.states().upsert(&hourly_stand_by_power).await?;
     Ok(())
 }
 

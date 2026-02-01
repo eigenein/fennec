@@ -48,7 +48,7 @@ use crate::{
     },
     prelude::*,
     quantity::energy::MilliwattHours,
-    statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
+    statistics::{battery::BatteryEfficiency, household::EnergyStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -93,8 +93,12 @@ async fn main() -> Result {
 /// TODO: move to a separate module.
 #[instrument(skip_all)]
 async fn hunt(args: &HuntArgs) -> Result {
-    let statistics = Statistics::read_from(&args.statistics_path)?;
-    info!(?statistics.generated_at);
+    let statistics = Db::with_uri(&args.db.uri)
+        .await?
+        .states()
+        .get::<HourlyStandByPower>()
+        .await?
+        .unwrap_or_default();
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
@@ -120,7 +124,7 @@ async fn hunt(args: &HuntArgs) -> Result {
 
     let solution = Solver::builder()
         .grid_rates(&grid_rates)
-        .hourly_stand_by_power(&statistics.energy.household.hourly_stand_by_power)
+        .hourly_stand_by_power(&statistics.into())
         .working_modes(working_modes)
         .battery_state(battery_state)
         .battery_power_limits(args.battery.power_limits)
@@ -211,22 +215,18 @@ async fn log(args: LogArgs) -> Result {
 #[instrument(skip_all)]
 async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
     let history_period = args.home_assistant.history_period();
-    let statistics = Statistics {
-        generated_at: *history_period.end(),
-        energy: args
-            .home_assistant
-            .connection
-            .new_client()
-            .get_energy_history(&args.home_assistant.entity_id, &history_period)?
-            .into_iter()
-            .collect::<EnergyStatistics>(),
-    };
+    let statistics = args
+        .home_assistant
+        .connection
+        .new_client()
+        .get_energy_history(&args.home_assistant.entity_id, &history_period)?
+        .into_iter()
+        .collect::<EnergyStatistics>();
     Db::with_uri(&args.db.uri)
         .await?
         .states()
-        .upsert(&HourlyStandByPower::from(statistics.energy.household.hourly_stand_by_power))
+        .upsert(&HourlyStandByPower::from(statistics.household.hourly_stand_by_power))
         .await?;
-    statistics.write_to(&args.statistics_path).context("failed to write the statistics file")?;
     Ok(())
 }
 

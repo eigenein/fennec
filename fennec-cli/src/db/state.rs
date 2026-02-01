@@ -1,6 +1,7 @@
-use bson::{Document, doc, serialize_to_bson, serialize_to_document};
+use bson::{Document, deserialize_from_document, doc, serialize_to_bson, serialize_to_document};
+use derive_more::{From, Into};
 use mongodb::Collection;
-use serde::Serialize;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{
     prelude::*,
@@ -17,22 +18,16 @@ pub enum StateId {
     HourlyStandByPower,
 }
 
-pub trait State: Serialize {
+pub trait State: Serialize + DeserializeOwned {
     const ID: StateId;
 }
 
 /// Last known battery residual energy.
 #[must_use]
-#[derive(Copy, Clone, Serialize)]
+#[derive(Copy, Clone, Serialize, Deserialize, From)]
 pub struct BatteryResidualEnergy {
     #[serde(rename = "milliwattHours")]
     residual_energy: MilliwattHours,
-}
-
-impl From<MilliwattHours> for BatteryResidualEnergy {
-    fn from(residual_energy: MilliwattHours) -> Self {
-        Self { residual_energy }
-    }
 }
 
 impl State for BatteryResidualEnergy {
@@ -40,16 +35,10 @@ impl State for BatteryResidualEnergy {
 }
 
 #[must_use]
-#[derive(Copy, Clone, Serialize)]
+#[derive(Copy, Clone, Default, Serialize, Deserialize, From, Into)]
 pub struct HourlyStandByPower {
     #[serde(rename = "kilowatts")]
     hourly_stand_by_power: [Option<Kilowatts>; 24],
-}
-
-impl From<[Option<Kilowatts>; 24]> for HourlyStandByPower {
-    fn from(hourly_stand_by_power: [Option<Kilowatts>; 24]) -> Self {
-        Self { hourly_stand_by_power }
-    }
 }
 
 impl State for HourlyStandByPower {
@@ -61,6 +50,18 @@ impl State for HourlyStandByPower {
 pub struct States(pub(super) Collection<Document>);
 
 impl States {
+    #[instrument(skip_all, fields(id = ?S::ID))]
+    pub async fn get<S: State>(&self) -> Result<Option<S>> {
+        let filter = doc! { "_id": serialize_to_bson(&S::ID)? };
+        self.0
+            .find_one(filter)
+            .await
+            .with_context(|| format!("failed to fetch `{:?}`", S::ID))?
+            .map(deserialize_from_document)
+            .transpose()
+            .with_context(|| format!("failed to deserialize `{:?}`", S::ID))
+    }
+
     #[instrument(skip_all, fields(id = ?S::ID))]
     pub async fn upsert<S: State>(&self, state: &S) -> Result {
         let id = serialize_to_bson(&S::ID)?;

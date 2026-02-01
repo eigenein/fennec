@@ -199,9 +199,6 @@ pub struct HuntArgs {
     #[clap(flatten)]
     pub db: DbArgs,
 
-    #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
-    pub statistics_path: PathBuf,
-
     #[clap(flatten)]
     pub heartbeat: HeartbeatArgs,
 }

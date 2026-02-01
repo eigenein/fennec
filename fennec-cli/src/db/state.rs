@@ -52,6 +52,7 @@ pub struct States(pub(super) Collection<Document>);
 impl States {
     #[instrument(skip_all, fields(id = ?S::ID))]
     pub async fn get<S: State>(&self) -> Result<Option<S>> {
+        info!("fetching the state…");
         let filter = doc! { "_id": serialize_to_bson(&S::ID)? };
         self.0
             .find_one(filter)

@@ -64,6 +64,7 @@ impl States {
 
     #[instrument(skip_all, fields(id = ?S::ID))]
     pub async fn upsert<S: State>(&self, state: &S) -> Result {
+        info!("saving the state…");
         let id = serialize_to_bson(&S::ID)?;
         let filter = doc! { "_id": &id };
         let mut replacement = serialize_to_document(state)?;

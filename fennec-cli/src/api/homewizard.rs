@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bon::Builder;
 use reqwest::Url;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{prelude::*, quantity::energy::KilowattHours};
 
@@ -35,12 +35,12 @@ impl Client {
 }
 
 #[must_use]
-#[derive(Copy, Clone, Deserialize, Builder)]
+#[derive(Copy, Clone, Serialize, Deserialize, Builder)]
 pub struct MeterMeasurement {
-    #[serde(rename = "total_power_import_kwh")]
+    #[serde(rename = "importKilowattHours", alias = "total_power_import_kwh")]
     pub import: KilowattHours,
 
-    #[serde(rename = "total_power_export_kwh")]
+    #[serde(rename = "exportKilowattHours", alias = "total_power_export_kwh")]
     pub export: KilowattHours,
 }
 

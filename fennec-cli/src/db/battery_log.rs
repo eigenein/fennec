@@ -1,24 +1,39 @@
 use async_stream::try_stream;
 use bon::Builder;
+use bson::doc;
 use chrono::{DateTime, Local, TimeZone};
 use futures_core::Stream;
+use mongodb::{
+    Collection,
+    Database,
+    options::{TimeseriesGranularity, TimeseriesOptions},
+};
+use serde::{Deserialize, Serialize};
 use turso::Connection;
 
 use crate::{
     api::homewizard::MeterMeasurement,
     core::interval::Interval,
+    db::timestamp::serialize_timestamp,
     prelude::{instrument, *},
     quantity::{Quantity, energy::KilowattHours},
 };
 
-#[derive(Builder)]
+#[expect(clippy::unsafe_derive_deserialize)]
+#[derive(Serialize, Deserialize, Builder)]
 pub struct BatteryLog {
+    #[serde(rename = "timestamp", serialize_with = "serialize_timestamp")]
     pub timestamp: DateTime<Local>,
+
+    #[serde(rename = "residualEnergyKilowattHours")]
     pub residual_energy: KilowattHours,
+
+    #[serde(flatten)]
     pub meter: MeterMeasurement,
 }
 
 impl BatteryLog {
+    #[deprecated]
     #[instrument(skip_all)]
     pub async fn insert_into(&self, connection: &Connection) -> Result {
         // language=sqlite
@@ -50,6 +65,7 @@ impl BatteryLog {
         Ok(())
     }
 
+    #[deprecated]
     #[instrument(skip_all)]
     pub async fn select_from(
         connection: &Connection,
@@ -89,5 +105,32 @@ impl BatteryLog {
             }
         };
         Ok(stream)
+    }
+}
+
+pub struct BatteryLogs(pub(super) Collection<BatteryLog>);
+
+impl BatteryLogs {
+    pub(super) const COLLECTION_NAME: &str = "batteryLogs";
+
+    #[instrument(skip_all)]
+    pub(super) async fn initialize_on(db: &Database) -> Result {
+        let options = TimeseriesOptions::builder()
+            .time_field("timestamp")
+            .granularity(TimeseriesGranularity::Minutes)
+            .build();
+        db.create_collection(Self::COLLECTION_NAME).timeseries(options).await?;
+        db.run_command(doc! {
+            "collMod": Self::COLLECTION_NAME,
+            "expireAfterSeconds": 365 * 24 * 60 * 60, // FIXME: make configurable.
+        })
+        .await?;
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    pub async fn insert(&self, log: &BatteryLog) -> Result {
+        self.0.insert_one(log).await?;
+        Ok(())
     }
 }

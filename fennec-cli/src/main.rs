@@ -185,16 +185,20 @@ async fn log(args: LogArgs) -> Result {
 
         let last_known_residual =
             LegacyScalars(&tx).select::<MilliwattHours>(LegacyKey::BatteryResidualEnergy).await?;
+        let battery_log = BatteryLog::builder()
+            .timestamp(now)
+            .residual_energy(battery_state.residual_millis().into())
+            .meter(battery_measurement)
+            .build();
         if let Some(last_known_residual) = last_known_residual
             && (last_known_residual != battery_state.residual_millis())
         {
-            BatteryLog::builder()
-                .timestamp(now)
-                .residual_energy(battery_state.residual_millis().into())
-                .meter(battery_measurement)
-                .build()
-                .insert_into(&tx)
-                .await?;
+            battery_log.insert_into(&tx).await?;
+        }
+        if let Some(last_known_residual) = db.states().get::<BatteryResidualEnergy>().await?
+            && (MilliwattHours::from(last_known_residual) != battery_state.residual_millis())
+        {
+            db.battery_logs().insert(&battery_log).await?;
         }
         LegacyScalars(&tx)
             .upsert(LegacyKey::BatteryResidualEnergy, battery_state.residual_millis())

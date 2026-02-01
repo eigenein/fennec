@@ -24,7 +24,7 @@ pub trait State: Serialize + DeserializeOwned {
 
 /// Last known battery residual energy.
 #[must_use]
-#[derive(Copy, Clone, Serialize, Deserialize, From)]
+#[derive(Copy, Clone, Serialize, Deserialize, From, Into)]
 pub struct BatteryResidualEnergy {
     #[serde(rename = "milliwattHours")]
     residual_energy: MilliwattHours,
@@ -50,6 +50,8 @@ impl State for HourlyStandByPower {
 pub struct States(pub(super) Collection<Document>);
 
 impl States {
+    pub(super) const COLLECTION_NAME: &str = "states";
+
     #[instrument(skip_all, fields(id = ?S::ID))]
     pub async fn get<S: State>(&self) -> Result<Option<S>> {
         info!("fetching the state…");

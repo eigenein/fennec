@@ -1,17 +1,17 @@
 use turso::Value;
 
 use crate::{
-    db::{key::Key, scalars::Scalars},
+    db::{legacy_key::LegacyKey, scalars::LegacyScalars},
     prelude::*,
     quantity::energy::MilliwattHours,
 };
 
 pub trait Selectable: Sized {
-    async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self>;
+    async fn select_from(scalars: &LegacyScalars<'_>, key: LegacyKey) -> Result<Self>;
 }
 
 impl Selectable for Value {
-    async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self> {
+    async fn select_from(scalars: &LegacyScalars<'_>, key: LegacyKey) -> Result<Self> {
         // language=sqlite
         const SQL: &str = "SELECT value FROM scalars WHERE key = ?1";
         match scalars.0.prepare_cached(SQL).await?.query_row((key.as_str(),)).await {
@@ -25,7 +25,10 @@ impl Selectable for Value {
 macro_rules! selectable {
     ($member:path, $ty:ty) => {
         impl Selectable for Option<$ty> {
-            async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Option<$ty>> {
+            async fn select_from(
+                scalars: &LegacyScalars<'_>,
+                key: LegacyKey,
+            ) -> Result<Option<$ty>> {
                 match Value::select_from(scalars, key).await? {
                     Value::Null => Ok(None),
                     $member(value) => Ok(Some(value)),
@@ -42,7 +45,7 @@ selectable!(Value::Real, f64);
 macro_rules! selectable_into {
     ($inner:ty, $outer:ty) => {
         impl Selectable for Option<$outer> {
-            async fn select_from(scalars: &Scalars<'_>, key: Key) -> Result<Self> {
+            async fn select_from(scalars: &LegacyScalars<'_>, key: LegacyKey) -> Result<Self> {
                 Ok(scalars.select::<$inner>(key).await?.map(Into::into))
             }
         }

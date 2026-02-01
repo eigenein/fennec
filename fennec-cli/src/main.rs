@@ -38,7 +38,12 @@ use crate::{
         LogArgs,
     },
     core::solver::Solver,
-    db::{battery_log::BatteryLog, key::Key, legacy_db::LegacyDb, scalars::Scalars},
+    db::{
+        battery_log::BatteryLog,
+        legacy_db::LegacyDb,
+        legacy_key::LegacyKey,
+        scalars::LegacyScalars,
+    },
     prelude::*,
     quantity::energy::MilliwattHours,
     statistics::{Statistics, battery::BatteryEfficiency, household::EnergyStatistics},
@@ -172,7 +177,7 @@ async fn log(args: LogArgs) -> Result {
         let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
 
         let last_known_residual =
-            Scalars(&tx).select::<MilliwattHours>(Key::BatteryResidualEnergy).await?;
+            LegacyScalars(&tx).select::<MilliwattHours>(LegacyKey::BatteryResidualEnergy).await?;
         if let Some(last_known_residual) = last_known_residual
             && (last_known_residual != battery_state.residual_millis())
         {
@@ -184,7 +189,9 @@ async fn log(args: LogArgs) -> Result {
                 .insert_into(&tx)
                 .await?;
         }
-        Scalars(&tx).upsert(Key::BatteryResidualEnergy, battery_state.residual_millis()).await?;
+        LegacyScalars(&tx)
+            .upsert(LegacyKey::BatteryResidualEnergy, battery_state.residual_millis())
+            .await?;
 
         tx.commit().await?;
         drop(db);

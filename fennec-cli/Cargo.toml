@@ -19,11 +19,12 @@ is-it-maintained-issue-resolution = { repository = "eigenein/fennec" }
 is-it-maintained-open-issues = { repository = "eigenein/fennec" }
 
 [dependencies]
-aegis = { version = "=0.9.7", features = ["pure-rust"] } # Needed for Turso
+aegis = { version = "=0.9.7", features = ["pure-rust"] } # TODO: remove together with Turso.
 anyhow = "=1.0.100"
 async-stream = "=0.3.6"
 average = "=0.16.0"
-bon = "=3.8.1"
+bon = "=3.8.2"
+bson = "=3.1.0"
 chrono = { version = "=0.4.43", default-features = false, features = ["clock", "serde"] }
 clap = { version = "=4.5.54", features = ["cargo", "derive", "env", "unicode"] }
 comfy-table = "=7.2.2"

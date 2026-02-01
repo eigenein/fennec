@@ -39,10 +39,12 @@ use crate::{
     },
     core::solver::Solver,
     db::{
+        Db,
         battery_log::BatteryLog,
         legacy_db::LegacyDb,
         legacy_key::LegacyKey,
         scalars::LegacyScalars,
+        state::{BatteryResidualEnergy, HourlyStandByPower},
     },
     prelude::*,
     quantity::energy::MilliwattHours,
@@ -68,12 +70,12 @@ async fn main() -> Result {
         }
         Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(args) => {
-                burrow_statistics(&args)?;
+                burrow_statistics(&args).await?;
                 args.heartbeat.send().await;
             }
             BurrowCommand::Battery(args) => {
                 let _ = BatteryEfficiency::try_estimate_from(
-                    &LegacyDb::connect(&args.database.path, false).await?,
+                    &LegacyDb::connect(&args.db.path, false).await?,
                     args.estimation.duration(),
                 )
                 .await?;
@@ -111,7 +113,7 @@ async fn hunt(args: &HuntArgs) -> Result {
     let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
     let battery_efficiency = BatteryEfficiency::try_estimate_from(
-        &LegacyDb::connect(&args.database.path, false).await?,
+        &LegacyDb::connect(&args.db.path, false).await?,
         args.estimation.duration(),
     )
     .await?;
@@ -157,7 +159,8 @@ async fn log(args: LogArgs) -> Result {
     let polling_interval: Duration = args.polling_interval();
     let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-    drop(LegacyDb::connect(&args.database.path, true).await?);
+    drop(LegacyDb::connect(&args.db.path, true).await?);
+    let db = Db::with_uri(args.db.uri).await?;
 
     // TODO: implement proper signal handling with cancelling the `sleep` call.
     let should_terminate = Arc::new(AtomicBool::new(false));
@@ -173,8 +176,8 @@ async fn log(args: LogArgs) -> Result {
             )?
         };
 
-        let mut db = LegacyDb::connect(&args.database.path, false).await?;
-        let tx = Transaction::new(&mut db, TransactionBehavior::Deferred).await?;
+        let mut legacy_db = LegacyDb::connect(&args.db.path, false).await?;
+        let tx = Transaction::new(&mut legacy_db, TransactionBehavior::Deferred).await?;
 
         let last_known_residual =
             LegacyScalars(&tx).select::<MilliwattHours>(LegacyKey::BatteryResidualEnergy).await?;
@@ -192,9 +195,10 @@ async fn log(args: LogArgs) -> Result {
         LegacyScalars(&tx)
             .upsert(LegacyKey::BatteryResidualEnergy, battery_state.residual_millis())
             .await?;
+        db.states().upsert(&BatteryResidualEnergy::from(battery_state.residual_millis())).await?;
 
         tx.commit().await?;
-        drop(db);
+        drop(legacy_db);
 
         args.heartbeat.send().await;
         sleep(polling_interval).await;
@@ -205,7 +209,7 @@ async fn log(args: LogArgs) -> Result {
 
 /// TODO: move to a separate module.
 #[instrument(skip_all)]
-fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
+async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
     let history_period = args.home_assistant.history_period();
     let statistics = Statistics {
         generated_at: *history_period.end(),
@@ -217,6 +221,11 @@ fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
             .into_iter()
             .collect::<EnergyStatistics>(),
     };
+    Db::with_uri(&args.db.uri)
+        .await?
+        .states()
+        .upsert(&HourlyStandByPower::from(statistics.energy.household.hourly_stand_by_power))
+        .await?;
     statistics.write_to(&args.statistics_path).context("failed to write the statistics file")?;
     Ok(())
 }

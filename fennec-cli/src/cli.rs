@@ -53,9 +53,12 @@ pub enum Command {
 }
 
 #[derive(Parser)]
-pub struct DatabaseArgs {
+pub struct DbArgs {
     #[clap(long = "database-path", env = "DATABASE_PATH", default_value = "fennec.db")]
     pub path: PathBuf,
+
+    #[clap(long = "mongodb-uri", env = "MONGODB_URI")]
+    pub uri: Url,
 }
 
 #[derive(Parser)]
@@ -143,7 +146,7 @@ pub struct LogArgs {
     pub battery_energy_meter_url: Url,
 
     #[clap(flatten)]
-    pub database: DatabaseArgs,
+    pub db: DbArgs,
 
     #[clap(flatten)]
     pub battery_connection: BatteryConnectionArgs,
@@ -181,7 +184,7 @@ pub struct HuntArgs {
     pub working_modes: Vec<WorkingMode>,
 
     /// Battery degradation rate per kilowatt-hour of the energy flow.
-    #[clap(long, env = "DEGRADATION_RATE", default_value = "0.03")]
+    #[clap(long, env = "DEGRADATION_RATE", default_value = "0")]
     pub degradation_rate: KilowattHourRate,
 
     #[clap(flatten)]
@@ -194,7 +197,7 @@ pub struct HuntArgs {
     pub estimation: EstimationArgs,
 
     #[clap(flatten)]
-    pub database: DatabaseArgs,
+    pub db: DbArgs,
 
     #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
     pub statistics_path: PathBuf,
@@ -289,12 +292,15 @@ pub struct BurrowStatisticsArgs {
 
     #[clap(flatten)]
     pub heartbeat: HeartbeatArgs,
+
+    #[clap(flatten)]
+    pub db: DbArgs,
 }
 
 #[derive(Parser)]
 pub struct BurrowBatteryArgs {
     #[clap(flatten)]
-    pub database: DatabaseArgs,
+    pub db: DbArgs,
 
     #[clap(flatten)]
     pub estimation: EstimationArgs,

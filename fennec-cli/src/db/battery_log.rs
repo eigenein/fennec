@@ -119,7 +119,15 @@ impl BatteryLogs {
             .time_field("timestamp")
             .granularity(TimeseriesGranularity::Minutes)
             .build();
-        db.create_collection(Self::COLLECTION_NAME).timeseries(options).await?;
+        if let Err(error) = db
+            .create_collection(Self::COLLECTION_NAME)
+            .timeseries(options)
+            .await
+            .context("failed to create the battery log collection")
+        {
+            // FIXME
+            warn!("{error:#}");
+        }
         db.run_command(doc! {
             "collMod": Self::COLLECTION_NAME,
             "expireAfterSeconds": 365 * 24 * 60 * 60, // FIXME: make configurable.

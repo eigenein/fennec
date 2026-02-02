@@ -6,10 +6,7 @@ use crate::{
     api::foxess,
     cli::{HomeAssistantArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::interval::Interval,
-    db::{
-        battery::BatteryLog,
-        state::{HourlyStandByPower, States},
-    },
+    db::{battery::BatteryLog, state::HourlyStandByPower},
     prelude::*,
     statistics::battery::BatteryEfficiency,
     tables::build_time_slot_sequence_table,
@@ -67,7 +64,7 @@ impl BurrowStatisticsArgs {
             .into_iter()
             .map(|state| (state.last_changed_at, state))
             .collect::<HourlyStandByPower>();
-        States::from(&self.db.connect().await?).set(&hourly_stand_by_power).await?;
+        self.db.connect().await?.set_state(&hourly_stand_by_power).await?;
         Ok(())
     }
 }

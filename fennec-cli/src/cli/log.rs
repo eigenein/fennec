@@ -21,7 +21,7 @@ use crate::{
         battery::BatteryLog,
         consumption::ConsumptionLog,
         log::Log,
-        state::{BatteryResidualEnergy, States},
+        state::BatteryResidualEnergy,
     },
     prelude::*,
     quantity::energy::MilliwattHours,
@@ -95,8 +95,8 @@ impl LogArgs {
 
         while !should_terminate.load(Ordering::Relaxed) {
             let battery_state = battery.read_energy_state(self.battery_registers).await?;
-            let last_known_residual_energy = States::from(&db)
-                .set(&BatteryResidualEnergy::from(battery_state.residual_millis()))
+            let last_known_residual_energy = db
+                .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))
                 .await?
                 .map(MilliwattHours::from);
             if let Some(last_known_residual_energy) = last_known_residual_energy

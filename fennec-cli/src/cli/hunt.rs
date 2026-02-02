@@ -8,10 +8,7 @@ use crate::{
     api::{foxess, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::{interval::Interval, provider::Provider, solver::Solver, working_mode::WorkingMode},
-    db::{
-        battery::BatteryLog,
-        state::{HourlyStandByPower, States},
-    },
+    db::{battery::BatteryLog, state::HourlyStandByPower},
     prelude::*,
     quantity::rate::KilowattHourRate,
     statistics::battery::BatteryEfficiency,
@@ -68,7 +65,7 @@ impl HuntArgs {
     #[instrument(skip_all)]
     pub async fn hunt(self) -> Result {
         let db = self.db.connect().await?;
-        let statistics = States::from(&db).get::<HourlyStandByPower>().await?.unwrap_or_default();
+        let statistics = db.get_state::<HourlyStandByPower>().await?.unwrap_or_default();
 
         let fox_ess = foxess::Api::new(self.fox_ess_api.api_key.clone())?;
         let working_modes = self.working_modes();

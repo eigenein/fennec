@@ -1,13 +1,13 @@
 use std::{any::type_name, fmt::Debug};
 
-use bson::doc;
+use bson::{deserialize_from_document, doc, serialize_to_document};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
-use mongodb::{Client, Database};
+use mongodb::{Client, Database, options::ReturnDocument};
 
 use crate::{
     core::interval::Interval,
-    db::{battery::BatteryLog, consumption::ConsumptionLog, log::Log},
+    db::{battery::BatteryLog, consumption::ConsumptionLog, log::Log, state::State},
     prelude::*,
 };
 
@@ -21,6 +21,8 @@ pub mod state;
 pub struct Db(Database);
 
 impl Db {
+    const STATES_COLLECTION_NAME: &'static str = "states";
+
     /// Connect to the database with the specified URI.
     ///
     /// The URO *must* specify the database name.
@@ -50,5 +52,38 @@ impl Db {
             .await
             .context("failed to query the battery logs")?
             .map_err(Error::from))
+    }
+
+    /// Retrieve the typed global state.
+    #[instrument(skip_all, fields(id = ?S::ID))]
+    pub async fn get_state<S: State>(&self) -> Result<Option<S>> {
+        info!("fetching the state…");
+        let filter = doc! { "_id": S::ID };
+        self.0
+            .collection(Self::STATES_COLLECTION_NAME)
+            .find_one(filter)
+            .await
+            .with_context(|| format!("failed to fetch `{:?}`", S::ID))?
+            .map(deserialize_from_document)
+            .transpose()
+            .with_context(|| format!("failed to deserialize `{:?}`", S::ID))
+    }
+
+    /// Replace the typed global state and return the previous value.
+    #[instrument(skip_all, fields(id = ?S::ID))]
+    pub async fn set_state<S: State>(&self, state: &S) -> Result<Option<S>> {
+        info!("saving the state…");
+        let filter = doc! { "_id": S::ID };
+        let mut replacement = serialize_to_document(state)?;
+        replacement.insert("_id", S::ID);
+        let old_state = self
+            .0
+            .collection(Self::STATES_COLLECTION_NAME)
+            .find_one_and_replace(filter, replacement)
+            .upsert(true)
+            .return_document(ReturnDocument::Before)
+            .await
+            .with_context(|| format!("failed to upsert `{:?}`", S::ID))?;
+        old_state.map(deserialize_from_document).transpose().context("failed to upsert the state")
     }
 }

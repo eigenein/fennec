@@ -6,7 +6,6 @@ use crate::{
     cli::HuntArgs,
     core::{interval::Interval, solver::Solver},
     db::{
-        Db,
         battery_log::BatteryLogs,
         state::{HourlyStandByPower, States},
     },
@@ -17,7 +16,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn hunt(args: &HuntArgs) -> Result {
-    let db = Db::with_uri(&args.db.uri).await?;
+    let db = args.db.connect().await?;
     let statistics = States::from(&db).get::<HourlyStandByPower>().await?.unwrap_or_default();
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone())?;

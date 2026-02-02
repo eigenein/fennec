@@ -12,7 +12,6 @@ use crate::{
     api::{homewizard, modbus},
     cli::LogArgs,
     db::{
-        Db,
         battery_log::{BatteryLog, BatteryLogs},
         state::{BatteryResidualEnergy, States},
     },
@@ -39,7 +38,7 @@ async fn log_battery(args: &LogArgs, should_terminate: Arc<AtomicBool>) -> Resul
     let _ = battery_energy_meter.get_measurement().await?;
 
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-    let db = Db::with_uri(&args.db.uri).await?;
+    let db = args.db.connect().await?;
 
     while !should_terminate.load(Ordering::Relaxed) {
         let battery_state = battery.read_energy_state(args.battery_registers).await?;

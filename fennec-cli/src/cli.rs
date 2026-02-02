@@ -1,3 +1,4 @@
+mod db;
 mod heartbeat;
 mod hunt;
 mod log;
@@ -13,7 +14,7 @@ use reqwest::Url;
 pub use self::{hunt::hunt, log::log};
 use crate::{
     api::home_assistant,
-    cli::heartbeat::HeartbeatArgs,
+    cli::{db::DbArgs, heartbeat::HeartbeatArgs},
     core::{provider::Provider, working_mode::WorkingMode},
     quantity::{power::Kilowatts, rate::KilowattHourRate},
 };
@@ -39,12 +40,6 @@ pub enum Command {
     /// Development tools.
     #[clap(name = "burrow")]
     Burrow(Box<BurrowArgs>),
-}
-
-#[derive(Parser)]
-pub struct DbArgs {
-    #[clap(long = "mongodb-uri", env = "MONGODB_URI")]
-    pub uri: Url,
 }
 
 #[derive(Parser)]

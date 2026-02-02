@@ -11,19 +11,10 @@ mod quantity;
 mod statistics;
 mod tables;
 
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
-
 use clap::{Parser, crate_version};
-use tokio::time::sleep;
 
 use crate::{
-    api::{foxess, homewizard, modbus},
+    api::foxess,
     cli::{
         Args,
         BurrowCommand,
@@ -31,17 +22,12 @@ use crate::{
         BurrowFoxEssCommand,
         BurrowStatisticsArgs,
         Command,
-        LogArgs,
         hunt,
+        log,
     },
     core::interval::Interval,
-    db::{
-        Db,
-        battery_log::BatteryLog,
-        state::{BatteryResidualEnergy, HourlyStandByPower},
-    },
+    db::{Db, state::HourlyStandByPower},
     prelude::*,
-    quantity::energy::MilliwattHours,
     statistics::battery::BatteryEfficiency,
     tables::build_time_slot_sequence_table,
 };
@@ -55,17 +41,13 @@ async fn main() -> Result {
     let args = Args::parse();
 
     match args.command {
-        Command::Hunt(args) => {
-            hunt(&args).await?;
-            args.heartbeat.send().await;
-        }
-        Command::Log(args) => {
-            log(*args).await?;
-        }
+        Command::Hunt(args) => hunt(&args).await,
+        Command::Log(args) => log(*args).await,
         Command::Burrow(args) => match args.command {
             BurrowCommand::Statistics(args) => {
                 burrow_statistics(&args).await?;
                 args.heartbeat.send().await;
+                Ok(())
             }
             BurrowCommand::Battery(args) => {
                 let mut db = Db::with_uri(&args.db.uri).await?.start_session().await?;
@@ -74,59 +56,11 @@ async fn main() -> Result {
                     .find(Interval::try_since(args.estimation.duration())?)
                     .await?;
                 let _ = BatteryEfficiency::try_estimate(battery_logs.stream(db.session())).await?;
+                Ok(())
             }
-            BurrowCommand::FoxEss(args) => {
-                burrow_fox_ess(args).await?;
-            }
+            BurrowCommand::FoxEss(args) => burrow_fox_ess(args).await,
         },
     }
-
-    info!("done!");
-    Ok(())
-}
-
-/// TODO: move to a separate module and split the battery and household loggers.
-/// TODO: separate loops and intervals for battery and P1 loggers.
-async fn log(args: LogArgs) -> Result {
-    // TODO: this one should be independently fallible:
-    // let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
-
-    let polling_interval: Duration = args.polling_interval();
-    let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
-    let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-    let db = Db::with_uri(args.db.uri).await?;
-
-    // TODO: implement proper signal handling with cancelling the `sleep` call.
-    let should_terminate = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
-
-    while !should_terminate.load(Ordering::Relaxed) {
-        let (battery_measurement, battery_state) = {
-            tokio::try_join!(
-                battery_energy_meter.get_measurement(),
-                battery.read_energy_state(args.battery_registers),
-            )?
-        };
-
-        let mut db = db.start_session().await?;
-        db.session().start_transaction().await?;
-        if let Some(last_known_residual) = db.states().get::<BatteryResidualEnergy>().await?
-            && (MilliwattHours::from(last_known_residual) != battery_state.residual_millis())
-        {
-            let battery_log = BatteryLog::builder()
-                .residual_energy(battery_state.residual_millis().into())
-                .meter(battery_measurement)
-                .build();
-            db.battery_logs().insert(&battery_log).await?;
-        }
-        db.states().upsert(&BatteryResidualEnergy::from(battery_state.residual_millis())).await?;
-        db.session().commit_transaction().await?;
-
-        args.heartbeat.send().await;
-        sleep(polling_interval).await;
-    }
-
-    Ok(())
 }
 
 /// TODO: move to a separate module.

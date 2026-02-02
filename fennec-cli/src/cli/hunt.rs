@@ -67,5 +67,6 @@ pub async fn hunt(args: &HuntArgs) -> Result {
         fox_ess.set_schedule(&args.fox_ess_api.serial_number, time_slot_sequence.as_ref()).await?;
     }
 
+    args.heartbeat.send().await;
     Ok(())
 }

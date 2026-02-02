@@ -27,6 +27,7 @@ pub struct BatteryLog {
     pub timestamp: DateTime<Utc>,
 
     #[serde(rename = "residualEnergyKilowattHours")]
+    #[builder(into)]
     pub residual_energy: KilowattHours,
 
     #[serde(flatten)]

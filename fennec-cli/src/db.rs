@@ -12,6 +12,7 @@ pub mod battery_log;
 pub mod state;
 
 #[must_use]
+#[derive(Clone)]
 pub struct Db {
     client: Client,
     inner: Database,

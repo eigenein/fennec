@@ -1,4 +1,5 @@
 mod hunt;
+mod log;
 
 use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
 
@@ -8,7 +9,7 @@ use enumset::EnumSet;
 use http::Uri;
 use reqwest::Url;
 
-pub use self::hunt::hunt;
+pub use self::{hunt::hunt, log::log};
 use crate::{
     api::{heartbeat, home_assistant},
     core::{provider::Provider, working_mode::WorkingMode},

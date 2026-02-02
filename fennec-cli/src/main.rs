@@ -26,7 +26,11 @@ use crate::{
         log,
     },
     core::interval::Interval,
-    db::{Db, state::HourlyStandByPower},
+    db::{
+        Db,
+        battery_log::BatteryLogs,
+        state::{HourlyStandByPower, States},
+    },
     prelude::*,
     statistics::battery::BatteryEfficiency,
     tables::build_time_slot_sequence_table,
@@ -50,7 +54,7 @@ async fn main() -> Result {
                 Ok(())
             }
             BurrowCommand::Battery(args) => {
-                let battery_logs = Db::with_uri(&args.db.uri).await?.battery_logs();
+                let battery_logs = BatteryLogs::from(&Db::with_uri(&args.db.uri).await?);
                 let _ = BatteryEfficiency::try_estimate(
                     battery_logs.find(Interval::try_since(args.estimation.duration())?).await?,
                 )
@@ -74,7 +78,7 @@ async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .into_iter()
         .map(|state| (state.last_changed_at, state))
         .collect::<HourlyStandByPower>();
-    Db::with_uri(&args.db.uri).await?.states().set(&hourly_stand_by_power).await?;
+    States::from(&Db::with_uri(&args.db.uri).await?).set(&hourly_stand_by_power).await?;
     Ok(())
 }
 

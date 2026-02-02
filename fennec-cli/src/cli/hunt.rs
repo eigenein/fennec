@@ -5,7 +5,11 @@ use crate::{
     api::{foxess, modbus},
     cli::HuntArgs,
     core::{interval::Interval, solver::Solver},
-    db::{Db, state::HourlyStandByPower},
+    db::{
+        Db,
+        battery_log::BatteryLogs,
+        state::{HourlyStandByPower, States},
+    },
     prelude::*,
     statistics::battery::BatteryEfficiency,
     tables::{build_steps_table, build_time_slot_sequence_table},
@@ -14,7 +18,7 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn hunt(args: &HuntArgs) -> Result {
     let db = Db::with_uri(&args.db.uri).await?;
-    let statistics = db.states().get::<HourlyStandByPower>().await?.unwrap_or_default();
+    let statistics = States::from(&db).get::<HourlyStandByPower>().await?.unwrap_or_default();
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
@@ -33,7 +37,7 @@ pub async fn hunt(args: &HuntArgs) -> Result {
     let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
     let battery_efficiency = {
-        let battery_logs = db.battery_logs();
+        let battery_logs = BatteryLogs::from(&db);
         BatteryEfficiency::try_estimate(
             battery_logs.find(Interval::try_since(args.estimation.duration())?).await?,
         )

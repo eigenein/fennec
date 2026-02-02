@@ -11,7 +11,11 @@ use tokio::time::sleep;
 use crate::{
     api::{homewizard, modbus},
     cli::LogArgs,
-    db::{Db, battery_log::BatteryLog, state::BatteryResidualEnergy},
+    db::{
+        Db,
+        battery_log::{BatteryLog, BatteryLogs},
+        state::{BatteryResidualEnergy, States},
+    },
     prelude::*,
     quantity::energy::MilliwattHours,
 };
@@ -38,8 +42,7 @@ pub async fn log(args: LogArgs) -> Result {
             )?
         };
 
-        let last_known_residual_energy = db
-            .states()
+        let last_known_residual_energy = States::from(&db)
             .set(&BatteryResidualEnergy::from(battery_state.residual_millis()))
             .await?
             .map(MilliwattHours::from);
@@ -50,7 +53,7 @@ pub async fn log(args: LogArgs) -> Result {
                 .residual_energy(battery_state.residual_millis())
                 .meter(battery_measurement)
                 .build();
-            db.battery_logs().insert(&battery_log).await?;
+            BatteryLogs::from(&db).insert(&battery_log).await?;
         }
 
         args.heartbeat.send().await;

@@ -3,10 +3,7 @@ use std::fmt::Debug;
 use bson::doc;
 use mongodb::{Client, Database, error::ErrorKind, options::TimeseriesOptions};
 
-use crate::{
-    db::{battery_log::BatteryLogs, state::States},
-    prelude::*,
-};
+use crate::{db::battery_log::BatteryLogs, prelude::*};
 
 pub mod battery_log;
 pub mod state;
@@ -26,16 +23,8 @@ impl Db {
             .default_database()
             .context("MongoDB URI does not define the default database")?;
         let this = Self(inner);
-        BatteryLogs::initialize_on(&this).await?;
+        BatteryLogs::initialize(&this).await?;
         Ok(this)
-    }
-
-    pub fn states(&self) -> States {
-        States(self.0.collection(States::COLLECTION_NAME))
-    }
-
-    pub fn battery_logs(&self) -> BatteryLogs {
-        BatteryLogs(self.0.collection(BatteryLogs::COLLECTION_NAME))
     }
 
     #[instrument(skip_all, fields(name = name))]

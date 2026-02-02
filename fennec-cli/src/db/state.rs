@@ -4,6 +4,7 @@ use mongodb::{Collection, options::ReturnDocument};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{
+    db::Db,
     prelude::*,
     quantity::{energy::MilliwattHours, power::Kilowatts},
 };
@@ -47,10 +48,16 @@ impl State for HourlyStandByPower {
 
 /// Collection that contains current states preserved between the application runs.
 #[must_use]
-pub struct States(pub(super) Collection<Document>);
+pub struct States(Collection<Document>);
+
+impl From<&Db> for States {
+    fn from(db: &Db) -> Self {
+        Self(db.0.collection(Self::COLLECTION_NAME))
+    }
+}
 
 impl States {
-    pub(super) const COLLECTION_NAME: &'static str = "states";
+    const COLLECTION_NAME: &'static str = "states";
 
     #[instrument(skip_all, fields(id = ?S::ID))]
     pub async fn get<S: State>(&self) -> Result<Option<S>> {

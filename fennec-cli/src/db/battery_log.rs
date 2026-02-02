@@ -34,13 +34,19 @@ pub struct BatteryLog {
     pub meter: MeterMeasurement,
 }
 
-pub struct BatteryLogs(pub(super) Collection<BatteryLog>);
+pub struct BatteryLogs(Collection<BatteryLog>);
+
+impl From<&Db> for BatteryLogs {
+    fn from(db: &Db) -> Self {
+        Self(db.0.collection(Self::COLLECTION_NAME))
+    }
+}
 
 impl BatteryLogs {
-    pub(super) const COLLECTION_NAME: &'static str = "batteryLogs";
+    const COLLECTION_NAME: &'static str = "batteryLogs";
 
     #[instrument(skip_all)]
-    pub(super) async fn initialize_on(db: &Db) -> Result {
+    pub(super) async fn initialize(db: &Db) -> Result {
         let options = TimeseriesOptions::builder()
             .time_field("timestamp")
             .granularity(TimeseriesGranularity::Minutes)

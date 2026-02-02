@@ -32,7 +32,7 @@ derive_more = { version = "=2.1.1", features = ["full"] }
 dotenvy = "=0.15.7"
 enumset = "=1.1.10"
 futures-core = "=0.3.31"
-futures-util = "0.3.31"
+futures-util = "=0.3.31"
 http = "=1.4.0"
 humantime = "=2.3.0"
 itertools = "=0.14.0"

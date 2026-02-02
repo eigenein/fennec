@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
-    api::homewizard::MeterMeasurement,
+    api::homewizard::EnergyMetrics,
     core::interval::Interval,
     db::Db,
     prelude::*,
@@ -31,7 +31,7 @@ pub struct BatteryLog {
     pub residual_energy: KilowattHours,
 
     #[serde(flatten)]
-    pub meter: MeterMeasurement,
+    pub metrics: EnergyMetrics,
 }
 
 pub struct BatteryLogs(Collection<BatteryLog>);
@@ -58,8 +58,8 @@ impl BatteryLogs {
     pub async fn insert(&self, log: &BatteryLog) -> Result {
         info!(
             residual = ?log.residual_energy,
-            import = ?log.meter.import,
-            export = ?log.meter.export,
+            import = ?log.metrics.import,
+            export = ?log.metrics.export,
             "inserting the battery log…",
         );
         self.0.insert_one(log).await.context("failed to insert the battery log")?;

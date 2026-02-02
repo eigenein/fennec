@@ -66,8 +66,8 @@ impl BatteryEfficiency {
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
-            let imported_energy = log.meter.import - previous_measurement.meter.import;
-            let exported_energy = log.meter.export - previous_measurement.meter.export;
+            let imported_energy = log.metrics.import - previous_measurement.metrics.import;
+            let exported_energy = log.metrics.export - previous_measurement.metrics.export;
             let duration = log.timestamp - previous_measurement.timestamp;
             let residual_differential = log.residual_energy - previous_measurement.residual_energy;
 

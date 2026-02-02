@@ -35,13 +35,7 @@ pub async fn log(args: LogArgs) -> Result {
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
 
     while !should_terminate.load(Ordering::Relaxed) {
-        let (battery_measurement, battery_state) = {
-            tokio::try_join!(
-                battery_energy_meter.get_measurement(),
-                battery.read_energy_state(args.battery_registers),
-            )?
-        };
-
+        let battery_state = battery.read_energy_state(args.battery_registers).await?;
         let last_known_residual_energy = States::from(&db)
             .set(&BatteryResidualEnergy::from(battery_state.residual_millis()))
             .await?
@@ -49,11 +43,12 @@ pub async fn log(args: LogArgs) -> Result {
         if let Some(last_known_residual_energy) = last_known_residual_energy
             && (last_known_residual_energy != battery_state.residual_millis())
         {
-            let battery_log = BatteryLog::builder()
+            let metrics = battery_energy_meter.get_measurement().await?;
+            let log = BatteryLog::builder()
                 .residual_energy(battery_state.residual_millis())
-                .meter(battery_measurement)
+                .metrics(metrics)
                 .build();
-            BatteryLogs::from(&db).insert(&battery_log).await?;
+            BatteryLogs::from(&db).insert(&log).await?;
         }
 
         args.heartbeat.send().await;

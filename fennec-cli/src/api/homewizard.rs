@@ -19,8 +19,8 @@ impl Client {
     }
 
     #[instrument(skip_all, fields(host = self.url.host_str()))]
-    pub async fn get_measurement(&self) -> Result<MeterMeasurement> {
-        let measurement: MeterMeasurement = self
+    pub async fn get_measurement(&self) -> Result<EnergyMetrics> {
+        let measurement: EnergyMetrics = self
             .inner
             .get(self.url.clone())
             .send()
@@ -36,7 +36,7 @@ impl Client {
 
 #[must_use]
 #[derive(Copy, Clone, Serialize, Deserialize, Builder)]
-pub struct MeterMeasurement {
+pub struct EnergyMetrics {
     #[serde(rename = "importKilowattHours", alias = "total_power_import_kwh")]
     pub import: KilowattHours,
 
@@ -67,7 +67,7 @@ mod tests {
             "active_power_factor": 1.0,
             "active_frequency_hz": 49.99
         }"#;
-        let _ = serde_json::from_str::<MeterMeasurement>(body)?;
+        let _ = serde_json::from_str::<EnergyMetrics>(body)?;
         Ok(())
     }
 
@@ -109,7 +109,7 @@ mod tests {
                 }
             ]
         }"#;
-        let _ = serde_json::from_str::<MeterMeasurement>(body)?;
+        let _ = serde_json::from_str::<EnergyMetrics>(body)?;
         Ok(())
     }
 }

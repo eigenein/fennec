@@ -1,15 +1,8 @@
-use tokio_modbus::{
-    Slave,
-    client::{Reader, tcp::attach_slave},
-};
+use derive_more::From;
+use tokio_modbus::client::Reader;
 
 use crate::{
-    cli::{
-        BatteryConnectionArgs,
-        BatteryEnergyStateRegisters,
-        BatteryRegisters,
-        BatterySettingRegisters,
-    },
+    cli::battery::{BatteryEnergyStateRegisters, BatteryRegisters, BatterySettingRegisters},
     prelude::*,
     quantity::{
         energy::{DecawattHours, KilowattHours, MilliwattHours},
@@ -18,23 +11,10 @@ use crate::{
 };
 
 #[must_use]
+#[derive(From)]
 pub struct Client(tokio_modbus::client::Context);
 
 impl Client {
-    #[instrument(skip_all)]
-    pub async fn connect(args: &BatteryConnectionArgs) -> Result<Self> {
-        info!(
-            host = args.host,
-            port = args.port,
-            slave_id = args.slave_id,
-            "connecting to the battery…",
-        );
-        let tcp_stream = tokio::net::TcpStream::connect((args.host.as_str(), args.port))
-            .await
-            .context("failed to connect to the battery")?;
-        Ok(Self(attach_slave(tcp_stream, Slave(args.slave_id))))
-    }
-
     #[instrument(skip_all)]
     pub async fn read_energy_state(
         &mut self,

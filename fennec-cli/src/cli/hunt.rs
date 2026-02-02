@@ -1,18 +1,73 @@
 use chrono::{Local, Timelike};
+use clap::Parser;
+use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
-    api::{foxess, modbus},
-    cli::HuntArgs,
-    core::{interval::Interval, solver::Solver},
+    api::foxess,
+    cli::{
+        battery::BatteryArgs,
+        db::DbArgs,
+        estimation::EstimationArgs,
+        foxess::FoxEssApiArgs,
+        heartbeat::HeartbeatArgs,
+    },
+    core::{interval::Interval, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{
         battery_log::BatteryLogs,
         state::{HourlyStandByPower, States},
     },
     prelude::*,
+    quantity::rate::KilowattHourRate,
     statistics::battery::BatteryEfficiency,
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
+
+#[derive(Parser)]
+pub struct HuntArgs {
+    /// Do not push the final schedule to FoxESS Cloud (dry run).
+    #[expect(clippy::doc_markdown)]
+    #[clap(long)]
+    scout: bool,
+
+    #[clap(long = "provider", env = "PROVIDER", default_value = "next-energy")]
+    provider: Provider,
+
+    #[clap(
+        long = "working-modes",
+        env = "WORKING_MODES",
+        value_delimiter = ',',
+        num_args = 1..,
+        default_value = "backup,balance,charge",
+    )]
+    working_modes: Vec<WorkingMode>,
+
+    /// Battery degradation rate per kilowatt-hour of the energy flow.
+    #[clap(long, env = "DEGRADATION_RATE", default_value = "0")]
+    degradation_rate: KilowattHourRate,
+
+    #[clap(flatten)]
+    battery: BatteryArgs,
+
+    #[clap(flatten)]
+    fox_ess_api: FoxEssApiArgs,
+
+    #[clap(flatten)]
+    estimation: EstimationArgs,
+
+    #[clap(flatten)]
+    db: DbArgs,
+
+    #[clap(flatten)]
+    heartbeat: HeartbeatArgs,
+}
+
+impl HuntArgs {
+    #[must_use]
+    pub fn working_modes(&self) -> EnumSet<WorkingMode> {
+        self.working_modes.iter().copied().collect()
+    }
+}
 
 #[instrument(skip_all)]
 pub async fn hunt(args: &HuntArgs) -> Result {
@@ -28,10 +83,8 @@ pub async fn hunt(args: &HuntArgs) -> Result {
     ensure!(!grid_rates.is_empty());
     info!(len = grid_rates.len(), "fetched energy rates");
 
-    let battery_state = modbus::Client::connect(&args.battery.connection)
-        .await?
-        .read_battery_state(args.battery.registers)
-        .await?;
+    let battery_state =
+        args.battery.connection.connect().await?.read_battery_state(args.battery.registers).await?;
     let min_state_of_charge = battery_state.settings.min_state_of_charge;
     let max_state_of_charge = battery_state.settings.max_state_of_charge;
 

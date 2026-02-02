@@ -6,11 +6,17 @@ use std::{
     time::Duration,
 };
 
+use clap::Parser;
+use reqwest::Url;
 use tokio::time::sleep;
 
 use crate::{
-    api::{homewizard, modbus},
-    cli::LogArgs,
+    api::homewizard,
+    cli::{
+        battery::{BatteryConnectionArgs, BatteryEnergyStateRegisters},
+        db::DbArgs,
+        heartbeat::HeartbeatArgs,
+    },
     db::{
         battery_log::{BatteryLog, BatteryLogs},
         state::{BatteryResidualEnergy, States},
@@ -18,6 +24,43 @@ use crate::{
     prelude::*,
     quantity::energy::MilliwattHours,
 };
+
+#[derive(Parser)]
+pub struct LogArgs {
+    #[clap(long, env = "BATTERY_POLLING_INTERVAL", default_value = "5s")]
+    battery_polling_interval: humantime::Duration,
+
+    #[clap(long, env = "METER_POLLING_INTERVAL", default_value = "5min")]
+    meter_polling_interval: humantime::Duration,
+
+    #[clap(long, env = "TOTAL_ENERGY_METER_URL")]
+    total_energy_meter_url: Url,
+
+    #[clap(long, env = "BATTERY_ENERGY_METER_URL")]
+    battery_energy_meter_url: Url,
+
+    #[clap(flatten)]
+    db: DbArgs,
+
+    #[clap(flatten)]
+    battery_connection: BatteryConnectionArgs,
+
+    #[clap(flatten)]
+    battery_registers: BatteryEnergyStateRegisters,
+
+    #[clap(flatten)]
+    battery_heartbeat: HeartbeatArgs,
+}
+
+impl LogArgs {
+    fn battery_polling_interval(&self) -> Duration {
+        self.battery_polling_interval.into()
+    }
+
+    fn meter_polling_interval(&self) -> Duration {
+        self.meter_polling_interval.into()
+    }
+}
 
 pub async fn log(args: LogArgs) -> Result {
     // TODO: implement proper signal handling with cancelling the `sleep` call.
@@ -37,7 +80,7 @@ async fn log_battery(args: &LogArgs, should_terminate: Arc<AtomicBool>) -> Resul
     info!("verifying energy meter connection…");
     let _ = battery_energy_meter.get_measurement().await?;
 
-    let mut battery = modbus::Client::connect(&args.battery_connection).await?;
+    let mut battery = args.battery_connection.connect().await?;
     let db = args.db.connect().await?;
 
     while !should_terminate.load(Ordering::Relaxed) {

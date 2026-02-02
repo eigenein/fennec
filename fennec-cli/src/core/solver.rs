@@ -10,7 +10,7 @@ use itertools::Itertools;
 
 use crate::{
     api::modbus::BatteryState,
-    cli::BatteryPowerLimits,
+    cli::battery::BatteryPowerLimits,
     core::{
         interval::Interval,
         solver::{battery::Battery, step::Step},

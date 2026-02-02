@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
-    cli::BatteryPowerLimits,
+    cli::battery::BatteryPowerLimits,
     core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
     prelude::*,
     quantity::{

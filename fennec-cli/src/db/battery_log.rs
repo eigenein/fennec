@@ -5,7 +5,6 @@ use chrono::{DateTime, Local, TimeZone};
 use futures_core::Stream;
 use mongodb::{
     Collection,
-    Database,
     options::{TimeseriesGranularity, TimeseriesOptions},
 };
 use serde::{Deserialize, Serialize};
@@ -14,7 +13,7 @@ use turso::Connection;
 use crate::{
     api::homewizard::MeterMeasurement,
     core::interval::Interval,
-    db::timestamp::serialize_timestamp,
+    db::{Db, timestamp::serialize_timestamp},
     prelude::{instrument, *},
     quantity::{Quantity, energy::KilowattHours},
 };
@@ -113,27 +112,12 @@ pub struct BatteryLogs(pub(super) Collection<BatteryLog>);
 impl BatteryLogs {
     pub(super) const COLLECTION_NAME: &str = "batteryLogs";
 
-    #[instrument(skip_all)]
-    pub(super) async fn initialize_on(db: &Database) -> Result {
+    pub(super) async fn initialize_on(db: &Db) -> Result {
         let options = TimeseriesOptions::builder()
             .time_field("timestamp")
             .granularity(TimeseriesGranularity::Minutes)
             .build();
-        if let Err(error) = db
-            .create_collection(Self::COLLECTION_NAME)
-            .timeseries(options)
-            .await
-            .context("failed to create the battery log collection")
-        {
-            // FIXME
-            warn!("{error:#}");
-        }
-        db.run_command(doc! {
-            "collMod": Self::COLLECTION_NAME,
-            "expireAfterSeconds": 365 * 24 * 60 * 60, // FIXME: make configurable.
-        })
-        .await?;
-        Ok(())
+        db.create_timeseries(Self::COLLECTION_NAME, options).await
     }
 
     #[instrument(skip_all)]

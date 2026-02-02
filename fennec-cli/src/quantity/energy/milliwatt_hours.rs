@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 ///
 /// This awkward unit is used to track when the reported residual energy of a battery changes.
 #[derive(Copy, Clone, Eq, PartialEq, From, Into, Serialize, Deserialize)]
-#[into(turso::Value)]
 pub struct MilliwattHours(i64);
 
 impl Debug for MilliwattHours {

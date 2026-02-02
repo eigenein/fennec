@@ -1,28 +1,30 @@
-use async_stream::try_stream;
 use bon::Builder;
 use bson::doc;
-use chrono::{DateTime, Local, TimeZone};
-use futures_core::Stream;
+use chrono::{DateTime, Utc};
 use mongodb::{
+    ClientSession,
     Collection,
+    SessionCursor,
     options::{TimeseriesGranularity, TimeseriesOptions},
 };
 use serde::{Deserialize, Serialize};
-use turso::Connection;
+use serde_with::serde_as;
 
 use crate::{
     api::homewizard::MeterMeasurement,
     core::interval::Interval,
-    db::{Db, timestamp::serialize_timestamp},
-    prelude::{instrument, *},
-    quantity::{Quantity, energy::KilowattHours},
+    db::SessionDb,
+    prelude::*,
+    quantity::energy::KilowattHours,
 };
 
-#[expect(clippy::unsafe_derive_deserialize)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Builder)]
 pub struct BatteryLog {
-    #[serde(rename = "timestamp", serialize_with = "serialize_timestamp")]
-    pub timestamp: DateTime<Local>,
+    #[serde_as(as = "bson::serde_helpers::datetime::FromChrono04DateTime")]
+    #[serde(rename = "timestamp")]
+    #[builder(default = Utc::now())]
+    pub timestamp: DateTime<Utc>,
 
     #[serde(rename = "residualEnergyKilowattHours")]
     pub residual_energy: KilowattHours,
@@ -31,88 +33,16 @@ pub struct BatteryLog {
     pub meter: MeterMeasurement,
 }
 
-impl BatteryLog {
-    #[deprecated]
-    #[instrument(skip_all)]
-    pub async fn insert_into(&self, connection: &Connection) -> Result {
-        // language=sqlite
-        const SQL: &str = r"
-            INSERT INTO battery_logs (
-                timestamp_millis,
-                residual_energy_kwh,
-                import_kwh,
-                export_kwh
-            ) VALUES (?1, ?2, ?3, ?4)
-        ";
-
-        info!(
-            residual = ?self.residual_energy,
-            import = ?self.meter.import,
-            export = ?self.meter.export,
-            "inserting the battery log…",
-        );
-        connection
-            .prepare_cached(SQL)
-            .await?
-            .execute((
-                self.timestamp.timestamp_millis(),
-                self.residual_energy,
-                self.meter.import,
-                self.meter.export,
-            ))
-            .await?;
-        Ok(())
-    }
-
-    #[deprecated]
-    #[instrument(skip_all)]
-    pub async fn select_from(
-        connection: &Connection,
-        interval: Interval,
-    ) -> Result<impl Stream<Item = Result<Self>>> {
-        // language=sqlite
-        const SQL: &str = r"
-            SELECT
-                timestamp_millis,   -- 0
-                import_kwh,         -- 1
-                export_kwh,         -- 2
-                residual_energy_kwh -- 3
-            FROM battery_logs
-            WHERE timestamp_millis >= ?1 AND timestamp_millis < ?2
-            ORDER BY timestamp_millis
-        ";
-
-        info!(?interval, "querying battery logs…");
-        let mut rows = connection
-            .prepare_cached(SQL)
-            .await?
-            .query((interval.start.timestamp_millis(), interval.end.timestamp_millis()))
-            .await
-            .context("failed to query rows")?;
-        let stream = try_stream! {
-            while let Some(row) = rows.next().await.context("failed to fetch next row")? {
-                yield Self::builder()
-                    .timestamp(Local.timestamp_millis_opt(row.get(0)?).unwrap())
-                    .meter(
-                        MeterMeasurement::builder()
-                            .import(Quantity(row.get(1)?))
-                            .export(Quantity(row.get(2)?))
-                        .build()
-                    )
-                    .residual_energy(Quantity(row.get(3)?))
-                    .build()
-            }
-        };
-        Ok(stream)
-    }
+pub struct BatteryLogs<'session> {
+    pub(super) collection: Collection<BatteryLog>,
+    pub(super) session: &'session mut ClientSession,
 }
 
-pub struct BatteryLogs(pub(super) Collection<BatteryLog>);
+impl<'session> BatteryLogs<'session> {
+    pub(super) const COLLECTION_NAME: &'static str = "batteryLogs";
 
-impl BatteryLogs {
-    pub(super) const COLLECTION_NAME: &str = "batteryLogs";
-
-    pub(super) async fn initialize_on(db: &Db) -> Result {
+    #[instrument(skip_all)]
+    pub(super) async fn initialize_on(db: &mut SessionDb) -> Result {
         let options = TimeseriesOptions::builder()
             .time_field("timestamp")
             .granularity(TimeseriesGranularity::Minutes)
@@ -121,8 +51,29 @@ impl BatteryLogs {
     }
 
     #[instrument(skip_all)]
-    pub async fn insert(&self, log: &BatteryLog) -> Result {
-        self.0.insert_one(log).await?;
+    pub async fn insert(&mut self, log: &BatteryLog) -> Result {
+        info!(
+            residual = ?log.residual_energy,
+            import = ?log.meter.import,
+            export = ?log.meter.export,
+            "inserting the battery log…",
+        );
+        self.collection
+            .insert_one(log)
+            .session(&mut *self.session)
+            .await
+            .context("failed to insert the battery log")?;
         Ok(())
+    }
+
+    #[instrument(skip_all)]
+    pub async fn find(&'session mut self, interval: Interval) -> Result<SessionCursor<BatteryLog>> {
+        info!(?interval, "querying battery logs…");
+        self.collection
+            .find(doc! { "timestamp": { "$gte": interval.start, "$lt": interval.end } })
+            .sort(doc! { "timestamp": -1 })
+            .session(&mut *self.session)
+            .await
+            .context("failed to query the battery logs")
     }
 }

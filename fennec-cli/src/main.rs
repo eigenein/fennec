@@ -23,7 +23,6 @@ use chrono::{Local, Timelike};
 use clap::{Parser, crate_version};
 use itertools::Itertools;
 use tokio::time::sleep;
-use turso::transaction::{Transaction, TransactionBehavior};
 
 use crate::{
     api::{foxess, homewizard, modbus},
@@ -37,13 +36,10 @@ use crate::{
         HuntArgs,
         LogArgs,
     },
-    core::solver::Solver,
+    core::{interval::Interval, solver::Solver},
     db::{
         Db,
         battery_log::BatteryLog,
-        legacy_db::LegacyDb,
-        legacy_key::LegacyKey,
-        scalars::LegacyScalars,
         state::{BatteryResidualEnergy, HourlyStandByPower},
     },
     prelude::*,
@@ -74,11 +70,12 @@ async fn main() -> Result {
                 args.heartbeat.send().await;
             }
             BurrowCommand::Battery(args) => {
-                let _ = BatteryEfficiency::try_estimate_from(
-                    &LegacyDb::connect(&args.db.path, false).await?,
-                    args.estimation.duration(),
-                )
-                .await?;
+                let mut db = Db::with_uri(&args.db.uri).await?.start_session().await?;
+                let mut battery_logs = db
+                    .battery_logs()
+                    .find(Interval::try_since(args.estimation.duration())?)
+                    .await?;
+                let _ = BatteryEfficiency::try_estimate(battery_logs.stream(db.session())).await?;
             }
             BurrowCommand::FoxEss(args) => {
                 burrow_fox_ess(args).await?;
@@ -93,12 +90,8 @@ async fn main() -> Result {
 /// TODO: move to a separate module.
 #[instrument(skip_all)]
 async fn hunt(args: &HuntArgs) -> Result {
-    let statistics = Db::with_uri(&args.db.uri)
-        .await?
-        .states()
-        .get::<HourlyStandByPower>()
-        .await?
-        .unwrap_or_default();
+    let mut db = Db::with_uri(&args.db.uri).await?.start_session().await?;
+    let statistics = db.states().get::<HourlyStandByPower>().await?.unwrap_or_default();
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone())?;
     let working_modes = args.working_modes();
@@ -116,11 +109,11 @@ async fn hunt(args: &HuntArgs) -> Result {
     let min_state_of_charge = battery_state.settings.min_state_of_charge;
     let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
-    let battery_efficiency = BatteryEfficiency::try_estimate_from(
-        &LegacyDb::connect(&args.db.path, false).await?,
-        args.estimation.duration(),
-    )
-    .await?;
+    let battery_efficiency = {
+        let mut battery_logs =
+            db.battery_logs().find(Interval::try_since(args.estimation.duration())?).await?;
+        BatteryEfficiency::try_estimate(battery_logs.stream(db.session())).await?
+    };
 
     let solution = Solver::builder()
         .grid_rates(&grid_rates)
@@ -163,7 +156,6 @@ async fn log(args: LogArgs) -> Result {
     let polling_interval: Duration = args.polling_interval();
     let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-    drop(LegacyDb::connect(&args.db.path, true).await?);
     let db = Db::with_uri(args.db.uri).await?;
 
     // TODO: implement proper signal handling with cancelling the `sleep` call.
@@ -171,8 +163,6 @@ async fn log(args: LogArgs) -> Result {
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
 
     while !should_terminate.load(Ordering::Relaxed) {
-        let now = Local::now();
-
         let (battery_measurement, battery_state) = {
             tokio::try_join!(
                 battery_energy_meter.get_measurement(),
@@ -180,33 +170,19 @@ async fn log(args: LogArgs) -> Result {
             )?
         };
 
-        let mut legacy_db = LegacyDb::connect(&args.db.path, false).await?;
-        let tx = Transaction::new(&mut legacy_db, TransactionBehavior::Deferred).await?;
-
-        let last_known_residual =
-            LegacyScalars(&tx).select::<MilliwattHours>(LegacyKey::BatteryResidualEnergy).await?;
-        let battery_log = BatteryLog::builder()
-            .timestamp(now)
-            .residual_energy(battery_state.residual_millis().into())
-            .meter(battery_measurement)
-            .build();
-        if let Some(last_known_residual) = last_known_residual
-            && (last_known_residual != battery_state.residual_millis())
-        {
-            battery_log.insert_into(&tx).await?;
-        }
+        let mut db = db.start_session().await?;
+        db.session().start_transaction().await?;
         if let Some(last_known_residual) = db.states().get::<BatteryResidualEnergy>().await?
             && (MilliwattHours::from(last_known_residual) != battery_state.residual_millis())
         {
+            let battery_log = BatteryLog::builder()
+                .residual_energy(battery_state.residual_millis().into())
+                .meter(battery_measurement)
+                .build();
             db.battery_logs().insert(&battery_log).await?;
         }
-        LegacyScalars(&tx)
-            .upsert(LegacyKey::BatteryResidualEnergy, battery_state.residual_millis())
-            .await?;
         db.states().upsert(&BatteryResidualEnergy::from(battery_state.residual_millis())).await?;
-
-        tx.commit().await?;
-        drop(legacy_db);
+        db.session().commit_transaction().await?;
 
         args.heartbeat.send().await;
         sleep(polling_interval).await;
@@ -227,7 +203,13 @@ async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .into_iter()
         .map(|state| (state.last_changed_at, state))
         .collect::<HourlyStandByPower>();
-    Db::with_uri(&args.db.uri).await?.states().upsert(&hourly_stand_by_power).await?;
+    Db::with_uri(&args.db.uri)
+        .await?
+        .start_session()
+        .await?
+        .states()
+        .upsert(&hourly_stand_by_power)
+        .await?;
     Ok(())
 }
 

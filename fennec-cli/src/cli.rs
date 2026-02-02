@@ -54,9 +54,6 @@ pub enum Command {
 
 #[derive(Parser)]
 pub struct DbArgs {
-    #[clap(long = "database-path", env = "DATABASE_PATH", default_value = "fennec.db")]
-    pub path: PathBuf,
-
     #[clap(long = "mongodb-uri", env = "MONGODB_URI")]
     pub uri: Url,
 }

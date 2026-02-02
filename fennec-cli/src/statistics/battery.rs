@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use bon::bon;
 use futures_core::TryStream;
@@ -10,11 +10,9 @@ use linfa::{
 };
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
-use tokio::pin;
 
 use crate::{
-    core::interval::Interval,
-    db::{battery_log::BatteryLog, legacy_db::LegacyDb},
+    db::battery_log::BatteryLog,
     fmt::FormattedEfficiency,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},
@@ -57,28 +55,11 @@ impl BatteryEfficiency {
         self.charging * self.discharging
     }
 
-    pub async fn try_estimate_from(db: &LegacyDb, duration: Duration) -> Result<Self> {
-        let stream = BatteryLog::select_from(db, Interval::try_since(duration)?)
-            .await
-            .context("failed to query the measurements")?;
-        pin!(stream);
-        let efficiency = Self::try_estimate(stream)
-            .await
-            .context("failed to estimate the battery efficiency")?;
-        info!(
-            parasitic_load = ?efficiency.parasitic_load,
-            round_trip = ?FormattedEfficiency(efficiency.round_trip()),
-            charging = ?FormattedEfficiency(efficiency.charging),
-            discharging = ?FormattedEfficiency(efficiency.discharging),
-            "completed",
-        );
-        Ok(efficiency)
-    }
-
     #[instrument(skip_all)]
     pub async fn try_estimate<S>(mut battery_logs: S) -> Result<Self>
     where
-        S: TryStream<Ok = BatteryLog, Error = Error> + Unpin,
+        S: TryStream<Ok = BatteryLog> + Unpin,
+        <S as TryStream>::Error: std::error::Error + Send + Sync + 'static,
     {
         let mut previous_measurement =
             battery_logs.try_next().await?.context("empty battery log stream")?;
@@ -115,11 +96,19 @@ impl BatteryEfficiency {
         let r_squared = Self::r_squared(&regression, &dataset);
         info!(r_squared, "evaluated");
 
-        Self::builder()
+        let this = Self::builder()
             .charging(regression.params()[0])
             .discharging(-1.0 / regression.params()[1])
             .parasitic_load(Quantity(-regression.params()[2]))
-            .build()
+            .build()?;
+        info!(
+            parasitic_load = ?this.parasitic_load,
+            round_trip = ?FormattedEfficiency(this.round_trip()),
+            charging = ?FormattedEfficiency(this.charging),
+            discharging = ?FormattedEfficiency(this.discharging),
+            "completed",
+        );
+        Ok(this)
     }
 
     fn r_squared(

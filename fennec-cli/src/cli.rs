@@ -1,3 +1,4 @@
+mod heartbeat;
 mod hunt;
 mod log;
 
@@ -11,9 +12,9 @@ use reqwest::Url;
 
 pub use self::{hunt::hunt, log::log};
 use crate::{
-    api::{heartbeat, home_assistant},
+    api::home_assistant,
+    cli::heartbeat::HeartbeatArgs,
     core::{provider::Provider, working_mode::WorkingMode},
-    prelude::*,
     quantity::{power::Kilowatts, rate::KilowattHourRate},
 };
 
@@ -23,22 +24,6 @@ use crate::{
 pub struct Args {
     #[command(subcommand)]
     pub command: Command,
-}
-
-#[derive(Parser)]
-pub struct HeartbeatArgs {
-    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
-    pub url: Option<Url>,
-}
-
-impl HeartbeatArgs {
-    pub async fn send(&self) {
-        if let Some(url) = &self.url
-            && let Err(error) = heartbeat::send(url.clone()).await
-        {
-            warn!("failed to send the heartbeat: {error:#}");
-        }
-    }
 }
 
 #[derive(Subcommand)]

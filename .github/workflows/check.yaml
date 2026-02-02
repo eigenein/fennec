@@ -32,7 +32,7 @@ jobs:
         run: rustup update --no-self-update
 
       - name: 📥 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: ⚡️ Rust Cache
         uses: Swatinem/rust-cache@v2

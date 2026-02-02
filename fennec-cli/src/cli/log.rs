@@ -22,11 +22,15 @@ use crate::{
 
 /// TODO: separate loops and intervals for battery and P1 loggers.
 pub async fn log(args: LogArgs) -> Result {
+    let polling_interval: Duration = args.polling_interval();
+
     // TODO: this one should be independently fallible:
     // let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
 
-    let polling_interval: Duration = args.polling_interval();
     let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
+    info!("verifying energy meter connection…");
+    let _ = battery_energy_meter.get_measurement().await?;
+
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
     let db = Db::with_uri(args.db.uri).await?;
 

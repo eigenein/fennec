@@ -6,6 +6,7 @@ use mongodb::{Client, Database, error::ErrorKind, options::TimeseriesOptions};
 use crate::{db::battery_log::BatteryLogs, prelude::*};
 
 pub mod battery_log;
+pub mod meter_log;
 pub mod state;
 
 #[must_use]

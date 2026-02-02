@@ -18,6 +18,7 @@ use crate::{
     quantity::energy::KilowattHours,
 };
 
+/// Battery energy meter entry.
 #[serde_as]
 #[derive(Serialize, Deserialize, Builder)]
 pub struct BatteryLog {

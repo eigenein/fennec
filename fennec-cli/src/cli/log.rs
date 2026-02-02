@@ -19,6 +19,7 @@ use crate::{
     },
     db::{
         battery_log::{BatteryLog, BatteryLogs},
+        meter_log::MeterLog,
         state::{BatteryResidualEnergy, States},
     },
     prelude::*,
@@ -93,10 +94,9 @@ impl LogArgs {
             if let Some(last_known_residual_energy) = last_known_residual_energy
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
-                let metrics = battery_energy_meter.get_measurement().await?;
                 let log = BatteryLog::builder()
                     .residual_energy(battery_state.residual_millis())
-                    .metrics(metrics)
+                    .metrics(battery_energy_meter.get_measurement().await?)
                     .build();
                 BatteryLogs::from(&db).insert(&log).await?;
             }
@@ -113,7 +113,8 @@ impl LogArgs {
         let total_energy_meter = homewizard::Client::new(self.total_energy_meter_url.clone())?;
 
         while !should_terminate.load(Ordering::Relaxed) {
-            let metrics = total_energy_meter.get_measurement().await?;
+            let log =
+                MeterLog::builder().metrics(total_energy_meter.get_measurement().await?).build();
             // TODO: heartbeat.
             sleep(polling_interval).await;
         }

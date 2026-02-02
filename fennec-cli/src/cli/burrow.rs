@@ -1,14 +1,13 @@
-use std::path::PathBuf;
-
 use clap::{Parser, Subcommand};
+use comfy_table::{Cell, Table, modifiers, presets};
 
 use crate::{
     api::foxess,
-    cli::{HomeAssistantArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
+    cli::{db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::interval::Interval,
-    db::{battery::BatteryLog, state::HourlyStandByPower},
+    db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
-    statistics::battery::BatteryEfficiency,
+    statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
     tables::build_time_slot_sequence_table,
 };
 
@@ -21,8 +20,8 @@ pub struct BurrowArgs {
 impl BurrowArgs {
     pub async fn burrow(self) -> Result {
         match self.command {
-            BurrowCommand::Statistics(args) => args.burrow().await,
             BurrowCommand::Battery(args) => args.burrow().await,
+            BurrowCommand::Consumption(args) => args.burrow().await,
             BurrowCommand::FoxEss(args) => args.burrow().await,
         }
     }
@@ -30,43 +29,14 @@ impl BurrowArgs {
 
 #[derive(Subcommand)]
 pub enum BurrowCommand {
-    /// Gather consumption and battery statistics.
-    Statistics(Box<BurrowStatisticsArgs>),
-
     /// Estimate battery efficiency parameters.
     Battery(BurrowBatteryArgs),
 
+    /// Estimate net consumption profile.
+    Consumption(BurrowConsumptionArgs),
+
     /// Test FoxESS Cloud API connectivity.
     FoxEss(BurrowFoxEssArgs),
-}
-
-#[derive(Parser)]
-pub struct BurrowStatisticsArgs {
-    #[clap(flatten)]
-    home_assistant: HomeAssistantArgs,
-
-    #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
-    statistics_path: PathBuf,
-
-    #[clap(flatten)]
-    db: DbArgs,
-}
-
-impl BurrowStatisticsArgs {
-    #[instrument(skip_all)]
-    async fn burrow(self) -> Result {
-        let history_period = self.home_assistant.history_period();
-        let hourly_stand_by_power = self
-            .home_assistant
-            .connection
-            .new_client()
-            .get_energy_history(&self.home_assistant.entity_id, &history_period)?
-            .into_iter()
-            .map(|state| (state.last_changed_at, state))
-            .collect::<HourlyStandByPower>();
-        self.db.connect().await?.set_state(&hourly_stand_by_power).await?;
-        Ok(())
-    }
 }
 
 #[derive(Parser)]
@@ -81,9 +51,42 @@ pub struct BurrowBatteryArgs {
 impl BurrowBatteryArgs {
     async fn burrow(self) -> Result {
         let db = self.db.connect().await?;
-        let battery_logs =
+        let logs =
             db.find_logs::<BatteryLog>(Interval::try_since(self.estimation.duration())?).await?;
-        let _ = BatteryEfficiency::try_estimate(battery_logs).await?;
+        let _ = BatteryEfficiency::try_estimate(logs).await?;
+        Ok(())
+    }
+}
+
+#[derive(Parser)]
+pub struct BurrowConsumptionArgs {
+    #[clap(flatten)]
+    db: DbArgs,
+
+    #[clap(flatten)]
+    estimation: EstimationArgs,
+}
+
+impl BurrowConsumptionArgs {
+    async fn burrow(self) -> Result {
+        let db = self.db.connect().await?;
+        let logs = db
+            .find_logs::<ConsumptionLog>(Interval::try_since(self.estimation.duration())?)
+            .await?;
+        let statistics = ConsumptionStatistics::try_estimate(logs).await?;
+        let mut table = Table::new();
+        table
+            .load_preset(presets::UTF8_FULL_CONDENSED)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS);
+        table.enforce_styling();
+        table.set_header(vec!["Hour", "Power"]);
+        for (hour, power) in statistics.hourly.iter().enumerate() {
+            table.add_row(vec![
+                Cell::new(hour),
+                power.map(Cell::new).unwrap_or_else(|| Cell::new("n/a")),
+            ]);
+        }
+        println!("{table}");
         Ok(())
     }
 }

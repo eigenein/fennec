@@ -24,14 +24,14 @@ use crate::{
         power::Kilowatts,
         rate::KilowattHourRate,
     },
-    statistics::battery::BatteryEfficiency,
+    statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
 };
 
 #[derive(Builder)]
 #[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
     grid_rates: &'a [(Interval, KilowattHourRate)],
-    hourly_stand_by_power: &'a [Option<Kilowatts>; 24],
+    consumption_statistics: &'a ConsumptionStatistics,
     working_modes: EnumSet<WorkingMode>,
     battery_state: BatteryState,
     battery_power_limits: BatteryPowerLimits,
@@ -86,8 +86,7 @@ impl Solver<'_> {
             }
 
             // Average stand-by power at this hour of a day:
-            let stand_by_power = self.hourly_stand_by_power[interval.start.hour() as usize]
-                .unwrap_or(Kilowatts::ZERO);
+            let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
             net_loss_without_battery += self.loss(grid_rate, stand_by_power * interval.duration());
 
             // Calculate partial solutions for the current hour:

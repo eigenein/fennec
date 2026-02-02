@@ -8,10 +8,10 @@ use crate::{
     api::{foxess, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::{interval::Interval, provider::Provider, solver::Solver, working_mode::WorkingMode},
-    db::{battery::BatteryLog, state::HourlyStandByPower},
+    db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
     quantity::rate::KilowattHourRate,
-    statistics::battery::BatteryEfficiency,
+    statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
     tables::{build_steps_table, build_time_slot_sequence_table},
 };
 
@@ -65,7 +65,6 @@ impl HuntArgs {
     #[instrument(skip_all)]
     pub async fn hunt(self) -> Result {
         let db = self.db.connect().await?;
-        let statistics = db.get_state::<HourlyStandByPower>().await?.unwrap_or_default();
 
         let fox_ess = foxess::Api::new(self.fox_ess_api.api_key.clone())?;
         let working_modes = self.working_modes();
@@ -86,16 +85,19 @@ impl HuntArgs {
         let min_state_of_charge = battery_state.settings.min_state_of_charge;
         let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
+        let estimation_interval = Interval::try_since(self.estimation.duration())?;
         let battery_efficiency = {
-            let battery_logs = db
-                .find_logs::<BatteryLog>(Interval::try_since(self.estimation.duration())?)
-                .await?;
+            let battery_logs = db.find_logs::<BatteryLog>(estimation_interval).await?;
             BatteryEfficiency::try_estimate(battery_logs).await?
+        };
+        let consumption_statistics = {
+            let consumption_logs = db.find_logs::<ConsumptionLog>(estimation_interval).await?;
+            ConsumptionStatistics::try_estimate(consumption_logs).await?
         };
 
         let solution = Solver::builder()
             .grid_rates(&grid_rates)
-            .hourly_stand_by_power(&statistics.into())
+            .consumption_statistics(&consumption_statistics)
             .working_modes(working_modes)
             .battery_state(battery_state)
             .battery_power_limits(self.battery.power_limits)

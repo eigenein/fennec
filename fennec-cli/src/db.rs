@@ -56,6 +56,7 @@ impl Db {
 
     /// Retrieve the typed global state.
     #[instrument(skip_all, fields(id = ?S::ID))]
+    #[expect(dead_code)]
     pub async fn get_state<S: State>(&self) -> Result<Option<S>> {
         info!("fetching the state…");
         let filter = doc! { "_id": S::ID };

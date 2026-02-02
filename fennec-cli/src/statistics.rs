@@ -1,2 +1,2 @@
 pub mod battery;
-pub mod household;
+pub mod consumption;

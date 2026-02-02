@@ -17,7 +17,7 @@ pub trait Log: Send + Sync + Serialize + DeserializeOwned {
     const EXPIRE_AFTER_SECONDS: u32 = 365 * 24 * 60 * 60;
 
     /// Initialize the underlying time-series collection.
-    #[instrument(skip_all)]
+    #[instrument(skip_all, fields(collection_name = Self::COLLECTION_NAME))]
     async fn initialize_time_series(db: &Db) -> Result {
         let options = TimeseriesOptions::builder()
             .time_field("timestamp")

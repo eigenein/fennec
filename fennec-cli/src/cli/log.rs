@@ -38,9 +38,11 @@ pub async fn log(args: LogArgs) -> Result {
             )?
         };
 
-        // FIXME: race condition:
-        let last_known_residual_energy =
-            db.states().get::<BatteryResidualEnergy>().await?.map(MilliwattHours::from);
+        let last_known_residual_energy = db
+            .states()
+            .set(&BatteryResidualEnergy::from(battery_state.residual_millis()))
+            .await?
+            .map(MilliwattHours::from);
         if let Some(last_known_residual_energy) = last_known_residual_energy
             && (last_known_residual_energy != battery_state.residual_millis())
         {
@@ -50,7 +52,6 @@ pub async fn log(args: LogArgs) -> Result {
                 .build();
             db.battery_logs().insert(&battery_log).await?;
         }
-        db.states().upsert(&BatteryResidualEnergy::from(battery_state.residual_millis())).await?;
 
         args.heartbeat.send().await;
         sleep(polling_interval).await;

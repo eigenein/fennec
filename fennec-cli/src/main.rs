@@ -74,7 +74,7 @@ async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .into_iter()
         .map(|state| (state.last_changed_at, state))
         .collect::<HourlyStandByPower>();
-    Db::with_uri(&args.db.uri).await?.states().upsert(&hourly_stand_by_power).await?;
+    Db::with_uri(&args.db.uri).await?.states().set(&hourly_stand_by_power).await?;
     Ok(())
 }
 

@@ -1,6 +1,6 @@
 use bson::{Document, deserialize_from_document, doc, serialize_to_bson, serialize_to_document};
 use derive_more::{From, Into};
-use mongodb::Collection;
+use mongodb::{Collection, options::ReturnDocument};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{
@@ -65,18 +65,21 @@ impl States {
             .with_context(|| format!("failed to deserialize `{:?}`", S::ID))
     }
 
+    /// Replace the state and return the previous value.
     #[instrument(skip_all, fields(id = ?S::ID))]
-    pub async fn upsert<S: State>(&self, state: &S) -> Result {
+    pub async fn set<S: State>(&self, state: &S) -> Result<Option<S>> {
         info!("saving the state…");
         let id = serialize_to_bson(&S::ID)?;
         let filter = doc! { "_id": &id };
         let mut replacement = serialize_to_document(state)?;
         replacement.insert("_id", id);
-        self.0
-            .replace_one(filter, replacement)
+        let old_state = self
+            .0
+            .find_one_and_replace(filter, replacement)
             .upsert(true)
+            .return_document(ReturnDocument::Before)
             .await
             .with_context(|| format!("failed to upsert `{:?}`", S::ID))?;
-        Ok(())
+        old_state.map(deserialize_from_document).transpose().context("failed to upsert the state")
     }
 }

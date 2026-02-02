@@ -13,7 +13,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn hunt(args: &HuntArgs) -> Result {
-    let mut db = Db::with_uri(&args.db.uri).await?.start_session().await?;
+    let db = Db::with_uri(&args.db.uri).await?;
     let statistics = db.states().get::<HourlyStandByPower>().await?.unwrap_or_default();
 
     let fox_ess = foxess::Api::new(args.fox_ess_api.api_key.clone())?;
@@ -33,9 +33,11 @@ pub async fn hunt(args: &HuntArgs) -> Result {
     let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
     let battery_efficiency = {
-        let mut battery_logs =
-            db.battery_logs().find(Interval::try_since(args.estimation.duration())?).await?;
-        BatteryEfficiency::try_estimate(battery_logs.stream(db.session())).await?
+        let battery_logs = db.battery_logs();
+        BatteryEfficiency::try_estimate(
+            battery_logs.find(Interval::try_since(args.estimation.duration())?).await?,
+        )
+        .await?
     };
 
     let solution = Solver::builder()

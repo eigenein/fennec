@@ -50,12 +50,11 @@ async fn main() -> Result {
                 Ok(())
             }
             BurrowCommand::Battery(args) => {
-                let mut db = Db::with_uri(&args.db.uri).await?.start_session().await?;
-                let mut battery_logs = db
-                    .battery_logs()
-                    .find(Interval::try_since(args.estimation.duration())?)
-                    .await?;
-                let _ = BatteryEfficiency::try_estimate(battery_logs.stream(db.session())).await?;
+                let battery_logs = Db::with_uri(&args.db.uri).await?.battery_logs();
+                let _ = BatteryEfficiency::try_estimate(
+                    battery_logs.find(Interval::try_since(args.estimation.duration())?).await?,
+                )
+                .await?;
                 Ok(())
             }
             BurrowCommand::FoxEss(args) => burrow_fox_ess(args).await,
@@ -75,13 +74,7 @@ async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .into_iter()
         .map(|state| (state.last_changed_at, state))
         .collect::<HourlyStandByPower>();
-    Db::with_uri(&args.db.uri)
-        .await?
-        .start_session()
-        .await?
-        .states()
-        .upsert(&hourly_stand_by_power)
-        .await?;
+    Db::with_uri(&args.db.uri).await?.states().upsert(&hourly_stand_by_power).await?;
     Ok(())
 }
 

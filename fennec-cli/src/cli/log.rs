@@ -38,8 +38,7 @@ pub async fn log(args: LogArgs) -> Result {
             )?
         };
 
-        let mut db = db.start_session().await?;
-        db.session().start_transaction().await?;
+        // FIXME: race condition:
         let last_known_residual_energy =
             db.states().get::<BatteryResidualEnergy>().await?.map(MilliwattHours::from);
         if let Some(last_known_residual_energy) = last_known_residual_energy
@@ -52,7 +51,6 @@ pub async fn log(args: LogArgs) -> Result {
             db.battery_logs().insert(&battery_log).await?;
         }
         db.states().upsert(&BatteryResidualEnergy::from(battery_state.residual_millis())).await?;
-        db.session().commit_transaction().await?;
 
         args.heartbeat.send().await;
         sleep(polling_interval).await;

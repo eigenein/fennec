@@ -58,8 +58,7 @@ impl BatteryEfficiency {
     #[instrument(skip_all)]
     pub async fn try_estimate<S>(mut battery_logs: S) -> Result<Self>
     where
-        S: TryStream<Ok = BatteryLog> + Unpin,
-        <S as TryStream>::Error: std::error::Error + Send + Sync + 'static,
+        S: TryStream<Ok = BatteryLog, Error = Error> + Unpin,
     {
         let mut previous_measurement =
             battery_logs.try_next().await?.context("empty battery log stream")?;

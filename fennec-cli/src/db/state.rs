@@ -1,6 +1,6 @@
 use bson::{Document, deserialize_from_document, doc, serialize_to_bson, serialize_to_document};
 use derive_more::{From, Into};
-use mongodb::{ClientSession, Collection};
+use mongodb::Collection;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{
@@ -47,21 +47,17 @@ impl State for HourlyStandByPower {
 
 /// Collection that contains current states preserved between the application runs.
 #[must_use]
-pub struct States<'sessions> {
-    pub(super) collection: Collection<Document>,
-    pub(super) session: &'sessions mut ClientSession,
-}
+pub struct States(pub(super) Collection<Document>);
 
-impl States<'_> {
+impl States {
     pub(super) const COLLECTION_NAME: &'static str = "states";
 
     #[instrument(skip_all, fields(id = ?S::ID))]
-    pub async fn get<S: State>(&mut self) -> Result<Option<S>> {
+    pub async fn get<S: State>(&self) -> Result<Option<S>> {
         info!("fetching the state…");
         let filter = doc! { "_id": serialize_to_bson(&S::ID)? };
-        self.collection
+        self.0
             .find_one(filter)
-            .session(&mut *self.session)
             .await
             .with_context(|| format!("failed to fetch `{:?}`", S::ID))?
             .map(deserialize_from_document)
@@ -70,16 +66,15 @@ impl States<'_> {
     }
 
     #[instrument(skip_all, fields(id = ?S::ID))]
-    pub async fn upsert<S: State>(&mut self, state: &S) -> Result {
+    pub async fn upsert<S: State>(&self, state: &S) -> Result {
         info!("saving the state…");
         let id = serialize_to_bson(&S::ID)?;
         let filter = doc! { "_id": &id };
         let mut replacement = serialize_to_document(state)?;
         replacement.insert("_id", id);
-        self.collection
+        self.0
             .replace_one(filter, replacement)
             .upsert(true)
-            .session(&mut *self.session)
             .await
             .with_context(|| format!("failed to upsert `{:?}`", S::ID))?;
         Ok(())

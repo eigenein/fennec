@@ -1,4 +1,5 @@
 pub mod battery;
+mod burrow;
 mod db;
 mod estimation;
 mod foxess;
@@ -6,7 +7,7 @@ mod heartbeat;
 mod hunt;
 mod log;
 
-use std::{ops::RangeInclusive, path::PathBuf};
+use std::ops::RangeInclusive;
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
@@ -14,14 +15,7 @@ use http::Uri;
 
 use crate::{
     api::home_assistant,
-    cli::{
-        db::DbArgs,
-        estimation::EstimationArgs,
-        foxess::FoxEssApiArgs,
-        heartbeat::HeartbeatArgs,
-        hunt::HuntArgs,
-        log::LogArgs,
-    },
+    cli::{burrow::BurrowArgs, hunt::HuntArgs, log::LogArgs},
 };
 
 #[derive(Parser)]
@@ -89,61 +83,4 @@ impl HomeAssistantConnectionArgs {
     pub fn new_client(&self) -> home_assistant::Api {
         home_assistant::Api::new(&self.access_token, self.base_url.clone())
     }
-}
-
-#[derive(Parser)]
-pub struct BurrowArgs {
-    #[command(subcommand)]
-    pub command: BurrowCommand,
-}
-
-#[derive(Subcommand)]
-pub enum BurrowCommand {
-    /// Gather consumption and battery statistics.
-    Statistics(Box<BurrowStatisticsArgs>),
-
-    /// Estimate battery efficiency parameters.
-    Battery(BurrowBatteryArgs),
-
-    /// Test FoxESS Cloud API connectivity.
-    FoxEss(BurrowFoxEssArgs),
-}
-
-#[derive(Parser)]
-pub struct BurrowStatisticsArgs {
-    #[clap(flatten)]
-    pub home_assistant: HomeAssistantArgs,
-
-    #[clap(long, env = "STATISTICS_PATH", default_value = "statistics.toml")]
-    pub statistics_path: PathBuf,
-
-    #[clap(flatten)]
-    pub heartbeat: HeartbeatArgs,
-
-    #[clap(flatten)]
-    pub db: DbArgs,
-}
-
-#[derive(Parser)]
-pub struct BurrowBatteryArgs {
-    #[clap(flatten)]
-    pub db: DbArgs,
-
-    #[clap(flatten)]
-    pub estimation: EstimationArgs,
-}
-
-#[derive(Parser)]
-pub struct BurrowFoxEssArgs {
-    #[clap(flatten)]
-    pub fox_ess_api: FoxEssApiArgs,
-
-    #[command(subcommand)]
-    pub command: BurrowFoxEssCommand,
-}
-
-#[derive(Subcommand)]
-pub enum BurrowFoxEssCommand {
-    /// Get the schedule.
-    Schedule,
 }

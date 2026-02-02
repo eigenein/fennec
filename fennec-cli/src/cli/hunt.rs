@@ -2,19 +2,14 @@ use chrono::{Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
 use itertools::Itertools;
+use reqwest::Url;
 
 use crate::{
-    api::foxess,
-    cli::{
-        battery::BatteryArgs,
-        db::DbArgs,
-        estimation::EstimationArgs,
-        foxess::FoxEssApiArgs,
-        heartbeat::HeartbeatArgs,
-    },
+    api::{foxess, heartbeat},
+    cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::{interval::Interval, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{
-        battery_log::BatteryLog,
+        battery::BatteryLog,
         state::{HourlyStandByPower, States},
     },
     prelude::*,
@@ -58,8 +53,8 @@ pub struct HuntArgs {
     #[clap(flatten)]
     db: DbArgs,
 
-    #[clap(flatten)]
-    heartbeat: HeartbeatArgs,
+    #[clap(long = "heartbeat-url", env = "HUNT_HEARTBEAT_URL")]
+    heartbeat_url: Option<Url>,
 }
 
 impl HuntArgs {
@@ -133,7 +128,7 @@ impl HuntArgs {
                 .await?;
         }
 
-        self.heartbeat.send().await;
+        heartbeat::Client::new(self.heartbeat_url).send().await;
         Ok(())
     }
 }

@@ -3,7 +3,6 @@ mod burrow;
 mod db;
 mod estimation;
 mod foxess;
-mod heartbeat;
 mod hunt;
 mod log;
 

@@ -4,16 +4,10 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     api::foxess,
-    cli::{
-        HomeAssistantArgs,
-        db::DbArgs,
-        estimation::EstimationArgs,
-        foxess::FoxEssApiArgs,
-        heartbeat::HeartbeatArgs,
-    },
+    cli::{HomeAssistantArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::interval::Interval,
     db::{
-        battery_log::BatteryLog,
+        battery::BatteryLog,
         state::{HourlyStandByPower, States},
     },
     prelude::*,
@@ -58,9 +52,6 @@ pub struct BurrowStatisticsArgs {
     statistics_path: PathBuf,
 
     #[clap(flatten)]
-    heartbeat: HeartbeatArgs,
-
-    #[clap(flatten)]
     db: DbArgs,
 }
 
@@ -77,7 +68,6 @@ impl BurrowStatisticsArgs {
             .map(|state| (state.last_changed_at, state))
             .collect::<HourlyStandByPower>();
         States::from(&self.db.connect().await?).set(&hourly_stand_by_power).await?;
-        self.heartbeat.send().await;
         Ok(())
     }
 }

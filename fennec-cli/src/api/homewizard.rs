@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{prelude::*, quantity::energy::KilowattHours};
 
+#[derive(Clone)]
 pub struct Client {
     inner: reqwest::Client,
     url: Url,
@@ -42,6 +43,12 @@ pub struct EnergyMetrics {
 
     #[serde(rename = "exportKilowattHours", alias = "total_power_export_kwh")]
     pub export: KilowattHours,
+}
+
+impl EnergyMetrics {
+    pub fn net_consumption(self) -> KilowattHours {
+        self.import - self.export
+    }
 }
 
 #[cfg(test)]

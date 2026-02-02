@@ -7,13 +7,13 @@ use mongodb::{Client, Database};
 
 use crate::{
     core::interval::Interval,
-    db::{battery_log::BatteryLog, log::Log, meter_log::MeterLog},
+    db::{battery::BatteryLog, consumption::ConsumptionLog, log::Log},
     prelude::*,
 };
 
-pub mod battery_log;
+pub mod battery;
+pub mod consumption;
 pub mod log;
-pub mod meter_log;
 pub mod state;
 
 #[must_use]
@@ -32,7 +32,7 @@ impl Db {
             .context("MongoDB URI does not define the default database")?;
         let this = Self(inner);
         BatteryLog::initialize_time_series(&this).await?;
-        MeterLog::initialize_time_series(&this).await?;
+        ConsumptionLog::initialize_time_series(&this).await?;
         Ok(this)
     }
 

@@ -12,7 +12,7 @@ use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
 
 use crate::{
-    db::battery_log::BatteryLog,
+    db::battery::BatteryLog,
     fmt::FormattedEfficiency,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},

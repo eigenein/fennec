@@ -45,6 +45,24 @@ pub struct SessionDb {
 }
 
 impl SessionDb {
+    pub const fn session(&mut self) -> &mut ClientSession {
+        &mut self.session
+    }
+
+    pub fn states(&mut self) -> States<'_> {
+        States {
+            collection: self.inner.collection(States::COLLECTION_NAME),
+            session: &mut self.session,
+        }
+    }
+
+    pub fn battery_logs(&mut self) -> BatteryLogs<'_> {
+        BatteryLogs {
+            collection: self.inner.collection(BatteryLogs::COLLECTION_NAME),
+            session: &mut self.session,
+        }
+    }
+
     #[instrument(skip_all, fields(name = name))]
     pub(self) async fn create_timeseries(
         &mut self,
@@ -70,23 +88,5 @@ impl SessionDb {
             })
             .await?;
         Ok(())
-    }
-
-    pub const fn session(&mut self) -> &mut ClientSession {
-        &mut self.session
-    }
-
-    pub fn states(&mut self) -> States<'_> {
-        States {
-            collection: self.inner.collection(States::COLLECTION_NAME),
-            session: &mut self.session,
-        }
-    }
-
-    pub fn battery_logs(&mut self) -> BatteryLogs<'_> {
-        BatteryLogs {
-            collection: self.inner.collection(BatteryLogs::COLLECTION_NAME),
-            session: &mut self.session,
-        }
     }
 }

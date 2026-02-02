@@ -1,3 +1,5 @@
+mod hunt;
+
 use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
@@ -6,6 +8,7 @@ use enumset::EnumSet;
 use http::Uri;
 use reqwest::Url;
 
+pub use self::hunt::hunt;
 use crate::{
     api::{heartbeat, home_assistant},
     core::{provider::Provider, working_mode::WorkingMode},

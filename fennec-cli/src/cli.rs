@@ -137,8 +137,11 @@ pub struct BatterySettingRegisters {
 
 #[derive(Parser)]
 pub struct LogArgs {
-    #[clap(long, env = "POLLING_INTERVAL", default_value = "5s")]
-    polling_interval: humantime::Duration,
+    #[clap(long, env = "BATTERY_POLLING_INTERVAL", default_value = "5s")]
+    battery_polling_interval: humantime::Duration,
+
+    #[clap(long, env = "METER_POLLING_INTERVAL", default_value = "5min")]
+    meter_polling_interval: humantime::Duration,
 
     #[clap(long, env = "TOTAL_ENERGY_METER_URL")]
     pub total_energy_meter_url: Url,
@@ -156,12 +159,16 @@ pub struct LogArgs {
     pub battery_registers: BatteryEnergyStateRegisters,
 
     #[clap(flatten)]
-    pub heartbeat: HeartbeatArgs,
+    pub battery_heartbeat: HeartbeatArgs,
 }
 
 impl LogArgs {
-    pub fn polling_interval(&self) -> Duration {
-        self.polling_interval.into()
+    pub fn battery_polling_interval(&self) -> Duration {
+        self.battery_polling_interval.into()
+    }
+
+    pub fn meter_polling_interval(&self) -> Duration {
+        self.meter_polling_interval.into()
     }
 }
 

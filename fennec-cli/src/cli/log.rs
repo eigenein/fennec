@@ -20,23 +20,26 @@ use crate::{
     quantity::energy::MilliwattHours,
 };
 
-/// TODO: separate loops and intervals for battery and P1 loggers.
 pub async fn log(args: LogArgs) -> Result {
-    let polling_interval: Duration = args.polling_interval();
+    // TODO: implement proper signal handling with cancelling the `sleep` call.
+    let should_terminate = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
+    tokio::try_join!(
+        log_battery(&args, Arc::clone(&should_terminate)),
+        log_energy_meter(&args, should_terminate)
+    )?;
+    Ok(())
+}
 
-    // TODO: this one should be independently fallible:
-    // let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url)?;
+async fn log_battery(args: &LogArgs, should_terminate: Arc<AtomicBool>) -> Result {
+    let polling_interval: Duration = args.battery_polling_interval();
+    let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url.clone())?;
 
-    let battery_energy_meter = homewizard::Client::new(args.battery_energy_meter_url)?;
     info!("verifying energy meter connection…");
     let _ = battery_energy_meter.get_measurement().await?;
 
     let mut battery = modbus::Client::connect(&args.battery_connection).await?;
-    let db = Db::with_uri(args.db.uri).await?;
-
-    // TODO: implement proper signal handling with cancelling the `sleep` call.
-    let should_terminate = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
+    let db = Db::with_uri(&args.db.uri).await?;
 
     while !should_terminate.load(Ordering::Relaxed) {
         let battery_state = battery.read_energy_state(args.battery_registers).await?;
@@ -55,7 +58,20 @@ pub async fn log(args: LogArgs) -> Result {
             BatteryLogs::from(&db).insert(&log).await?;
         }
 
-        args.heartbeat.send().await;
+        args.battery_heartbeat.send().await;
+        sleep(polling_interval).await;
+    }
+
+    Ok(())
+}
+
+async fn log_energy_meter(args: &LogArgs, should_terminate: Arc<AtomicBool>) -> Result {
+    let polling_interval: Duration = args.meter_polling_interval();
+    let total_energy_meter = homewizard::Client::new(args.total_energy_meter_url.clone())?;
+
+    while !should_terminate.load(Ordering::Relaxed) {
+        let metrics = total_energy_meter.get_measurement().await?;
+        // TODO: heartbeat.
         sleep(polling_interval).await;
     }
 

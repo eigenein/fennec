@@ -12,7 +12,10 @@ pub struct Api {
 
 impl Api {
     pub fn new(resolution: Resolution) -> Result<Self> {
-        let client = reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .pool_max_idle_per_host(1)
+            .build()?;
         Ok(Self { client, resolution })
     }
 

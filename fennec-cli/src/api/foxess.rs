@@ -26,6 +26,7 @@ impl Api {
         let client = Client::builder()
             .user_agent("fennec")
             .timeout(Duration::from_secs(15))
+            .pool_max_idle_per_host(1)
             .default_headers(headers)
             .build()?;
         Ok(Self { client, api_key })

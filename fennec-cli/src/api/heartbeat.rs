@@ -13,6 +13,7 @@ impl Client {
     pub fn new(url: Option<Url>) -> Self {
         let inner = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
+            .pool_max_idle_per_host(1)
             .build()
             .inspect_err(|error| warn!("failed to initialize the heartbeat client: {error:#}"))
             .map(Some)

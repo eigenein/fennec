@@ -15,7 +15,10 @@ pub struct Client {
 impl Client {
     #[instrument(skip_all, fields(url = %url))]
     pub fn new(url: Url) -> Result<Self> {
-        let inner = reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?;
+        let inner = reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .pool_max_idle_per_host(1)
+            .build()?;
         Ok(Self { inner, url })
     }
 

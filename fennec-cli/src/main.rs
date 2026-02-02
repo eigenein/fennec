@@ -22,8 +22,6 @@ use crate::{
         BurrowFoxEssCommand,
         BurrowStatisticsArgs,
         Command,
-        hunt,
-        log,
     },
     core::interval::Interval,
     db::{
@@ -44,14 +42,10 @@ async fn main() -> Result {
     let args = Args::parse();
 
     match args.command {
-        Command::Hunt(args) => hunt(&args).await,
-        Command::Log(args) => log(*args).await,
+        Command::Hunt(args) => args.hunt().await,
+        Command::Log(args) => args.log().await,
         Command::Burrow(args) => match args.command {
-            BurrowCommand::Statistics(args) => {
-                burrow_statistics(&args).await?;
-                args.heartbeat.send().await;
-                Ok(())
-            }
+            BurrowCommand::Statistics(args) => burrow_statistics(&args).await,
             BurrowCommand::Battery(args) => {
                 let battery_logs = BatteryLogs::from(&args.db.connect().await?);
                 let _ = BatteryEfficiency::try_estimate(
@@ -78,6 +72,7 @@ async fn burrow_statistics(args: &BurrowStatisticsArgs) -> Result {
         .map(|state| (state.last_changed_at, state))
         .collect::<HourlyStandByPower>();
     States::from(&args.db.connect().await?).set(&hourly_stand_by_power).await?;
+    args.heartbeat.send().await;
     Ok(())
 }
 

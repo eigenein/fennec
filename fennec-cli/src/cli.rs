@@ -12,7 +12,6 @@ use chrono::{DateTime, Local, TimeDelta, Timelike};
 use clap::{Parser, Subcommand};
 use http::Uri;
 
-pub use self::{hunt::hunt, log::log};
 use crate::{
     api::home_assistant,
     cli::{

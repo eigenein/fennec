@@ -1,11 +1,18 @@
-use std::fmt::Debug;
+use std::{any::type_name, fmt::Debug};
 
 use bson::doc;
-use mongodb::{Client, Database, error::ErrorKind, options::TimeseriesOptions};
+use futures_core::TryStream;
+use futures_util::TryStreamExt;
+use mongodb::{Client, Database};
 
-use crate::{db::battery_log::BatteryLogs, prelude::*};
+use crate::{
+    core::interval::Interval,
+    db::{battery_log::BatteryLog, log::Log},
+    prelude::*,
+};
 
 pub mod battery_log;
+pub mod log;
 pub mod meter_log;
 pub mod state;
 
@@ -24,27 +31,23 @@ impl Db {
             .default_database()
             .context("MongoDB URI does not define the default database")?;
         let this = Self(inner);
-        BatteryLogs::initialize(&this).await?;
+        BatteryLog::initialize_time_series(&this).await?;
         Ok(this)
     }
 
-    #[instrument(skip_all, fields(name = name))]
-    pub(self) async fn create_timeseries(&self, name: &str, options: TimeseriesOptions) -> Result {
-        self.0.create_collection(name).timeseries(options).await.or_else(|error| {
-            match error.kind.as_ref() {
-                ErrorKind::Command(error) if error.code == 48 => {
-                    warn!("collection already exists");
-                    Ok(())
-                }
-                _ => Err(error),
-            }
-        })?;
-        self.0
-            .run_command(doc! {
-                "collMod": name,
-                "expireAfterSeconds": 365 * 24 * 60 * 60, // FIXME: make configurable.
-            })
-            .await?;
-        Ok(())
+    #[instrument(skip_all)]
+    pub async fn find_logs<L: Log>(
+        &self,
+        interval: Interval,
+    ) -> Result<impl TryStream<Ok = L, Error = Error>> {
+        info!(type = type_name::<Self>(), ?interval, "querying logs…");
+        Ok(self
+            .0
+            .collection::<L>(L::COLLECTION_NAME)
+            .find(doc! { "timestamp": { "$gte": interval.start, "$lt": interval.end } })
+            .sort(doc! { "timestamp": -1 })
+            .await
+            .context("failed to query the battery logs")?
+            .map_err(Error::from))
     }
 }

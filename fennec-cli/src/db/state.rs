@@ -1,4 +1,4 @@
-use bson::{Document, deserialize_from_document, doc, serialize_to_bson, serialize_to_document};
+use bson::{Document, deserialize_from_document, doc, serialize_to_document};
 use derive_more::{From, Into};
 use mongodb::{Collection, options::ReturnDocument};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -9,18 +9,8 @@ use crate::{
     quantity::{energy::MilliwattHours, power::Kilowatts},
 };
 
-/// State `_id` in the database.
-#[derive(Copy, Clone, Debug, Serialize)]
-pub enum StateId {
-    #[serde(rename = "batteryResidualEnergy")]
-    BatteryResidualEnergy,
-
-    #[serde(rename = "hourlyStandByPower")]
-    HourlyStandByPower,
-}
-
 pub trait State: Serialize + DeserializeOwned {
-    const ID: StateId;
+    const ID: &str;
 }
 
 /// Last known battery residual energy.
@@ -32,7 +22,7 @@ pub struct BatteryResidualEnergy {
 }
 
 impl State for BatteryResidualEnergy {
-    const ID: StateId = StateId::BatteryResidualEnergy;
+    const ID: &str = "batteryResidualEnergy";
 }
 
 #[must_use]
@@ -43,7 +33,7 @@ pub struct HourlyStandByPower {
 }
 
 impl State for HourlyStandByPower {
-    const ID: StateId = StateId::HourlyStandByPower;
+    const ID: &str = "hourlyStandByPower";
 }
 
 /// Collection that contains current states preserved between the application runs.
@@ -62,7 +52,7 @@ impl States {
     #[instrument(skip_all, fields(id = ?S::ID))]
     pub async fn get<S: State>(&self) -> Result<Option<S>> {
         info!("fetching the state…");
-        let filter = doc! { "_id": serialize_to_bson(&S::ID)? };
+        let filter = doc! { "_id": S::ID };
         self.0
             .find_one(filter)
             .await
@@ -76,10 +66,9 @@ impl States {
     #[instrument(skip_all, fields(id = ?S::ID))]
     pub async fn set<S: State>(&self, state: &S) -> Result<Option<S>> {
         info!("saving the state…");
-        let id = serialize_to_bson(&S::ID)?;
-        let filter = doc! { "_id": &id };
+        let filter = doc! { "_id": S::ID };
         let mut replacement = serialize_to_document(state)?;
-        replacement.insert("_id", id);
+        replacement.insert("_id", S::ID);
         let old_state = self
             .0
             .find_one_and_replace(filter, replacement)

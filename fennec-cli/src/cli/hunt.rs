@@ -14,7 +14,7 @@ use crate::{
     },
     core::{interval::Interval, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{
-        battery_log::BatteryLogs,
+        battery_log::BatteryLog,
         state::{HourlyStandByPower, States},
     },
     prelude::*,
@@ -95,11 +95,10 @@ impl HuntArgs {
         let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
         let battery_efficiency = {
-            let battery_logs = BatteryLogs::from(&db);
-            BatteryEfficiency::try_estimate(
-                battery_logs.find(Interval::try_since(self.estimation.duration())?).await?,
-            )
-            .await?
+            let battery_logs = db
+                .find_logs::<BatteryLog>(Interval::try_since(self.estimation.duration())?)
+                .await?;
+            BatteryEfficiency::try_estimate(battery_logs).await?
         };
 
         let solution = Solver::builder()

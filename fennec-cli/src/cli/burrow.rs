@@ -13,7 +13,7 @@ use crate::{
     },
     core::interval::Interval,
     db::{
-        battery_log::BatteryLogs,
+        battery_log::BatteryLog,
         state::{HourlyStandByPower, States},
     },
     prelude::*,
@@ -93,11 +93,10 @@ pub struct BurrowBatteryArgs {
 
 impl BurrowBatteryArgs {
     async fn burrow(self) -> Result {
-        let battery_logs = BatteryLogs::from(&self.db.connect().await?);
-        let _ = BatteryEfficiency::try_estimate(
-            battery_logs.find(Interval::try_since(self.estimation.duration())?).await?,
-        )
-        .await?;
+        let db = self.db.connect().await?;
+        let battery_logs =
+            db.find_logs::<BatteryLog>(Interval::try_since(self.estimation.duration())?).await?;
+        let _ = BatteryEfficiency::try_estimate(battery_logs).await?;
         Ok(())
     }
 }

@@ -60,16 +60,15 @@ impl BatteryEfficiency {
     where
         S: TryStream<Ok = BatteryLog, Error = Error> + Unpin,
     {
-        let mut previous_measurement =
-            battery_logs.try_next().await?.context("empty battery log stream")?;
+        let mut previous = battery_logs.try_next().await?.context("empty battery log stream")?;
         let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
-            let imported_energy = log.metrics.import - previous_measurement.metrics.import;
-            let exported_energy = log.metrics.export - previous_measurement.metrics.export;
-            let duration = log.timestamp - previous_measurement.timestamp;
-            let residual_differential = log.residual_energy - previous_measurement.residual_energy;
+            let imported_energy = log.metrics.import - previous.metrics.import;
+            let exported_energy = log.metrics.export - previous.metrics.export;
+            let duration = log.timestamp - previous.timestamp;
+            let residual_differential = log.residual_energy - previous.residual_energy;
 
             dataset.records.push_row(aview1(&[
                 imported_energy.0,
@@ -78,7 +77,7 @@ impl BatteryEfficiency {
             ]))?;
             dataset.targets.push(Axis(0), aview0(&residual_differential.0))?;
 
-            previous_measurement = log;
+            previous = log;
         }
         if dataset.nsamples() == 0 {
             bail!("empty dataset");

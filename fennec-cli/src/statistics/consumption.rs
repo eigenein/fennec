@@ -24,23 +24,23 @@ impl ConsumptionStatistics {
     {
         info!("crunching consumption logs…");
 
-        let mut newer = logs.try_next().await?.context("empty consumption logs")?;
+        let mut previous = logs.try_next().await?.context("empty consumption logs")?;
         let mut global = Accumulator::default();
         let mut hourly = [Accumulator::default(); 24];
 
         while let Some(current) = logs.try_next().await? {
             let delta = Accumulator {
-                time: newer.timestamp - current.timestamp,
-                consumption: newer.net - current.net,
+                time: current.timestamp - previous.timestamp,
+                consumption: current.net - previous.net,
             };
             global += delta;
-            if current.timestamp.date_naive() == newer.timestamp.date_naive()
-                && current.timestamp.hour() == newer.timestamp.hour()
+            if current.timestamp.date_naive() == previous.timestamp.date_naive()
+                && current.timestamp.hour() == previous.timestamp.hour()
             {
                 let local_hour = current.timestamp.with_timezone(&Local).hour() as usize;
                 hourly[local_hour] += delta;
             }
-            newer = current;
+            previous = current;
         }
 
         let this = Self {

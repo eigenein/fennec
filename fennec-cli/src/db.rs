@@ -48,7 +48,7 @@ impl Db {
             .0
             .collection::<L>(L::COLLECTION_NAME)
             .find(doc! { "timestamp": { "$gte": interval.start, "$lt": interval.end } })
-            .sort(doc! { "timestamp": -1 })
+            .sort(doc! { "timestamp": 1 })
             .await
             .context("failed to query the battery logs")?
             .map_err(Error::from))

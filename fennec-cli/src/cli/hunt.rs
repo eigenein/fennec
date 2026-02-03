@@ -85,6 +85,7 @@ impl HuntArgs {
         let min_state_of_charge = battery_state.settings.min_state_of_charge;
         let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
+        // TODO: simplify to `since`:
         let estimation_interval = Interval::try_since(self.estimation.duration())?;
         let battery_efficiency = {
             let battery_logs = db.find_logs::<BatteryLog>(estimation_interval).await?;

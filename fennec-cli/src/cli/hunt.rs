@@ -88,7 +88,10 @@ impl HuntArgs {
         let since = self.estimation.since();
         let battery_efficiency = {
             let battery_logs = db.find_logs::<BatteryLog>(since).await?;
-            BatteryEfficiency::try_estimate(battery_logs).await?
+            BatteryEfficiency::try_estimate(battery_logs)
+                .await
+                .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
+                .unwrap_or_default()
         };
         let consumption_statistics = {
             let consumption_logs = db.find_logs::<ConsumptionLog>(since).await?;

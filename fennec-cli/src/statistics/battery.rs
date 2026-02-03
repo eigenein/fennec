@@ -30,6 +30,12 @@ pub struct BatteryEfficiency {
     pub discharging: f64,
 }
 
+impl Default for BatteryEfficiency {
+    fn default() -> Self {
+        Self { parasitic_load: Kilowatts::ZERO, charging: 1.0, discharging: 1.0 }
+    }
+}
+
 #[bon]
 impl BatteryEfficiency {
     #[builder]
@@ -88,7 +94,7 @@ impl BatteryEfficiency {
         let regression = LinearRegression::new()
             .with_intercept(false)
             .fit(&dataset)
-            .context("failed to fit a regression, try with again with more samples")?;
+            .context("failed to fit a regression")?;
         let r_squared = Self::r_squared(&regression, &dataset);
         info!(elapsed = ?start_time.elapsed(), r_squared = ?FormattedPercentage(r_squared), "regression has been fit");
 

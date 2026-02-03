@@ -1,12 +1,12 @@
-use std::{any::type_name, fmt::Debug};
+use std::fmt::Debug;
 
 use bson::{deserialize_from_document, doc, serialize_to_document};
+use chrono::{DateTime, Local};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use mongodb::{Client, Database, options::ReturnDocument};
 
 use crate::{
-    core::interval::Interval,
     db::{battery::BatteryLog, consumption::ConsumptionLog, log::Log, state::State},
     prelude::*,
 };
@@ -41,13 +41,13 @@ impl Db {
     #[instrument(skip_all)]
     pub async fn find_logs<L: Log>(
         &self,
-        interval: Interval,
+        since: DateTime<Local>,
     ) -> Result<impl TryStream<Ok = L, Error = Error>> {
-        info!(type = type_name::<L>(), ?interval, "querying logs…");
+        info!(collection_name = L::COLLECTION_NAME, ?since, "querying logs…");
         Ok(self
             .0
             .collection::<L>(L::COLLECTION_NAME)
-            .find(doc! { "timestamp": { "$gte": interval.start, "$lt": interval.end } })
+            .find(doc! { "timestamp": { "$gte": since } })
             .sort(doc! { "timestamp": 1 })
             .await
             .context("failed to query the battery logs")?

@@ -25,8 +25,8 @@ async fn main() -> Result {
     info!(version = crate_version!(), "starting…");
 
     match Args::parse().command {
-        Command::Hunt(args) => args.hunt().await,
-        Command::Log(args) => args.log().await,
-        Command::Burrow(args) => args.burrow().await,
+        Command::Hunt(args) => args.run().await,
+        Command::Log(args) => args.run().await,
+        Command::Burrow(args) => args.run().await,
     }
 }

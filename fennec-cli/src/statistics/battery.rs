@@ -13,7 +13,7 @@ use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
 
 use crate::{
     db::battery::BatteryLog,
-    fmt::FormattedEfficiency,
+    fmt::FormattedPercentage,
     prelude::*,
     quantity::{Quantity, power::Kilowatts},
 };
@@ -83,16 +83,14 @@ impl BatteryEfficiency {
             bail!("empty dataset");
         }
 
-        info!(n_records = dataset.nsamples(), "estimating the battery efficiency…");
+        info!(n_samples = dataset.nsamples(), "estimating the battery efficiency…");
         let start_time = Instant::now();
         let regression = LinearRegression::new()
             .with_intercept(false)
             .fit(&dataset)
             .context("failed to fit a regression, try with again with more samples")?;
-        info!(elapsed = ?start_time.elapsed(), "regression has been fit");
-
         let r_squared = Self::r_squared(&regression, &dataset);
-        info!(r_squared, "evaluated");
+        info!(elapsed = ?start_time.elapsed(), r_squared = ?FormattedPercentage(r_squared), "regression has been fit");
 
         let this = Self::builder()
             .charging(regression.params()[0])
@@ -100,10 +98,10 @@ impl BatteryEfficiency {
             .parasitic_load(Quantity(-regression.params()[2]))
             .build()?;
         info!(
+            round_trip = ?FormattedPercentage(this.round_trip()),
             parasitic_load = ?this.parasitic_load,
-            round_trip = ?FormattedEfficiency(this.round_trip()),
-            charging = ?FormattedEfficiency(this.charging),
-            discharging = ?FormattedEfficiency(this.discharging),
+            charging = ?FormattedPercentage(this.charging),
+            discharging = ?FormattedPercentage(this.discharging),
             "completed",
         );
         Ok(this)

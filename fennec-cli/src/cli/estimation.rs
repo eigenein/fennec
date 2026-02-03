@@ -1,5 +1,4 @@
-use std::time::Duration;
-
+use chrono::{DateTime, Local, TimeDelta};
 use clap::Parser;
 
 #[derive(Parser)]
@@ -14,7 +13,7 @@ pub struct EstimationArgs {
 }
 
 impl EstimationArgs {
-    pub fn duration(&self) -> Duration {
-        self.duration.into()
+    pub fn since(&self) -> DateTime<Local> {
+        Local::now() - TimeDelta::from_std(self.duration.into()).unwrap()
     }
 }

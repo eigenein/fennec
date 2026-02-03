@@ -7,7 +7,7 @@ use reqwest::Url;
 use crate::{
     api::{foxess, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
-    core::{interval::Interval, provider::Provider, solver::Solver, working_mode::WorkingMode},
+    core::{provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
     quantity::rate::KilowattHourRate,
@@ -63,7 +63,7 @@ impl HuntArgs {
 
 impl HuntArgs {
     #[instrument(skip_all)]
-    pub async fn hunt(self) -> Result {
+    pub async fn run(self) -> Result {
         let db = self.db.connect().await?;
 
         let fox_ess = foxess::Api::new(self.fox_ess_api.api_key.clone())?;
@@ -85,14 +85,13 @@ impl HuntArgs {
         let min_state_of_charge = battery_state.settings.min_state_of_charge;
         let max_state_of_charge = battery_state.settings.max_state_of_charge;
 
-        // TODO: simplify to `since`:
-        let estimation_interval = Interval::try_since(self.estimation.duration())?;
+        let since = self.estimation.since();
         let battery_efficiency = {
-            let battery_logs = db.find_logs::<BatteryLog>(estimation_interval).await?;
+            let battery_logs = db.find_logs::<BatteryLog>(since).await?;
             BatteryEfficiency::try_estimate(battery_logs).await?
         };
         let consumption_statistics = {
-            let consumption_logs = db.find_logs::<ConsumptionLog>(estimation_interval).await?;
+            let consumption_logs = db.find_logs::<ConsumptionLog>(since).await?;
             ConsumptionStatistics::try_estimate(consumption_logs).await?
         };
 

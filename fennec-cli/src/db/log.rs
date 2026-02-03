@@ -1,5 +1,3 @@
-use std::any::type_name;
-
 use bson::doc;
 use mongodb::{
     error::ErrorKind,
@@ -42,7 +40,7 @@ pub trait Log: Send + Sync + Serialize + DeserializeOwned {
 
     #[instrument(skip_all)]
     async fn insert_into(&self, db: &Db) -> Result {
-        info!(type = type_name::<Self>(), "inserting the log…");
+        info!(collection_name = Self::COLLECTION_NAME, "inserting the log…");
         db.0.collection::<Self>(Self::COLLECTION_NAME)
             .insert_one(self)
             .await

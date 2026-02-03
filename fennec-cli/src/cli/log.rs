@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use bon::Builder;
 use clap::Parser;
 use reqwest::Url;
 use tokio::time::sleep;
@@ -58,65 +59,112 @@ pub struct LogArgs {
 }
 
 impl LogArgs {
-    fn battery_polling_interval(&self) -> Duration {
-        self.battery_polling_interval.into()
-    }
-
-    fn meter_polling_interval(&self) -> Duration {
-        self.meter_polling_interval.into()
-    }
-}
-
-impl LogArgs {
-    pub async fn log(self) -> Result {
+    pub async fn run(self) -> Result {
         // TODO: implement proper signal handling with cancelling the `sleep` call.
         let should_terminate = Arc::new(AtomicBool::new(false));
         signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
 
         let db = self.db.connect().await?;
-        let battery_meter = homewizard::Client::new(self.battery_energy_meter_url.clone())?;
+        let battery_meter_client = homewizard::Client::new(self.battery_energy_meter_url.clone())?;
 
-        tokio::try_join!(
-            self.log_battery(battery_meter.clone(), db.clone(), Arc::clone(&should_terminate)),
-            self.log_consumption(battery_meter, db, should_terminate)
-        )?;
+        let battery_logger = BatteryLogger::builder()
+            .db(db.clone())
+            .heartbeat(heartbeat::Client::new(self.battery_heartbeat_url.clone()))
+            .interval(self.battery_polling_interval)
+            .modbus_client(self.battery_connection.connect().await?)
+            .modbus_registers(self.battery_registers)
+            .meter_client(battery_meter_client.clone())
+            .should_terminate(Arc::clone(&should_terminate))
+            .build();
+        let consumption_logger = ConsumptionLogger::builder()
+            .interval(self.meter_polling_interval)
+            .db(db)
+            .heartbeat(heartbeat::Client::new(self.consumption_heartbeat_url.clone()))
+            .total_meter_client(homewizard::Client::new(self.total_energy_meter_url.clone())?)
+            .battery_meter_client(battery_meter_client)
+            .should_terminate(should_terminate)
+            .build();
+
+        tokio::join!(battery_logger.run(), consumption_logger.run());
         Ok(())
     }
+}
 
-    async fn log_battery(
-        &self,
-        battery_meter: homewizard::Client,
-        db: Db,
-        should_terminate: Arc<AtomicBool>,
-    ) -> Result {
-        let polling_interval: Duration = self.battery_polling_interval();
-        let heartbeat = heartbeat::Client::new(self.battery_heartbeat_url.clone());
-        let mut battery = self.battery_connection.connect().await?;
+#[derive(Builder)]
+struct ConsumptionLogger {
+    battery_meter_client: homewizard::Client,
+    total_meter_client: homewizard::Client,
+    db: Db,
+    should_terminate: Arc<AtomicBool>,
+    heartbeat: heartbeat::Client,
 
-        while !should_terminate.load(Ordering::Relaxed) {
-            match self.log_battery_once(&mut battery, &battery_meter, &db).await {
+    #[builder(into)]
+    interval: Duration,
+}
+
+impl ConsumptionLogger {
+    async fn run(self) {
+        while !self.should_terminate.load(Ordering::Relaxed) {
+            match self.r#loop().await {
                 Ok(()) => {
-                    heartbeat.send().await;
+                    self.heartbeat.send().await;
+                }
+                Err(error) => {
+                    error!("failed to log the consumption: {error:#}");
+                }
+            }
+            sleep(self.interval).await;
+        }
+    }
+
+    #[instrument(name = "log_consumption", skip_all)]
+    async fn r#loop(&self) -> Result {
+        let (total_metrics, battery_metrics) = tokio::try_join!(
+            self.total_meter_client.get_measurement(),
+            self.battery_meter_client.get_measurement()
+        )?;
+        ConsumptionLog::builder()
+            .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
+            .build()
+            .insert_into(&self.db)
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Builder)]
+struct BatteryLogger {
+    modbus_client: modbus::Client,
+    modbus_registers: BatteryEnergyStateRegisters,
+    meter_client: homewizard::Client,
+    db: Db,
+    should_terminate: Arc<AtomicBool>,
+    heartbeat: heartbeat::Client,
+
+    #[builder(into)]
+    interval: Duration,
+}
+
+impl BatteryLogger {
+    async fn run(mut self) {
+        while !self.should_terminate.load(Ordering::Relaxed) {
+            match self.r#loop().await {
+                Ok(()) => {
+                    self.heartbeat.send().await;
                 }
                 Err(error) => {
                     error!("failed to log the battery state: {error:#}");
                 }
             }
-            sleep(polling_interval).await;
+            sleep(self.interval).await;
         }
-
-        Ok(())
     }
 
-    #[instrument(skip_all)]
-    async fn log_battery_once(
-        &self,
-        modbus: &mut modbus::Client,
-        meter: &homewizard::Client,
-        db: &Db,
-    ) -> Result {
-        let battery_state = modbus.read_energy_state(self.battery_registers).await?;
-        let last_known_residual_energy = db
+    #[instrument(name = "log_battery", skip_all)]
+    async fn r#loop(&mut self) -> Result {
+        let battery_state = self.modbus_client.read_energy_state(self.modbus_registers).await?;
+        let last_known_residual_energy = self
+            .db
             .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))
             .await?
             .map(MilliwattHours::from);
@@ -125,52 +173,11 @@ impl LogArgs {
         {
             BatteryLog::builder()
                 .residual_energy(battery_state.residual_millis())
-                .metrics(meter.get_measurement().await?)
+                .metrics(self.meter_client.get_measurement().await?)
                 .build()
-                .insert_into(db)
+                .insert_into(&self.db)
                 .await?;
         }
-        Ok(())
-    }
-
-    async fn log_consumption(
-        &self,
-        battery_meter: homewizard::Client,
-        db: Db,
-        should_terminate: Arc<AtomicBool>,
-    ) -> Result {
-        let polling_interval: Duration = self.meter_polling_interval();
-        let heartbeat = heartbeat::Client::new(self.consumption_heartbeat_url.clone());
-        let total_meter = homewizard::Client::new(self.total_energy_meter_url.clone())?;
-
-        while !should_terminate.load(Ordering::Relaxed) {
-            match Self::log_consumption_once(&total_meter, &battery_meter, &db).await {
-                Ok(()) => {
-                    heartbeat.send().await;
-                }
-                Err(error) => {
-                    error!("failed to log the consumption: {error:#}");
-                }
-            }
-            sleep(polling_interval).await;
-        }
-
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
-    async fn log_consumption_once(
-        total_meter: &homewizard::Client,
-        battery_meter: &homewizard::Client,
-        db: &Db,
-    ) -> Result {
-        let (total_metrics, battery_metrics) =
-            tokio::try_join!(total_meter.get_measurement(), battery_meter.get_measurement())?;
-        ConsumptionLog::builder()
-            .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
-            .build()
-            .insert_into(db)
-            .await?;
         Ok(())
     }
 }

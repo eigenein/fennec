@@ -4,7 +4,6 @@ use comfy_table::{Cell, Table, modifiers, presets};
 use crate::{
     api::foxess,
     cli::{db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
-    core::interval::Interval,
     db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
@@ -18,11 +17,11 @@ pub struct BurrowArgs {
 }
 
 impl BurrowArgs {
-    pub async fn burrow(self) -> Result {
+    pub async fn run(self) -> Result {
         match self.command {
-            BurrowCommand::Battery(args) => args.burrow().await,
-            BurrowCommand::Consumption(args) => args.burrow().await,
-            BurrowCommand::FoxEss(args) => args.burrow().await,
+            BurrowCommand::Battery(args) => args.run().await,
+            BurrowCommand::Consumption(args) => args.run().await,
+            BurrowCommand::FoxEss(args) => args.run().await,
         }
     }
 }
@@ -49,10 +48,9 @@ pub struct BurrowBatteryArgs {
 }
 
 impl BurrowBatteryArgs {
-    async fn burrow(self) -> Result {
+    async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let logs =
-            db.find_logs::<BatteryLog>(Interval::try_since(self.estimation.duration())?).await?;
+        let logs = db.find_logs::<BatteryLog>(self.estimation.since()).await?;
         let _ = BatteryEfficiency::try_estimate(logs).await?;
         Ok(())
     }
@@ -68,11 +66,9 @@ pub struct BurrowConsumptionArgs {
 }
 
 impl BurrowConsumptionArgs {
-    async fn burrow(self) -> Result {
+    async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let logs = db
-            .find_logs::<ConsumptionLog>(Interval::try_since(self.estimation.duration())?)
-            .await?;
+        let logs = db.find_logs::<ConsumptionLog>(self.estimation.since()).await?;
         let statistics = ConsumptionStatistics::try_estimate(logs).await?;
         let mut table = Table::new();
         table
@@ -102,7 +98,7 @@ pub struct BurrowFoxEssArgs {
 
 impl BurrowFoxEssArgs {
     #[instrument(skip_all)]
-    async fn burrow(self) -> Result {
+    async fn run(self) -> Result {
         let fox_ess = foxess::Api::new(self.fox_ess_api.api_key)?;
 
         match self.command {

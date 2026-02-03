@@ -43,7 +43,7 @@ impl Db {
         &self,
         interval: Interval,
     ) -> Result<impl TryStream<Ok = L, Error = Error>> {
-        info!(type = type_name::<Self>(), ?interval, "querying logs…");
+        info!(type = type_name::<L>(), ?interval, "querying logs…");
         Ok(self
             .0
             .collection::<L>(L::COLLECTION_NAME)

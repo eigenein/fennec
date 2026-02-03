@@ -1,11 +1,6 @@
-*.db
-*.db-wal
-*.db-shm
 .env
 flamegraph.svg
 node_modules
-rates.toml
-statistics.toml
 
 # Added by goreleaser init:
 dist/

@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use bon::Builder;
-use http::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 

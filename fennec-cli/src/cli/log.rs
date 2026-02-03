@@ -11,7 +11,7 @@ use reqwest::Url;
 use tokio::time::sleep;
 
 use crate::{
-    api::{heartbeat, homewizard},
+    api::{heartbeat, homewizard, modbus},
     cli::{
         battery::{BatteryConnectionArgs, BatteryEnergyStateRegisters},
         db::DbArgs,
@@ -94,26 +94,42 @@ impl LogArgs {
         let mut battery = self.battery_connection.connect().await?;
 
         while !should_terminate.load(Ordering::Relaxed) {
-            let battery_state = battery.read_energy_state(self.battery_registers).await?;
-            let last_known_residual_energy = db
-                .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))
-                .await?
-                .map(MilliwattHours::from);
-            if let Some(last_known_residual_energy) = last_known_residual_energy
-                && (last_known_residual_energy != battery_state.residual_millis())
-            {
-                BatteryLog::builder()
-                    .residual_energy(battery_state.residual_millis())
-                    .metrics(battery_meter.get_measurement().await?)
-                    .build()
-                    .insert_into(&db)
-                    .await?;
+            match self.log_battery_once(&mut battery, &battery_meter, &db).await {
+                Ok(()) => {
+                    heartbeat.send().await;
+                }
+                Err(error) => {
+                    error!("failed to log the battery state: {error:#}");
+                }
             }
-
-            heartbeat.send().await;
             sleep(polling_interval).await;
         }
 
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    async fn log_battery_once(
+        &self,
+        modbus: &mut modbus::Client,
+        meter: &homewizard::Client,
+        db: &Db,
+    ) -> Result {
+        let battery_state = modbus.read_energy_state(self.battery_registers).await?;
+        let last_known_residual_energy = db
+            .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))
+            .await?
+            .map(MilliwattHours::from);
+        if let Some(last_known_residual_energy) = last_known_residual_energy
+            && (last_known_residual_energy != battery_state.residual_millis())
+        {
+            BatteryLog::builder()
+                .residual_energy(battery_state.residual_millis())
+                .metrics(meter.get_measurement().await?)
+                .build()
+                .insert_into(db)
+                .await?;
+        }
         Ok(())
     }
 
@@ -128,17 +144,33 @@ impl LogArgs {
         let total_meter = homewizard::Client::new(self.total_energy_meter_url.clone())?;
 
         while !should_terminate.load(Ordering::Relaxed) {
-            let (total_metrics, battery_metrics) =
-                tokio::try_join!(total_meter.get_measurement(), battery_meter.get_measurement())?;
-            ConsumptionLog::builder()
-                .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
-                .build()
-                .insert_into(&db)
-                .await?;
-            heartbeat.send().await;
+            match Self::log_consumption_once(&total_meter, &battery_meter, &db).await {
+                Ok(()) => {
+                    heartbeat.send().await;
+                }
+                Err(error) => {
+                    error!("failed to log the consumption: {error:#}");
+                }
+            }
             sleep(polling_interval).await;
         }
 
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    async fn log_consumption_once(
+        total_meter: &homewizard::Client,
+        battery_meter: &homewizard::Client,
+        db: &Db,
+    ) -> Result {
+        let (total_metrics, battery_metrics) =
+            tokio::try_join!(total_meter.get_measurement(), battery_meter.get_measurement())?;
+        ConsumptionLog::builder()
+            .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
+            .build()
+            .insert_into(db)
+            .await?;
         Ok(())
     }
 }

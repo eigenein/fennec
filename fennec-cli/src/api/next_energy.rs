@@ -12,12 +12,7 @@ pub struct Api(reqwest::Client);
 
 impl Api {
     pub fn new() -> Result<Self> {
-        Ok(Self(
-            reqwest::Client::builder()
-                .pool_max_idle_per_host(1)
-                .timeout(Duration::from_secs(10))
-                .build()?,
-        ))
+        Ok(Self(reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?))
     }
 
     /// Get all hourly rates on the specified day.

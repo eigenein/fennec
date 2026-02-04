@@ -17,8 +17,8 @@ impl Quantum {
 
 /// Discrete energy level expressed in units of quanta.
 #[must_use]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct EnergyLevel(usize);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct EnergyLevel(pub usize);
 
 impl EnergyLevel {
     /// Convert the quantized energy level back to conventional energy.

@@ -3,7 +3,6 @@ use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, prese
 use derive_more::AddAssign;
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
-use humantime::format_duration;
 use itertools::Itertools;
 
 use crate::{
@@ -72,7 +71,7 @@ impl ConsumptionStatistics {
             ])
             .add_row(vec![
                 Cell::from(self.average).add_attribute(Attribute::Bold),
-                Cell::from(format_duration(self.total.time.to_std().unwrap())),
+                Cell::from(format!("{:.1} days", self.total.time.as_seconds_f64() / 86400.0)),
                 Cell::from(self.total.consumption),
             ]);
         table

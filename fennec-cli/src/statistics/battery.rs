@@ -4,6 +4,7 @@ use std::{
 };
 
 use bon::bon;
+use chrono::TimeDelta;
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
@@ -35,11 +36,19 @@ pub struct BatteryEfficiency {
     pub discharging: f64,
 
     pub n_samples: usize,
+
+    pub total_time: TimeDelta,
 }
 
 impl Default for BatteryEfficiency {
     fn default() -> Self {
-        Self { parasitic_load: Kilowatts::ZERO, charging: 1.0, discharging: 1.0, n_samples: 0 }
+        Self {
+            parasitic_load: Kilowatts::ZERO,
+            charging: 1.0,
+            discharging: 1.0,
+            n_samples: 0,
+            total_time: TimeDelta::zero(),
+        }
     }
 }
 
@@ -51,6 +60,7 @@ impl BatteryEfficiency {
         charging: f64,
         discharging: f64,
         n_samples: usize,
+        total_time: TimeDelta,
     ) -> Result<Self> {
         if parasitic_load.0.is_nan()
             || parasitic_load.0.is_infinite()
@@ -64,7 +74,7 @@ impl BatteryEfficiency {
         if discharging.is_nan() || discharging.is_infinite() {
             bail!("invalid discharging efficiency: {discharging}");
         }
-        Ok(Self { parasitic_load, charging, discharging, n_samples })
+        Ok(Self { parasitic_load, charging, discharging, n_samples, total_time })
     }
 }
 
@@ -80,12 +90,17 @@ impl BatteryEfficiency {
     {
         let mut previous = battery_logs.try_next().await?.context("empty battery log stream")?;
         let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
+        let mut total_time = TimeDelta::zero();
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
             let imported_energy = log.metrics.import - previous.metrics.import;
             let exported_energy = log.metrics.export - previous.metrics.export;
-            let hours = (log.timestamp - previous.timestamp).as_seconds_f64() / 3600.0;
+            let hours = {
+                let time_delta = log.timestamp - previous.timestamp;
+                total_time += time_delta;
+                time_delta.as_seconds_f64() / 3600.0
+            };
             let residual_differential = log.residual_energy - previous.residual_energy;
 
             let weight_multiplier = {
@@ -124,6 +139,7 @@ impl BatteryEfficiency {
             .discharging(-1.0 / regression.params()[1])
             .parasitic_load(Quantity(-regression.params()[2]))
             .n_samples(dataset.nsamples())
+            .total_time(total_time)
             .build()?;
         println!("{this}");
         Ok(this)
@@ -150,6 +166,10 @@ impl Display for BatteryEfficiency {
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
             .set_header(vec![Cell::from("Battery")])
+            .add_row(vec![
+                Cell::from("Total time"),
+                Cell::from(format!("{:.1} days", self.total_time.as_seconds_f64() / 86400.0)),
+            ])
             .add_row(vec![
                 Cell::from("Samples"),
                 Cell::from(self.n_samples).set_alignment(CellAlignment::Right),

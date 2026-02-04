@@ -76,8 +76,7 @@ impl Solver<'_> {
         );
         info!(?max_energy, n_intervals = self.grid_rates.len(), "optimizing…");
 
-        // This is calculated in order to estimate the net profit:
-        let mut net_loss_without_battery = Cost::ZERO;
+        let mut base_loss = Cost::ZERO;
 
         // Since we're going backwards in time, we only need to store the next hour's partial solutions
         // to find the current hour's solutions.
@@ -93,7 +92,7 @@ impl Solver<'_> {
 
             // Average stand-by power at this hour of a day:
             let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
-            net_loss_without_battery += self.loss(grid_rate, stand_by_power * interval.duration());
+            base_loss += self.loss(grid_rate, stand_by_power * interval.duration());
 
             // Calculate partial solutions for the current hour:
             solutions = {
@@ -124,7 +123,7 @@ impl Solver<'_> {
         let solution = solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
         info!(elapsed = ?start_instant.elapsed(), "optimized");
-        println!("{}", SolutionSummary { net_loss_without_battery, solution: &solution });
+        println!("{}", SolutionSummary { base_loss, solution: &solution });
         Some(solution)
     }
 
@@ -261,6 +260,10 @@ impl Solution {
         }
     }
 
+    pub fn energy_flow(&self) -> KilowattHours {
+        self.charge + self.discharge
+    }
+
     /// Track the optimal solution till the end.
     pub fn backtrack(&self) -> impl Iterator<Item = Step> {
         let mut pointer = self;
@@ -290,7 +293,15 @@ pub struct Payload {
 
 struct SolutionSummary<'a> {
     solution: &'a Solution,
-    net_loss_without_battery: Cost,
+
+    /// Estimated loss without using the battery.
+    base_loss: Cost,
+}
+
+impl SolutionSummary<'_> {
+    fn profit(&self) -> Cost {
+        self.base_loss - self.solution.net_loss
+    }
 }
 
 impl Display for SolutionSummary<'_> {
@@ -301,18 +312,20 @@ impl Display for SolutionSummary<'_> {
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
             .set_header(vec![
-                Cell::from("Profit"),
+                Cell::from("Net profit"),
+                Cell::from("Flow profit"),
                 Cell::from("Charge"),
                 Cell::from("Discharge"),
-                Cell::from("Without battery"),
+                Cell::from("Base loss"),
                 Cell::from("Loss"),
             ])
             .add_row(vec![
-                Cell::from(self.net_loss_without_battery - self.solution.net_loss)
+                Cell::from(self.profit()),
+                Cell::from(self.profit() / self.solution.energy_flow())
                     .add_attribute(Attribute::Bold),
                 Cell::from(self.solution.charge).fg(Color::Green),
                 Cell::from(self.solution.discharge).fg(Color::Red),
-                Cell::from(self.net_loss_without_battery),
+                Cell::from(self.base_loss),
                 Cell::from(self.solution.net_loss),
             ]);
         write!(f, "{table}")

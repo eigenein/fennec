@@ -2,7 +2,7 @@ use average::Mean;
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
-    core::{solver::step::Step, working_mode::WorkingMode as CoreWorkingMode},
+    core::{solver::step::Step, working_mode::WorkingMode},
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
@@ -40,11 +40,11 @@ pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -
                 },
             ),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
-                CoreWorkingMode::Charge => Color::Green,
-                CoreWorkingMode::Discharge => Color::Red,
-                CoreWorkingMode::Balance => Color::DarkYellow,
-                CoreWorkingMode::Backup => Color::Magenta,
-                CoreWorkingMode::Idle => Color::Reset,
+                WorkingMode::Charge => Color::Green,
+                WorkingMode::Discharge => Color::Red,
+                WorkingMode::Balance => Color::DarkYellow,
+                WorkingMode::Backup => Color::Magenta,
+                WorkingMode::Idle => Color::Reset,
             }),
             Cell::new(step.residual_energy_before)
                 .set_alignment(CellAlignment::Right)

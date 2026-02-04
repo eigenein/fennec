@@ -31,7 +31,7 @@ pub struct Solver<'a> {
     grid_rates: &'a [(Interval, KilowattHourRate)],
     consumption_statistics: &'a ConsumptionStatistics,
     working_modes: EnumSet<WorkingMode>,
-    battery_state: BatteryState,
+    battery_state: BatteryState, // TODO: swap for `BatterySettings` and actual capacity.
     battery_power_limits: BatteryPowerLimits,
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
@@ -63,6 +63,8 @@ impl Solver<'_> {
     #[instrument(skip_all)]
     fn solve(self) -> Option<Solution> {
         let start_instant = Instant::now();
+
+        // TODO: support configurable `Quantum`, but may be hard-coded to 10 Wh first:
         let max_energy = WattHours::from(
             self.battery_state.energy.residual().max(self.battery_state.max_residual_energy()),
         );
@@ -87,6 +89,7 @@ impl Solver<'_> {
             base_loss += self.loss(grid_rate, stand_by_power * interval.duration());
 
             // Calculate partial solutions for the current hour:
+            // TODO: iterate over the energy dimension of the solution space:
             solutions = {
                 // Solutions from the past iteration become «next» in relation to the current step.
                 // They are wrapped in `Rc`, because we're replacing the vector,
@@ -111,11 +114,14 @@ impl Solver<'_> {
         }
 
         // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
+        // TODO: let the caller do it:
         let initial_energy = WattHours::from(self.battery_state.energy.residual());
         let solution = solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
         info!(elapsed = ?start_instant.elapsed(), "optimized");
         println!("{}", solution.with_base_loss(base_loss));
+
+        // TODO: should return the entire solution space and let the caller backtrack the solution.
         Some(solution)
     }
 

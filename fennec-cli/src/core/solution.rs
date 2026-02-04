@@ -67,6 +67,8 @@ pub struct Payload {
     /// hour, while moving from the future to the present. When all the states for the current hour
     /// are calculated, I can safely drop the previous hour states, because I keep the relevant
     /// links via [`Rc`].
+    ///
+    /// TODO: should be `next_energy_level`.
     pub next_solution: Rc<Solution>,
 }
 

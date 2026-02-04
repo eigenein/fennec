@@ -111,6 +111,7 @@ impl HuntArgs {
             .degradation_rate(self.degradation_rate)
             .solve()
             .context("no solution found, try allowing additional working modes")?;
+        // TODO: backtrack in the solution space using the residual from the battery energy state:
         let steps = solution.backtrack().collect_vec();
         println!("{}", build_steps_table(&steps, self.battery.power_limits.discharging_power));
 

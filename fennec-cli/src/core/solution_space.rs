@@ -21,9 +21,12 @@ pub struct SolutionSpace {
     flat_matrix: Vec<Option<Solution>>,
 }
 
+/// TODO: provide iterator over `(energy_level, energy)` for use in the `Solver`.
 impl SolutionSpace {
     pub fn new(quantum: Quantum, n_intervals: usize, max_energy: KilowattHours) -> Self {
+        // TODO: quantum will likely go away because it isn't needed for the getters.
         let max_energy_level = quantum.quantize(max_energy);
+
         let flat_matrix = vec![None; n_intervals * (max_energy_level.0 + 1)];
         Self { quantum, max_energy_level, n_intervals, flat_matrix }
     }
@@ -32,6 +35,8 @@ impl SolutionSpace {
     ///
     /// - Energy above the maximum allowed energy will be coerced to the maximum level.
     /// - Beyond the last time slot, it will always return [`None`].
+    ///
+    /// TODO: should accept energy level instead of kWh.
     pub fn get(&self, interval_index: usize, energy: KilowattHours) -> Option<&Solution> {
         if interval_index < self.n_intervals {
             self.flat_matrix[self.flat_index(interval_index, energy)].as_ref()
@@ -43,6 +48,8 @@ impl SolutionSpace {
     /// Get the mutable solution at the given time slot index and energy.
     ///
     /// Energy above the maximum allowed energy will be coerced to the maximum level.
+    ///
+    /// TODO: should accept energy level instead of kWh.
     pub fn get_mut(
         &mut self,
         interval_index: usize,

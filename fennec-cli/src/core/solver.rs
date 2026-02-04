@@ -1,6 +1,3 @@
-mod battery;
-pub mod step;
-
 use std::{
     fmt::{Display, Formatter},
     iter::from_fn,
@@ -17,11 +14,7 @@ use itertools::Itertools;
 use crate::{
     api::modbus::BatteryState,
     cli::battery::BatteryPowerLimits,
-    core::{
-        interval::Interval,
-        solver::{battery::Battery, step::Step},
-        working_mode::WorkingMode,
-    },
+    core::{battery::Battery, interval::Interval, step::Step, working_mode::WorkingMode},
     prelude::*,
     quantity::{
         Quantity,

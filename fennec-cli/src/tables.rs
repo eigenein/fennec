@@ -2,7 +2,7 @@ use average::Mean;
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
-    core::{solver::step::Step, working_mode::WorkingMode},
+    core::{step::Step, working_mode::WorkingMode},
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 

@@ -10,7 +10,8 @@
   "rangeStrategy": "pin",
   "packageRules": [
     {
-      "matchPackageNames": ["linfa", "linfa-linear", "ndarray"]
+      "matchPackageNames": ["linfa", "linfa-linear", "ndarray"],
+      "groupName": "machine learning"
     }
   ]
 }

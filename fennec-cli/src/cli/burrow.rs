@@ -49,7 +49,7 @@ impl BurrowBatteryArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
         let logs = db.find_logs::<BatteryLog>(self.estimation.since()).await?;
-        let _ = BatteryEfficiency::try_estimate(logs).await?;
+        let _ = BatteryEfficiency::try_estimate(logs, self.estimation.weight_mode).await?;
         Ok(())
     }
 }

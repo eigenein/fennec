@@ -8,6 +8,7 @@ mod log;
 
 use clap::{Parser, Subcommand};
 
+pub use self::estimation::WeightMode;
 use crate::cli::{burrow::BurrowArgs, hunt::HuntArgs, log::LogArgs};
 
 #[derive(Parser)]

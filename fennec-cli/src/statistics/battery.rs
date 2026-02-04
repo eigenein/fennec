@@ -16,6 +16,7 @@ use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
 
 use crate::{
+    cli::WeightMode,
     db::battery::BatteryLog,
     fmt::FormattedPercentage,
     prelude::*,
@@ -73,7 +74,7 @@ impl BatteryEfficiency {
     }
 
     #[instrument(skip_all)]
-    pub async fn try_estimate<S>(mut battery_logs: S) -> Result<Self>
+    pub async fn try_estimate<S>(mut battery_logs: S, weight_mode: WeightMode) -> Result<Self>
     where
         S: TryStream<Ok = BatteryLog, Error = Error> + Unpin,
     {
@@ -84,15 +85,25 @@ impl BatteryEfficiency {
         while let Some(log) = battery_logs.try_next().await? {
             let imported_energy = log.metrics.import - previous.metrics.import;
             let exported_energy = log.metrics.export - previous.metrics.export;
-            let duration = log.timestamp - previous.timestamp;
+            let hours = (log.timestamp - previous.timestamp).as_seconds_f64() / 3600.0;
             let residual_differential = log.residual_energy - previous.residual_energy;
 
+            let weight_multiplier = {
+                let weight = match weight_mode {
+                    WeightMode::None => 1.0,
+                    WeightMode::ResidualDifferential => residual_differential.0.abs(),
+                };
+                weight.sqrt()
+            };
+
             dataset.records.push_row(aview1(&[
-                imported_energy.0,
-                exported_energy.0,
-                duration.as_seconds_f64() / 3600.0,
+                imported_energy.0 * weight_multiplier,
+                exported_energy.0 * weight_multiplier,
+                hours * weight_multiplier,
             ]))?;
-            dataset.targets.push(Axis(0), aview0(&residual_differential.0))?;
+            dataset
+                .targets
+                .push(Axis(0), aview0(&(residual_differential.0 * weight_multiplier)))?;
 
             previous = log;
         }
@@ -100,7 +111,7 @@ impl BatteryEfficiency {
             bail!("empty dataset");
         }
 
-        info!(n_samples = dataset.nsamples(), "estimating the battery efficiency…");
+        info!(n_samples = dataset.nsamples(), ?weight_mode, "estimating the battery efficiency…");
         let start_time = Instant::now();
         let regression = LinearRegression::new()
             .with_intercept(false)

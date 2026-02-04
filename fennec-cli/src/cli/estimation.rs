@@ -10,10 +10,22 @@ pub struct EstimationArgs {
         default_value = "14d"
     )]
     duration: humantime::Duration,
+
+    #[clap(long, env, default_value = "none")]
+    pub weight_mode: WeightMode,
 }
 
 impl EstimationArgs {
     pub fn since(&self) -> DateTime<Local> {
         Local::now() - TimeDelta::from_std(self.duration.into()).unwrap()
     }
+}
+
+#[derive(Copy, Clone, Debug, clap::ValueEnum)]
+pub enum WeightMode {
+    /// Unweighted linear regression.
+    None,
+
+    /// Experimental: weigh battery log samples by residual energy differential.
+    ResidualDifferential,
 }

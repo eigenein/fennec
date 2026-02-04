@@ -1,6 +1,10 @@
-use std::time::Instant;
+use std::{
+    fmt::{Display, Formatter},
+    time::Instant,
+};
 
 use bon::bon;
+use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use linfa::{
@@ -28,18 +32,25 @@ pub struct BatteryEfficiency {
 
     /// Discharging efficiency, `0..=1`.
     pub discharging: f64,
+
+    pub n_samples: usize,
 }
 
 impl Default for BatteryEfficiency {
     fn default() -> Self {
-        Self { parasitic_load: Kilowatts::ZERO, charging: 1.0, discharging: 1.0 }
+        Self { parasitic_load: Kilowatts::ZERO, charging: 1.0, discharging: 1.0, n_samples: 0 }
     }
 }
 
 #[bon]
 impl BatteryEfficiency {
     #[builder]
-    pub fn new(parasitic_load: Kilowatts, charging: f64, discharging: f64) -> Result<Self> {
+    pub fn new(
+        parasitic_load: Kilowatts,
+        charging: f64,
+        discharging: f64,
+        n_samples: usize,
+    ) -> Result<Self> {
         if parasitic_load.0.is_nan()
             || parasitic_load.0.is_infinite()
             || parasitic_load < Kilowatts::ZERO
@@ -52,7 +63,7 @@ impl BatteryEfficiency {
         if discharging.is_nan() || discharging.is_infinite() {
             bail!("invalid discharging efficiency: {discharging}");
         }
-        Ok(Self { parasitic_load, charging, discharging })
+        Ok(Self { parasitic_load, charging, discharging, n_samples })
     }
 }
 
@@ -95,24 +106,19 @@ impl BatteryEfficiency {
             .with_intercept(false)
             .fit(&dataset)
             .context("failed to fit a regression")?;
-        let r_squared = Self::r_squared(&regression, &dataset);
-        info!(elapsed = ?start_time.elapsed(), r_squared = ?FormattedPercentage(r_squared), "regression has been fit");
+        info!(elapsed = ?start_time.elapsed(), "completed");
 
         let this = Self::builder()
             .charging(regression.params()[0])
             .discharging(-1.0 / regression.params()[1])
             .parasitic_load(Quantity(-regression.params()[2]))
+            .n_samples(dataset.nsamples())
             .build()?;
-        info!(
-            round_trip = ?FormattedPercentage(this.round_trip()),
-            parasitic_load = ?this.parasitic_load,
-            charging = ?FormattedPercentage(this.charging),
-            discharging = ?FormattedPercentage(this.discharging),
-            "completed",
-        );
+        println!("{this}");
         Ok(this)
     }
 
+    #[expect(unused)]
     fn r_squared(
         regression: &FittedLinearRegression<f64>,
         dataset: &Dataset<f64, f64, Ix1>,
@@ -122,5 +128,48 @@ impl BatteryEfficiency {
         let residual_squared_sum = (dataset.targets() - &predicted).mapv(|diff| diff * diff).sum();
         let total_squares_sum = (dataset.targets() - target_mean).mapv(|diff| diff * diff).sum();
         1.0 - residual_squared_sum / total_squares_sum
+    }
+}
+
+impl Display for BatteryEfficiency {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table
+            .load_preset(presets::UTF8_FULL_CONDENSED)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+            .enforce_styling()
+            .set_header(vec![Cell::from("Battery")])
+            .add_row(vec![
+                Cell::from("Samples"),
+                Cell::from(self.n_samples).set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::from("Charging").fg(Color::Green),
+                Cell::from(FormattedPercentage(self.charging))
+                    .set_alignment(CellAlignment::Right)
+                    .fg(Color::Green)
+                    .add_attribute(Attribute::Bold),
+            ])
+            .add_row(vec![
+                Cell::from("Discharging").fg(Color::Red),
+                Cell::from(FormattedPercentage(self.discharging))
+                    .set_alignment(CellAlignment::Right)
+                    .fg(Color::Red)
+                    .add_attribute(Attribute::Bold),
+            ])
+            .add_row(vec![
+                Cell::from("Parasitic load"),
+                Cell::from(self.parasitic_load)
+                    .add_attribute(Attribute::Bold)
+                    .set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::from("Round trip").fg(Color::DarkYellow),
+                Cell::from(FormattedPercentage(self.round_trip()))
+                    .set_alignment(CellAlignment::Right)
+                    .fg(Color::DarkYellow)
+                    .add_attribute(Attribute::Bold),
+            ]);
+        write!(f, "{table}")
     }
 }

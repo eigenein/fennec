@@ -1,10 +1,16 @@
 mod battery;
 pub mod step;
 
-use std::{iter::from_fn, rc::Rc, time::Instant};
+use std::{
+    fmt::{Display, Formatter},
+    iter::from_fn,
+    rc::Rc,
+    time::Instant,
+};
 
 use bon::{Builder, bon};
 use chrono::{DateTime, Local, Timelike};
+use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets};
 use enumset::EnumSet;
 use itertools::Itertools;
 
@@ -117,15 +123,8 @@ impl Solver<'_> {
         let initial_energy = WattHours::from(self.battery_state.energy.residual());
         let solution = solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
 
-        info!(
-            net_loss = ?solution.net_loss,
-            without_battery = ?net_loss_without_battery,
-            profit = ?(net_loss_without_battery - solution.net_loss),
-            charge = ?solution.charge,
-            discharge = ?solution.discharge,
-            elapsed = ?start_instant.elapsed(),
-            "optimized",
-        );
+        info!(elapsed = ?start_instant.elapsed(), "optimized");
+        println!("{}", SolutionSummary { net_loss_without_battery, solution: &solution });
         Some(solution)
     }
 
@@ -277,7 +276,7 @@ impl Solution {
 /// Solution payload.
 #[derive(Clone)]
 pub struct Payload {
-    /// The current (first step of the partial solution) step metrics.
+    /// The current step (first step of the partial solution) metrics.
     step: Step,
 
     /// Next partial solution – allows backtracking the entire sequence.
@@ -287,4 +286,35 @@ pub struct Payload {
     /// are calculated, I can safely drop the previous hour states, because I keep the relevant
     /// links via [`Rc`].
     next_solution: Rc<Solution>,
+}
+
+struct SolutionSummary<'a> {
+    solution: &'a Solution,
+    net_loss_without_battery: Cost,
+}
+
+impl Display for SolutionSummary<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table
+            .load_preset(presets::UTF8_FULL_CONDENSED)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+            .enforce_styling()
+            .set_header(vec![
+                Cell::from("Profit"),
+                Cell::from("Charge"),
+                Cell::from("Discharge"),
+                Cell::from("Without battery"),
+                Cell::from("Loss"),
+            ])
+            .add_row(vec![
+                Cell::from(self.net_loss_without_battery - self.solution.net_loss)
+                    .add_attribute(Attribute::Bold),
+                Cell::from(self.solution.charge).fg(Color::Green),
+                Cell::from(self.solution.discharge).fg(Color::Red),
+                Cell::from(self.net_loss_without_battery),
+                Cell::from(self.solution.net_loss),
+            ]);
+        write!(f, "{table}")
+    }
 }

@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use comfy_table::{Cell, Table, modifiers, presets};
 
 use crate::{
     api::foxess,
@@ -7,7 +6,6 @@ use crate::{
     db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
-    tables::build_time_slot_sequence_table,
 };
 
 #[derive(Parser)]
@@ -70,19 +68,8 @@ impl BurrowConsumptionArgs {
         let db = self.db.connect().await?;
         let logs = db.find_logs::<ConsumptionLog>(self.estimation.since()).await?;
         let statistics = ConsumptionStatistics::try_estimate(logs).await?;
-        let mut table = Table::new();
-        table
-            .load_preset(presets::UTF8_FULL_CONDENSED)
-            .apply_modifier(modifiers::UTF8_ROUND_CORNERS);
-        table.enforce_styling();
-        table.set_header(vec!["Hour", "Power"]);
-        for (hour, power) in statistics.hourly.iter().enumerate() {
-            table.add_row(vec![
-                Cell::new(hour),
-                power.map(Cell::new).unwrap_or_else(|| Cell::new("n/a")),
-            ]);
-        }
-        println!("{table}");
+        println!("{}", statistics.summary_table());
+        println!("{}", statistics.hourly_table());
         Ok(())
     }
 }
@@ -105,7 +92,7 @@ impl BurrowFoxEssArgs {
             BurrowFoxEssCommand::Schedule => {
                 let schedule = fox_ess.get_schedule(&self.fox_ess_api.serial_number).await?;
                 info!(schedule.is_enabled, "gotcha");
-                println!("{}", build_time_slot_sequence_table(&schedule.groups));
+                println!("{}", &schedule.groups);
             }
         }
 

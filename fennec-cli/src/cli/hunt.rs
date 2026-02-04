@@ -12,7 +12,7 @@ use crate::{
     prelude::*,
     quantity::rate::KilowattHourRate,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
-    tables::{build_steps_table, build_time_slot_sequence_table},
+    tables::build_steps_table,
 };
 
 #[derive(Parser)]
@@ -97,6 +97,7 @@ impl HuntArgs {
             let consumption_logs = db.find_logs::<ConsumptionLog>(since).await?;
             ConsumptionStatistics::try_estimate(consumption_logs).await?
         };
+        println!("{}", consumption_statistics.summary_table());
 
         let solution = Solver::builder()
             .grid_rates(&grid_rates)
@@ -122,7 +123,7 @@ impl HuntArgs {
             min_state_of_charge,
             max_state_of_charge,
         )?;
-        println!("{}", build_time_slot_sequence_table(&time_slot_sequence));
+        println!("{}", &time_slot_sequence);
 
         if !self.scout {
             fox_ess

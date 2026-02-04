@@ -4,6 +4,7 @@ use std::{
 };
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
+use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -206,6 +207,33 @@ impl TimeSlotSequence {
             .collect::<Result<_>>()
             .context("failed to compile a FoxESS schedule")
             .map(Self)
+    }
+}
+
+impl Display for &TimeSlotSequence {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table
+            .load_preset(presets::UTF8_FULL_CONDENSED)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+            .enforce_styling()
+            .set_header(vec!["Start", "End", "Mode", "Feed power"]);
+        for time_slot in &self.0 {
+            let mode_color = match time_slot.working_mode {
+                WorkingMode::ForceDischarge if time_slot.feed_power != Watts(0) => Color::Red,
+                WorkingMode::ForceCharge if time_slot.feed_power != Watts(0) => Color::Green,
+                WorkingMode::SelfUse => Color::DarkYellow,
+                WorkingMode::BackUp => Color::Magenta,
+                _ => Color::Reset,
+            };
+            table.add_row(vec![
+                Cell::new(&time_slot.start_time),
+                Cell::new(&time_slot.end_time),
+                Cell::new(format!("{:?}", time_slot.working_mode)).fg(mode_color),
+                Cell::new(time_slot.feed_power).set_alignment(CellAlignment::Right),
+            ]);
+        }
+        write!(f, "{table}")
     }
 }
 

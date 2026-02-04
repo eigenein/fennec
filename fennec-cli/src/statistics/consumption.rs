@@ -1,7 +1,9 @@
 use chrono::{Local, TimeDelta, Timelike};
+use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 use derive_more::AddAssign;
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
+use humantime::format_duration;
 use itertools::Itertools;
 
 use crate::{
@@ -10,10 +12,12 @@ use crate::{
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
+#[must_use]
 #[derive(Copy, Clone)]
 pub struct ConsumptionStatistics {
-    pub global_average: Kilowatts,
-    pub hourly: [Option<Kilowatts>; 24],
+    total: Accumulator,
+    average: Kilowatts,
+    hourly: [Option<Kilowatts>; 24],
 }
 
 impl ConsumptionStatistics {
@@ -25,7 +29,7 @@ impl ConsumptionStatistics {
         info!("crunching consumption logs…");
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
-        let mut global = Accumulator::default();
+        let mut total = Accumulator::default();
         let mut hourly = [Accumulator::default(); 24];
 
         while let Some(current) = logs.try_next().await? {
@@ -33,7 +37,7 @@ impl ConsumptionStatistics {
                 time: current.timestamp - previous.timestamp,
                 consumption: current.net - previous.net,
             };
-            global += delta;
+            total += delta;
             if current.timestamp.date_naive() == previous.timestamp.date_naive()
                 && current.timestamp.hour() == previous.timestamp.hour()
             {
@@ -43,21 +47,63 @@ impl ConsumptionStatistics {
             previous = current;
         }
 
-        let this = Self {
-            global_average: global.average_power().context("empty consumption logs")?,
+        Ok(Self {
+            total,
+            average: total.average_power().context("empty consumption logs")?,
             hourly: hourly.into_iter().map(Accumulator::average_power).collect_array().unwrap(),
-        };
-        info!(
-            global_average = ?this.global_average,
-            total_time = %humantime::format_duration(global.time.to_std()?),
-            total_consumption = ?global.consumption,
-            "estimated consumption profile",
-        );
-        Ok(this)
+        })
     }
 
     pub fn on_hour(&self, hour: u32) -> Kilowatts {
-        self.hourly[hour as usize].unwrap_or(self.global_average)
+        self.hourly[hour as usize].unwrap_or(self.average)
+    }
+
+    #[must_use]
+    pub fn summary_table(&self) -> Table {
+        let mut table = Table::new();
+        table
+            .load_preset(presets::UTF8_FULL_CONDENSED)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+            .enforce_styling()
+            .set_header(vec![
+                Cell::from("Average").add_attribute(Attribute::Bold),
+                Cell::from("Time"),
+                Cell::from("Consumption"),
+            ])
+            .add_row(vec![
+                Cell::from(self.average).add_attribute(Attribute::Bold),
+                Cell::from(format_duration(self.total.time.to_std().unwrap())),
+                Cell::from(self.total.consumption),
+            ]);
+        table
+    }
+
+    #[must_use]
+    pub fn hourly_table(&self) -> Table {
+        let mut table = Table::new();
+        table
+            .load_preset(presets::UTF8_FULL_CONDENSED)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+            .enforce_styling()
+            .set_header(vec![
+                Cell::from("Hour"),
+                Cell::from("Power").set_alignment(CellAlignment::Right),
+            ]);
+        for (hour, power) in self.hourly.iter().enumerate() {
+            table.add_row(vec![
+                Cell::new(hour),
+                power
+                    .map(Cell::new)
+                    .unwrap_or_else(|| Cell::new("n/a"))
+                    .set_alignment(CellAlignment::Right)
+                    .fg(match power {
+                        Some(power) if *power > self.average => Color::Red,
+                        Some(power) if *power < self.average => Color::Green,
+                        _ => Color::Reset,
+                    }),
+            ]);
+        }
+        table
     }
 }
 

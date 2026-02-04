@@ -9,7 +9,7 @@ use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
 
 use self::schedule::Schedule;
-pub use self::schedule::{TimeSlot, TimeSlotSequence, WorkingMode};
+pub use self::schedule::{TimeSlot, TimeSlotSequence};
 use crate::{api::foxess::response::Response, prelude::*};
 
 pub struct Api {
@@ -39,6 +39,7 @@ impl Api {
             serial_number: &'a str,
         }
 
+        info!("getting…");
         self.post("op/v1/device/scheduler/get", &GetScheduleRequest { serial_number })
             .await
             .context("failed to get the schedule")
@@ -46,8 +47,6 @@ impl Api {
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
     pub async fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
-        info!(n_groups = groups.len(), "setting…");
-
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]
@@ -57,6 +56,7 @@ impl Api {
             groups: &'a [TimeSlot],
         }
 
+        info!(n_groups = groups.len(), "setting…");
         self.post("op/v1/device/scheduler/enable", SetScheduleRequest { serial_number, groups })
             .await
     }

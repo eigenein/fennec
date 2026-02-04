@@ -16,6 +16,8 @@ pub struct SolutionSpace {
     n_intervals: usize,
 
     /// Flattened 2D array of solutions to speed up the lookups.
+    ///
+    /// Here, [`None`] means there is no solution in the given state.
     flat_matrix: Vec<Option<Solution>>,
 }
 

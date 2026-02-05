@@ -21,7 +21,7 @@ pub trait Log: Send + Sync + Serialize + DeserializeOwned {
             .time_field("timestamp")
             .granularity(TimeseriesGranularity::Minutes)
             .build();
-        db.0.create_collection(Self::COLLECTION_NAME).timeseries(options).await.or_else(
+        db.inner.create_collection(Self::COLLECTION_NAME).timeseries(options).await.or_else(
             |error| match error.kind.as_ref() {
                 ErrorKind::Command(error) if error.code == 48 => {
                     warn!("collection already exists");
@@ -30,18 +30,20 @@ pub trait Log: Send + Sync + Serialize + DeserializeOwned {
                 _ => Err(error),
             },
         )?;
-        db.0.run_command(doc! {
-            "collMod": Self::COLLECTION_NAME,
-            "expireAfterSeconds": Self::EXPIRE_AFTER_SECONDS,
-        })
-        .await?;
+        db.inner
+            .run_command(doc! {
+                "collMod": Self::COLLECTION_NAME,
+                "expireAfterSeconds": Self::EXPIRE_AFTER_SECONDS,
+            })
+            .await?;
         Ok(())
     }
 
     #[instrument(skip_all)]
     async fn insert_into(&self, db: &Db) -> Result {
         info!(collection_name = Self::COLLECTION_NAME, "inserting the log…");
-        db.0.collection::<Self>(Self::COLLECTION_NAME)
+        db.inner
+            .collection::<Self>(Self::COLLECTION_NAME)
             .insert_one(self)
             .await
             .context("failed to insert the log")?;

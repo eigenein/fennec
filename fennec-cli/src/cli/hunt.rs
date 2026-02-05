@@ -98,6 +98,7 @@ impl HuntArgs {
             ConsumptionStatistics::try_estimate(consumption_logs).await?
         };
         println!("{}", consumption_statistics.summary_table());
+        db.shutdown().await;
 
         let quantum = Quantum::from(0.001); // TODO: make configurable.
         let initial_energy_level = quantum.quantize(battery_state.energy.residual());

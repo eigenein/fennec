@@ -50,6 +50,7 @@ impl BurrowBatteryArgs {
         let db = self.db.connect().await?;
         let logs = db.find_logs::<BatteryLog>(self.estimation.since()).await?;
         let _ = BatteryEfficiency::try_estimate(logs, self.estimation.weight_mode).await?;
+        db.shutdown().await;
         Ok(())
     }
 }
@@ -68,6 +69,7 @@ impl BurrowConsumptionArgs {
         let db = self.db.connect().await?;
         let logs = db.find_logs::<ConsumptionLog>(self.estimation.since()).await?;
         let statistics = ConsumptionStatistics::try_estimate(logs).await?;
+        db.shutdown().await;
         println!("{}", statistics.summary_table());
         println!("{}", statistics.hourly_table());
         Ok(())

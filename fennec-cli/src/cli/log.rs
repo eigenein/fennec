@@ -78,7 +78,7 @@ impl LogArgs {
             .build();
         let consumption_logger = ConsumptionLogger::builder()
             .interval(self.meter_polling_interval)
-            .db(db)
+            .db(db.clone())
             .heartbeat(heartbeat::Client::new(self.consumption_heartbeat_url.clone()))
             .total_meter_client(homewizard::Client::new(self.total_energy_meter_url.clone())?)
             .battery_meter_client(battery_meter_client)
@@ -86,6 +86,7 @@ impl LogArgs {
             .build();
 
         tokio::join!(battery_logger.run(), consumption_logger.run());
+        db.shutdown().await;
         Ok(())
     }
 }

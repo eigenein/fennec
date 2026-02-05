@@ -18,7 +18,10 @@ pub mod state;
 
 #[must_use]
 #[derive(Clone)]
-pub struct Db(Database);
+pub struct Db {
+    client: Client,
+    inner: Database,
+}
 
 impl Db {
     const STATES_COLLECTION_NAME: &'static str = "states";
@@ -28,11 +31,11 @@ impl Db {
     /// The URO *must* specify the database name.
     #[instrument(skip_all)]
     pub async fn with_uri(uri: impl AsRef<str> + Debug) -> Result<Self> {
-        let inner = Client::with_uri_str(uri)
-            .await?
+        let client = Client::with_uri_str(uri).await?;
+        let inner = client
             .default_database()
             .context("MongoDB URI does not define the default database")?;
-        let this = Self(inner);
+        let this = Self { client, inner };
         BatteryLog::initialize_time_series(&this).await?;
         ConsumptionLog::initialize_time_series(&this).await?;
         Ok(this)
@@ -45,7 +48,7 @@ impl Db {
     ) -> Result<impl TryStream<Ok = L, Error = Error>> {
         info!(collection_name = L::COLLECTION_NAME, ?since, "querying logs…");
         Ok(self
-            .0
+            .inner
             .collection::<L>(L::COLLECTION_NAME)
             .find(doc! { "timestamp": { "$gte": since } })
             .sort(doc! { "timestamp": 1 })
@@ -60,7 +63,7 @@ impl Db {
     pub async fn get_state<S: State>(&self) -> Result<Option<S>> {
         info!("fetching the state…");
         let filter = doc! { "_id": S::ID };
-        self.0
+        self.inner
             .collection(Self::STATES_COLLECTION_NAME)
             .find_one(filter)
             .await
@@ -78,7 +81,7 @@ impl Db {
         let mut replacement = serialize_to_document(state)?;
         replacement.insert("_id", S::ID);
         let old_state = self
-            .0
+            .inner
             .collection(Self::STATES_COLLECTION_NAME)
             .find_one_and_replace(filter, replacement)
             .upsert(true)
@@ -86,5 +89,9 @@ impl Db {
             .await
             .with_context(|| format!("failed to upsert `{:?}`", S::ID))?;
         old_state.map(deserialize_from_document).transpose().context("failed to upsert the state")
+    }
+
+    pub async fn shutdown(self) {
+        self.client.shutdown().await;
     }
 }

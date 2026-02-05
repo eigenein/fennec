@@ -18,7 +18,9 @@ pub struct Solution {
     /// Cumulative discharge till the end of the forecast period.
     pub cumulative_discharge: KilowattHours,
 
-    /// TODO: consider incorporating [`Step`] into [`Solution`].
+    /// First step associated with this solution.
+    ///
+    /// Boundary solutions have [`None`] here.
     pub step: Option<Step>,
 }
 

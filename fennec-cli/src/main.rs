@@ -12,19 +12,33 @@ mod statistics;
 mod tables;
 
 use clap::{Parser, crate_version};
+use tracing::metadata::LevelFilter;
+use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     cli::{Args, Command},
     prelude::*,
 };
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result {
-    let _ = dotenvy::dotenv();
-    tracing_subscriber::fmt().without_time().compact().init();
+fn main() -> Result {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .without_time()
+                .compact()
+                .with_filter(LevelFilter::from(Level::INFO)),
+        )
+        .with(sentry::integrations::tracing::layer())
+        .init();
     info!(version = crate_version!(), "starting…");
+    let _ = dotenvy::dotenv();
+    let args = Args::parse();
+    let _sentry_guard = args.sentry.init();
+    tokio::runtime::Builder::new_current_thread().enable_all().build()?.block_on(async_main(args))
+}
 
-    match Args::parse().command {
+async fn async_main(args: Args) -> Result {
+    match args.command {
         Command::Hunt(args) => args.run().await,
         Command::Log(args) => args.run().await,
         Command::Burrow(args) => args.run().await,

@@ -5,16 +5,20 @@ mod estimation;
 mod foxess;
 mod hunt;
 mod log;
+mod sentry;
 
 use clap::{Parser, Subcommand};
 
 pub use self::estimation::WeightMode;
-use crate::cli::{burrow::BurrowArgs, hunt::HuntArgs, log::LogArgs};
+use crate::cli::{burrow::BurrowArgs, hunt::HuntArgs, log::LogArgs, sentry::SentryArgs};
 
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
 #[must_use]
 pub struct Args {
+    #[clap(flatten)]
+    pub sentry: SentryArgs,
+
     #[command(subcommand)]
     pub command: Command,
 }

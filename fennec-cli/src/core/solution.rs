@@ -12,8 +12,6 @@ use crate::{
 };
 
 /// FIXME: remove [`Clone`].
-///
-/// FIXME: perhaps make it an enum – for «normal» solution and «final» solution.
 #[must_use]
 #[derive(Clone)]
 pub struct Solution {
@@ -26,6 +24,7 @@ pub struct Solution {
     /// Cumulative discharge till the end of the forecast period.
     pub discharge: KilowattHours,
 
+    /// TODO: this will be replaced with `Option<Step>` when `next_solution` goes away.
     pub payload: Option<Payload>,
 }
 

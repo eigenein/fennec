@@ -1,10 +1,4 @@
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
+use std::time::Duration;
 
 use bon::Builder;
 use clap::Parser;
@@ -60,10 +54,6 @@ pub struct LogArgs {
 
 impl LogArgs {
     pub async fn run(self) -> Result {
-        // TODO: implement proper signal handling with cancelling the `sleep` call.
-        let should_terminate = Arc::new(AtomicBool::new(false));
-        signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&should_terminate))?;
-
         let db = self.db.connect().await?;
         let battery_meter_client = homewizard::Client::new(self.battery_energy_meter_url.clone())?;
 
@@ -74,7 +64,6 @@ impl LogArgs {
             .modbus_client(self.battery_connection.connect().await?)
             .modbus_registers(self.battery_registers)
             .meter_client(battery_meter_client.clone())
-            .should_terminate(Arc::clone(&should_terminate))
             .build();
         let consumption_logger = ConsumptionLogger::builder()
             .interval(self.meter_polling_interval)
@@ -82,7 +71,6 @@ impl LogArgs {
             .heartbeat(heartbeat::Client::new(self.consumption_heartbeat_url.clone()))
             .total_meter_client(homewizard::Client::new(self.total_energy_meter_url.clone())?)
             .battery_meter_client(battery_meter_client)
-            .should_terminate(should_terminate)
             .build();
 
         let result = tokio::try_join!(battery_logger.run(), consumption_logger.run());
@@ -96,7 +84,6 @@ struct ConsumptionLogger {
     battery_meter_client: homewizard::Client,
     total_meter_client: homewizard::Client,
     db: Db,
-    should_terminate: Arc<AtomicBool>,
     heartbeat: heartbeat::Client,
 
     #[builder(into)]
@@ -105,7 +92,7 @@ struct ConsumptionLogger {
 
 impl ConsumptionLogger {
     async fn run(self) -> Result {
-        while !self.should_terminate.load(Ordering::Relaxed) {
+        loop {
             let (total_metrics, battery_metrics) = tokio::try_join!(
                 self.total_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement()
@@ -118,7 +105,6 @@ impl ConsumptionLogger {
             self.heartbeat.send().await;
             sleep(self.interval).await;
         }
-        Ok(())
     }
 }
 
@@ -128,7 +114,6 @@ struct BatteryLogger {
     modbus_registers: BatteryEnergyStateRegisters,
     meter_client: homewizard::Client,
     db: Db,
-    should_terminate: Arc<AtomicBool>,
     heartbeat: heartbeat::Client,
 
     #[builder(into)]
@@ -137,7 +122,7 @@ struct BatteryLogger {
 
 impl BatteryLogger {
     async fn run(mut self) -> Result {
-        while !self.should_terminate.load(Ordering::Relaxed) {
+        loop {
             let battery_state = self.modbus_client.read_energy_state(self.modbus_registers).await?;
             let last_known_residual_energy = self
                 .db
@@ -157,6 +142,5 @@ impl BatteryLogger {
             self.heartbeat.send().await;
             sleep(self.interval).await;
         }
-        Ok(())
     }
 }

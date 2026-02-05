@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bon::Builder;
+use http::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -15,9 +16,14 @@ pub struct Client {
 impl Client {
     #[instrument(skip_all, fields(url = %url))]
     pub fn new(url: Url) -> Result<Self> {
+        let headers = HeaderMap::from_iter([(
+            HeaderName::from_static("connection"),
+            HeaderValue::from_static("close"),
+        )]);
         let inner = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
-            .pool_max_idle_per_host(1)
+            .default_headers(headers)
+            .pool_max_idle_per_host(0)
             .build()?;
         Ok(Self { inner, url })
     }

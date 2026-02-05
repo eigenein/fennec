@@ -105,7 +105,11 @@ impl HuntArgs {
             .grid_rates(&grid_rates)
             .consumption_statistics(&consumption_statistics)
             .working_modes(working_modes)
-            .battery_state(battery_state)
+            .min_residual_energy(battery_state.min_residual_energy())
+            .max_residual_energy(
+                // Current residual may be higher than the maximum SoC setting:
+                battery_state.max_residual_energy().max(battery_state.energy.residual()),
+            )
             .battery_power_limits(self.battery.power_limits)
             .battery_efficiency(battery_efficiency)
             .purchase_fee(self.provider.purchase_fee())

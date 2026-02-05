@@ -5,7 +5,6 @@ use chrono::{DateTime, Local, Timelike};
 use enumset::EnumSet;
 
 use crate::{
-    api::modbus::BatteryState,
     cli::battery::BatteryPowerLimits,
     core::{
         battery::Battery,
@@ -25,8 +24,16 @@ use crate::{
 pub struct Solver<'a> {
     grid_rates: &'a [(Interval, KilowattHourRate)],
     consumption_statistics: &'a ConsumptionStatistics,
+
+    /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
-    battery_state: BatteryState, // TODO: swap for `BatterySettings` and actual capacity.
+
+    /// Minimum allowed residual energy.
+    min_residual_energy: KilowattHours,
+
+    /// Maximum allowed residual energy.
+    max_residual_energy: KilowattHours,
+
     battery_power_limits: BatteryPowerLimits,
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
@@ -55,10 +62,8 @@ impl Solver<'_> {
         let start_instant = Instant::now();
 
         // TODO: this could be a part of the builder:
-        let max_energy =
-            self.battery_state.energy.residual().max(self.battery_state.max_residual_energy());
-        let max_energy_level = self.quantum.ceil(max_energy);
-        info!(?max_energy, ?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
+        let max_energy_level = self.quantum.ceil(self.max_residual_energy);
+        info!(?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
 
         // TODO: could be a part of the builder:
         let mut solutions = SolutionSpace::new(self.grid_rates.len(), max_energy_level);
@@ -122,8 +127,8 @@ impl Solver<'_> {
     ) -> Option<Solution> {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
-            .min_residual_energy(self.battery_state.min_residual_energy())
-            .max_residual_energy(self.battery_state.max_residual_energy())
+            .min_residual_energy(self.min_residual_energy)
+            .max_residual_energy(self.max_residual_energy)
             .efficiency(self.battery_efficiency)
             .build();
         self.working_modes
@@ -138,7 +143,7 @@ impl Solver<'_> {
                     .battery(battery)
                     .working_mode(working_mode)
                     .call();
-                if step.residual_energy_after >= self.battery_state.min_residual_energy() {
+                if step.residual_energy_after >= self.min_residual_energy {
                     let next_solution =
                         solutions.get(interval_index + 1, step.energy_level_after)?;
                     Some(Solution {

@@ -20,14 +20,9 @@ pub struct Solution {
 impl Solution {
     /// Empty solution that is returned for the time interval beyond the forecast horizon.
     pub const BOUNDARY: Self = Self { cumulative_metrics: CumulativeMetrics::ZERO, step: None };
-
-    pub const fn with_base_loss(&self, base_loss: Cost) -> SolutionSummary {
-        SolutionSummary { base_loss, cumulative_metrics: self.cumulative_metrics }
-    }
 }
 
 #[must_use]
-#[derive(Copy, Clone)]
 pub struct CumulativeMetrics {
     /// Cumulative loss till the end of the forecast period – our primary optimization target.
     pub loss: Cost,
@@ -45,6 +40,10 @@ impl CumulativeMetrics {
 
     pub fn energy_flow(&self) -> KilowattHours {
         self.charge + self.discharge
+    }
+
+    pub const fn with_base_loss(self, base_loss: Cost) -> SolutionSummary {
+        SolutionSummary { base_loss, cumulative_metrics: self }
     }
 }
 

@@ -119,12 +119,8 @@ impl HuntArgs {
             .quantum(quantum)
             .build();
         let base_loss = solver.base_loss();
-        let solutions = solver.solve();
-        let solutions = solutions
-            .backtrack(initial_energy_level)
-            .context("no solution found, try allowing additional working modes")?;
-        println!("{}", solutions[0].with_base_loss(base_loss));
-        let steps = solutions.into_iter().filter_map(|solution| solution.step).collect_vec();
+        let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
+        println!("{}", metrics.with_base_loss(base_loss));
         println!("{}", build_steps_table(&steps, self.battery.power_limits.discharging_power));
 
         let schedule =

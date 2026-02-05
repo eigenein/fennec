@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 use derive_more::From;
 
 use crate::quantity::energy::KilowattHours;
@@ -16,12 +18,25 @@ impl Quantum {
         debug_assert!(energy >= KilowattHours::ZERO);
         EnergyLevel((energy / self.0).round() as usize)
     }
+
+    #[expect(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_sign_loss)]
+    pub fn ceil(self, energy: KilowattHours) -> EnergyLevel {
+        debug_assert!(energy >= KilowattHours::ZERO);
+        EnergyLevel((energy / self.0).ceil() as usize)
+    }
 }
 
 /// Discrete energy level expressed in units of quanta.
 #[must_use]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct EnergyLevel(pub usize);
+
+impl Debug for EnergyLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl EnergyLevel {
     /// Convert the quantized energy level back to conventional energy.

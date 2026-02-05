@@ -7,7 +7,7 @@ use reqwest::Url;
 use crate::{
     api::{foxess, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
-    core::{provider::Provider, solver::Solver, working_mode::WorkingMode},
+    core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
     quantity::rate::KilowattHourRate,
@@ -99,7 +99,9 @@ impl HuntArgs {
         };
         println!("{}", consumption_statistics.summary_table());
 
-        let solution = Solver::builder()
+        let quantum = Quantum::from(0.001); // TODO: make configurable.
+        let initial_energy_level = quantum.quantize(battery_state.energy.residual());
+        let solver = Solver::builder()
             .grid_rates(&grid_rates)
             .consumption_statistics(&consumption_statistics)
             .working_modes(working_modes)
@@ -109,10 +111,15 @@ impl HuntArgs {
             .purchase_fee(self.provider.purchase_fee())
             .now(now)
             .degradation_rate(self.degradation_rate)
-            .solve()
+            .quantum(quantum)
+            .build();
+        let base_loss = solver.base_loss();
+        let solutions = solver.solve();
+        let solutions = solutions
+            .backtrack(initial_energy_level)
             .context("no solution found, try allowing additional working modes")?;
-        // TODO: backtrack in the solution space using the residual from the battery energy state:
-        let steps = solution.backtrack().collect_vec();
+        println!("{}", solutions[0].with_base_loss(base_loss));
+        let steps = solutions.into_iter().filter_map(|solution| solution.step).collect_vec();
         println!("{}", build_steps_table(&steps, self.battery.power_limits.discharging_power));
 
         let schedule =

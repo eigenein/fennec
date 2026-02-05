@@ -1,5 +1,5 @@
 use crate::{
-    core::{interval::Interval, working_mode::WorkingMode},
+    core::{energy_level::EnergyLevel, interval::Interval, working_mode::WorkingMode},
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 
@@ -18,6 +18,7 @@ pub struct Step {
     pub working_mode: WorkingMode,
     pub residual_energy_before: KilowattHours,
     pub residual_energy_after: KilowattHours,
+    pub energy_level_after: EnergyLevel,
     pub grid_consumption: KilowattHours,
 }
 

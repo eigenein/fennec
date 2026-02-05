@@ -1,33 +1,27 @@
-use std::{rc::Rc, time::Instant};
+use std::time::Instant;
 
 use bon::{Builder, bon};
 use chrono::{DateTime, Local, Timelike};
 use enumset::EnumSet;
-use itertools::Itertools;
 
 use crate::{
     api::modbus::BatteryState,
     cli::battery::BatteryPowerLimits,
     core::{
         battery::Battery,
-        energy_level::Quantum,
+        energy_level::{EnergyLevel, Quantum},
         interval::Interval,
-        solution::{Payload, Solution},
+        solution::Solution,
+        solution_space::SolutionSpace,
         step::Step,
         working_mode::WorkingMode,
     },
     prelude::*,
-    quantity::{
-        cost::Cost,
-        energy::{KilowattHours, WattHours},
-        power::Kilowatts,
-        rate::KilowattHourRate,
-    },
+    quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
 };
 
 #[derive(Builder)]
-#[builder(finish_fn(vis = ""))]
 pub struct Solver<'a> {
     grid_rates: &'a [(Interval, KilowattHourRate)],
     consumption_statistics: &'a ConsumptionStatistics,
@@ -38,15 +32,7 @@ pub struct Solver<'a> {
     purchase_fee: KilowattHourRate,
     degradation_rate: KilowattHourRate,
     now: DateTime<Local>,
-
-    #[builder(default = Quantum::from(0.01))]
     quantum: Quantum,
-}
-
-impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
-    pub fn solve(self) -> Option<Solution> {
-        self.build().solve()
-    }
 }
 
 #[bon]
@@ -65,24 +51,22 @@ impl Solver<'_> {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    fn solve(self) -> Option<Solution> {
+    pub fn solve(self) -> SolutionSpace {
         let start_instant = Instant::now();
 
         // TODO: this could be a part of the builder:
-        let max_energy = WattHours::from(
-            self.battery_state.energy.residual().max(self.battery_state.max_residual_energy()),
-        );
-        info!(?max_energy, n_intervals = self.grid_rates.len(), "optimizing…");
+        let max_energy =
+            self.battery_state.energy.residual().max(self.battery_state.max_residual_energy());
+        let max_energy_level = self.quantum.ceil(max_energy);
+        info!(?max_energy, ?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
 
-        let mut base_loss = Cost::ZERO;
-
-        // Since we're going backwards in time, we only need to store the next hour's partial solutions
-        // to find the current hour's solutions.
-        // Here, `None` means there's no solution for the respective residual energy.
-        let mut solutions = vec![Some(Solution::BOUNDARY); max_energy.0 as usize + 1];
+        // TODO: could be a part of the builder:
+        let mut solutions = SolutionSpace::new(self.grid_rates.len(), max_energy_level);
 
         // Going backwards:
-        for (mut interval, grid_rate) in self.grid_rates.iter().rev().copied() {
+        for (interval_index, (mut interval, grid_rate)) in
+            self.grid_rates.iter().copied().enumerate().rev()
+        {
             if interval.contains(self.now) {
                 // The interval has already started, trim the start time:
                 interval = interval.with_start(self.now);
@@ -90,43 +74,36 @@ impl Solver<'_> {
 
             // Average stand-by power at this hour of a day:
             let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
-            base_loss += self.loss(grid_rate, stand_by_power * interval.duration());
 
             // Calculate partial solutions for the current hour:
-            // TODO: iterate over the energy dimension of the solution space:
-            solutions = {
-                // Solutions from the past iteration become «next» in relation to the current step.
-                // They are wrapped in `Rc`, because we're replacing the vector,
-                // but we still need to backtrack the entire solution path.
-                let next_solutions =
-                    solutions.into_iter().map(|solution| solution.map(Rc::new)).collect_vec();
-                (0..=max_energy.0)
-                    .map(|residual_energy_watt_hours| {
-                        self.optimise_step()
-                            .interval(interval)
-                            .stand_by_power(stand_by_power)
-                            .grid_rate(grid_rate)
-                            .initial_residual_energy(KilowattHours::from(WattHours(
-                                residual_energy_watt_hours,
-                            )))
-                            .next_solutions(&next_solutions)
-                            .max_energy(max_energy)
-                            .call()
-                    })
-                    .collect_vec()
-            };
+            for energy_level in 0..=max_energy_level.0 {
+                let energy_level = EnergyLevel(energy_level);
+                let initial_residual_energy = energy_level.dequantize(self.quantum);
+                *solutions.get_mut(interval_index, energy_level) = self
+                    .optimise_step()
+                    .interval_index(interval_index)
+                    .interval(interval)
+                    .stand_by_power(stand_by_power)
+                    .grid_rate(grid_rate)
+                    .initial_residual_energy(initial_residual_energy)
+                    .solutions(&solutions)
+                    .call();
+            }
         }
 
-        // By this moment, «next hour losses» is actually the upcoming hour, so our solution starts with:
-        // TODO: let the caller do it:
-        let initial_energy = WattHours::from(self.battery_state.energy.residual());
-        let solution = solutions.into_iter().nth(usize::from(initial_energy)).unwrap()?;
-
         info!(elapsed = ?start_instant.elapsed(), "optimized");
-        println!("{}", solution.with_base_loss(base_loss));
+        solutions
+    }
 
-        // TODO: should return the entire solution space and let the caller backtrack the solution.
-        Some(solution)
+    pub fn base_loss(&self) -> Cost {
+        self.grid_rates
+            .iter()
+            .copied()
+            .map(|(interval, grid_rate)| {
+                let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
+                self.loss(grid_rate, stand_by_power * interval.duration())
+            })
+            .sum()
     }
 
     /// # Returns
@@ -136,12 +113,12 @@ impl Solver<'_> {
     #[builder]
     fn optimise_step(
         &self,
+        interval_index: usize,
         interval: Interval,
         stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
-        next_solutions: &[Option<Rc<Solution>>],
-        max_energy: WattHours,
+        solutions: &SolutionSpace,
     ) -> Option<Solution> {
         let battery = Battery::builder()
             .residual_energy(initial_residual_energy)
@@ -161,16 +138,14 @@ impl Solver<'_> {
                     .battery(battery)
                     .working_mode(working_mode)
                     .call();
-                let next_solution = {
-                    let next_energy = WattHours::from(step.residual_energy_after).min(max_energy);
-                    next_solutions[usize::from(next_energy)].clone()
-                }?;
                 if step.residual_energy_after >= self.battery_state.min_residual_energy() {
+                    let next_solution =
+                        solutions.get(interval_index + 1, step.energy_level_after)?;
                     Some(Solution {
                         net_loss: step.loss + next_solution.net_loss,
                         charge: step.charge() + next_solution.charge,
                         discharge: step.discharge() + next_solution.discharge,
-                        payload: Some(Payload { step, next_solution }),
+                        step: Some(step),
                     })
                 } else {
                     // Do not allow dropping below the minimally allowed state-of-charge:
@@ -220,6 +195,7 @@ impl Solver<'_> {
             working_mode,
             residual_energy_before: initial_residual_energy,
             residual_energy_after: battery.residual_energy(),
+            energy_level_after: self.quantum.quantize(battery.residual_energy()),
             grid_consumption,
             loss: self.loss(grid_rate, grid_consumption)
                 + (initial_residual_energy - battery.residual_energy()).abs()

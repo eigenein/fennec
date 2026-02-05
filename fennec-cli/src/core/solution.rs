@@ -1,8 +1,4 @@
-use std::{
-    fmt::{Display, Formatter},
-    iter::from_fn,
-    rc::Rc,
-};
+use std::fmt::{Display, Formatter};
 
 use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets};
 
@@ -24,8 +20,8 @@ pub struct Solution {
     /// Cumulative discharge till the end of the forecast period.
     pub discharge: KilowattHours,
 
-    /// TODO: this will be replaced with `Option<Step>` when `next_solution` goes away.
-    pub payload: Option<Payload>,
+    /// TODO: consider incorporating [`Step`] into [`Solution`].
+    pub step: Option<Step>,
 }
 
 impl Solution {
@@ -34,7 +30,7 @@ impl Solution {
         net_loss: Cost::ZERO,
         charge: Quantity::ZERO,
         discharge: Quantity::ZERO,
-        payload: None,
+        step: None,
     };
 
     pub fn energy_flow(&self) -> KilowattHours {
@@ -44,34 +40,6 @@ impl Solution {
     pub const fn with_base_loss(&self, base_loss: Cost) -> SolutionSummary<'_> {
         SolutionSummary { base_loss, solution: self }
     }
-
-    /// Track the optimal solution till the end.
-    pub fn backtrack(&self) -> impl Iterator<Item = Step> {
-        let mut pointer = self;
-        from_fn(move || {
-            let current_payload = pointer.payload.as_ref()?;
-            // …and advance:
-            pointer = current_payload.next_solution.as_ref();
-            Some(current_payload.step.clone())
-        })
-    }
-}
-
-/// Solution payload.
-///
-/// FIXME: remove [`Clone`].
-#[derive(Clone)]
-pub struct Payload {
-    /// The current step (first step of the partial solution) metrics.
-    pub step: Step,
-
-    /// Next partial solution – allows backtracking the entire sequence.
-    ///
-    /// I use [`Rc`] here to avoid storing the entire state matrix. That way, I calculate hour by
-    /// hour, while moving from the future to the present. When all the states for the current hour
-    /// are calculated, I can safely drop the previous hour states, because I keep the relevant
-    /// links via [`Rc`].
-    pub next_solution: Rc<Solution>,
 }
 
 #[must_use]

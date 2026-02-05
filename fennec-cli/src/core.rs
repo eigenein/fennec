@@ -1,5 +1,5 @@
 mod battery;
-mod energy_level;
+pub mod energy_level;
 pub mod interval;
 pub mod provider;
 pub mod solution;

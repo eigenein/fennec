@@ -1,14 +1,6 @@
-use crate::{
-    core::{
-        energy_level::{EnergyLevel, Quantum},
-        solution::Solution,
-    },
-    quantity::energy::KilowattHours,
-};
+use crate::core::{energy_level::EnergyLevel, solution::Solution};
 
 pub struct SolutionSpace {
-    quantum: Quantum,
-
     /// Energy dimension size.
     max_energy_level: EnergyLevel,
 
@@ -23,50 +15,41 @@ pub struct SolutionSpace {
 
 /// TODO: provide iterator over `(energy_level, energy)` for use in the `Solver`.
 impl SolutionSpace {
-    pub fn new(quantum: Quantum, n_intervals: usize, max_energy: KilowattHours) -> Self {
-        // TODO: quantum will likely go away because it isn't needed for the getters.
-        let max_energy_level = quantum.quantize(max_energy);
-
+    pub fn new(n_intervals: usize, max_energy_level: EnergyLevel) -> Self {
         let flat_matrix = vec![None; n_intervals * (max_energy_level.0 + 1)];
-        Self { quantum, max_energy_level, n_intervals, flat_matrix }
+        Self { max_energy_level, n_intervals, flat_matrix }
     }
 
     /// Get the solution at the given time slot index and energy.
     ///
-    /// - Energy above the maximum allowed energy will be coerced to the maximum level.
-    /// - Beyond the last time slot, it will always return [`None`].
-    ///
-    /// TODO: should accept energy level instead of kWh.
-    pub fn get(&self, interval_index: usize, energy: KilowattHours) -> Option<&Solution> {
+    /// Beyond the last time slot, it will always return [`None`].
+    pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
         if interval_index < self.n_intervals {
-            self.flat_matrix[self.flat_index(interval_index, energy)].as_ref()
+            self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
         } else {
             None
         }
     }
 
     /// Get the mutable solution at the given time slot index and energy.
-    ///
-    /// Energy above the maximum allowed energy will be coerced to the maximum level.
-    ///
-    /// TODO: should accept energy level instead of kWh.
     pub fn get_mut(
         &mut self,
         interval_index: usize,
-        energy: KilowattHours,
+        energy_level: EnergyLevel,
     ) -> &mut Option<Solution> {
         debug_assert!(
             interval_index < self.n_intervals,
             "index out of bounds: accessed beyond last time slot",
         );
-        let flat_index = self.flat_index(interval_index, energy);
+        let flat_index = self.flat_index(interval_index, energy_level);
         &mut self.flat_matrix[flat_index]
     }
 
-    fn flat_index(&self, interval_index: usize, energy: KilowattHours) -> usize {
-        let energy_level = self.quantum.quantize(energy).min(self.max_energy_level);
-        let flat_index = interval_index * (self.max_energy_level.0 + 1) + energy_level.0;
-        debug_assert!(flat_index < self.flat_matrix.len());
-        flat_index
+    /// Convert the indices into the respective index in the flattened array.
+    #[must_use]
+    fn flat_index(&self, interval_index: usize, energy_level: EnergyLevel) -> usize {
+        debug_assert!(interval_index <= self.n_intervals);
+        debug_assert!(energy_level <= self.max_energy_level);
+        interval_index * (self.max_energy_level.0 + 1) + energy_level.0
     }
 }

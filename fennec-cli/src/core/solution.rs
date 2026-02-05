@@ -11,6 +11,7 @@ use crate::{
     quantity::{Quantity, cost::Cost, energy::KilowattHours},
 };
 
+#[must_use]
 #[derive(Clone)]
 pub struct Solution {
     /// Net loss from the current state till the forecast period end – our primary optimization target.

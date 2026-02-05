@@ -1,4 +1,7 @@
-use crate::core::{energy_level::EnergyLevel, solution::Solution};
+use crate::{
+    core::{energy_level::EnergyLevel, solution::Solution},
+    quantity::energy::KilowattHours,
+};
 
 pub struct SolutionSpace {
     /// Energy dimension size.
@@ -13,7 +16,6 @@ pub struct SolutionSpace {
     flat_matrix: Vec<Option<Solution>>,
 }
 
-/// TODO: provide iterator over `(energy_level, energy)` for use in the `Solver`.
 impl SolutionSpace {
     pub fn new(n_intervals: usize, max_energy_level: EnergyLevel) -> Self {
         let flat_matrix = vec![None; n_intervals * (max_energy_level.0 + 1)];
@@ -43,6 +45,10 @@ impl SolutionSpace {
         );
         let flat_index = self.flat_index(interval_index, energy_level);
         &mut self.flat_matrix[flat_index]
+    }
+
+    pub fn iter_energy_levels(&self) -> impl Iterator<Item = EnergyLevel> {
+        (0..=self.max_energy_level.0).map(EnergyLevel)
     }
 
     /// Convert the indices into the respective index in the flattened array.

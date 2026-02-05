@@ -11,7 +11,7 @@ pub struct EstimationArgs {
     )]
     duration: humantime::Duration,
 
-    #[clap(long, env, default_value = "none")]
+    #[clap(long, env, default_value = "residual-differential")]
     pub weight_mode: WeightMode,
 }
 
@@ -26,6 +26,6 @@ pub enum WeightMode {
     /// Unweighted linear regression.
     None,
 
-    /// Experimental: weigh battery log samples by residual energy differential.
+    /// Weigh battery log samples by residual energy differential.
     ResidualDifferential,
 }

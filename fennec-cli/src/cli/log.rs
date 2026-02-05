@@ -85,9 +85,9 @@ impl LogArgs {
             .should_terminate(should_terminate)
             .build();
 
-        tokio::join!(battery_logger.run(), consumption_logger.run());
+        let result = tokio::try_join!(battery_logger.run(), consumption_logger.run());
         db.shutdown().await;
-        Ok(())
+        result.map(|_| ())
     }
 }
 
@@ -104,31 +104,20 @@ struct ConsumptionLogger {
 }
 
 impl ConsumptionLogger {
-    async fn run(self) {
+    async fn run(self) -> Result {
         while !self.should_terminate.load(Ordering::Relaxed) {
-            match self.r#loop().await {
-                Ok(()) => {
-                    self.heartbeat.send().await;
-                }
-                Err(error) => {
-                    error!("failed to log the consumption: {error:#}");
-                }
-            }
+            let (total_metrics, battery_metrics) = tokio::try_join!(
+                self.total_meter_client.get_measurement(),
+                self.battery_meter_client.get_measurement()
+            )?;
+            ConsumptionLog::builder()
+                .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
+                .build()
+                .insert_into(&self.db)
+                .await?;
+            self.heartbeat.send().await;
             sleep(self.interval).await;
         }
-    }
-
-    #[instrument(name = "log_consumption", skip_all)]
-    async fn r#loop(&self) -> Result {
-        let (total_metrics, battery_metrics) = tokio::try_join!(
-            self.total_meter_client.get_measurement(),
-            self.battery_meter_client.get_measurement()
-        )?;
-        ConsumptionLog::builder()
-            .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
-            .build()
-            .insert_into(&self.db)
-            .await?;
         Ok(())
     }
 }
@@ -147,37 +136,26 @@ struct BatteryLogger {
 }
 
 impl BatteryLogger {
-    async fn run(mut self) {
+    async fn run(mut self) -> Result {
         while !self.should_terminate.load(Ordering::Relaxed) {
-            match self.r#loop().await {
-                Ok(()) => {
-                    self.heartbeat.send().await;
-                }
-                Err(error) => {
-                    error!("failed to log the battery state: {error:#}");
-                }
+            let battery_state = self.modbus_client.read_energy_state(self.modbus_registers).await?;
+            let last_known_residual_energy = self
+                .db
+                .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))
+                .await?
+                .map(MilliwattHours::from);
+            if let Some(last_known_residual_energy) = last_known_residual_energy
+                && (last_known_residual_energy != battery_state.residual_millis())
+            {
+                BatteryLog::builder()
+                    .residual_energy(battery_state.residual_millis())
+                    .metrics(self.meter_client.get_measurement().await?)
+                    .build()
+                    .insert_into(&self.db)
+                    .await?;
             }
+            self.heartbeat.send().await;
             sleep(self.interval).await;
-        }
-    }
-
-    #[instrument(name = "log_battery", skip_all)]
-    async fn r#loop(&mut self) -> Result {
-        let battery_state = self.modbus_client.read_energy_state(self.modbus_registers).await?;
-        let last_known_residual_energy = self
-            .db
-            .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))
-            .await?
-            .map(MilliwattHours::from);
-        if let Some(last_known_residual_energy) = last_known_residual_energy
-            && (last_known_residual_energy != battery_state.residual_millis())
-        {
-            BatteryLog::builder()
-                .residual_energy(battery_state.residual_millis())
-                .metrics(self.meter_client.get_measurement().await?)
-                .build()
-                .insert_into(&self.db)
-                .await?;
         }
         Ok(())
     }

@@ -147,9 +147,9 @@ impl Solver<'_> {
                     let next_solution =
                         solutions.get(interval_index + 1, step.energy_level_after)?;
                     Some(Solution {
-                        net_loss: step.loss + next_solution.net_loss,
-                        charge: step.charge() + next_solution.charge,
-                        discharge: step.discharge() + next_solution.discharge,
+                        cumulative_loss: step.loss + next_solution.cumulative_loss,
+                        cumulative_charge: step.charge() + next_solution.cumulative_charge,
+                        cumulative_discharge: step.discharge() + next_solution.cumulative_discharge,
                         step: Some(step),
                     })
                 } else {
@@ -157,7 +157,7 @@ impl Solver<'_> {
                     None
                 }
             })
-            .min_by_key(|partial_solution| partial_solution.net_loss)
+            .min_by_key(|partial_solution| partial_solution.cumulative_loss)
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions,

@@ -22,7 +22,7 @@ pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -
     ]);
     for step in steps {
         table.add_row(vec![
-            Cell::new(step.interval.start.format("%b-%d")).add_attribute(Attribute::Dim),
+            Cell::new(step.interval.start.format("%b %d")).add_attribute(Attribute::Dim),
             Cell::new(step.interval.start.format("%H:%M")),
             Cell::new(step.interval.end.format("%H:%M")).add_attribute(Attribute::Dim),
             Cell::new(step.grid_rate).fg(if step.grid_rate >= mean_rate {

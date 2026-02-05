@@ -7,9 +7,7 @@ use crate::{
     quantity::{Quantity, cost::Cost, energy::KilowattHours},
 };
 
-/// FIXME: remove [`Clone`].
 #[must_use]
-#[derive(Clone)]
 pub struct Solution {
     /// Net loss till the end of the forecast period – our primary optimization target.
     pub net_loss: Cost,

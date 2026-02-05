@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+use itertools::Itertools;
+
 use crate::core::{energy_level::EnergyLevel, solution::Solution};
 
 pub struct SolutionSpace {
@@ -17,7 +19,7 @@ pub struct SolutionSpace {
 
 impl SolutionSpace {
     pub fn new(n_intervals: usize, max_energy_level: EnergyLevel) -> Self {
-        let flat_matrix = vec![None; n_intervals * (max_energy_level.0 + 1)];
+        let flat_matrix = (0..(n_intervals * (max_energy_level.0 + 1))).map(|_| None).collect_vec();
         Self { max_energy_level, n_intervals, flat_matrix }
     }
 

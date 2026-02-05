@@ -7,7 +7,6 @@ use crate::{
 ///
 /// Technically, it is not needed to store all the attributes here because I could always zip
 /// the back track with the original metrics, but having it here makes it much easier to work with.
-#[derive(Clone)]
 pub struct Step {
     /// Loss within this single step.
     pub loss: Cost,

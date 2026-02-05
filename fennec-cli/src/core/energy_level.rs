@@ -1,8 +1,11 @@
+use derive_more::From;
+
 use crate::quantity::energy::KilowattHours;
 
 /// Discrete unit of energy used in the solution space of the [`crate::core::solver::Solver`].
 #[must_use]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, From)]
+#[from(f64, KilowattHours)]
 pub struct Quantum(pub KilowattHours);
 
 impl Quantum {

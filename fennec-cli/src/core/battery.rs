@@ -58,9 +58,9 @@ impl Battery {
 
         // Update the residual energy:
         self.residual_energy = (self.residual_energy + internal_power * for_).clamp(
-            // At the bottom, it's capped by the minimum SoC or residual energy – when it's already lower:
+            // At the bottom, it's capped by the minimum SoC or residual energy – whatever is lower:
             self.min_residual_energy.min(initial_residual_energy),
-            // At the top, it's capped by the capacity or residual energy – when it's somehow higher:
+            // At the top, it's capped by the capacity or residual energy – whatever is higher:
             self.max_residual_energy.max(initial_residual_energy),
         );
 

@@ -10,6 +10,7 @@ use crate::{
     cli::battery::BatteryPowerLimits,
     core::{
         battery::Battery,
+        energy_level::Quantum,
         interval::Interval,
         solution::{Payload, Solution},
         step::Step,
@@ -37,6 +38,9 @@ pub struct Solver<'a> {
     purchase_fee: KilowattHourRate,
     degradation_rate: KilowattHourRate,
     now: DateTime<Local>,
+
+    #[builder(default = Quantum::from(0.01))]
+    quantum: Quantum,
 }
 
 impl<S: solver_builder::IsComplete> SolverBuilder<'_, S> {
@@ -64,7 +68,7 @@ impl Solver<'_> {
     fn solve(self) -> Option<Solution> {
         let start_instant = Instant::now();
 
-        // TODO: support configurable `Quantum`, but may be hard-coded to 10 Wh first:
+        // TODO: this could be a part of the builder:
         let max_energy = WattHours::from(
             self.battery_state.energy.residual().max(self.battery_state.max_residual_energy()),
         );

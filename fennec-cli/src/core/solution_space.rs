@@ -1,7 +1,10 @@
 use std::cmp::Ordering;
 
 use crate::{
-    core::{energy_level::EnergyLevel, solution::Solution},
+    core::{
+        energy_level::{EnergyLevel, Quantum},
+        solution::Solution,
+    },
     quantity::{cost::Cost, energy::KilowattHours},
 };
 
@@ -59,8 +62,22 @@ impl SolutionSpace {
         &mut self.flat_matrix[flat_index]
     }
 
-    pub fn iter_energy_levels(&self) -> impl Iterator<Item = EnergyLevel> {
-        (0..=self.max_energy_level.0).map(EnergyLevel)
+    /// TODO: let's see if I could make it return an iterator later.
+    pub fn backtrack(
+        mut self,
+        quantum: Quantum,
+        initial_energy_level: EnergyLevel,
+    ) -> Option<Vec<Solution>> {
+        let mut energy_level = initial_energy_level;
+        (0..self.n_intervals)
+            .map(|interval_index| {
+                let flat_index = self.flat_index(interval_index, energy_level);
+                let solution = self.flat_matrix[flat_index].take()?;
+                energy_level =
+                    quantum.quantize(solution.payload.as_ref()?.step.residual_energy_after);
+                Some(solution)
+            })
+            .collect()
     }
 
     /// Convert the indices into the respective index in the flattened array.

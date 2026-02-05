@@ -29,14 +29,13 @@ pub struct Solution {
 }
 
 impl Solution {
-    pub const fn new() -> Self {
-        Self {
-            net_loss: Cost::ZERO,
-            charge: Quantity::ZERO,
-            discharge: Quantity::ZERO,
-            payload: None,
-        }
-    }
+    /// Empty solution that is returned for the time interval beyond the forecast horizon.
+    pub const BOUNDARY: Self = Self {
+        net_loss: Cost::ZERO,
+        charge: Quantity::ZERO,
+        discharge: Quantity::ZERO,
+        payload: None,
+    };
 
     pub fn energy_flow(&self) -> KilowattHours {
         self.charge + self.discharge

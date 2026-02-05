@@ -1,11 +1,8 @@
 use std::cmp::Ordering;
 
-use crate::{
-    core::{
-        energy_level::{EnergyLevel, Quantum},
-        solution::Solution,
-    },
-    quantity::{cost::Cost, energy::KilowattHours},
+use crate::core::{
+    energy_level::{EnergyLevel, Quantum},
+    solution::Solution,
 };
 
 pub struct SolutionSpace {
@@ -22,14 +19,6 @@ pub struct SolutionSpace {
 }
 
 impl SolutionSpace {
-    /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    const BOUNDARY_SOLUTION: Solution = Solution {
-        net_loss: Cost::ZERO,
-        charge: KilowattHours::ZERO,
-        discharge: KilowattHours::ZERO,
-        payload: None,
-    };
-
     pub fn new(n_intervals: usize, max_energy_level: EnergyLevel) -> Self {
         let flat_matrix = vec![None; n_intervals * (max_energy_level.0 + 1)];
         Self { max_energy_level, n_intervals, flat_matrix }
@@ -41,7 +30,7 @@ impl SolutionSpace {
             Ordering::Less => {
                 self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
             }
-            Ordering::Equal => Some(&Self::BOUNDARY_SOLUTION),
+            Ordering::Equal => Some(&Solution::BOUNDARY),
             Ordering::Greater => {
                 panic!("interval index is out of bounds ({interval_index})");
             }

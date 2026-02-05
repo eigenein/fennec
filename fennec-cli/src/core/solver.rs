@@ -79,7 +79,7 @@ impl Solver<'_> {
         // Since we're going backwards in time, we only need to store the next hour's partial solutions
         // to find the current hour's solutions.
         // Here, `None` means there's no solution for the respective residual energy.
-        let mut solutions = vec![Some(Solution::new()); max_energy.0 as usize + 1];
+        let mut solutions = vec![Some(Solution::BOUNDARY); max_energy.0 as usize + 1];
 
         // Going backwards:
         for (mut interval, grid_rate) in self.grid_rates.iter().rev().copied() {

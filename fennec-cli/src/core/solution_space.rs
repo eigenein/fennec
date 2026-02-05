@@ -1,6 +1,8 @@
+use std::cmp::Ordering;
+
 use crate::{
     core::{energy_level::EnergyLevel, solution::Solution},
-    quantity::energy::KilowattHours,
+    quantity::{cost::Cost, energy::KilowattHours},
 };
 
 pub struct SolutionSpace {
@@ -17,19 +19,29 @@ pub struct SolutionSpace {
 }
 
 impl SolutionSpace {
+    /// Empty solution that is returned for the time interval beyond the forecast horizon.
+    const BOUNDARY_SOLUTION: Solution = Solution {
+        net_loss: Cost::ZERO,
+        charge: KilowattHours::ZERO,
+        discharge: KilowattHours::ZERO,
+        payload: None,
+    };
+
     pub fn new(n_intervals: usize, max_energy_level: EnergyLevel) -> Self {
         let flat_matrix = vec![None; n_intervals * (max_energy_level.0 + 1)];
         Self { max_energy_level, n_intervals, flat_matrix }
     }
 
     /// Get the solution at the given time slot index and energy.
-    ///
-    /// Beyond the last time slot, it will always return [`None`].
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
-        if interval_index < self.n_intervals {
-            self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
-        } else {
-            None
+        match interval_index.cmp(&self.n_intervals) {
+            Ordering::Less => {
+                self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
+            }
+            Ordering::Equal => Some(&Self::BOUNDARY_SOLUTION),
+            Ordering::Greater => {
+                panic!("interval index is out of bounds ({interval_index})");
+            }
         }
     }
 
@@ -41,7 +53,7 @@ impl SolutionSpace {
     ) -> &mut Option<Solution> {
         debug_assert!(
             interval_index < self.n_intervals,
-            "index out of bounds: accessed beyond last time slot",
+            "interval index is out of bounds ({interval_index})",
         );
         let flat_index = self.flat_index(interval_index, energy_level);
         &mut self.flat_matrix[flat_index]
@@ -54,7 +66,6 @@ impl SolutionSpace {
     /// Convert the indices into the respective index in the flattened array.
     #[must_use]
     fn flat_index(&self, interval_index: usize, energy_level: EnergyLevel) -> usize {
-        debug_assert!(interval_index <= self.n_intervals);
         debug_assert!(energy_level <= self.max_energy_level);
         interval_index * (self.max_energy_level.0 + 1) + energy_level.0
     }

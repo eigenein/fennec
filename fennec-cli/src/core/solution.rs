@@ -11,16 +11,19 @@ use crate::{
     quantity::{Quantity, cost::Cost, energy::KilowattHours},
 };
 
+/// FIXME: remove [`Clone`].
+///
+/// FIXME: perhaps make it an enum – for «normal» solution and «final» solution.
 #[must_use]
 #[derive(Clone)]
 pub struct Solution {
-    /// Net loss from the current state till the forecast period end – our primary optimization target.
+    /// Net loss till the end of the forecast period – our primary optimization target.
     pub net_loss: Cost,
 
-    /// Cumulative charge.
+    /// Cumulative charge till the end of the forecast period.
     pub charge: KilowattHours,
 
-    /// Cumulative discharge.
+    /// Cumulative discharge till the end of the forecast period.
     pub discharge: KilowattHours,
 
     pub payload: Option<Payload>,
@@ -57,6 +60,8 @@ impl Solution {
 }
 
 /// Solution payload.
+///
+/// FIXME: remove [`Clone`].
 #[derive(Clone)]
 pub struct Payload {
     /// The current step (first step of the partial solution) metrics.

@@ -14,10 +14,18 @@ use crate::{
 
 #[must_use]
 pub struct SolutionSpace {
-    /// Energy dimension size.
+    /// Minimum allowed energy level at the boundary.
+    ///
+    /// Partial solutions may still fall below this level.
+    min_final_energy_level: EnergyLevel,
+
+    /// Minimum allowed energy level.
+    min_energy_level: EnergyLevel,
+
+    /// Maximum allowed energy level.
     max_energy_level: EnergyLevel,
 
-    /// Time dimension size.
+    /// Number of time intervals.
     n_intervals: usize,
 
     /// Flattened 2D array of solutions to speed up the lookups.
@@ -29,21 +37,46 @@ pub struct SolutionSpace {
 #[bon]
 impl SolutionSpace {
     #[builder]
-    pub fn new(n_intervals: usize, max_energy_level: EnergyLevel) -> Self {
+    pub fn new(
+        n_intervals: usize,
+        min_final_energy_level: EnergyLevel,
+        min_energy_level: EnergyLevel,
+        max_energy_level: EnergyLevel,
+    ) -> Self {
         let flat_matrix = (0..(n_intervals * (max_energy_level.0 + 1))).map(|_| None).collect_vec();
-        Self { max_energy_level, n_intervals, flat_matrix }
+        Self {
+            min_final_energy_level,
+            min_energy_level,
+            max_energy_level,
+            n_intervals,
+            flat_matrix,
+        }
     }
 }
 
 impl SolutionSpace {
     /// Get the solution at the given time slot index and energy.
+    ///
+    /// This method respects allowed energy levels.
     #[must_use]
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
         match interval_index.cmp(&self.n_intervals) {
             Ordering::Less => {
-                self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
+                if energy_level >= self.min_energy_level && energy_level <= self.max_energy_level {
+                    self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
+                } else {
+                    None
+                }
             }
-            Ordering::Equal => Some(&Solution::BOUNDARY),
+            Ordering::Equal => {
+                if energy_level >= self.min_final_energy_level
+                    && energy_level <= self.max_energy_level
+                {
+                    Some(&Solution::BOUNDARY)
+                } else {
+                    None
+                }
+            }
             Ordering::Greater => {
                 panic!("interval index is out of bounds ({interval_index})");
             }
@@ -51,6 +84,10 @@ impl SolutionSpace {
     }
 
     /// Get the mutable solution at the given time slot index and energy.
+    ///
+    /// This method allows accessing any partial solution, regardless of minimally allowed energy levels.
+    ///
+    /// Panics on energy levels higher than upper bound.
     #[must_use]
     pub fn get_mut(
         &mut self,
@@ -109,9 +146,11 @@ impl SolutionSpace {
     }
 
     /// Convert the indices into the respective index in the flattened array.
+    ///
+    /// Panics on energy levels higher than upper bound.
     #[must_use]
     fn flat_index(&self, interval_index: usize, energy_level: EnergyLevel) -> usize {
-        debug_assert!(energy_level <= self.max_energy_level);
+        assert!(energy_level <= self.max_energy_level);
         interval_index * (self.max_energy_level.0 + 1) + energy_level.0
     }
 }

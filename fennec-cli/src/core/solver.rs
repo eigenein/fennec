@@ -28,6 +28,8 @@ pub struct Solver<'a> {
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
 
+    min_final_residual_energy: KilowattHours,
+
     /// Minimum allowed residual energy.
     min_residual_energy: KilowattHours,
 
@@ -66,6 +68,8 @@ impl Solver<'_> {
 
         let mut solutions = SolutionSpace::builder()
             .n_intervals(self.grid_rates.len())
+            .min_final_energy_level(self.quantum.quantize(self.min_final_residual_energy))
+            .min_energy_level(self.quantum.quantize(self.min_residual_energy))
             .max_energy_level(max_energy_level)
             .build();
 
@@ -144,10 +148,6 @@ impl Solver<'_> {
                     .battery(battery)
                     .working_mode(working_mode)
                     .call();
-                if step.residual_energy_after < self.min_residual_energy {
-                    // Do not allow dropping below the minimally allowed state-of-charge:
-                    return None;
-                }
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after)?;

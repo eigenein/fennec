@@ -143,22 +143,21 @@ impl Solver<'_> {
                     .battery(battery)
                     .working_mode(working_mode)
                     .call();
-                if step.residual_energy_after >= self.min_residual_energy {
-                    let next_solution =
-                        solutions.get(interval_index + 1, step.energy_level_after)?;
-                    Some(Solution {
-                        cumulative_metrics: CumulativeMetrics {
-                            loss: step.loss + next_solution.cumulative_metrics.loss,
-                            charge: step.charge() + next_solution.cumulative_metrics.charge,
-                            discharge: step.discharge()
-                                + next_solution.cumulative_metrics.discharge,
-                        },
-                        step: Some(step),
-                    })
-                } else {
+                if step.residual_energy_after < self.min_residual_energy {
                     // Do not allow dropping below the minimally allowed state-of-charge:
-                    None
+                    return None;
                 }
+                let next_solution =
+                    // Note that the next solution may not exist, hence the question mark:
+                    solutions.get(interval_index + 1, step.energy_level_after)?;
+                Some(Solution {
+                    cumulative_metrics: CumulativeMetrics {
+                        loss: step.loss + next_solution.cumulative_metrics.loss,
+                        charge: step.charge() + next_solution.cumulative_metrics.charge,
+                        discharge: step.discharge() + next_solution.cumulative_metrics.discharge,
+                    },
+                    step: Some(step),
+                })
             })
             .min_by_key(|partial_solution| partial_solution.cumulative_metrics.loss)
     }

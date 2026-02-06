@@ -84,7 +84,7 @@ impl SolutionSpace {
             // Finish when current step is that of the boundary condition:
             let current_step = step.take()?;
 
-            // Hop to the state:
+            // Hop to the next state:
             let next_energy_level = current_step.energy_level_after;
             interval_index += 1;
             if interval_index < self.n_intervals {
@@ -96,7 +96,7 @@ impl SolutionSpace {
                     .step;
             }
 
-            // Yield current step:
+            // Still yield current step:
             Some(current_step)
         });
 

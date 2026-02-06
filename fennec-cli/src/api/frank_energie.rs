@@ -35,7 +35,9 @@ impl Api {
             .market_prices
             .electricity
             .into_iter()
-            .map(|item| (Interval::new(item.from..item.till), KilowattHourRate::from(item.all_in)))
+            .map(|item| {
+                (Interval::from_std(item.from..item.till), KilowattHourRate::from(item.all_in))
+            })
             .collect())
     }
 }

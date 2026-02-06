@@ -9,6 +9,7 @@ use crate::{
         solution::{CumulativeMetrics, Solution},
         step::Step,
     },
+    ops::RangeInclusive,
     prelude::*,
 };
 
@@ -19,11 +20,7 @@ pub struct SolutionSpace {
     /// Partial solutions may still fall below this level.
     min_final_energy_level: EnergyLevel,
 
-    /// Minimum allowed energy level.
-    min_energy_level: EnergyLevel,
-
-    /// Maximum allowed energy level.
-    max_energy_level: EnergyLevel,
+    allowed_energy_levels: RangeInclusive<EnergyLevel>,
 
     /// Number of time intervals.
     n_intervals: usize,
@@ -40,17 +37,11 @@ impl SolutionSpace {
     pub fn new(
         n_intervals: usize,
         min_final_energy_level: EnergyLevel,
-        min_energy_level: EnergyLevel,
-        max_energy_level: EnergyLevel,
+        #[builder(into)] allowed_energy_levels: RangeInclusive<EnergyLevel>,
     ) -> Self {
-        let flat_matrix = (0..(n_intervals * (max_energy_level.0 + 1))).map(|_| None).collect_vec();
-        Self {
-            min_final_energy_level,
-            min_energy_level,
-            max_energy_level,
-            n_intervals,
-            flat_matrix,
-        }
+        let flat_matrix =
+            (0..(n_intervals * (allowed_energy_levels.max.0 + 1))).map(|_| None).collect_vec();
+        Self { min_final_energy_level, allowed_energy_levels, n_intervals, flat_matrix }
     }
 }
 
@@ -62,7 +53,7 @@ impl SolutionSpace {
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
         match interval_index.cmp(&self.n_intervals) {
             Ordering::Less => {
-                if energy_level >= self.min_energy_level && energy_level <= self.max_energy_level {
+                if self.allowed_energy_levels.contains(energy_level) {
                     self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
                 } else {
                     None
@@ -70,7 +61,7 @@ impl SolutionSpace {
             }
             Ordering::Equal => {
                 if energy_level >= self.min_final_energy_level
-                    && energy_level <= self.max_energy_level
+                    && energy_level <= self.allowed_energy_levels.max
                 {
                     Some(&Solution::BOUNDARY)
                 } else {
@@ -150,7 +141,7 @@ impl SolutionSpace {
     /// Panics on energy levels higher than upper bound.
     #[must_use]
     fn flat_index(&self, interval_index: usize, energy_level: EnergyLevel) -> usize {
-        assert!(energy_level <= self.max_energy_level);
-        interval_index * (self.max_energy_level.0 + 1) + energy_level.0
+        assert!(energy_level <= self.allowed_energy_levels.max);
+        interval_index * (self.allowed_energy_levels.max.0 + 1) + energy_level.0
     }
 }

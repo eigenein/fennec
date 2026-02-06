@@ -3,6 +3,7 @@ use tokio_modbus::client::Reader;
 
 use crate::{
     cli::battery::{BatteryEnergyStateRegisters, BatteryRegisters, BatterySettingRegisters},
+    ops::RangeInclusive,
     prelude::*,
     quantity::{
         energy::{DecawattHours, KilowattHours, MilliwattHours},
@@ -37,7 +38,11 @@ impl Client {
         let max_state_of_charge =
             self.read_holding_register(registers.max_state_of_charge).await?.into();
         info!(?min_state_of_charge, ?max_state_of_charge, "fetched the battery settings");
-        Ok(BatterySettings { min_state_of_charge, max_state_of_charge })
+        Ok(BatterySettings {
+            allowed_state_of_charge: RangeInclusive::from_std(
+                min_state_of_charge..=max_state_of_charge,
+            ),
+        })
     }
 
     #[instrument(skip_all)]
@@ -90,8 +95,7 @@ impl BatteryEnergyState {
 
 #[must_use]
 pub struct BatterySettings {
-    pub min_state_of_charge: Percent,
-    pub max_state_of_charge: Percent,
+    pub allowed_state_of_charge: RangeInclusive<Percent>,
 }
 
 #[must_use]
@@ -102,10 +106,10 @@ pub struct BatteryState {
 
 impl BatteryState {
     pub fn min_residual_energy(&self) -> KilowattHours {
-        self.energy.actual_capacity() * self.settings.min_state_of_charge
+        self.energy.actual_capacity() * self.settings.allowed_state_of_charge.min
     }
 
     pub fn max_residual_energy(&self) -> KilowattHours {
-        self.energy.actual_capacity() * self.settings.max_state_of_charge
+        self.energy.actual_capacity() * self.settings.allowed_state_of_charge.max
     }
 }

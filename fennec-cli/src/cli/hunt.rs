@@ -40,7 +40,7 @@ pub struct HuntArgs {
 
     /// Extra energy on top of minimal state-of-charge
     /// that should be reserved by the end of the forecast period.
-    #[clap(long, env, default_value = "0")]
+    #[clap(long, env = "FINAL_SPARE_ENERGY_KILOWATT_HOURS", default_value = "0")]
     final_spare_energy: KilowattHours,
 
     #[clap(flatten)]
@@ -87,8 +87,7 @@ impl HuntArgs {
             .await?
             .read_battery_state(self.battery.registers)
             .await?;
-        let min_state_of_charge = battery_state.settings.min_state_of_charge;
-        let max_state_of_charge = battery_state.settings.max_state_of_charge;
+        let allowed_state_of_charge = battery_state.settings.allowed_state_of_charge;
 
         let since = self.estimation.since();
         let battery_efficiency = {
@@ -137,8 +136,7 @@ impl HuntArgs {
             schedule,
             now,
             self.battery.power_limits,
-            min_state_of_charge,
-            max_state_of_charge,
+            allowed_state_of_charge,
         )?;
         println!("{}", &time_slot_sequence);
 

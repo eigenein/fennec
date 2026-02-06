@@ -21,7 +21,7 @@ impl<T: Copy + Debug> Debug for RangeExclusive<T> {
 }
 
 impl<T: Copy> RangeExclusive<T> {
-    pub const fn new(range: std::ops::Range<T>) -> Self {
+    pub const fn from_std(range: std::ops::Range<T>) -> Self {
         Self { start: range.start, end: range.end }
     }
 
@@ -53,19 +53,25 @@ impl<T: Copy + PartialOrd> RangeExclusive<T> {
 #[must_use]
 #[derive(Copy, Clone)]
 pub struct RangeInclusive<T: Copy> {
-    pub start: T,
-    pub end: T,
+    pub min: T,
+    pub max: T,
+}
+
+impl<T: Copy> From<std::ops::RangeInclusive<T>> for RangeInclusive<T> {
+    fn from(range: std::ops::RangeInclusive<T>) -> Self {
+        Self::from_std(range)
+    }
 }
 
 impl<T: Copy> RangeInclusive<T> {
-    pub const fn new(range: std::ops::RangeInclusive<T>) -> Self {
-        Self { start: *range.start(), end: *range.end() }
+    pub const fn from_std(range: std::ops::RangeInclusive<T>) -> Self {
+        Self { min: *range.start(), max: *range.end() }
     }
 }
 
 impl<T: Copy + PartialOrd> RangeInclusive<T> {
     #[must_use]
     pub fn contains(self, other: T) -> bool {
-        (self.start <= other) && (other <= self.end)
+        (self.min <= other) && (other <= self.max)
     }
 }

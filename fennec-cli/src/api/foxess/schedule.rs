@@ -12,7 +12,7 @@ use serde_with::serde_as;
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode as CoreWorkingMode,
-    ops::Interval,
+    ops::{Interval, RangeInclusive},
     prelude::*,
     quantity::{
         power::{Kilowatts, Watts},
@@ -57,7 +57,11 @@ pub struct TimeSlot {
     #[serde(rename = "fdSoc")]
     pub feed_soc: Percent,
 
-    /// The maximum discharge power value (but also, maximum charge power?).
+    /// The maximum force discharge power value.
+    ///
+    /// # Note
+    ///
+    /// For MQ2200, this also seems to be the force *charge* power.
     #[serde(rename = "fdPwr")]
     pub feed_power: Watts,
 
@@ -126,8 +130,7 @@ impl TimeSlotSequence {
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
         since: DateTime<Local>,
         battery_power_limits: BatteryPowerLimits,
-        min_state_of_charge: Percent,
-        max_state_of_charge: Percent,
+        allowed_state_of_charge: RangeInclusive<Percent>,
     ) -> Result<Self> {
         let until_exclusive = since + TimeDelta::days(1);
         info!(%since, %until_exclusive, "building a FoxESS schedule…");
@@ -161,7 +164,7 @@ impl TimeSlotSequence {
                     let mut chunk = chunk.into_iter();
                     let first = chunk.next().unwrap().0;
                     let last = chunk.last().map_or_else(|| first, |(last, _)| last);
-                    Interval::new(first.start..last.end)
+                    Interval::from_std(first.start..last.end)
                 };
                 // And convert into FoxESS time slots:
                 Ok(into_time_slots(interval)
@@ -197,9 +200,9 @@ impl TimeSlotSequence {
                     is_enabled: true,
                     start_time,
                     end_time,
-                    max_soc: max_state_of_charge,
-                    min_soc_on_grid: min_state_of_charge,
-                    feed_soc: min_state_of_charge,
+                    max_soc: allowed_state_of_charge.max,
+                    min_soc_on_grid: allowed_state_of_charge.min,
+                    feed_soc: allowed_state_of_charge.min,
                     feed_power: feed_power.into(),
                     working_mode,
                 };
@@ -284,7 +287,8 @@ mod tests {
     fn test_try_into_time_slots_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 17, 23, 15, 0).unwrap();
-        let slots = into_time_slots(Interval::new(start_time..end_time)).flatten().collect_vec();
+        let slots =
+            into_time_slots(Interval::from_std(start_time..end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 15 })],
@@ -295,7 +299,8 @@ mod tests {
     fn test_try_into_time_slots_midnight_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 18, 0, 0, 0).unwrap();
-        let slots = into_time_slots(Interval::new(start_time..end_time)).flatten().collect_vec();
+        let slots =
+            into_time_slots(Interval::from_std(start_time..end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 59 })],
@@ -306,7 +311,8 @@ mod tests {
     fn test_try_into_time_slots_cross_day_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 18, 1, 15, 0).unwrap();
-        let slots = into_time_slots(Interval::new(start_time..end_time)).flatten().collect_vec();
+        let slots =
+            into_time_slots(Interval::from_std(start_time..end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![

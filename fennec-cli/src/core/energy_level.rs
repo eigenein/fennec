@@ -44,6 +44,11 @@ impl EnergyLevel {
     pub fn dequantize(self, quantizer: Quantum) -> KilowattHours {
         quantizer.0 * (self.0 as f64)
     }
+
+    /// Iterate through the energy levels starting with zero and ending with the current level.
+    pub fn iter_from_zero(self) -> impl Iterator<Item = Self> {
+        (0..=self.0).map(Self)
+    }
 }
 
 #[cfg(test)]

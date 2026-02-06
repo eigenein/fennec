@@ -8,7 +8,7 @@ use crate::{
     cli::battery::BatteryPowerLimits,
     core::{
         battery::Battery,
-        energy_level::{EnergyLevel, Quantum},
+        energy_level::Quantum,
         solution::{CumulativeMetrics, Solution},
         solution_space::SolutionSpace,
         step::Step,
@@ -69,8 +69,9 @@ impl Solver<'_> {
         let mut solutions = SolutionSpace::builder()
             .n_intervals(self.grid_rates.len())
             .min_final_energy_level(self.quantum.quantize(self.min_final_residual_energy))
-            .min_energy_level(self.quantum.quantize(self.min_residual_energy))
-            .max_energy_level(max_energy_level)
+            .allowed_energy_levels(
+                self.quantum.quantize(self.min_residual_energy)..=max_energy_level,
+            )
             .build();
 
         // Going backwards:
@@ -90,8 +91,7 @@ impl Solver<'_> {
                 .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
-            for energy_level in 0..=max_energy_level.0 {
-                let energy_level = EnergyLevel(energy_level);
+            for energy_level in max_energy_level.iter_from_zero() {
                 *solutions.get_mut(interval_index, energy_level) = optimize_step
                     .clone()
                     .solutions(&solutions)

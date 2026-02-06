@@ -82,21 +82,20 @@ impl Solver<'_> {
                 interval = interval.with_start(self.now);
             }
 
-            // Average stand-by power at this hour of a day:
-            let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
+            let optimize_step = self
+                .optimize_step()
+                .interval_index(interval_index)
+                .interval(interval)
+                .stand_by_power(self.consumption_statistics.on_hour(interval.start.hour()))
+                .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
             for energy_level in 0..=max_energy_level.0 {
                 let energy_level = EnergyLevel(energy_level);
-                let initial_residual_energy = energy_level.dequantize(self.quantum);
-                *solutions.get_mut(interval_index, energy_level) = self
-                    .optimise_step()
-                    .interval_index(interval_index)
-                    .interval(interval)
-                    .stand_by_power(stand_by_power)
-                    .grid_rate(grid_rate)
-                    .initial_residual_energy(initial_residual_energy)
+                *solutions.get_mut(interval_index, energy_level) = optimize_step
+                    .clone()
                     .solutions(&solutions)
+                    .initial_residual_energy(energy_level.dequantize(self.quantum))
                     .call();
             }
         }
@@ -120,8 +119,8 @@ impl Solver<'_> {
     ///
     /// - [`Some`] [`PartialSolution`], if a solution exists.
     /// - [`None`], if there is no solution.
-    #[builder]
-    fn optimise_step(
+    #[builder(derive(Clone))]
+    fn optimize_step(
         &self,
         interval_index: usize,
         interval: Interval,

@@ -61,12 +61,13 @@ impl Solver<'_> {
     pub fn solve(self) -> SolutionSpace {
         let start_instant = Instant::now();
 
-        // TODO: this could be a part of the builder:
         let max_energy_level = self.quantum.ceil(self.max_residual_energy);
         info!(?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
 
-        // TODO: could be a part of the builder:
-        let mut solutions = SolutionSpace::new(self.grid_rates.len(), max_energy_level);
+        let mut solutions = SolutionSpace::builder()
+            .n_intervals(self.grid_rates.len())
+            .max_energy_level(max_energy_level)
+            .build();
 
         // Going backwards:
         for (interval_index, (mut interval, grid_rate)) in

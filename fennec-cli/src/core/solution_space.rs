@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, iter::from_fn};
 
+use bon::bon;
 use itertools::Itertools;
 
 use crate::{
@@ -25,12 +26,16 @@ pub struct SolutionSpace {
     flat_matrix: Vec<Option<Solution>>,
 }
 
+#[bon]
 impl SolutionSpace {
+    #[builder]
     pub fn new(n_intervals: usize, max_energy_level: EnergyLevel) -> Self {
         let flat_matrix = (0..(n_intervals * (max_energy_level.0 + 1))).map(|_| None).collect_vec();
         Self { max_energy_level, n_intervals, flat_matrix }
     }
+}
 
+impl SolutionSpace {
     /// Get the solution at the given time slot index and energy.
     #[must_use]
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {

@@ -1,6 +1,9 @@
 //! Battery-related CLI arguments.
 
+use std::time::Duration;
+
 use clap::Parser;
+use tokio::time::timeout;
 use tokio_modbus::{Slave, client::tcp::attach_slave};
 
 use crate::{api::modbus, prelude::*, quantity::power::Kilowatts};
@@ -18,6 +21,8 @@ pub struct BatteryConnectionArgs {
 }
 
 impl BatteryConnectionArgs {
+    const TIMEOUT: Duration = Duration::from_secs(10);
+
     #[instrument(skip_all)]
     pub async fn connect(&self) -> Result<modbus::Client> {
         info!(
@@ -26,9 +31,11 @@ impl BatteryConnectionArgs {
             slave_id = self.slave_id,
             "connecting to the battery…",
         );
-        let tcp_stream = tokio::net::TcpStream::connect((self.host.as_str(), self.port))
-            .await
-            .context("failed to connect to the battery")?;
+        let tcp_stream =
+            timeout(Self::TIMEOUT, tokio::net::TcpStream::connect((self.host.as_str(), self.port)))
+                .await
+                .context("timed out while connecting to the battery")?
+                .context("failed to connect to the battery")?;
         Ok(modbus::Client::from(attach_slave(tcp_stream, Slave(self.slave_id))))
     }
 }

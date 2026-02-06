@@ -1,12 +1,12 @@
 use std::fmt::{Debug, Formatter};
 
-use derive_more::From;
+use derive_more::{From, FromStr};
 
 use crate::quantity::energy::KilowattHours;
 
 /// Discrete unit of energy used in the solution space of the [`crate::core::solver::Solver`].
 #[must_use]
-#[derive(Copy, Clone, From)]
+#[derive(Copy, Clone, From, FromStr)]
 #[from(f64, KilowattHours)]
 pub struct Quantum(pub KilowattHours);
 

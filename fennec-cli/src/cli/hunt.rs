@@ -40,8 +40,15 @@ pub struct HuntArgs {
 
     /// Extra energy on top of minimal state-of-charge
     /// that should be reserved by the end of the forecast period.
-    #[clap(long, env = "FINAL_SPARE_ENERGY_KILOWATT_HOURS", default_value = "0")]
+    #[clap(
+        long = "final-spare-energy-kilowatts",
+        env = "FINAL_SPARE_ENERGY_KILOWATT_HOURS",
+        default_value = "0"
+    )]
     final_spare_energy: KilowattHours,
+
+    #[clap(long = "quantum-kilowatts", env = "QUANTUM_KILOWATTS", default_value = "0.001")]
+    quantum: Quantum,
 
     #[clap(flatten)]
     battery: BatteryArgs,
@@ -104,8 +111,7 @@ impl HuntArgs {
         println!("{}", consumption_statistics.summary_table());
         db.shutdown().await;
 
-        let quantum = Quantum::from(0.001); // TODO: make configurable.
-        let initial_energy_level = quantum.quantize(battery_state.energy.residual());
+        let initial_energy_level = self.quantum.quantize(battery_state.energy.residual());
         let solver = Solver::builder()
             .grid_rates(&grid_rates)
             .consumption_statistics(&consumption_statistics)
@@ -123,7 +129,7 @@ impl HuntArgs {
             .purchase_fee(self.provider.purchase_fee())
             .now(now)
             .degradation_rate(self.degradation_rate)
-            .quantum(quantum)
+            .quantum(self.quantum)
             .build();
         let base_loss = solver.base_loss();
         let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;

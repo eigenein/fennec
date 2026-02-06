@@ -49,3 +49,23 @@ impl<T: Copy + PartialOrd> RangeExclusive<T> {
         (self.start <= other) && (other < self.end)
     }
 }
+
+#[must_use]
+#[derive(Copy, Clone)]
+pub struct RangeInclusive<T: Copy> {
+    pub start: T,
+    pub end: T,
+}
+
+impl<T: Copy> RangeInclusive<T> {
+    pub const fn new(range: std::ops::RangeInclusive<T>) -> Self {
+        Self { start: *range.start(), end: *range.end() }
+    }
+}
+
+impl<T: Copy + PartialOrd> RangeInclusive<T> {
+    #[must_use]
+    pub fn contains(self, other: T) -> bool {
+        (self.start <= other) && (other <= self.end)
+    }
+}

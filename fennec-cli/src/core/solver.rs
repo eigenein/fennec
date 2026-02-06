@@ -91,6 +91,7 @@ impl Solver<'_> {
                 .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
+            // FIXME: when `interval_index == 0`, we don't need to solve all energy levels.
             for energy_level in max_energy_level.iter_from_zero() {
                 *solutions.get_mut(interval_index, energy_level) = optimize_step
                     .clone()

@@ -1,5 +1,6 @@
 use crate::{
-    core::{energy_level::EnergyLevel, interval::Interval, working_mode::WorkingMode},
+    core::{energy_level::EnergyLevel, working_mode::WorkingMode},
+    ops::Interval,
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
 };
 

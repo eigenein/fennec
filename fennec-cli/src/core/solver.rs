@@ -9,12 +9,12 @@ use crate::{
     core::{
         battery::Battery,
         energy_level::{EnergyLevel, Quantum},
-        interval::Interval,
         solution::{CumulativeMetrics, Solution},
         solution_space::SolutionSpace,
         step::Step,
         working_mode::WorkingMode,
     },
+    ops::Interval,
     prelude::*,
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
@@ -111,7 +111,7 @@ impl Solver<'_> {
             .copied()
             .map(|(interval, grid_rate)| {
                 let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
-                self.loss(grid_rate, stand_by_power * interval.duration())
+                self.loss(grid_rate, stand_by_power * interval.len())
             })
             .sum()
     }
@@ -175,7 +175,7 @@ impl Solver<'_> {
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
     ) -> Step {
-        let duration = interval.duration();
+        let duration = interval.len();
 
         // Requested external power flow to (positive) or from (negative) the battery:
         let battery_external_power = match working_mode {

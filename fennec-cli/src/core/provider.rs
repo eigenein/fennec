@@ -2,7 +2,7 @@ use chrono::{DateTime, Days, Local, NaiveDate};
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
-    core::interval::Interval,
+    ops::Interval,
     prelude::*,
     quantity::{Quantity, rate::KilowattHourRate},
 };

@@ -11,7 +11,8 @@ use serde_with::serde_as;
 
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::{interval::Interval, working_mode::WorkingMode as CoreWorkingMode},
+    core::working_mode::WorkingMode as CoreWorkingMode,
+    ops::Interval,
     prelude::*,
     quantity::{
         power::{Kilowatts, Watts},
@@ -160,7 +161,7 @@ impl TimeSlotSequence {
                     let mut chunk = chunk.into_iter();
                     let first = chunk.next().unwrap().0;
                     let last = chunk.last().map_or_else(|| first, |(last, _)| last);
-                    Interval::new(first.start, last.end)
+                    Interval::new(first.start..last.end)
                 };
                 // And convert into FoxESS time slots:
                 Ok(into_time_slots(interval)
@@ -283,7 +284,7 @@ mod tests {
     fn test_try_into_time_slots_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 17, 23, 15, 0).unwrap();
-        let slots = into_time_slots(Interval::new(start_time, end_time)).flatten().collect_vec();
+        let slots = into_time_slots(Interval::new(start_time..end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 15 })],
@@ -294,7 +295,7 @@ mod tests {
     fn test_try_into_time_slots_midnight_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 18, 0, 0, 0).unwrap();
-        let slots = into_time_slots(Interval::new(start_time, end_time)).flatten().collect_vec();
+        let slots = into_time_slots(Interval::new(start_time..end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![(StartTime { hour: 22, minute: 15 }, EndTime { hour: 23, minute: 59 })],
@@ -305,7 +306,7 @@ mod tests {
     fn test_try_into_time_slots_cross_day_ok() {
         let start_time = Local.with_ymd_and_hms(2025, 11, 17, 22, 15, 0).unwrap();
         let end_time = Local.with_ymd_and_hms(2025, 11, 18, 1, 15, 0).unwrap();
-        let slots = into_time_slots(Interval::new(start_time, end_time)).flatten().collect_vec();
+        let slots = into_time_slots(Interval::new(start_time..end_time)).flatten().collect_vec();
         assert_eq!(
             slots,
             vec![

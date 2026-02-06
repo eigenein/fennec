@@ -1,11 +1,6 @@
-use std::{
-    fmt::{Debug, Formatter},
-    time::Duration,
-};
+use std::fmt::{Debug, Formatter};
 
-use chrono::{DateTime, Local, TimeDelta, Timelike};
-
-use crate::prelude::*;
+use chrono::{DateTime, Local, TimeDelta};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[must_use]
@@ -26,15 +21,6 @@ impl Debug for Interval {
 impl Interval {
     pub const fn new(start: DateTime<Local>, end: DateTime<Local>) -> Self {
         Self { start, end }
-    }
-
-    pub fn since(duration: TimeDelta) -> Self {
-        let end = Local::now().with_nanosecond(0).unwrap();
-        Self { start: end - duration, end }
-    }
-
-    pub fn try_since(duration: Duration) -> Result<Self> {
-        Ok(Self::since(TimeDelta::from_std(duration)?))
     }
 
     pub const fn with_start(mut self, start: DateTime<Local>) -> Self {

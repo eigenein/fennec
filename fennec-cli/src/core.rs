@@ -1,6 +1,5 @@
 mod battery;
 pub mod energy_level;
-pub mod interval;
 pub mod provider;
 pub mod solution;
 mod solution_space;

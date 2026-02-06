@@ -6,7 +6,7 @@ use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{core::interval::Interval, prelude::*, quantity::rate::KilowattHourRate};
+use crate::{ops::Interval, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api(reqwest::Client);
 
@@ -42,7 +42,7 @@ impl Api {
             match on.and_hms_nano_opt(hour, 0, 0, 0).unwrap().and_local_timezone(Local) {
                 MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
                     let end_time = start_time + TimeDelta::hours(1);
-                    let point = (Interval::new(start_time, end_time), point.value);
+                    let point = (Interval::new(start_time..end_time), point.value);
                     Some(point)
                 }
 

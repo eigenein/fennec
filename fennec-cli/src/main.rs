@@ -13,6 +13,7 @@ mod statistics;
 mod tables;
 
 use clap::{Parser, crate_version};
+use sentry::integrations::tracing::EventFilter;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -29,8 +30,14 @@ fn main() -> Result {
                 .compact()
                 .with_filter(LevelFilter::from(Level::INFO)),
         )
-        .with(sentry::integrations::tracing::layer())
+        .with(sentry::integrations::tracing::layer().event_filter(
+            |metadata| match *metadata.level() {
+                Level::ERROR => EventFilter::Event,
+                _ => EventFilter::Breadcrumb,
+            },
+        ))
         .init();
+
     info!(version = crate_version!(), "starting…");
     let _ = dotenvy::dotenv();
     let args = Args::parse();

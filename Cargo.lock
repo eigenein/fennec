@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "fennec-cli"
-version = "0.61.0"
+version = "0.61.1"
 dependencies = [
  "anyhow",
  "average",
@@ -2788,6 +2788,7 @@ dependencies = [
  "httpdate",
  "reqwest 0.12.28",
  "rustls",
+ "sentry-anyhow",
  "sentry-backtrace",
  "sentry-contexts",
  "sentry-core",
@@ -2795,6 +2796,17 @@ dependencies = [
  "sentry-tracing",
  "tokio",
  "ureq",
+]
+
+[[package]]
+name = "sentry-anyhow"
+version = "0.46.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6924ad794a4786c26739816afc9b54b31c13cad479698f53c0398c5f6400954"
+dependencies = [
+ "anyhow",
+ "sentry-backtrace",
+ "sentry-core",
 ]
 
 [[package]]

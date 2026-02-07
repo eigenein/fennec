@@ -13,7 +13,7 @@ mod statistics;
 mod tables;
 
 use clap::{Parser, crate_version};
-use sentry::integrations::tracing::EventFilter;
+use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -42,7 +42,13 @@ fn main() -> Result {
     let _ = dotenvy::dotenv();
     let args = Args::parse();
     let _sentry_guard = args.sentry.init();
-    tokio::runtime::Builder::new_current_thread().enable_all().build()?.block_on(async_main(args))
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async_main(args))
+        .inspect_err(|error| {
+            capture_anyhow(error);
+        })
 }
 
 async fn async_main(args: Args) -> Result {

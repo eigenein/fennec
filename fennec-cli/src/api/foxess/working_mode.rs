@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use comfy_table::{Attribute, Color};
+use comfy_table::Color;
 use serde::{Deserialize, Serialize};
 
 /// FoxESS cloud working modes.
@@ -68,16 +68,6 @@ impl WorkingMode {
             Self::FeedIn => Color::Magenta,
             Self::Backup => Color::Cyan,
             Self::EasyMode | Self::UnexpectedValue => Color::Reset,
-        }
-    }
-
-    pub const fn attribute(self) -> Attribute {
-        match self {
-            Self::SelfUse | Self::FeedIn | Self::ForceCharge | Self::ForceDischarge => {
-                Attribute::Bold
-            }
-            Self::Backup | Self::EasyMode => Attribute::NoBold,
-            Self::UnexpectedValue => Attribute::CrossedOut,
         }
     }
 }

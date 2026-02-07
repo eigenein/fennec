@@ -39,9 +39,7 @@ pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -
                     Color::Red
                 },
             ),
-            Cell::new(format!("{:?}", step.working_mode))
-                .fg(step.working_mode.color())
-                .add_attribute(step.working_mode.attribute()),
+            Cell::new(format!("{:?}", step.working_mode)).fg(step.working_mode.color()),
             Cell::new(step.residual_energy_before)
                 .set_alignment(CellAlignment::Right)
                 .add_attribute(Attribute::Dim),

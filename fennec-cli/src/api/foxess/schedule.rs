@@ -220,9 +220,7 @@ impl Display for &Groups {
             table.add_row(vec![
                 Cell::new(&group.start_time),
                 Cell::new(&group.end_time),
-                Cell::new(group.working_mode)
-                    .fg(group.working_mode.color())
-                    .add_attribute(group.working_mode.attribute()),
+                Cell::new(group.working_mode).fg(group.working_mode.color()),
                 Cell::new(group.extra.feed_power).set_alignment(CellAlignment::Right),
                 Cell::new(other),
             ]);

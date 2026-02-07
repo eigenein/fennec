@@ -1,3 +1,4 @@
+/// TODO: should I just merge this with the FoxESS working modes?
 #[derive(Debug, clap::ValueEnum, enumset::EnumSetType)]
 pub enum WorkingMode {
     /// Do not do anything.

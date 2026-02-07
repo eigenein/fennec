@@ -4,12 +4,13 @@ use std::{
 };
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
-use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
+use comfy_table::{Cell, CellAlignment, Table, modifiers, presets};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
+    api::foxess::working_mode::WorkingMode,
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode as CoreWorkingMode,
     ops::{Interval, RangeInclusive},
@@ -180,19 +181,20 @@ impl TimeSlotSequence {
                 let (working_mode, feed_power) = match working_mode {
                     CoreWorkingMode::Idle => {
                         // Forced charging at 0W is effectively idling:
-                        (WorkingMode::ForceCharge, Kilowatts::ZERO)
+                        (WorkingMode::ForcedCharge, Kilowatts::ZERO)
                     }
                     CoreWorkingMode::Backup => {
-                        (WorkingMode::BackUp, battery_power_limits.charging_power)
+                        // FIXME: actually, it seems like «load priority» is more suitable here.
+                        (WorkingMode::BatteryPriority, battery_power_limits.charging_power)
                     }
                     CoreWorkingMode::Charge => {
-                        (WorkingMode::ForceCharge, battery_power_limits.charging_power)
+                        (WorkingMode::ForcedCharge, battery_power_limits.charging_power)
                     }
                     CoreWorkingMode::Balance => {
                         (WorkingMode::SelfUse, battery_power_limits.discharging_power)
                     }
                     CoreWorkingMode::Discharge => {
-                        (WorkingMode::ForceDischarge, battery_power_limits.discharging_power)
+                        (WorkingMode::ForcedDischarge, battery_power_limits.discharging_power)
                     }
                 };
                 // TODO: extract a method:
@@ -223,63 +225,14 @@ impl Display for &TimeSlotSequence {
             .enforce_styling()
             .set_header(vec!["Start", "End", "Mode", "Feed power"]);
         for time_slot in &self.0 {
-            let mode_color = match time_slot.working_mode {
-                WorkingMode::ForceDischarge => Color::Blue,
-                WorkingMode::ForceCharge => Color::Green,
-                WorkingMode::SelfUse => Color::DarkYellow,
-                WorkingMode::FeedIn => Color::Magenta,
-                WorkingMode::BackUp => Color::Cyan,
-                WorkingMode::EasyMode => Color::Reset,
-            };
             table.add_row(vec![
                 Cell::new(&time_slot.start_time),
                 Cell::new(&time_slot.end_time),
-                Cell::new(format!("{}", time_slot.working_mode)).fg(mode_color),
+                Cell::new(format!("{}", time_slot.working_mode)).fg(time_slot.working_mode.color()),
                 Cell::new(time_slot.feed_power).set_alignment(CellAlignment::Right),
             ]);
         }
         write!(f, "{table}")
-    }
-}
-
-/// Working modes per FoxESS API and their respective titles per the Fox Cloud app.
-#[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum WorkingMode {
-    /// Self-use.
-    #[serde(rename = "SelfUse")]
-    SelfUse,
-
-    /// Load priority.
-    #[serde(rename = "Feedin")]
-    FeedIn,
-
-    /// Forced charge.
-    #[serde(rename = "ForceCharge")]
-    ForceCharge,
-
-    /// Forced discharge.
-    #[serde(rename = "ForceDischarge")]
-    ForceDischarge,
-
-    /// Battery priority.
-    #[serde(rename = "Backup")]
-    BackUp,
-
-    /// Easy mode.
-    #[serde(rename = "EasyMode")]
-    EasyMode,
-}
-
-impl Display for WorkingMode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            WorkingMode::SelfUse => write!(f, "Self-use"),
-            WorkingMode::FeedIn => write!(f, "Load priority"),
-            WorkingMode::ForceCharge => write!(f, "Forced charge"),
-            WorkingMode::ForceDischarge => write!(f, "Forced discharge"),
-            WorkingMode::BackUp => write!(f, "Battery priority"),
-            WorkingMode::EasyMode => write!(f, "Easy mode"),
-        }
     }
 }
 

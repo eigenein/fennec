@@ -30,7 +30,7 @@ pub struct HuntArgs {
         env = "WORKING_MODES",
         value_delimiter = ',',
         num_args = 1..,
-        default_value = "backup,balance,charge",
+        default_value = "harvest,self-use,charge",
     )]
     working_modes: Vec<WorkingMode>,
 

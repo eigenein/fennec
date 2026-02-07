@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use comfy_table::Color;
 
 #[derive(Debug, clap::ValueEnum, enumset::EnumSetType)]
@@ -6,10 +8,10 @@ pub enum WorkingMode {
     Idle,
 
     /// Only excess solar power charging without discharging.
-    Backup,
+    Harvest,
 
-    /// Charge on excess solar power, discharge on insufficient solar power.
-    Balance,
+    /// Charge on excess solar power, compensate on insufficient solar power.
+    SelfUse,
 
     /// Forced charging from any source.
     Charge,
@@ -18,13 +20,25 @@ pub enum WorkingMode {
     Discharge,
 }
 
+impl Display for WorkingMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SelfUse => write!(f, "Self-use"),
+            Self::Idle => write!(f, "Idle"),
+            Self::Harvest => write!(f, "Harvest"),
+            Self::Charge => write!(f, "Charge"),
+            Self::Discharge => write!(f, "Discharge"),
+        }
+    }
+}
+
 impl WorkingMode {
     pub const fn color(self) -> Color {
         match self {
             Self::Charge => Color::Green,
             Self::Discharge => Color::Blue,
-            Self::Balance => Color::DarkYellow,
-            Self::Backup => Color::Cyan,
+            Self::SelfUse => Color::DarkYellow,
+            Self::Harvest => Color::Cyan,
             Self::Idle => Color::Reset,
         }
     }

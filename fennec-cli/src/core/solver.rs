@@ -180,10 +180,10 @@ impl Solver<'_> {
         // Requested external power flow to (positive) or from (negative) the battery:
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
-            WorkingMode::Backup => (-stand_by_power).max(Kilowatts::ZERO),
+            WorkingMode::Harvest => (-stand_by_power).max(Kilowatts::ZERO),
             WorkingMode::Charge => self.battery_power_limits.charging,
             WorkingMode::Discharge => -self.battery_power_limits.discharging,
-            WorkingMode::Balance => (-stand_by_power)
+            WorkingMode::SelfUse => (-stand_by_power)
                 .clamp(-self.battery_power_limits.discharging, self.battery_power_limits.charging),
         };
 

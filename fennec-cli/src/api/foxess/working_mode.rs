@@ -50,8 +50,8 @@ impl Display for WorkingMode {
         match self {
             Self::SelfUse => write!(f, "Self-use"),
             Self::FeedIn => write!(f, "Feed-in"),
-            Self::ForceCharge => write!(f, "Force charge"),
-            Self::ForceDischarge => write!(f, "Force discharge"),
+            Self::ForceCharge => write!(f, "Force-charge"),
+            Self::ForceDischarge => write!(f, "Force-discharge"),
             Self::Backup => write!(f, "Backup"),
             Self::EasyMode => write!(f, "Easy mode"),
             Self::UnexpectedValue => write!(f, "Unexpected value"),

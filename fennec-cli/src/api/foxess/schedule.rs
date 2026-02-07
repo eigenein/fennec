@@ -176,11 +176,13 @@ impl Groups {
                         // Forced charging at 0W is effectively idling:
                         (WorkingMode::ForceCharge, Kilowatts::ZERO)
                     }
-                    CoreWorkingMode::Backup => (WorkingMode::Backup, battery_power_limits.charging),
+                    CoreWorkingMode::Harvest => {
+                        (WorkingMode::Backup, battery_power_limits.charging)
+                    }
                     CoreWorkingMode::Charge => {
                         (WorkingMode::ForceCharge, battery_power_limits.charging)
                     }
-                    CoreWorkingMode::Balance => {
+                    CoreWorkingMode::SelfUse => {
                         (WorkingMode::SelfUse, battery_power_limits.discharging)
                     }
                     CoreWorkingMode::Discharge => {

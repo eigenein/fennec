@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
     ops::Mul,
 };
 
@@ -10,6 +10,12 @@ use crate::quantity::proportions::BasisPoints;
 
 #[derive(Copy, Clone, Eq, PartialEq, From, Serialize, Deserialize)]
 pub struct Percent(u16);
+
+impl Display for Percent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
 
 impl Debug for Percent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

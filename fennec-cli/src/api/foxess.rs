@@ -69,16 +69,18 @@ impl Api {
         R: DeserializeOwned,
     {
         let (timestamp, signature) = self.build_signature(path);
-        self.client
+        let response = self
+            .client
             .post(format!("https://www.foxesscloud.com/{path}"))
             .header("Timestamp", timestamp)
             .header("Signature", signature)
             .json(&body)
             .send()
             .await
-            .with_context(|| format!("failed to call `{path}`"))?
-            .json::<Response<R>>()
-            .await
+            .with_context(|| format!("failed to call `{path}`"))?;
+        let text = response.text().await?;
+        debug!(text, "fetched the response");
+        serde_json::from_str::<Response<R>>(&text)
             .with_context(|| format!("failed to deserialize `{path}` response JSON"))?
             .into()
     }

@@ -45,18 +45,26 @@ pub struct TimeSlot {
     #[serde(flatten)]
     pub end_time: EndTime,
 
-    #[serde(rename = "maxSoc")]
-    pub max_soc: Percent,
-
-    /// The minimum SoC value of the offline battery (minimal safe SoC value?).
+    /// The minimum SoC value of the online battery. Observed behaviour:
+    ///
+    /// - Forced discharge cut-off percent.
     #[expect(clippy::doc_markdown)]
     #[serde(rename = "minSocOnGrid")]
     pub min_soc_on_grid: Percent,
 
-    /// Discharge SoC value (minimal safe SoC value?).
+    /// Observed behaviour:
+    ///
+    /// - Forced charge cut-off percent.
+    /// - Forced discharge cut-off percent.
     #[expect(clippy::doc_markdown)]
     #[serde(rename = "fdSoc")]
     pub feed_soc: Percent,
+
+    /// Observed behaviour:
+    ///
+    /// - Forced charge cut-off percent.
+    #[serde(rename = "maxSoc")]
+    pub max_soc: Percent,
 
     /// The maximum fdischarge power value.
     ///
@@ -181,20 +189,19 @@ impl TimeSlotSequence {
                 let (working_mode, feed_power) = match working_mode {
                     CoreWorkingMode::Idle => {
                         // Forced charging at 0W is effectively idling:
-                        (WorkingMode::ForcedCharge, Kilowatts::ZERO)
+                        (WorkingMode::ForceCharge, Kilowatts::ZERO)
                     }
                     CoreWorkingMode::Backup => {
-                        // FIXME: actually, it seems like «load priority» is more suitable here.
-                        (WorkingMode::BatteryPriority, battery_power_limits.charging_power)
+                        (WorkingMode::Backup, battery_power_limits.charging_power)
                     }
                     CoreWorkingMode::Charge => {
-                        (WorkingMode::ForcedCharge, battery_power_limits.charging_power)
+                        (WorkingMode::ForceCharge, battery_power_limits.charging_power)
                     }
                     CoreWorkingMode::Balance => {
                         (WorkingMode::SelfUse, battery_power_limits.discharging_power)
                     }
                     CoreWorkingMode::Discharge => {
-                        (WorkingMode::ForcedDischarge, battery_power_limits.discharging_power)
+                        (WorkingMode::ForceDischarge, battery_power_limits.discharging_power)
                     }
                 };
                 // TODO: extract a method:
@@ -223,12 +230,23 @@ impl Display for &TimeSlotSequence {
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
-            .set_header(vec!["Start", "End", "Mode", "Feed power"]);
+            .set_header(vec![
+                "Start",
+                "End",
+                "Mode",
+                "Min SoC",
+                "Feed SoC",
+                "Max SoC",
+                "Feed power",
+            ]);
         for time_slot in &self.0 {
             table.add_row(vec![
                 Cell::new(&time_slot.start_time),
                 Cell::new(&time_slot.end_time),
                 Cell::new(format!("{}", time_slot.working_mode)).fg(time_slot.working_mode.color()),
+                Cell::new(time_slot.min_soc_on_grid),
+                Cell::new(time_slot.feed_soc),
+                Cell::new(time_slot.max_soc),
                 Cell::new(time_slot.feed_power).set_alignment(CellAlignment::Right),
             ]);
         }

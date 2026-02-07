@@ -15,7 +15,7 @@ mod tables;
 use clap::{Parser, crate_version};
 use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};
 use tracing::metadata::LevelFilter;
-use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     cli::{Args, Command},
@@ -24,12 +24,9 @@ use crate::{
 
 fn main() -> Result {
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::fmt::layer()
-                .without_time()
-                .compact()
-                .with_filter(LevelFilter::from(Level::INFO)),
-        )
+        .with(tracing_subscriber::fmt::layer().without_time().compact().with_filter(
+            EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).from_env()?,
+        ))
         .with(sentry::integrations::tracing::layer().event_filter(
             |metadata| match *metadata.level() {
                 Level::ERROR => EventFilter::Event,

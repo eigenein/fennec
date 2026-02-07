@@ -3,24 +3,41 @@ use std::fmt::{Display, Formatter};
 use comfy_table::Color;
 use serde::{Deserialize, Serialize};
 
-/// Working modes per FoxESS API and their respective titles per the Fox Cloud app.
+/// FoxESS cloud working modes.
+///
+/// The descriptions in the app do match the actual function on my MQ2200.
 #[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum WorkingMode {
+    /// «Self-use» per the app. Observed behaviour:
+    ///
+    /// - Charging: with excess PV power.
+    /// - Discharging: compensating the PV power deficit.
     #[serde(rename = "SelfUse")]
     SelfUse,
 
+    /// «Load priority» per the app. Observed behaviour:
+    ///
+    /// - Charging: never, excess PV power is exported.
+    /// - Discharging: compensating the PV power deficit.
     #[serde(rename = "Feedin")]
-    LoadPriority,
+    FeedIn,
+
+    /// «Battery priority» per the app. Observed behaviour:
+    ///
+    /// - Charging: with excess PV power.
+    /// - Discharging: never.
+    #[serde(rename = "Backup")]
+    Backup,
 
     #[serde(rename = "ForceCharge")]
-    ForcedCharge,
+    ForceCharge,
 
     #[serde(rename = "ForceDischarge")]
-    ForcedDischarge,
+    ForceDischarge,
 
-    #[serde(rename = "Backup")]
-    BatteryPriority,
-
+    /// I have no idea what this is. Observed behaviour (incomplete):
+    ///
+    /// - Charging: with excess PV power.
     #[serde(rename = "EasyMode")]
     EasyMode,
 }
@@ -29,10 +46,10 @@ impl Display for WorkingMode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SelfUse => write!(f, "Self-use"),
-            Self::LoadPriority => write!(f, "Load priority"),
-            Self::ForcedCharge => write!(f, "Forced charge"),
-            Self::ForcedDischarge => write!(f, "Forced discharge"),
-            Self::BatteryPriority => write!(f, "Battery priority"),
+            Self::FeedIn => write!(f, "Load priority"),
+            Self::ForceCharge => write!(f, "Forced charge"),
+            Self::ForceDischarge => write!(f, "Forced discharge"),
+            Self::Backup => write!(f, "Battery priority"),
             Self::EasyMode => write!(f, "Easy mode"),
         }
     }
@@ -41,11 +58,11 @@ impl Display for WorkingMode {
 impl WorkingMode {
     pub const fn color(self) -> Color {
         match self {
-            Self::ForcedDischarge => Color::Blue,
-            Self::ForcedCharge => Color::Green,
+            Self::ForceDischarge => Color::Blue,
+            Self::ForceCharge => Color::Green,
             Self::SelfUse => Color::DarkYellow,
-            Self::LoadPriority => Color::Magenta,
-            Self::BatteryPriority => Color::Cyan,
+            Self::FeedIn => Color::Magenta,
+            Self::Backup => Color::Cyan,
             Self::EasyMode => Color::Reset,
         }
     }

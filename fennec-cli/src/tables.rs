@@ -40,10 +40,11 @@ pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -
                 },
             ),
             Cell::new(format!("{:?}", step.working_mode)).fg(match step.working_mode {
+                // TODO: move to `WorkingMode`.
                 WorkingMode::Charge => Color::Green,
-                WorkingMode::Discharge => Color::Red,
+                WorkingMode::Discharge => Color::Blue,
                 WorkingMode::Balance => Color::DarkYellow,
-                WorkingMode::Backup => Color::Magenta,
+                WorkingMode::Backup => Color::Cyan,
                 WorkingMode::Idle => Color::Reset,
             }),
             Cell::new(step.residual_energy_before)

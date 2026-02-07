@@ -21,7 +21,7 @@ use crate::{
     db::battery::BatteryLog,
     fmt::FormattedPercentage,
     prelude::*,
-    quantity::{Quantity, power::Kilowatts},
+    quantity::{Quantity, energy::KilowattHours, power::Kilowatts},
 };
 
 #[must_use]
@@ -106,7 +106,9 @@ impl BatteryEfficiency {
             let weight_multiplier = {
                 let weight = match weight_mode {
                     WeightMode::None => 1.0,
-                    WeightMode::ResidualDifferential => residual_differential.0.abs(),
+                    WeightMode::EnergyFlow => {
+                        (imported_energy + exported_energy + KilowattHours::ONE_WATT_HOUR).0
+                    }
                 };
                 weight.sqrt()
             };

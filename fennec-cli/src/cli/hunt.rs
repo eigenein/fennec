@@ -133,18 +133,15 @@ impl HuntArgs {
         let base_loss = solver.base_loss();
         let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
         println!("{}", metrics.with_base_loss(base_loss));
-        println!("{}", build_steps_table(&steps, self.battery.power_limits.discharging_power));
+        println!("{}", build_steps_table(&steps, self.battery.power_limits.discharging));
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        let time_slot_sequence =
-            foxess::Groups::from_schedule(schedule, now, self.battery.power_limits)?;
-        println!("{}", &time_slot_sequence);
+        let groups = foxess::Groups::from_schedule(schedule, now, self.battery.power_limits);
+        println!("{}", &groups);
 
         if !self.scout {
-            fox_ess
-                .set_schedule(&self.fox_ess_api.serial_number, time_slot_sequence.as_ref())
-                .await?;
+            fox_ess.set_schedule(&self.fox_ess_api.serial_number, groups.as_ref()).await?;
         }
 
         heartbeat::Client::new(self.heartbeat_url).send().await;

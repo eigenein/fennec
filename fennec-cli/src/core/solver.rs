@@ -181,12 +181,10 @@ impl Solver<'_> {
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
             WorkingMode::Backup => (-stand_by_power).max(Kilowatts::ZERO),
-            WorkingMode::Charge => self.battery_power_limits.charging_power,
-            WorkingMode::Discharge => -self.battery_power_limits.discharging_power,
-            WorkingMode::Balance => (-stand_by_power).clamp(
-                -self.battery_power_limits.discharging_power,
-                self.battery_power_limits.charging_power,
-            ),
+            WorkingMode::Charge => self.battery_power_limits.charging,
+            WorkingMode::Discharge => -self.battery_power_limits.discharging,
+            WorkingMode::Balance => (-stand_by_power)
+                .clamp(-self.battery_power_limits.discharging, self.battery_power_limits.charging),
         };
 
         // Apply the load to the battery:

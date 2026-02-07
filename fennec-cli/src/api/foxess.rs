@@ -42,7 +42,7 @@ impl Api {
         }
 
         info!("getting…");
-        self.post("op/v2/device/scheduler/get", &GetScheduleRequest { serial_number })
+        self.post("op/v3/device/scheduler/get", &GetScheduleRequest { serial_number })
             .await
             .context("failed to get the schedule")
     }
@@ -55,9 +55,13 @@ impl Api {
             #[serde(rename = "deviceSN")]
             serial_number: &'a str,
 
+            /// This parameter is actually **required** but the API documentation misses it.
+            #[serde_as(as = "serde_with::BoolFromInt")]
+            #[serde(rename = "enable")]
+            pub is_enabled: bool,
+
             /// Whether to restore the extra parameters like limits and cut-offs to the system defaults.
             #[serde(rename = "isDefault")]
-            #[serde_as(as = "serde_with::BoolFromInt")]
             is_default_extra: bool,
 
             #[serde(rename = "groups")]
@@ -66,8 +70,8 @@ impl Api {
 
         info!(n_groups = groups.len(), "setting…");
         self.post(
-            "op/v2/device/scheduler/enable",
-            SetScheduleRequest { serial_number, is_default_extra: true, groups },
+            "op/v3/device/scheduler/enable",
+            SetScheduleRequest { serial_number, is_default_extra: true, groups, is_enabled: true },
         )
         .await
     }

@@ -6,6 +6,7 @@ use std::{
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
 use comfy_table::{Cell, CellAlignment, Table, modifiers, presets};
+use derive_more::{AsRef, IntoIterator};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -33,10 +34,6 @@ pub struct Schedule {
 #[serde_as]
 #[derive(Serialize, Deserialize)]
 pub struct Group {
-    #[serde_as(as = "serde_with::BoolFromInt")]
-    #[serde(rename = "enable")]
-    pub is_enabled: bool,
-
     #[serde(flatten)]
     pub start_time: StartTime,
 
@@ -111,8 +108,14 @@ impl From<DateTime<Local>> for EndTime {
     }
 }
 
-#[derive(Serialize, Deserialize, derive_more::AsRef, derive_more::IntoIterator)]
-pub struct Groups(#[into_iterator(ref)] Vec<Group>);
+#[derive(Serialize, Deserialize, AsRef, IntoIterator)]
+pub struct Groups(#[into_iterator(ref)] pub Vec<Group>);
+
+impl FromIterator<Group> for Groups {
+    fn from_iter<T: IntoIterator<Item = Group>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
 
 impl Groups {
     #[instrument(skip_all)]
@@ -120,7 +123,7 @@ impl Groups {
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
         since: DateTime<Local>,
         battery_power_limits: BatteryPowerLimits,
-    ) -> Result<Self> {
+    ) -> Self {
         let until_exclusive = since + TimeDelta::days(1);
         info!(%since, %until_exclusive, "building a FoxESS schedule…");
         schedule
@@ -161,44 +164,35 @@ impl Groups {
                     .map(move |(start_time, end_time)| (working_mode, start_time, end_time)))
             })
             .flatten()
-            .take(
-                // FoxESS Cloud allows maximum of 8 schedule groups, pity:
-                8,
-            )
+            .take(95 /* guardrail per the FoxCloud app */)
             .map(|(working_mode, start_time, end_time)| {
                 let (working_mode, feed_power) = match working_mode {
                     CoreWorkingMode::Idle => {
                         // Forced charging at 0W is effectively idling:
                         (WorkingMode::ForceCharge, Kilowatts::ZERO)
                     }
-                    CoreWorkingMode::Backup => {
-                        (WorkingMode::Backup, battery_power_limits.charging_power)
-                    }
+                    CoreWorkingMode::Backup => (WorkingMode::Backup, battery_power_limits.charging),
                     CoreWorkingMode::Charge => {
-                        (WorkingMode::ForceCharge, battery_power_limits.charging_power)
+                        (WorkingMode::ForceCharge, battery_power_limits.charging)
                     }
                     CoreWorkingMode::Balance => {
-                        (WorkingMode::SelfUse, battery_power_limits.discharging_power)
+                        (WorkingMode::SelfUse, battery_power_limits.discharging)
                     }
                     CoreWorkingMode::Discharge => {
-                        (WorkingMode::ForceDischarge, battery_power_limits.discharging_power)
+                        (WorkingMode::ForceDischarge, battery_power_limits.discharging)
                     }
                 };
-                let time_slot = Group {
+                Group {
                     start_time,
                     end_time,
                     working_mode,
-                    is_enabled: true,
                     extra: ExtraParameters {
                         feed_power: feed_power.into(),
                         other: BTreeMap::new(),
                     },
-                };
-                Ok(time_slot)
+                }
             })
-            .collect::<Result<_>>()
-            .context("failed to compile a FoxESS schedule")
-            .map(Self)
+            .collect()
     }
 }
 
@@ -209,7 +203,7 @@ impl Display for &Groups {
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
-            .set_header(vec!["Start", "End", "Mode", "Enabled", "Feed power", "Other"]);
+            .set_header(vec!["Start", "End", "Mode", "Feed power", "Other"]);
         for group in &self.0 {
             let other = group
                 .extra
@@ -222,7 +216,6 @@ impl Display for &Groups {
                 Cell::new(&group.start_time),
                 Cell::new(&group.end_time),
                 Cell::new(group.working_mode).fg(group.working_mode.color()),
-                Cell::new(group.is_enabled),
                 Cell::new(group.extra.feed_power).set_alignment(CellAlignment::Right),
                 Cell::new(other),
             ]);

@@ -78,7 +78,7 @@ pub struct BatteryPowerLimits {
         default_value = "1.2",
         env = "CHARGING_POWER_KILOWATTS"
     )]
-    pub charging_power: Kilowatts,
+    pub charging: Kilowatts,
 
     /// Discharging power in kilowatts.
     #[clap(
@@ -86,7 +86,7 @@ pub struct BatteryPowerLimits {
         default_value = "0.8",
         env = "DISCHARGING_POWER_KILOWATTS"
     )]
-    pub discharging_power: Kilowatts,
+    pub discharging: Kilowatts,
 }
 
 #[derive(Parser)]

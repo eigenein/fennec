@@ -10,7 +10,7 @@ use crate::{
     core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
-    quantity::{energy::KilowattHours, rate::KilowattHourRate},
+    quantity::rate::KilowattHourRate,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
     tables::build_steps_table,
 };
@@ -37,15 +37,6 @@ pub struct HuntArgs {
     /// Battery degradation rate per kilowatt-hour of the energy flow.
     #[clap(long, env = "DEGRADATION_RATE", default_value = "0")]
     degradation_rate: KilowattHourRate,
-
-    /// Extra energy on top of minimal state-of-charge
-    /// that should be reserved by the end of the forecast period.
-    #[clap(
-        long = "final-spare-energy-kilowatts",
-        env = "FINAL_SPARE_ENERGY_KILOWATT_HOURS",
-        default_value = "0"
-    )]
-    final_spare_energy: KilowattHours,
 
     #[clap(long = "quantum-kilowatts", env = "QUANTUM_KILOWATTS", default_value = "0.001")]
     quantum: Quantum,
@@ -115,9 +106,6 @@ impl HuntArgs {
             .grid_rates(&grid_rates)
             .consumption_statistics(&consumption_statistics)
             .working_modes(working_modes)
-            .min_final_residual_energy(
-                battery_state.min_residual_energy() + self.final_spare_energy,
-            )
             .min_residual_energy(battery_state.min_residual_energy())
             .max_residual_energy(
                 // Current residual may be higher than the maximum SoC setting:

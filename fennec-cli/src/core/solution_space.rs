@@ -15,11 +15,6 @@ use crate::{
 
 #[must_use]
 pub struct SolutionSpace {
-    /// Minimum allowed energy level at the boundary.
-    ///
-    /// Partial solutions may still fall below this level.
-    min_final_energy_level: EnergyLevel,
-
     allowed_energy_levels: RangeInclusive<EnergyLevel>,
 
     /// Number of time intervals.
@@ -36,12 +31,11 @@ impl SolutionSpace {
     #[builder]
     pub fn new(
         n_intervals: usize,
-        min_final_energy_level: EnergyLevel,
         #[builder(into)] allowed_energy_levels: RangeInclusive<EnergyLevel>,
     ) -> Self {
         let flat_matrix =
             (0..(n_intervals * (allowed_energy_levels.max.0 + 1))).map(|_| None).collect_vec();
-        Self { min_final_energy_level, allowed_energy_levels, n_intervals, flat_matrix }
+        Self { allowed_energy_levels, n_intervals, flat_matrix }
     }
 }
 
@@ -60,9 +54,7 @@ impl SolutionSpace {
                 }
             }
             Ordering::Equal => {
-                if energy_level >= self.min_final_energy_level
-                    && energy_level <= self.allowed_energy_levels.max
-                {
+                if self.allowed_energy_levels.contains(energy_level) {
                     Some(&Solution::BOUNDARY)
                 } else {
                     None

@@ -28,8 +28,6 @@ pub struct Solver<'a> {
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
 
-    min_final_residual_energy: KilowattHours,
-
     /// Minimum allowed residual energy.
     min_residual_energy: KilowattHours,
 
@@ -68,7 +66,6 @@ impl Solver<'_> {
 
         let mut solutions = SolutionSpace::builder()
             .n_intervals(self.grid_rates.len())
-            .min_final_energy_level(self.quantum.quantize(self.min_final_residual_energy))
             .allowed_energy_levels(
                 self.quantum.quantize(self.min_residual_energy)..=max_energy_level,
             )

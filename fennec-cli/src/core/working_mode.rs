@@ -1,4 +1,5 @@
-/// TODO: should I just merge this with the FoxESS working modes?
+use comfy_table::Color;
+
 #[derive(Debug, clap::ValueEnum, enumset::EnumSetType)]
 pub enum WorkingMode {
     /// Do not do anything.
@@ -15,4 +16,16 @@ pub enum WorkingMode {
 
     /// Forced discharging, no matter the actual consumption.
     Discharge,
+}
+
+impl WorkingMode {
+    pub const fn color(self) -> Color {
+        match self {
+            Self::Charge => Color::Green,
+            Self::Discharge => Color::Blue,
+            Self::Balance => Color::DarkYellow,
+            Self::Backup => Color::Cyan,
+            Self::Idle => Color::Reset,
+        }
+    }
 }

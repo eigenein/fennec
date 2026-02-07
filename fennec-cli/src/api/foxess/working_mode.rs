@@ -35,22 +35,26 @@ pub enum WorkingMode {
     #[serde(rename = "ForceDischarge")]
     ForceDischarge,
 
-    /// I have no idea what this is. Observed behaviour (incomplete):
+    /// No idea what this is. Observed behaviour (incomplete):
     ///
     /// - Charging: with excess PV power.
     #[serde(rename = "EasyMode")]
     EasyMode,
+
+    /// Old inactive groups seem to be switched into this status.
+    UnexpectedValue,
 }
 
 impl Display for WorkingMode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SelfUse => write!(f, "Self-use"),
-            Self::FeedIn => write!(f, "Load priority"),
-            Self::ForceCharge => write!(f, "Forced charge"),
-            Self::ForceDischarge => write!(f, "Forced discharge"),
-            Self::Backup => write!(f, "Battery priority"),
+            Self::FeedIn => write!(f, "Feed-in"),
+            Self::ForceCharge => write!(f, "Force charge"),
+            Self::ForceDischarge => write!(f, "Force discharge"),
+            Self::Backup => write!(f, "Backup"),
             Self::EasyMode => write!(f, "Easy mode"),
+            Self::UnexpectedValue => write!(f, "Unexpected value"),
         }
     }
 }
@@ -63,7 +67,7 @@ impl WorkingMode {
             Self::SelfUse => Color::DarkYellow,
             Self::FeedIn => Color::Magenta,
             Self::Backup => Color::Cyan,
-            Self::EasyMode => Color::Reset,
+            Self::EasyMode | Self::UnexpectedValue => Color::Reset,
         }
     }
 }

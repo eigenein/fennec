@@ -30,26 +30,23 @@ impl Mul<TimeDelta> for Kilowatts {
     }
 }
 
-#[derive(
-    Copy, Clone, Eq, PartialEq, derive_more::FromStr, serde::Serialize, serde::Deserialize,
-)]
-pub struct Watts(pub u32);
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Watts(f64);
 
 impl From<Kilowatts> for Watts {
-    #[expect(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn from(kilowatts: Kilowatts) -> Self {
-        Self((kilowatts.0 * 1000.0).round() as u32)
+        Self(kilowatts.0 * 1000.0)
+    }
+}
+
+impl Debug for Watts {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.0}W", self.0)
     }
 }
 
 impl Display for Watts {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} W", self.0)
-    }
-}
-
-impl Kilowatts {
-    pub fn round_to_watts(self) -> Self {
-        Self((self.0 * 1000.0).round() / 1000.0)
+        write!(f, "{:.0} W", self.0)
     }
 }

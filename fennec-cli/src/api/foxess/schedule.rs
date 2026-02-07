@@ -1,5 +1,6 @@
 use std::{
-    fmt::{Display, Formatter},
+    collections::BTreeMap,
+    fmt::{Debug, Display, Formatter},
     iter::once,
 };
 
@@ -13,12 +14,9 @@ use crate::{
     api::foxess::working_mode::WorkingMode,
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode as CoreWorkingMode,
-    ops::{Interval, RangeInclusive},
+    ops::Interval,
     prelude::*,
-    quantity::{
-        power::{Kilowatts, Watts},
-        proportions::Percent,
-    },
+    quantity::power::{Kilowatts, Watts},
 };
 
 #[serde_as]
@@ -29,12 +27,12 @@ pub struct Schedule {
     pub is_enabled: bool,
 
     #[serde(rename = "groups")]
-    pub groups: TimeSlotSequence,
+    pub groups: Groups,
 }
 
 #[serde_as]
-#[derive(Eq, PartialEq, Serialize, Deserialize)]
-pub struct TimeSlot {
+#[derive(Serialize, Deserialize)]
+pub struct Group {
     #[serde_as(as = "serde_with::BoolFromInt")]
     #[serde(rename = "enable")]
     pub is_enabled: bool,
@@ -45,37 +43,20 @@ pub struct TimeSlot {
     #[serde(flatten)]
     pub end_time: EndTime,
 
-    /// The minimum SoC value of the online battery. Observed behaviour:
-    ///
-    /// - Forced discharge cut-off percent.
-    #[expect(clippy::doc_markdown)]
-    #[serde(rename = "minSocOnGrid")]
-    pub min_soc_on_grid: Percent,
+    #[serde(rename = "workMode")]
+    pub working_mode: WorkingMode,
 
-    /// Observed behaviour:
-    ///
-    /// - Forced charge cut-off percent.
-    /// - Forced discharge cut-off percent.
-    #[expect(clippy::doc_markdown)]
-    #[serde(rename = "fdSoc")]
-    pub feed_soc: Percent,
+    #[serde(rename = "extraParam")]
+    pub extra: ExtraParameters,
+}
 
-    /// Observed behaviour:
-    ///
-    /// - Forced charge cut-off percent.
-    #[serde(rename = "maxSoc")]
-    pub max_soc: Percent,
-
-    /// The maximum fdischarge power value.
-    ///
-    /// # Note
-    ///
-    /// For MQ2200, this also seems to be the force *charge* power.
+#[derive(Serialize, Deserialize)]
+pub struct ExtraParameters {
     #[serde(rename = "fdPwr")]
     pub feed_power: Watts,
 
-    #[serde(rename = "workMode")]
-    pub working_mode: WorkingMode,
+    #[serde(flatten)]
+    other: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -131,15 +112,14 @@ impl From<DateTime<Local>> for EndTime {
 }
 
 #[derive(Serialize, Deserialize, derive_more::AsRef, derive_more::IntoIterator)]
-pub struct TimeSlotSequence(#[into_iterator(ref)] Vec<TimeSlot>);
+pub struct Groups(#[into_iterator(ref)] Vec<Group>);
 
-impl TimeSlotSequence {
+impl Groups {
     #[instrument(skip_all)]
     pub fn from_schedule(
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
         since: DateTime<Local>,
         battery_power_limits: BatteryPowerLimits,
-        allowed_state_of_charge: RangeInclusive<Percent>,
     ) -> Result<Self> {
         let until_exclusive = since + TimeDelta::days(1);
         info!(%since, %until_exclusive, "building a FoxESS schedule…");
@@ -204,16 +184,15 @@ impl TimeSlotSequence {
                         (WorkingMode::ForceDischarge, battery_power_limits.discharging_power)
                     }
                 };
-                // TODO: extract a method:
-                let time_slot = TimeSlot {
-                    is_enabled: true,
+                let time_slot = Group {
                     start_time,
                     end_time,
-                    max_soc: allowed_state_of_charge.max,
-                    min_soc_on_grid: allowed_state_of_charge.min,
-                    feed_soc: allowed_state_of_charge.min,
-                    feed_power: feed_power.into(),
                     working_mode,
+                    is_enabled: true,
+                    extra: ExtraParameters {
+                        feed_power: feed_power.into(),
+                        other: BTreeMap::new(),
+                    },
                 };
                 Ok(time_slot)
             })
@@ -223,31 +202,29 @@ impl TimeSlotSequence {
     }
 }
 
-impl Display for &TimeSlotSequence {
+impl Display for &Groups {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
         table
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
-            .set_header(vec![
-                "Start",
-                "End",
-                "Mode",
-                "Min SoC",
-                "Feed SoC",
-                "Max SoC",
-                "Feed power",
-            ]);
-        for time_slot in &self.0 {
+            .set_header(vec!["Start", "End", "Mode", "Enabled", "Feed power", "Other"]);
+        for group in &self.0 {
+            let other = group
+                .extra
+                .other
+                .iter()
+                .sorted_unstable_by_key(|(key, _)| key.as_str())
+                .map(|(key, value)| format!("{key}={value}"))
+                .join(" ");
             table.add_row(vec![
-                Cell::new(&time_slot.start_time),
-                Cell::new(&time_slot.end_time),
-                Cell::new(format!("{}", time_slot.working_mode)).fg(time_slot.working_mode.color()),
-                Cell::new(time_slot.min_soc_on_grid),
-                Cell::new(time_slot.feed_soc),
-                Cell::new(time_slot.max_soc),
-                Cell::new(time_slot.feed_power).set_alignment(CellAlignment::Right),
+                Cell::new(&group.start_time),
+                Cell::new(&group.end_time),
+                Cell::new(group.working_mode).fg(group.working_mode.color()),
+                Cell::new(group.is_enabled),
+                Cell::new(group.extra.feed_power).set_alignment(CellAlignment::Right),
+                Cell::new(other),
             ]);
         }
         write!(f, "{table}")

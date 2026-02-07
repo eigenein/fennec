@@ -8,9 +8,10 @@ use chrono::Utc;
 use http::{HeaderMap, HeaderValue};
 use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
+use serde_with::serde_as;
 
 use self::schedule::Schedule;
-pub use self::schedule::{TimeSlot, TimeSlotSequence};
+pub use self::schedule::{Group, Groups};
 use crate::{api::foxess::response::Response, prelude::*};
 
 pub struct Api {
@@ -41,25 +42,34 @@ impl Api {
         }
 
         info!("getting…");
-        self.post("op/v1/device/scheduler/get", &GetScheduleRequest { serial_number })
+        self.post("op/v2/device/scheduler/get", &GetScheduleRequest { serial_number })
             .await
             .context("failed to get the schedule")
     }
 
     #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub async fn set_schedule(&self, serial_number: &str, groups: &[TimeSlot]) -> Result {
+    pub async fn set_schedule(&self, serial_number: &str, groups: &[Group]) -> Result {
+        #[serde_as]
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]
             serial_number: &'a str,
 
+            /// Whether to restore the extra parameters like limits and cut-offs to the system defaults.
+            #[serde(rename = "isDefault")]
+            #[serde_as(as = "serde_with::BoolFromInt")]
+            is_default_extra: bool,
+
             #[serde(rename = "groups")]
-            groups: &'a [TimeSlot],
+            groups: &'a [Group],
         }
 
         info!(n_groups = groups.len(), "setting…");
-        self.post("op/v1/device/scheduler/enable", SetScheduleRequest { serial_number, groups })
-            .await
+        self.post(
+            "op/v2/device/scheduler/enable",
+            SetScheduleRequest { serial_number, is_default_extra: true, groups },
+        )
+        .await
     }
 
     #[instrument(skip_all, level = Level::DEBUG, fields(path = path))]

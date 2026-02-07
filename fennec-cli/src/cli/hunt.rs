@@ -94,7 +94,6 @@ impl HuntArgs {
             .await?
             .read_battery_state(self.battery.registers)
             .await?;
-        let allowed_state_of_charge = battery_state.settings.allowed_state_of_charge;
 
         let since = self.estimation.since();
         let battery_efficiency = {
@@ -138,12 +137,8 @@ impl HuntArgs {
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        let time_slot_sequence = foxess::TimeSlotSequence::from_schedule(
-            schedule,
-            now,
-            self.battery.power_limits,
-            allowed_state_of_charge,
-        )?;
+        let time_slot_sequence =
+            foxess::Groups::from_schedule(schedule, now, self.battery.power_limits)?;
         println!("{}", &time_slot_sequence);
 
         if !self.scout {

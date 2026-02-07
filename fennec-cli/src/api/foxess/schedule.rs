@@ -57,7 +57,7 @@ pub struct TimeSlot {
     #[serde(rename = "fdSoc")]
     pub feed_soc: Percent,
 
-    /// The maximum force discharge power value.
+    /// The maximum fdischarge power value.
     ///
     /// # Note
     ///
@@ -224,16 +224,17 @@ impl Display for &TimeSlotSequence {
             .set_header(vec!["Start", "End", "Mode", "Feed power"]);
         for time_slot in &self.0 {
             let mode_color = match time_slot.working_mode {
-                WorkingMode::ForceDischarge if time_slot.feed_power != Watts(0) => Color::Red,
-                WorkingMode::ForceCharge if time_slot.feed_power != Watts(0) => Color::Green,
+                WorkingMode::ForceDischarge => Color::Blue,
+                WorkingMode::ForceCharge => Color::Green,
                 WorkingMode::SelfUse => Color::DarkYellow,
-                WorkingMode::BackUp => Color::Magenta,
-                _ => Color::Reset,
+                WorkingMode::FeedIn => Color::Magenta,
+                WorkingMode::BackUp => Color::Cyan,
+                WorkingMode::EasyMode => Color::Reset,
             };
             table.add_row(vec![
                 Cell::new(&time_slot.start_time),
                 Cell::new(&time_slot.end_time),
-                Cell::new(format!("{:?}", time_slot.working_mode)).fg(mode_color),
+                Cell::new(format!("{}", time_slot.working_mode)).fg(mode_color),
                 Cell::new(time_slot.feed_power).set_alignment(CellAlignment::Right),
             ]);
         }
@@ -241,22 +242,45 @@ impl Display for &TimeSlotSequence {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// Working modes per FoxESS API and their respective titles per the Fox Cloud app.
+#[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum WorkingMode {
+    /// Self-use.
     #[serde(rename = "SelfUse")]
     SelfUse,
 
+    /// Load priority.
     #[serde(rename = "Feedin")]
     FeedIn,
 
+    /// Forced charge.
     #[serde(rename = "ForceCharge")]
     ForceCharge,
 
+    /// Forced discharge.
     #[serde(rename = "ForceDischarge")]
     ForceDischarge,
 
+    /// Battery priority.
     #[serde(rename = "Backup")]
     BackUp,
+
+    /// Easy mode.
+    #[serde(rename = "EasyMode")]
+    EasyMode,
+}
+
+impl Display for WorkingMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorkingMode::SelfUse => write!(f, "Self-use"),
+            WorkingMode::FeedIn => write!(f, "Load priority"),
+            WorkingMode::ForceCharge => write!(f, "Forced charge"),
+            WorkingMode::ForceDischarge => write!(f, "Forced discharge"),
+            WorkingMode::BackUp => write!(f, "Battery priority"),
+            WorkingMode::EasyMode => write!(f, "Easy mode"),
+        }
+    }
 }
 
 fn into_time_slots(interval: Interval) -> impl Iterator<Item = Option<(StartTime, EndTime)>> {

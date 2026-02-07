@@ -1,4 +1,4 @@
-use comfy_table::Color;
+use comfy_table::{Attribute, Color};
 
 #[derive(Debug, clap::ValueEnum, enumset::EnumSetType)]
 pub enum WorkingMode {
@@ -26,6 +26,13 @@ impl WorkingMode {
             Self::Balance => Color::DarkYellow,
             Self::Backup => Color::Cyan,
             Self::Idle => Color::Reset,
+        }
+    }
+
+    pub const fn attribute(self) -> Attribute {
+        match self {
+            Self::Balance | Self::Charge | Self::Discharge => Attribute::Bold,
+            Self::Idle | Self::Backup => Attribute::NoBold,
         }
     }
 }

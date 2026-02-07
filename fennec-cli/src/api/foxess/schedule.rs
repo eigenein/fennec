@@ -118,6 +118,11 @@ impl FromIterator<Group> for Groups {
 }
 
 impl Groups {
+    /// Guardrail per the FoxCloud app is 96 groups which perfectly matches
+    /// 24 hours per day and 4 × 15-minute groups per hour.
+    /// This is gonna be useful for Frank Energie.
+    const N_MAX_GROUPS: usize = 96;
+
     #[instrument(skip_all)]
     pub fn from_schedule(
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
@@ -164,7 +169,7 @@ impl Groups {
                     .map(move |(start_time, end_time)| (working_mode, start_time, end_time)))
             })
             .flatten()
-            .take(95 /* guardrail per the FoxCloud app */)
+            .take(Self::N_MAX_GROUPS)
             .map(|(working_mode, start_time, end_time)| {
                 let (working_mode, feed_power) = match working_mode {
                     CoreWorkingMode::Idle => {

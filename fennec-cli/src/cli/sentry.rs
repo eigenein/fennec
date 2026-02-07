@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use clap::{Parser, crate_name, crate_version};
-use sentry::ClientInitGuard;
+use sentry::{ClientInitGuard, SessionMode};
 
 use crate::prelude::*;
 
@@ -20,6 +20,8 @@ impl SentryArgs {
             attach_stacktrace: true,
             in_app_include: vec![crate_name!()],
             release: Some(Cow::Borrowed(crate_version!())),
+            auto_session_tracking: true,
+            session_mode: SessionMode::Application,
             ..Default::default()
         };
         let guard = sentry::init((self.dsn.clone(), options));

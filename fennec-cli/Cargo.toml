@@ -40,7 +40,7 @@ md5 = "=0.8.0"
 mongodb = { version = "=3.5.1", features = ["bson-3", "zlib-compression", "snappy-compression", "zstd-compression"] }
 ndarray = "=0.16.1"
 reqwest = { version = "=0.13.1", default-features = false, features = ["json", "rustls", "deflate", "brotli", "gzip", "http2"] }
-sentry = { version = "=0.46.2", default-features = false, features = ["rustls", "tracing", "backtrace", "contexts", "panic", "reqwest", "anyhow"] }
+sentry = { version = "=0.46.2", default-features = false, features = ["rustls", "tracing", "backtrace", "contexts", "panic", "reqwest", "anyhow", "release-health"] }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.149"
 serde_with = { version = "=3.16.1", features = ["chrono"] }

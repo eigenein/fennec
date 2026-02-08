@@ -62,7 +62,7 @@ impl Solver<'_> {
         let start_instant = Instant::now();
 
         let max_energy_level = self.quantum.ceil(self.max_residual_energy);
-        info!(?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
+        info!(?self.quantum, ?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
 
         let mut solutions = SolutionSpace::builder()
             .n_intervals(self.grid_rates.len())

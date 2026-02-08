@@ -10,6 +10,12 @@ use crate::quantity::energy::KilowattHours;
 #[from(f64, KilowattHours)]
 pub struct Quantum(pub KilowattHours);
 
+impl Debug for Quantum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.0, f)
+    }
+}
+
 impl Quantum {
     /// Convert the energy to quantized energy level.
     #[expect(clippy::cast_possible_truncation)]

@@ -34,12 +34,11 @@ impl Provider {
 
     pub async fn get_upcoming_rates(
         self,
-        since: DateTime<Local>,
+        since: NaiveDate,
     ) -> Result<Vec<(Interval, KilowattHourRate)>> {
-        let mut rates = self.get_rates(since.date_naive()).await?;
-        let next_date = since.date_naive().checked_add_days(Days::new(1)).unwrap();
+        let mut rates = self.get_rates(since).await?;
+        let next_date = since.checked_add_days(Days::new(1)).unwrap();
         rates.extend(self.get_rates(next_date).await?);
-        rates.retain(|(time_range, _)| time_range.end > since);
         Ok(rates)
     }
 

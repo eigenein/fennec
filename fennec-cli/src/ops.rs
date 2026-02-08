@@ -1,14 +1,14 @@
+mod interval;
+
 use std::{
     fmt::{Debug, Formatter},
     ops::Sub,
 };
 
-use chrono::{DateTime, Local};
-
-pub type Interval<Tz = Local> = RangeExclusive<DateTime<Tz>>;
+pub use self::interval::Interval;
 
 #[must_use]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct RangeExclusive<T: Copy> {
     pub start: T,
     pub end: T,

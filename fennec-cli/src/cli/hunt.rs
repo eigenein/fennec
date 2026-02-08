@@ -1,3 +1,5 @@
+use std::iter::repeat;
+
 use chrono::{Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
@@ -41,6 +43,9 @@ pub struct HuntArgs {
     #[clap(long = "quantum-kilowatts", env = "QUANTUM_KILOWATTS", default_value = "0.001")]
     quantum: Quantum,
 
+    #[clap(long, env, default_value = "0")]
+    n_interval_splits: u16,
+
     #[clap(flatten)]
     battery: BatteryArgs,
 
@@ -73,7 +78,14 @@ impl HuntArgs {
         let working_modes = self.working_modes();
 
         let now = Local::now().with_nanosecond(0).unwrap();
-        let grid_rates = self.provider.get_upcoming_rates(now).await?;
+        let grid_rates = self
+            .provider
+            .get_upcoming_rates(now.date_naive())
+            .await?
+            .into_iter()
+            .flat_map(|(interval, rate)| interval.split(self.n_interval_splits).zip(repeat(rate)))
+            .filter(|(interval, _)| interval.end > now)
+            .collect_vec();
 
         ensure!(!grid_rates.is_empty());
         info!(len = grid_rates.len(), "fetched energy rates");

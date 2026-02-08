@@ -106,7 +106,11 @@ impl Solver<'_> {
         self.grid_rates
             .iter()
             .copied()
-            .map(|(interval, grid_rate)| {
+            .map(|(mut interval, grid_rate)| {
+                if interval.contains(self.now) {
+                    // TODO: de-dup this:
+                    interval = interval.with_start(self.now);
+                }
                 let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
                 self.loss(grid_rate, stand_by_power * interval.len())
             })

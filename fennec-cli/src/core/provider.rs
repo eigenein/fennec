@@ -1,4 +1,4 @@
-use chrono::{DateTime, Days, Local, NaiveDate};
+use chrono::{Days, NaiveDate};
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},

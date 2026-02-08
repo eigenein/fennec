@@ -38,17 +38,19 @@ impl CumulativeMetrics {
     pub const ZERO: Self =
         Self { loss: Quantity::ZERO, charge: Quantity::ZERO, discharge: Quantity::ZERO };
 
-    pub fn energy_flow(&self) -> KilowattHours {
-        self.charge + self.discharge
+    pub const fn with(self, actual_capacity: KilowattHours, base_loss: Cost) -> SolutionSummary {
+        SolutionSummary { actual_capacity, base_loss, cumulative_metrics: self }
     }
 
-    pub const fn with_base_loss(self, base_loss: Cost) -> SolutionSummary {
-        SolutionSummary { base_loss, cumulative_metrics: self }
+    pub fn energy_flow(&self) -> KilowattHours {
+        self.charge + self.discharge
     }
 }
 
 #[must_use]
 pub struct SolutionSummary {
+    actual_capacity: KilowattHours,
+
     cumulative_metrics: CumulativeMetrics,
 
     /// Estimated loss without using the battery.
@@ -58,6 +60,10 @@ pub struct SolutionSummary {
 impl SolutionSummary {
     fn profit(&self) -> Cost {
         self.base_loss - self.cumulative_metrics.loss
+    }
+
+    pub fn cycles(&self) -> f64 {
+        self.cumulative_metrics.energy_flow() / self.actual_capacity / 2.0
     }
 }
 
@@ -70,7 +76,7 @@ impl Display for SolutionSummary {
             .enforce_styling()
             .set_header(vec![
                 Cell::from("Net profit"),
-                Cell::from("Flow profit"),
+                Cell::from("Cycle profit"),
                 Cell::from("Charge"),
                 Cell::from("Discharge"),
                 Cell::from("Base loss"),
@@ -78,8 +84,7 @@ impl Display for SolutionSummary {
             ])
             .add_row(vec![
                 Cell::from(self.profit()),
-                Cell::from(self.profit() / self.cumulative_metrics.energy_flow())
-                    .add_attribute(Attribute::Bold),
+                Cell::from(self.profit() / self.cycles()).add_attribute(Attribute::Bold),
                 Cell::from(self.cumulative_metrics.charge).fg(Color::Green),
                 Cell::from(self.cumulative_metrics.discharge).fg(Color::Red),
                 Cell::from(self.base_loss),

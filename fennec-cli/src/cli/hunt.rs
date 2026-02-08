@@ -1,5 +1,3 @@
-use std::iter::repeat;
-
 use chrono::{Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
@@ -128,7 +126,7 @@ impl HuntArgs {
             .build();
         let base_loss = solver.base_loss();
         let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
-        println!("{}", metrics.with_base_loss(base_loss));
+        println!("{}", metrics.with(battery_state.energy.actual_capacity(), base_loss));
         println!("{}", build_steps_table(&steps, self.battery.power_limits.discharging));
 
         let schedule =

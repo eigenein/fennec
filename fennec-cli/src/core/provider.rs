@@ -32,7 +32,7 @@ impl Provider {
         }
     }
 
-    pub async fn get_upcoming_rates(
+    pub async fn get_rates_two_days(
         self,
         since: NaiveDate,
     ) -> Result<Vec<(Interval, KilowattHourRate)>> {

@@ -43,9 +43,6 @@ pub struct HuntArgs {
     #[clap(long = "quantum-kilowatts", env = "QUANTUM_KILOWATTS", default_value = "0.001")]
     quantum: Quantum,
 
-    #[clap(long, env, default_value = "0")]
-    n_interval_splits: u16,
-
     #[clap(flatten)]
     battery: BatteryArgs,
 
@@ -80,10 +77,9 @@ impl HuntArgs {
         let now = Local::now().with_nanosecond(0).unwrap();
         let grid_rates = self
             .provider
-            .get_upcoming_rates(now.date_naive())
+            .get_rates_two_days(now.date_naive())
             .await?
             .into_iter()
-            .flat_map(|(interval, rate)| interval.split(self.n_interval_splits).zip(repeat(rate)))
             .filter(|(interval, _)| interval.end > now)
             .collect_vec();
 

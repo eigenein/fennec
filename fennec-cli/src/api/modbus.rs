@@ -1,27 +1,30 @@
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
+use derive_more::From;
 use tokio::{net::TcpStream, time::timeout};
 use tokio_modbus::{
-    Address,
     Slave,
     client::{Reader, tcp::attach_slave},
 };
 use url::{Host, Url};
 
-use crate::prelude::*;
+use crate::{
+    cli::battery::{BatteryEnergyStateRegisters, BatteryRegisters, BatterySettingRegisters},
+    ops::RangeInclusive,
+    prelude::*,
+    quantity::{
+        energy::{DecawattHours, KilowattHours, MilliwattHours},
+        proportions::Percent,
+    },
+};
 
-pub mod legacy;
-
-/// Modbus client for a single logical value, potentially spanned over multiple registers.
-pub struct Client {
-    context: tokio_modbus::client::Context,
-    register: Address,
-}
+#[must_use]
+#[derive(From)]
+pub struct Client(tokio_modbus::client::Context);
 
 impl Client {
     const TIMEOUT: Duration = Duration::from_secs(10);
 
-    /// Connect to the Modbus endpoint in the form of: `modbus+tcp://host:port/slave-id#register`.
     #[instrument]
     pub async fn connect(url: Url) -> Result<Self> {
         info!("connecting…");
@@ -30,16 +33,11 @@ impl Client {
         }
         let host = url.host().context("the URL must contain host")?;
         let port = url.port().unwrap_or(502);
-        let slave_id = {
-            let slave_id = url
-                .path_segments()
-                .and_then(|mut segments| segments.next())
-                .context("slave ID must be specified")?;
-            u8::from_str(slave_id).with_context(|| format!("incorrect slave ID: `{slave_id}`"))?
-        };
-        let register = Address::from_str(
-            url.fragment().context("register must be specified as the fragment")?,
-        )?;
+        let slave_id = url
+            .fragment()
+            .context("slave ID is not specified")?
+            .parse()
+            .context("incorrect slave ID")?;
         let tcp_stream = {
             let result = match host {
                 Host::Domain(domain) => {
@@ -57,27 +55,102 @@ impl Client {
                 .context("failed to connect to the battery")?
         };
         tcp_stream.set_nodelay(true)?;
-        Ok(Self { context: attach_slave(tcp_stream, Slave(slave_id)), register })
+        Ok(Self(attach_slave(tcp_stream, Slave(slave_id))))
     }
 
-    #[instrument(skip_all, fields(register = self.register))]
-    pub async fn read<V: Value + Into<T>, T>(&mut self) -> Result<T> {
-        V::read_from(self).await.map(Into::into)
+    #[instrument(skip_all)]
+    pub async fn read_energy_state(
+        &mut self,
+        registers: BatteryEnergyStateRegisters,
+    ) -> Result<BatteryEnergyState> {
+        let design_capacity = self.read_holding_register(registers.design_capacity).await?.into();
+        let state_of_charge = self.read_holding_register(registers.state_of_charge).await?.into();
+        let state_of_health = self.read_holding_register(registers.state_of_health).await?.into();
+        info!(?state_of_charge, ?state_of_health, ?design_capacity, "fetched the battery state");
+        Ok(BatteryEnergyState { design_capacity, state_of_charge, state_of_health })
     }
-}
 
-pub trait Value: Sized {
-    /// Read [`Self`] from the Modbus [`Client`].
-    async fn read_from(client: &mut Client) -> Result<Self>;
-}
+    #[instrument(skip_all)]
+    pub async fn read_battery_settings(
+        &mut self,
+        registers: BatterySettingRegisters,
+    ) -> Result<BatterySettings> {
+        let min_state_of_charge =
+            self.read_holding_register(registers.min_state_of_charge_on_grid).await?.into();
+        let max_state_of_charge =
+            self.read_holding_register(registers.max_state_of_charge).await?.into();
+        info!(?min_state_of_charge, ?max_state_of_charge, "fetched the battery settings");
+        Ok(BatterySettings {
+            allowed_state_of_charge: RangeInclusive::from_std(
+                min_state_of_charge..=max_state_of_charge,
+            ),
+        })
+    }
 
-impl Value for u16 {
-    async fn read_from(client: &mut Client) -> Result<Self> {
-        client
-            .context
-            .read_holding_registers(client.register, 1)
+    #[instrument(skip_all)]
+    pub async fn read_battery_state(
+        &mut self,
+        registers: BatteryRegisters,
+    ) -> Result<BatteryState> {
+        Ok(BatteryState {
+            energy: self.read_energy_state(registers.energy).await?,
+            settings: self.read_battery_settings(registers.setting).await?,
+        })
+    }
+
+    #[instrument(skip_all, level = "debug", fields(register = register))]
+    async fn read_holding_register(&mut self, register: u16) -> Result<u16> {
+        let value = self
+            .0
+            .read_holding_registers(register, 1)
             .await??
             .pop()
-            .with_context(|| format!("nothing is read from the register #{}", client.register))
+            .with_context(|| format!("nothing is read from the register #{register}"))?;
+        Ok(value)
+    }
+}
+
+#[must_use]
+pub struct BatteryEnergyState {
+    design_capacity: DecawattHours,
+    state_of_charge: Percent,
+    state_of_health: Percent,
+}
+
+impl BatteryEnergyState {
+    /// Battery capacity corrected on the state of health.
+    pub fn actual_capacity(&self) -> KilowattHours {
+        KilowattHours::from(self.design_capacity) * self.state_of_health
+    }
+
+    /// Residual energy corrected on the state of health.
+    pub fn residual(&self) -> KilowattHours {
+        self.actual_capacity() * self.state_of_charge
+    }
+
+    /// Residual energy corrected on the state of health.
+    pub fn residual_millis(&self) -> MilliwattHours {
+        self.design_capacity * (self.state_of_health * self.state_of_charge)
+    }
+}
+
+#[must_use]
+pub struct BatterySettings {
+    pub allowed_state_of_charge: RangeInclusive<Percent>,
+}
+
+#[must_use]
+pub struct BatteryState {
+    pub energy: BatteryEnergyState,
+    pub settings: BatterySettings,
+}
+
+impl BatteryState {
+    pub fn min_residual_energy(&self) -> KilowattHours {
+        self.energy.actual_capacity() * self.settings.allowed_state_of_charge.min
+    }
+
+    pub fn max_residual_energy(&self) -> KilowattHours {
+        self.energy.actual_capacity() * self.settings.allowed_state_of_charge.max
     }
 }

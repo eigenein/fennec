@@ -36,6 +36,7 @@ impl BatteryConnectionArgs {
                 .await
                 .context("timed out while connecting to the battery")?
                 .context("failed to connect to the battery")?;
+        tcp_stream.set_nodelay(true)?;
         Ok(modbus::LegacyClient::from(attach_slave(tcp_stream, Slave(self.slave_id))))
     }
 }

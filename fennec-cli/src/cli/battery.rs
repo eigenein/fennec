@@ -24,7 +24,7 @@ impl BatteryConnectionArgs {
     const TIMEOUT: Duration = Duration::from_secs(10);
 
     #[instrument(skip_all)]
-    pub async fn connect(&self) -> Result<modbus::Client> {
+    pub async fn connect(&self) -> Result<modbus::LegacyClient> {
         info!(
             host = self.host,
             port = self.port,
@@ -36,7 +36,7 @@ impl BatteryConnectionArgs {
                 .await
                 .context("timed out while connecting to the battery")?
                 .context("failed to connect to the battery")?;
-        Ok(modbus::Client::from(attach_slave(tcp_stream, Slave(self.slave_id))))
+        Ok(modbus::LegacyClient::from(attach_slave(tcp_stream, Slave(self.slave_id))))
     }
 }
 

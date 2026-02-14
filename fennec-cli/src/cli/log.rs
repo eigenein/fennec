@@ -110,7 +110,7 @@ impl ConsumptionLogger {
 
 #[derive(Builder)]
 struct BatteryLogger {
-    modbus_client: modbus::Client,
+    modbus_client: modbus::LegacyClient,
     modbus_registers: BatteryEnergyStateRegisters,
     meter_client: homewizard::Client,
     db: Db,

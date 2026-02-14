@@ -13,9 +13,9 @@ use crate::{
 
 #[must_use]
 #[derive(From)]
-pub struct Client(tokio_modbus::client::Context);
+pub struct LegacyClient(tokio_modbus::client::Context);
 
-impl Client {
+impl LegacyClient {
     #[instrument(skip_all)]
     pub async fn read_energy_state(
         &mut self,

@@ -1,14 +1,18 @@
 use std::{str::FromStr, time::Duration};
 
 use tokio::{net::TcpStream, time::timeout};
-use tokio_modbus::{Address, Slave, client::tcp::attach_slave};
+use tokio_modbus::{
+    Address,
+    Slave,
+    client::{Reader, tcp::attach_slave},
+};
 use url::{Host, Url};
 
 use crate::prelude::*;
 
 pub mod legacy;
 
-/// Modbus client for a single logical value.
+/// Modbus client for a single logical value, potentially spanned over multiple registers.
 pub struct Client {
     context: tokio_modbus::client::Context,
     register: Address,
@@ -54,5 +58,26 @@ impl Client {
         };
         tcp_stream.set_nodelay(true)?;
         Ok(Self { context: attach_slave(tcp_stream, Slave(slave_id)), register })
+    }
+
+    #[instrument(skip_all, fields(register = self.register))]
+    pub async fn read<V: Value + Into<T>, T>(&mut self) -> Result<T> {
+        V::read_from(self).await.map(Into::into)
+    }
+}
+
+pub trait Value: Sized {
+    /// Read [`Self`] from the Modbus [`Client`].
+    async fn read_from(client: &mut Client) -> Result<Self>;
+}
+
+impl Value for u16 {
+    async fn read_from(client: &mut Client) -> Result<Self> {
+        client
+            .context
+            .read_holding_registers(client.register, 1)
+            .await??
+            .pop()
+            .with_context(|| format!("nothing is read from the register #{}", client.register))
     }
 }

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use reqwest::Url;
 
 use crate::{
-    api::{foxess, heartbeat},
+    api::{foxcloud, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{battery::BatteryLog, consumption::ConsumptionLog},
@@ -69,7 +69,7 @@ impl HuntArgs {
     pub async fn run(self) -> Result {
         let db = self.db.connect().await?;
 
-        let fox_ess = foxess::Api::new(self.fox_ess_api.api_key.clone())?;
+        let fox_ess = foxcloud::Api::new(self.fox_ess_api.api_key.clone())?;
         let working_modes = self.working_modes();
 
         let now = Local::now().with_nanosecond(0).unwrap();
@@ -131,7 +131,7 @@ impl HuntArgs {
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        let groups = foxess::Groups::from_schedule(schedule, now, self.battery.power_limits);
+        let groups = foxcloud::Groups::from_schedule(schedule, now, self.battery.power_limits);
         println!("{}", &groups);
 
         if !self.scout {

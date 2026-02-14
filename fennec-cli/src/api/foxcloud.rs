@@ -12,7 +12,7 @@ use serde_with::serde_as;
 
 use self::schedule::Schedule;
 pub use self::schedule::{Group, Groups};
-use crate::{api::foxess::response::Response, prelude::*};
+use crate::{api::foxcloud::response::Response, prelude::*};
 
 pub struct Api {
     client: Client,

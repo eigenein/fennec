@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 use crate::{
-    api::foxess,
+    api::foxcloud,
     cli::{db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     db::{battery::BatteryLog, consumption::ConsumptionLog},
     prelude::*,
@@ -88,7 +88,7 @@ pub struct BurrowFoxEssArgs {
 impl BurrowFoxEssArgs {
     #[instrument(skip_all)]
     async fn run(self) -> Result {
-        let fox_ess = foxess::Api::new(self.fox_ess_api.api_key)?;
+        let fox_ess = foxcloud::Api::new(self.fox_ess_api.api_key)?;
 
         match self.command {
             BurrowFoxEssCommand::Schedule => {

@@ -64,7 +64,6 @@ impl Client {
             .await??
             .pop()
             .with_context(|| format!("nothing is read from the register #{register}"))?;
-        debug!(value);
         Ok(value)
     }
 }

@@ -11,7 +11,7 @@ pub struct EstimationArgs {
     )]
     duration: humantime::Duration,
 
-    #[clap(long, env, default_value = "energy-flow")]
+    #[clap(long, env, default_value = "none")]
     pub weight_mode: WeightMode,
 }
 

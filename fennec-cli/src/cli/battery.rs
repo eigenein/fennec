@@ -30,21 +30,21 @@ impl BatteryConnectionArgs {
 #[derive(Parser)]
 pub struct BatteryEnergyStateUrls {
     #[clap(long, env = "BATTERY_STATE_OF_CHARGE_URL")]
-    pub state_of_charge: modbus::Url,
+    pub state_of_charge: modbus::ParsedUrl,
 
     #[clap(long, env = "BATTERY_STATE_OF_HEALTH_URL")]
-    pub state_of_health: modbus::Url,
+    pub state_of_health: modbus::ParsedUrl,
 
     #[clap(long, env = "BATTERY_DESIGN_CAPACITY_URL")]
-    pub design_capacity: modbus::Url,
+    pub design_capacity: modbus::ParsedUrl,
 }
 
 impl BatteryEnergyStateUrls {
     pub async fn read(&self) -> Result<BatteryEnergyState> {
         Ok(BatteryEnergyState {
-            design_capacity: modbus::connect(&self.design_capacity).await?.read::<u16, _>().await?,
-            state_of_charge: modbus::connect(&self.state_of_charge).await?.read::<u16, _>().await?,
-            state_of_health: modbus::connect(&self.state_of_health).await?.read::<u16, _>().await?,
+            design_capacity: u16::try_from(self.design_capacity.read().await?)?.into(),
+            state_of_charge: u16::try_from(self.state_of_charge.read().await?)?.into(),
+            state_of_health: u16::try_from(self.state_of_health.read().await?)?.into(),
         })
     }
 }
@@ -52,18 +52,16 @@ impl BatteryEnergyStateUrls {
 #[derive(Parser)]
 pub struct BatterySettingUrls {
     #[clap(long, env = "BATTERY_MIN_STATE_OF_CHARGE_URL")]
-    pub min_state_of_charge: modbus::Url,
+    pub min_state_of_charge: modbus::ParsedUrl,
 
     #[clap(long, env = "BATTERY_MAX_STATE_OF_CHARGE_URL")]
-    pub max_state_of_charge: modbus::Url,
+    pub max_state_of_charge: modbus::ParsedUrl,
 }
 
 impl BatterySettingUrls {
     pub async fn read(&self) -> Result<BatterySettings> {
-        let min_state_of_charge =
-            modbus::connect(&self.min_state_of_charge).await?.read::<u16, _>().await?;
-        let max_state_of_charge =
-            modbus::connect(&self.max_state_of_charge).await?.read::<u16, _>().await?;
+        let min_state_of_charge = u16::try_from(self.min_state_of_charge.read().await?)?.into();
+        let max_state_of_charge = u16::try_from(self.max_state_of_charge.read().await?)?.into();
         Ok(BatterySettings {
             allowed_state_of_charge: RangeInclusive::from_std(
                 min_state_of_charge..=max_state_of_charge,

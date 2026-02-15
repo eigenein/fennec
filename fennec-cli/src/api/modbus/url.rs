@@ -1,21 +1,34 @@
 use std::str::FromStr;
 
 use derive_more::FromStr;
-use tokio_modbus::Address;
+use serde::Deserialize;
+use tokio_modbus::{Address, SlaveId};
+use url::Host;
 
-use crate::{api::modbus::endpoint::Endpoint, prelude::*};
+use crate::{
+    api::modbus::{Client, Value, connect},
+    prelude::*,
+};
 
 #[derive(Clone)]
-pub struct Url {
-    pub endpoint: Endpoint,
-    pub register: Register,
+pub struct ParsedUrl {
+    pub(super) endpoint: Endpoint,
+    pub(super) register: Register,
 }
 
-impl Url {
+impl ParsedUrl {
     const DEFAULT_PORT: u16 = 502;
+
+    pub async fn connect(&self) -> Result<Client> {
+        connect(self).await
+    }
+
+    pub async fn read(&self) -> Result<Value> {
+        self.connect().await?.read().await
+    }
 }
 
-impl FromStr for Url {
+impl FromStr for ParsedUrl {
     type Err = Error;
 
     fn from_str(url: &str) -> Result<Self, Self::Err> {
@@ -34,24 +47,36 @@ impl FromStr for Url {
             .context("register address must be specified in the second segment")?
             .parse()
             .context("incorrect register address")?;
-        let r#type = match url.fragment() {
+        let operation = match url.fragment() {
             Some(fragment) => fragment.parse()?,
-            None => RegisterType::try_from(address)?,
+            None => Operation::try_from(address)?,
+        };
+        let options = match url.query() {
+            Some(query) => serde_qs::from_str(query)?,
+            None => Options::default(),
         };
         Ok(Self {
             endpoint: Endpoint { host, port, slave_id },
-            register: Register { address, r#type },
+            register: Register { address, operation, options },
         })
     }
 }
 
+/// Modbus slave connection endpoint.
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub struct Endpoint {
+    pub host: Host,
+    pub port: u16,
+    pub slave_id: SlaveId,
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, FromStr)]
-pub enum RegisterType {
+pub enum Operation {
     Input,
     Holding,
 }
 
-impl TryFrom<Address> for RegisterType {
+impl TryFrom<Address> for Operation {
     type Error = Error;
 
     fn try_from(address: Address) -> std::result::Result<Self, Self::Error> {
@@ -65,6 +90,36 @@ impl TryFrom<Address> for RegisterType {
 
 #[derive(Copy, Clone)]
 pub struct Register {
-    pub address: Address,
-    pub r#type: RegisterType,
+    pub(super) address: Address,
+    pub(super) operation: Operation,
+    pub(super) options: Options,
+}
+
+#[derive(Copy, Clone, Default, Deserialize)]
+pub(super) struct Options {
+    #[serde(rename = "type")]
+    pub data_type: DataType,
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize)]
+pub enum DataType {
+    #[default]
+    #[serde(rename = "u16")]
+    U16,
+
+    #[serde(rename = "i32")]
+    I32,
+
+    #[serde(rename = "u64")]
+    U64,
+}
+
+impl DataType {
+    pub const fn num_words(self) -> u16 {
+        match self {
+            Self::U16 => 1,
+            Self::I32 => 2,
+            Self::U64 => 4,
+        }
+    }
 }

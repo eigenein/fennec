@@ -17,7 +17,7 @@ use url::Host;
 use crate::{
     api::{
         modbus,
-        modbus::{Client, endpoint::Endpoint},
+        modbus::{Client, url::Endpoint},
     },
     prelude::*,
 };
@@ -29,7 +29,7 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Connect to the register by the URL in the form of `modbus+tcp://host:port/slave-id#register`.
 #[instrument(skip_all, fields(host = %url.endpoint.host, port = url.endpoint.port))]
-pub async fn connect(url: &modbus::Url) -> Result<Client> {
+pub async fn connect(url: &modbus::ParsedUrl) -> Result<Client> {
     let mut pool = POOL.lock().await;
     let context = match pool.entry(url.endpoint.clone()) {
         Entry::Occupied(entry) => entry.get().clone(),

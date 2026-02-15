@@ -26,24 +26,12 @@ const DEFAULT_PORT: u16 = 502;
 #[instrument]
 pub async fn connect(url: Url) -> Result<Client> {
     ensure!(url.scheme() == "modbus+tcp://", "only `modbus+tcp://` is currently supported");
-    let endpoint = {
-        let host = url.host().context("the URL must contain host")?.to_owned();
-        let port = url.port().unwrap_or(DEFAULT_PORT);
-        let slave_id = url
-            .path_segments()
-            .into_iter()
-            .flatten()
-            .next()
-            .context("slave ID must be specified in the first segment")?
-            .parse()
-            .context("incorrect slave ID")?;
-        Endpoint { host, port, slave_id }
-    };
     let register_address = url
         .fragment()
         .context("the URL fragment must specify a register address")?
         .parse()
         .context("incorrect register address")?;
+    let endpoint = Endpoint::try_from(url)?;
     let mut pool = POOL.lock().await;
     let context = match pool.entry(endpoint.clone()) {
         Entry::Occupied(entry) => entry.get().clone(),
@@ -81,4 +69,22 @@ struct Endpoint {
     host: Host,
     port: u16,
     slave_id: SlaveId,
+}
+
+impl TryFrom<Url> for Endpoint {
+    type Error = Error;
+
+    fn try_from(url: Url) -> Result<Self> {
+        let host = url.host().context("the URL must contain host")?.to_owned();
+        let port = url.port().unwrap_or(DEFAULT_PORT);
+        let slave_id = url
+            .path_segments()
+            .into_iter()
+            .flatten()
+            .next()
+            .context("slave ID must be specified in the first segment")?
+            .parse()
+            .context("incorrect slave ID")?;
+        Ok(Self { host, port, slave_id })
+    }
 }

@@ -1,18 +1,30 @@
 mod battery_state;
-pub mod legacy;
+mod endpoint;
 mod pool;
+mod url;
 mod value;
 
 use std::{sync::Arc, time::Duration};
 
 use tokio::{sync::Mutex, time::timeout};
-use tokio_modbus::{Address, client::Reader};
+use tokio_modbus::client::Reader;
 
-use crate::{api::modbus::value::Value, prelude::*};
+pub use self::{
+    battery_state::{BatteryEnergyState, BatterySettings, BatteryState},
+    pool::connect,
+    url::Url,
+};
+use crate::{
+    api::modbus::{
+        url::{Register, RegisterType},
+        value::Value,
+    },
+    prelude::*,
+};
 
 pub struct Client {
     context: Arc<Mutex<tokio_modbus::client::Context>>,
-    register_address: Address,
+    register: Register,
 }
 
 impl Client {
@@ -23,20 +35,22 @@ impl Client {
     }
 
     /// Read the exact number of words.
-    pub(super) async fn read_exact<const N: usize>(&self) -> Result<[u16; N]> {
-        let n = u16::try_from(N)?;
+    #[instrument(
+        skip_all,
+        fields(address = self.register.address, n = n),
+    )]
+    pub(super) async fn read_exact(&self, n: u16) -> Result<Vec<u16>> {
+        info!("reading…");
         let mut context = self.context.lock().await;
-        let read = match self.register_address {
-            30000..=39999 => context.read_input_registers(self.register_address, n),
-            40000..=49999 => context.read_holding_registers(self.register_address, n),
-            _ => bail!("cannot read words from register #{}", self.register_address),
+        let read = match self.register.r#type {
+            RegisterType::Input => context.read_input_registers(self.register.address, n),
+            RegisterType::Holding => context.read_holding_registers(self.register.address, n),
         };
         let words = timeout(Self::READ_TIMEOUT, read)
             .await
             .context("timeout reading the register")???;
         drop(context);
-        words
-            .try_into()
-            .map_err(|words: Vec<u16>| anyhow!("read {} words while expected {}", words.len(), N))
+        ensure!(words.len() == usize::from(n), "read {} words while expected {}", words.len(), n);
+        Ok(words)
     }
 }

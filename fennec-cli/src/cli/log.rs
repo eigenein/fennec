@@ -6,11 +6,8 @@ use reqwest::Url;
 use tokio::time::sleep;
 
 use crate::{
-    api::{heartbeat, homewizard, modbus},
-    cli::{
-        battery::{BatteryConnectionArgs, BatteryEnergyStateRegisters},
-        db::DbArgs,
-    },
+    api::{heartbeat, homewizard},
+    cli::{battery::BatteryEnergyStateUrls, db::DbArgs},
     db::{
         Db,
         battery::BatteryLog,
@@ -40,10 +37,7 @@ pub struct LogArgs {
     db: DbArgs,
 
     #[clap(flatten)]
-    battery_connection: BatteryConnectionArgs,
-
-    #[clap(flatten)]
-    battery_registers: BatteryEnergyStateRegisters,
+    battery_energy_state_urls: BatteryEnergyStateUrls,
 
     #[clap(long = "battery-heartbeat-url", env = "BATTERY_HEARTBEAT_URL")]
     battery_heartbeat_url: Option<Url>,
@@ -61,8 +55,7 @@ impl LogArgs {
             .db(db.clone())
             .heartbeat(heartbeat::Client::new(self.battery_heartbeat_url.clone()))
             .interval(self.battery_polling_interval)
-            .modbus_client(self.battery_connection.connect().await?)
-            .modbus_registers(self.battery_registers)
+            .energy_state_args(self.battery_energy_state_urls)
             .meter_client(battery_meter_client.clone())
             .build();
         let consumption_logger = ConsumptionLogger::builder()
@@ -110,8 +103,7 @@ impl ConsumptionLogger {
 
 #[derive(Builder)]
 struct BatteryLogger {
-    modbus_client: modbus::legacy::Client,
-    modbus_registers: BatteryEnergyStateRegisters,
+    energy_state_args: BatteryEnergyStateUrls,
     meter_client: homewizard::Client,
     db: Db,
     heartbeat: heartbeat::Client,
@@ -121,9 +113,9 @@ struct BatteryLogger {
 }
 
 impl BatteryLogger {
-    async fn run(mut self) -> Result {
+    async fn run(self) -> Result {
         loop {
-            let battery_state = self.modbus_client.read_energy_state(self.modbus_registers).await?;
+            let battery_state = self.energy_state_args.read().await?;
             let last_known_residual_energy = self
                 .db
                 .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))

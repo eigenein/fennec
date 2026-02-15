@@ -11,38 +11,36 @@ use tokio::{
     sync::Mutex,
     time::timeout,
 };
-use tokio_modbus::{Slave, SlaveId, client::tcp::attach_slave};
-use url::{Host, Url};
+use tokio_modbus::{Slave, client::tcp::attach_slave};
+use url::Host;
 
-use crate::{api::modbus::Client, prelude::*};
+use crate::{
+    api::{
+        modbus,
+        modbus::{Client, endpoint::Endpoint},
+    },
+    prelude::*,
+};
 
 static POOL: Mutex<HashMap<Endpoint, Arc<Mutex<tokio_modbus::client::Context>>, FxBuildHasher>> =
     Mutex::const_new(HashMap::with_hasher(FxBuildHasher));
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-const DEFAULT_PORT: u16 = 502;
 
 /// Connect to the register by the URL in the form of `modbus+tcp://host:port/slave-id#register`.
-#[instrument]
-pub async fn connect(url: Url) -> Result<Client> {
-    ensure!(url.scheme() == "modbus+tcp://", "only `modbus+tcp://` is currently supported");
-    let register_address = url
-        .fragment()
-        .context("the URL fragment must specify a register address")?
-        .parse()
-        .context("incorrect register address")?;
-    let endpoint = Endpoint::try_from(url)?;
+#[instrument(skip_all, fields(host = %url.endpoint.host, port = url.endpoint.port))]
+pub async fn connect(url: &modbus::Url) -> Result<Client> {
     let mut pool = POOL.lock().await;
-    let context = match pool.entry(endpoint.clone()) {
+    let context = match pool.entry(url.endpoint.clone()) {
         Entry::Occupied(entry) => entry.get().clone(),
         Entry::Vacant(entry) => {
-            let context = Arc::new(Mutex::const_new(new_context(&endpoint).await?));
+            let context = Arc::new(Mutex::const_new(new_context(&url.endpoint).await?));
             entry.insert(context.clone());
             context
         }
     };
     drop(pool);
-    Ok(Client { context, register_address })
+    Ok(Client { context, register: url.register })
 }
 
 async fn new_context(endpoint: &Endpoint) -> Result<tokio_modbus::client::Context> {
@@ -62,29 +60,4 @@ async fn new_tcp_stream(host: &Host, port: u16) -> Result<TcpStream> {
         .context("failed to connect to the battery")?;
     tcp_stream.set_nodelay(true)?;
     Ok(tcp_stream)
-}
-
-#[derive(Clone, Eq, Hash, PartialEq)]
-struct Endpoint {
-    host: Host,
-    port: u16,
-    slave_id: SlaveId,
-}
-
-impl TryFrom<Url> for Endpoint {
-    type Error = Error;
-
-    fn try_from(url: Url) -> Result<Self> {
-        let host = url.host().context("the URL must contain host")?.to_owned();
-        let port = url.port().unwrap_or(DEFAULT_PORT);
-        let slave_id = url
-            .path_segments()
-            .into_iter()
-            .flatten()
-            .next()
-            .context("slave ID must be specified in the first segment")?
-            .parse()
-            .context("incorrect slave ID")?;
-        Ok(Self { host, port, slave_id })
-    }
 }

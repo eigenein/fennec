@@ -5,7 +5,8 @@ pub trait Value: Sized {
 }
 
 impl Value for u16 {
+    #[instrument(skip_all, fields(type = std::any::type_name::<Self>()))]
     async fn read_from(client: &Client) -> Result<Self> {
-        Ok(client.read_exact::<1>().await?[0])
+        Ok(client.read_exact(1).await?[0])
     }
 }

@@ -1,74 +1,75 @@
 //! Battery-related CLI arguments.
 
-use std::time::Duration;
-
 use clap::Parser;
-use tokio::time::timeout;
-use tokio_modbus::{Slave, client::tcp::attach_slave};
 
-use crate::{api::modbus, prelude::*, quantity::power::Kilowatts};
+use crate::{
+    api::{
+        modbus,
+        modbus::{BatteryEnergyState, BatterySettings, BatteryState},
+    },
+    ops::RangeInclusive,
+    prelude::*,
+    quantity::power::Kilowatts,
+};
 
 #[derive(Parser)]
 pub struct BatteryConnectionArgs {
-    #[clap(long = "battery-host", env = "BATTERY_HOST")]
-    host: String,
+    #[clap(flatten)]
+    pub energy: BatteryEnergyStateUrls,
 
-    #[clap(long = "battery-port", env = "BATTERY_PORT", default_value = "502")]
-    port: u16,
-
-    #[clap(long = "battery-slave-id", default_value = "1", env = "BATTERY_SLAVE_ID")]
-    slave_id: u8,
+    #[clap(flatten)]
+    pub setting: BatterySettingUrls,
 }
 
 impl BatteryConnectionArgs {
-    const TIMEOUT: Duration = Duration::from_secs(10);
-
-    #[instrument(skip_all)]
-    pub async fn connect(&self) -> Result<modbus::legacy::Client> {
-        info!(
-            host = self.host,
-            port = self.port,
-            slave_id = self.slave_id,
-            "connecting to the battery…",
-        );
-        let tcp_stream =
-            timeout(Self::TIMEOUT, tokio::net::TcpStream::connect((self.host.as_str(), self.port)))
-                .await
-                .context("timed out while connecting to the battery")?
-                .context("failed to connect to the battery")?;
-        tcp_stream.set_nodelay(true)?;
-        Ok(modbus::legacy::Client::from(attach_slave(tcp_stream, Slave(self.slave_id))))
+    pub async fn read(&self) -> Result<BatteryState> {
+        Ok(BatteryState { energy: self.energy.read().await?, settings: self.setting.read().await? })
     }
 }
 
-#[derive(Copy, Clone, Parser)]
-pub struct BatteryRegisters {
-    #[clap(flatten)]
-    pub energy: BatteryEnergyStateRegisters,
+#[derive(Parser)]
+pub struct BatteryEnergyStateUrls {
+    #[clap(long, env = "BATTERY_STATE_OF_CHARGE_URL")]
+    pub state_of_charge: modbus::Url,
 
-    #[clap(flatten)]
-    pub setting: BatterySettingRegisters,
+    #[clap(long, env = "BATTERY_STATE_OF_HEALTH_URL")]
+    pub state_of_health: modbus::Url,
+
+    #[clap(long, env = "BATTERY_DESIGN_CAPACITY_URL")]
+    pub design_capacity: modbus::Url,
 }
 
-#[derive(Copy, Clone, Parser)]
-pub struct BatteryEnergyStateRegisters {
-    #[clap(long, default_value = "39424", env = "SOC_REGISTER")]
-    pub state_of_charge: u16,
-
-    #[clap(long, default_value = "37624", env = "SOH_REGISTER")]
-    pub state_of_health: u16,
-
-    #[clap(long, default_value = "37635", env = "DESIGN_CAPACITY_REGISTER")]
-    pub design_capacity: u16,
+impl BatteryEnergyStateUrls {
+    pub async fn read(&self) -> Result<BatteryEnergyState> {
+        Ok(BatteryEnergyState {
+            design_capacity: modbus::connect(&self.design_capacity).await?.read::<u16, _>().await?,
+            state_of_charge: modbus::connect(&self.state_of_charge).await?.read::<u16, _>().await?,
+            state_of_health: modbus::connect(&self.state_of_health).await?.read::<u16, _>().await?,
+        })
+    }
 }
 
-#[derive(Copy, Clone, Parser)]
-pub struct BatterySettingRegisters {
-    #[clap(long, default_value = "46611", env = "MIN_SOC_ON_GRID_REGISTER")]
-    pub min_state_of_charge_on_grid: u16,
+#[derive(Parser)]
+pub struct BatterySettingUrls {
+    #[clap(long, env = "BATTERY_MIN_STATE_OF_CHARGE_URL")]
+    pub min_state_of_charge: modbus::Url,
 
-    #[clap(long, default_value = "46610", env = "MAX_SOC_REGISTER")]
-    pub max_state_of_charge: u16,
+    #[clap(long, env = "BATTERY_MAX_STATE_OF_CHARGE_URL")]
+    pub max_state_of_charge: modbus::Url,
+}
+
+impl BatterySettingUrls {
+    pub async fn read(&self) -> Result<BatterySettings> {
+        let min_state_of_charge =
+            modbus::connect(&self.min_state_of_charge).await?.read::<u16, _>().await?;
+        let max_state_of_charge =
+            modbus::connect(&self.max_state_of_charge).await?.read::<u16, _>().await?;
+        Ok(BatterySettings {
+            allowed_state_of_charge: RangeInclusive::from_std(
+                min_state_of_charge..=max_state_of_charge,
+            ),
+        })
+    }
 }
 
 #[derive(Copy, Clone, Parser)]
@@ -97,7 +98,4 @@ pub struct BatteryArgs {
 
     #[clap(flatten)]
     pub connection: BatteryConnectionArgs,
-
-    #[clap(flatten)]
-    pub registers: BatteryRegisters,
 }

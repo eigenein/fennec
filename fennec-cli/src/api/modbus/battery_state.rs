@@ -8,9 +8,9 @@ use crate::{
 
 #[must_use]
 pub struct BatteryEnergyState {
-    pub(super) design_capacity: DecawattHours,
-    pub(super) state_of_charge: Percent,
-    pub(super) state_of_health: Percent,
+    pub design_capacity: DecawattHours,
+    pub state_of_charge: Percent,
+    pub state_of_health: Percent,
 }
 
 impl BatteryEnergyState {

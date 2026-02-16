@@ -9,7 +9,7 @@ use crate::{
     db::consumption::LogEntry,
     prelude::*,
     quantity::power::Kilowatts,
-    statistics::accumulator::EnergyAccumulator,
+    statistics::integrator::Integrator,
 };
 
 #[must_use]
@@ -27,18 +27,24 @@ impl ConsumptionStatistics {
         info!("crunching consumption logs…");
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
-        let mut total_deficit_accumulator = EnergyAccumulator::default();
-        let mut hourly_deficit_accumulators = [EnergyAccumulator::default(); 24];
+        let mut total_deficit_accumulator = Integrator::default();
+        let mut hourly_deficit_accumulators = [Integrator::default(); 24];
 
         while let Some(next) = logs.try_next().await? {
             let time_delta = next.timestamp - previous.timestamp;
             let pv_deficit = next.pv_deficit - previous.pv_deficit;
-            let delta = EnergyAccumulator { time_delta, value: pv_deficit };
+
+            let delta = Integrator { time_delta, value: pv_deficit };
             total_deficit_accumulator += delta;
 
+            // TODO: I may consider simple linear interpolation for cross-hour intervals:
             if next.same_hour_as(&previous) {
                 let local_hour = next.timestamp.with_timezone(&Local).hour() as usize;
                 hourly_deficit_accumulators[local_hour] += delta;
+
+                if let Some((next, previous)) = next.pv_yield.zip(previous.pv_yield) {
+                    let pv_yield = next - previous;
+                }
             }
 
             previous = next;
@@ -46,11 +52,11 @@ impl ConsumptionStatistics {
 
         Ok(Self {
             average_deficit: total_deficit_accumulator
-                .average_power()
+                .average()
                 .context("empty consumption logs")?,
             hourly_deficit: hourly_deficit_accumulators
                 .into_iter()
-                .map(EnergyAccumulator::average_power)
+                .map(Integrator::average)
                 .collect_array()
                 .unwrap(),
         })

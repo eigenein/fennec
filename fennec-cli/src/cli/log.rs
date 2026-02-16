@@ -3,7 +3,7 @@ use std::time::Duration;
 use bon::Builder;
 use clap::Parser;
 use reqwest::Url;
-use tokio::time::sleep;
+use tokio::{spawn, time::sleep};
 
 use crate::{
     api::{
@@ -68,9 +68,11 @@ impl LogArgs {
             .total_pv_yield_client(sma::Client(self.pv_urls.total_yield.connect().await?))
             .build();
 
-        let result = tokio::try_join!(battery_logger.run(), consumption_logger.run());
+        let result = tokio::try_join!(spawn(battery_logger.run()), spawn(consumption_logger.run()));
         db.shutdown().await;
-        result.map(|_| ())
+
+        let (battery_logger_result, consumption_logger_result) = result?;
+        battery_logger_result.and(consumption_logger_result)
     }
 }
 

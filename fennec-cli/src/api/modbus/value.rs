@@ -31,3 +31,17 @@ impl TryFrom<Value> for u64 {
         }
     }
 }
+
+impl TryFrom<Value> for f64 {
+    type Error = Error;
+
+    fn try_from(value: Value) -> std::result::Result<Self, Self::Error> {
+        match value {
+            Value::U16(value) => Ok(value.into()),
+            Value::I32(value) => Ok(value.into()),
+
+            #[expect(clippy::cast_precision_loss)]
+            Value::U64(value) => Ok(value as Self),
+        }
+    }
+}

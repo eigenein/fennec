@@ -18,7 +18,7 @@ pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -
         .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
         .enforce_styling();
     table.set_header(vec![
-        "Date", "Start", "End", "Grid", "Net", "Mode", "Before", "After", "Grid", "Loss",
+        "Date", "Start", "End", "Grid", "Deficit", "Mode", "Before", "After", "Grid", "Loss",
     ]);
     for step in steps {
         table.add_row(vec![
@@ -30,10 +30,10 @@ pub fn build_steps_table(steps: &[Step], battery_discharging_power: Kilowatts) -
             } else {
                 Color::Green
             }),
-            Cell::new(step.stand_by_power).set_alignment(CellAlignment::Right).fg(
-                if step.stand_by_power <= Kilowatts::ZERO {
+            Cell::new(step.power_deficit).set_alignment(CellAlignment::Right).fg(
+                if step.power_deficit <= Kilowatts::ZERO {
                     Color::Green
-                } else if step.stand_by_power <= battery_discharging_power {
+                } else if step.power_deficit <= battery_discharging_power {
                     Color::DarkYellow
                 } else {
                     Color::Red

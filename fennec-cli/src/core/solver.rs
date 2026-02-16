@@ -84,7 +84,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .stand_by_power(self.consumption_statistics.on_hour(interval.start.hour()))
+                .power_deficit(self.consumption_statistics.on_hour(interval.start.hour()))
                 .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
@@ -126,7 +126,7 @@ impl Solver<'_> {
         &self,
         interval_index: usize,
         interval: Interval,
-        stand_by_power: Kilowatts,
+        power_deficit: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         solutions: &SolutionSpace,
@@ -144,7 +144,7 @@ impl Solver<'_> {
                     .simulate_step()
                     .interval(interval)
                     .grid_rate(grid_rate)
-                    .stand_by_power(stand_by_power)
+                    .power_deficit(power_deficit)
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery)
                     .working_mode(working_mode)
@@ -171,7 +171,7 @@ impl Solver<'_> {
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        stand_by_power: Kilowatts,
+        power_deficit: Kilowatts,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
@@ -181,10 +181,10 @@ impl Solver<'_> {
         // Requested external power flow to (positive) or from (negative) the battery:
         let battery_external_power = match working_mode {
             WorkingMode::Idle => Kilowatts::ZERO,
-            WorkingMode::Harvest => (-stand_by_power).max(Kilowatts::ZERO),
+            WorkingMode::Harvest => (-power_deficit).max(Kilowatts::ZERO),
             WorkingMode::Charge => self.battery_power_limits.charging,
             WorkingMode::Discharge => -self.battery_power_limits.discharging,
-            WorkingMode::SelfUse => (-stand_by_power)
+            WorkingMode::SelfUse => (-power_deficit)
                 .clamp(-self.battery_power_limits.discharging, self.battery_power_limits.charging),
         };
 
@@ -193,12 +193,12 @@ impl Solver<'_> {
 
         // Total household energy balance:
         let grid_consumption =
-            battery_external_power * battery_active_time + stand_by_power * duration;
+            battery_external_power * battery_active_time + power_deficit * duration;
 
         Step {
             interval,
             grid_rate,
-            stand_by_power,
+            power_deficit,
             working_mode,
             residual_energy_before: initial_residual_energy,
             residual_energy_after: battery.residual_energy(),

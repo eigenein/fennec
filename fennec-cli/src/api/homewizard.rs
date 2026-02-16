@@ -39,7 +39,7 @@ impl Client {
             .json()
             .await
             .with_context(|| format!("failed to deserialize the response from `{}`", self.url))?;
-        info!(import = ?measurement.import, export = ?measurement.export);
+        debug!(import = ?measurement.import, export = ?measurement.export);
         Ok(measurement)
     }
 }
@@ -55,7 +55,7 @@ pub struct EnergyMetrics {
 }
 
 impl EnergyMetrics {
-    pub fn net_consumption(self) -> KilowattHours {
+    pub fn net_import(self) -> KilowattHours {
         self.import - self.export
     }
 }

@@ -14,7 +14,7 @@ pub struct Step {
 
     pub interval: Interval,
     pub grid_rate: KilowattHourRate,
-    pub stand_by_power: Kilowatts,
+    pub power_deficit: Kilowatts,
     pub working_mode: WorkingMode,
     pub residual_energy_before: KilowattHours,
     pub residual_energy_after: KilowattHours,

@@ -65,7 +65,7 @@ impl LogArgs {
             .heartbeat(heartbeat::Client::new(self.consumption_heartbeat_url.clone()))
             .total_meter_client(homewizard::Client::new(self.total_energy_meter_url.clone())?)
             .battery_meter_client(battery_meter_client)
-            .pv_total_yield_client(sma::Client(self.pv_urls.total_yield.connect().await?))
+            .total_pv_yield_client(sma::Client(self.pv_urls.total_yield.connect().await?))
             .build();
 
         let result = tokio::try_join!(battery_logger.run(), consumption_logger.run());
@@ -78,7 +78,7 @@ impl LogArgs {
 struct ConsumptionLogger {
     battery_meter_client: homewizard::Client,
     total_meter_client: homewizard::Client,
-    pv_total_yield_client: sma::Client,
+    total_pv_yield_client: sma::Client,
     db: Db,
     heartbeat: heartbeat::Client,
 
@@ -89,16 +89,17 @@ struct ConsumptionLogger {
 impl ConsumptionLogger {
     async fn run(self) -> Result {
         loop {
-            let (total_metrics, battery_metrics, pv_total_yield) = tokio::try_join!(
+            let (total_metrics, battery_metrics, pv_yield) = tokio::try_join!(
                 self.total_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement(),
-                self.pv_total_yield_client.read_total_yield(),
+                self.total_pv_yield_client.read_total_export(),
             )?;
-            consumption::LogEntry::builder()
-                .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
-                .build()
-                .insert_into(&self.db)
-                .await?;
+            let entry = consumption::LogEntry::builder()
+                .pv_deficit(total_metrics.net_import() - battery_metrics.net_import())
+                .pv_yield(pv_yield)
+                .build();
+            info!(deficit = ?entry.pv_deficit, yield = ?entry.pv_yield, "consumption log");
+            entry.insert_into(&self.db).await?;
             self.heartbeat.send().await;
             sleep(self.interval).await;
         }
@@ -120,6 +121,7 @@ impl BatteryLogger {
     async fn run(self) -> Result {
         loop {
             let battery_state = self.energy_state_clients.read().await?;
+            info!(residual = ?battery_state.residual_millis(), "battery state");
             let last_known_residual_energy = self
                 .db
                 .set_application_state(&BatteryResidualEnergy::from(
@@ -130,12 +132,12 @@ impl BatteryLogger {
             if let Some(last_known_residual_energy) = last_known_residual_energy
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
-                battery::LogEntry::builder()
+                let entry = battery::LogEntry::builder()
                     .residual_energy(battery_state.residual_millis())
                     .metrics(self.meter_client.get_measurement().await?)
-                    .build()
-                    .insert_into(&self.db)
-                    .await?;
+                    .build();
+                info!(residual = ?entry.residual_energy, import = ?entry.metrics.import, export = ?entry.metrics.export, "battery log");
+                entry.insert_into(&self.db).await?;
             }
             self.heartbeat.send().await;
             sleep(self.interval).await;

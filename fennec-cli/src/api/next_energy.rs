@@ -16,9 +16,9 @@ impl Api {
     }
 
     /// Get all hourly rates on the specified day.
-    #[instrument(skip_all)]
+    #[instrument(skip_all, fields(on = ?on))]
     pub async fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
-        info!(?on, "fetching…");
+        debug!("fetching…");
         let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
             .json(&GetDataPointsRequest::new(on))

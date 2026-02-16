@@ -15,7 +15,7 @@ use crate::{
 #[derive(Copy, Clone)]
 pub struct ConsumptionStatistics {
     total: Accumulator,
-    average: Kilowatts,
+    average_deficit: Kilowatts,
     hourly: [Option<Kilowatts>; 24],
 }
 
@@ -34,7 +34,7 @@ impl ConsumptionStatistics {
         while let Some(current) = logs.try_next().await? {
             let delta = Accumulator {
                 time: current.timestamp - previous.timestamp,
-                consumption: current.net - previous.net,
+                deficit: current.pv_deficit - previous.pv_deficit,
             };
             total += delta;
             if current.timestamp.date_naive() == previous.timestamp.date_naive()
@@ -48,13 +48,17 @@ impl ConsumptionStatistics {
 
         Ok(Self {
             total,
-            average: total.average_power().context("empty consumption logs")?,
-            hourly: hourly.into_iter().map(Accumulator::average_power).collect_array().unwrap(),
+            average_deficit: total.average_deficit_power().context("empty consumption logs")?,
+            hourly: hourly
+                .into_iter()
+                .map(Accumulator::average_deficit_power)
+                .collect_array()
+                .unwrap(),
         })
     }
 
     pub fn on_hour(&self, hour: u32) -> Kilowatts {
-        self.hourly[hour as usize].unwrap_or(self.average)
+        self.hourly[hour as usize].unwrap_or(self.average_deficit)
     }
 
     #[must_use]
@@ -67,12 +71,12 @@ impl ConsumptionStatistics {
             .set_header(vec![
                 Cell::from("Average").add_attribute(Attribute::Bold),
                 Cell::from("Time"),
-                Cell::from("Consumption"),
+                Cell::from("Deficit"),
             ])
             .add_row(vec![
-                Cell::from(self.average).add_attribute(Attribute::Bold),
+                Cell::from(self.average_deficit).add_attribute(Attribute::Bold),
                 Cell::from(format!("{:.1} days", self.total.time.as_seconds_f64() / 86400.0)),
-                Cell::from(self.total.consumption),
+                Cell::from(self.total.deficit),
             ]);
         table
     }
@@ -96,8 +100,8 @@ impl ConsumptionStatistics {
                     .unwrap_or_else(|| Cell::new("n/a"))
                     .set_alignment(CellAlignment::Right)
                     .fg(match power {
-                        Some(power) if *power > self.average => Color::Red,
-                        Some(power) if *power < self.average => Color::Green,
+                        Some(power) if *power > self.average_deficit => Color::Red,
+                        Some(power) if *power < self.average_deficit => Color::Green,
                         _ => Color::Reset,
                     }),
             ]);
@@ -109,17 +113,17 @@ impl ConsumptionStatistics {
 #[derive(Copy, Clone, AddAssign)]
 struct Accumulator {
     time: TimeDelta,
-    consumption: KilowattHours,
+    deficit: KilowattHours,
 }
 
 impl Default for Accumulator {
     fn default() -> Self {
-        Self { time: TimeDelta::zero(), consumption: KilowattHours::ZERO }
+        Self { time: TimeDelta::zero(), deficit: KilowattHours::ZERO }
     }
 }
 
 impl Accumulator {
-    pub fn average_power(self) -> Option<Kilowatts> {
-        if self.time.is_zero() { None } else { Some(self.consumption / self.time) }
+    pub fn average_deficit_power(self) -> Option<Kilowatts> {
+        if self.time.is_zero() { None } else { Some(self.deficit / self.time) }
     }
 }

@@ -88,6 +88,7 @@ impl HuntArgs {
         info!(
             residual_energy = ?battery_state.energy.residual(),
             state_of_charge = ?battery_state.energy.state_of_charge,
+            state_of_health = ?battery_state.energy.state_of_health,
         );
 
         let since = self.estimation.since();

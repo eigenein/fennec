@@ -26,7 +26,7 @@ impl Client {
     )]
     pub async fn read_value(&self) -> Result<Value> {
         let value = self.convert(&self.read_words().await?);
-        info!(?value, "read");
+        debug!(?value, "read");
         Ok(value)
     }
 

@@ -1,4 +1,3 @@
-pub mod battery;
 mod client;
 mod pool;
 mod url;

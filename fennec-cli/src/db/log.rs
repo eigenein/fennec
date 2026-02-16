@@ -7,8 +7,7 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{db::Db, prelude::*};
 
-/// Anything that can be logged into a time-series collection.
-pub trait Log: Send + Sync + Serialize + DeserializeOwned {
+pub trait TimeSeries: Send + Sync + Serialize + DeserializeOwned {
     const COLLECTION_NAME: &str;
 
     /// FIXME: make configurable.
@@ -16,7 +15,7 @@ pub trait Log: Send + Sync + Serialize + DeserializeOwned {
 
     /// Initialize the underlying time-series collection.
     #[instrument(skip_all, fields(collection_name = Self::COLLECTION_NAME))]
-    async fn initialize_time_series(db: &Db) -> Result {
+    async fn initialize(db: &Db) -> Result {
         let options = TimeseriesOptions::builder()
             .time_field("timestamp")
             .granularity(TimeseriesGranularity::Minutes)

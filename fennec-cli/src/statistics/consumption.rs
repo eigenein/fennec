@@ -6,7 +6,7 @@ use futures_util::TryStreamExt;
 use itertools::Itertools;
 
 use crate::{
-    db::consumption::ConsumptionLog,
+    db::consumption::LogEntry,
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
 };
@@ -23,7 +23,7 @@ impl ConsumptionStatistics {
     #[instrument(skip_all)]
     pub async fn try_estimate<T>(mut logs: T) -> Result<Self>
     where
-        T: TryStream<Ok = ConsumptionLog, Error = Error> + Unpin,
+        T: TryStream<Ok = LogEntry, Error = Error> + Unpin,
     {
         info!("crunching consumption logs…");
 

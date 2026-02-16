@@ -1,4 +1,4 @@
-mod battery;
+pub mod battery;
 pub mod energy_level;
 pub mod provider;
 pub mod solution;

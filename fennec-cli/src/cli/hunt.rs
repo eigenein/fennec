@@ -8,7 +8,7 @@ use crate::{
     api::{foxcloud, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
     core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
-    db::{battery::BatteryLog, consumption::ConsumptionLog},
+    db::{battery, consumption},
     prelude::*,
     quantity::rate::KilowattHourRate,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
@@ -92,14 +92,14 @@ impl HuntArgs {
 
         let since = self.estimation.since();
         let battery_efficiency = {
-            let battery_logs = db.find_logs::<BatteryLog>(since).await?;
+            let battery_logs = db.find_logs::<battery::LogEntry>(since).await?;
             BatteryEfficiency::try_estimate(battery_logs, self.estimation.weight_mode)
                 .await
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
                 .unwrap_or_default()
         };
         let consumption_statistics = {
-            let consumption_logs = db.find_logs::<ConsumptionLog>(since).await?;
+            let consumption_logs = db.find_logs::<consumption::LogEntry>(since).await?;
             ConsumptionStatistics::try_estimate(consumption_logs).await?
         };
         println!("{}", consumption_statistics.summary_table());

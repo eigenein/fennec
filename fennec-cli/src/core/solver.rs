@@ -7,7 +7,7 @@ use enumset::EnumSet;
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::{
-        battery::Battery,
+        battery,
         energy_level::Quantum,
         solution::{CumulativeMetrics, Solution},
         solution_space::SolutionSpace,
@@ -131,7 +131,7 @@ impl Solver<'_> {
         initial_residual_energy: KilowattHours,
         solutions: &SolutionSpace,
     ) -> Option<Solution> {
-        let battery = Battery::builder()
+        let battery = battery::Simulator::builder()
             .residual_energy(initial_residual_energy)
             .min_residual_energy(self.min_residual_energy)
             .max_residual_energy(self.max_residual_energy)
@@ -169,7 +169,7 @@ impl Solver<'_> {
     #[builder]
     fn simulate_step(
         &self,
-        mut battery: Battery,
+        mut battery: battery::Simulator,
         interval: Interval,
         stand_by_power: Kilowatts,
         grid_rate: KilowattHourRate,

@@ -6,15 +6,14 @@ use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use mongodb::{Client, Database, options::ReturnDocument};
 
-use crate::{
-    db::{battery::BatteryLog, consumption::ConsumptionLog, log::Log, state::State},
-    prelude::*,
-};
+use crate::{db::state::ApplicationState, prelude::*};
 
 pub mod battery;
 pub mod consumption;
-pub mod log;
+mod log;
 pub mod state;
+
+pub use self::log::TimeSeries;
 
 #[must_use]
 #[derive(Clone)]
@@ -36,13 +35,13 @@ impl Db {
             .default_database()
             .context("MongoDB URI does not define the default database")?;
         let this = Self { client, inner };
-        BatteryLog::initialize_time_series(&this).await?;
-        ConsumptionLog::initialize_time_series(&this).await?;
+        battery::LogEntry::initialize(&this).await?;
+        consumption::LogEntry::initialize(&this).await?;
         Ok(this)
     }
 
     #[instrument(skip_all)]
-    pub async fn find_logs<L: Log>(
+    pub async fn find_logs<L: TimeSeries>(
         &self,
         since: DateTime<Local>,
     ) -> Result<impl TryStream<Ok = L, Error = Error>> {
@@ -60,7 +59,7 @@ impl Db {
     /// Retrieve the typed global state.
     #[instrument(skip_all, fields(id = ?S::ID))]
     #[expect(dead_code)]
-    pub async fn get_state<S: State>(&self) -> Result<Option<S>> {
+    pub async fn get_application_state<S: ApplicationState>(&self) -> Result<Option<S>> {
         info!("fetching the state…");
         let filter = doc! { "_id": S::ID };
         self.inner
@@ -75,7 +74,7 @@ impl Db {
 
     /// Replace the typed global state and return the previous value.
     #[instrument(skip_all, fields(id = ?S::ID))]
-    pub async fn set_state<S: State>(&self, state: &S) -> Result<Option<S>> {
+    pub async fn set_application_state<S: ApplicationState>(&self, state: &S) -> Result<Option<S>> {
         info!("saving the state…");
         let filter = doc! { "_id": S::ID };
         let mut replacement = serialize_to_document(state)?;

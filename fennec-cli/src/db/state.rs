@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::quantity::energy::MilliwattHours;
 
-pub trait State: Serialize + DeserializeOwned {
+pub trait ApplicationState: Serialize + DeserializeOwned {
     const ID: &str;
 }
 
@@ -16,6 +16,6 @@ pub struct BatteryResidualEnergy {
     residual_energy: MilliwattHours,
 }
 
-impl State for BatteryResidualEnergy {
+impl ApplicationState for BatteryResidualEnergy {
     const ID: &str = "batteryResidualEnergy";
 }

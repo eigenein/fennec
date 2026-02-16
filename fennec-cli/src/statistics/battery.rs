@@ -18,7 +18,7 @@ use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
 
 use crate::{
     cli::WeightMode,
-    db::battery::BatteryLog,
+    db::battery::LogEntry,
     fmt::FormattedPercentage,
     prelude::*,
     quantity::{Quantity, energy::KilowattHours, power::Kilowatts},
@@ -86,7 +86,7 @@ impl BatteryEfficiency {
     #[instrument(skip_all)]
     pub async fn try_estimate<S>(mut battery_logs: S, weight_mode: WeightMode) -> Result<Self>
     where
-        S: TryStream<Ok = BatteryLog, Error = Error> + Unpin,
+        S: TryStream<Ok = LogEntry, Error = Error> + Unpin,
     {
         let mut previous = battery_logs.try_next().await?.context("empty battery log stream")?;
         let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));

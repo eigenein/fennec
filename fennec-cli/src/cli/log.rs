@@ -8,13 +8,7 @@ use tokio::time::sleep;
 use crate::{
     api::{heartbeat, homewizard},
     cli::{battery::BatteryEnergyStateUrls, db::DbArgs},
-    db::{
-        Db,
-        battery::BatteryLog,
-        consumption::ConsumptionLog,
-        log::Log,
-        state::BatteryResidualEnergy,
-    },
+    db::{Db, TimeSeries, battery, consumption, state::BatteryResidualEnergy},
     prelude::*,
     quantity::energy::MilliwattHours,
 };
@@ -90,7 +84,7 @@ impl ConsumptionLogger {
                 self.total_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement()
             )?;
-            ConsumptionLog::builder()
+            consumption::LogEntry::builder()
                 .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
                 .build()
                 .insert_into(&self.db)
@@ -118,13 +112,15 @@ impl BatteryLogger {
             let battery_state = self.energy_state_args.read().await?;
             let last_known_residual_energy = self
                 .db
-                .set_state(&BatteryResidualEnergy::from(battery_state.residual_millis()))
+                .set_application_state(&BatteryResidualEnergy::from(
+                    battery_state.residual_millis(),
+                ))
                 .await?
                 .map(MilliwattHours::from);
             if let Some(last_known_residual_energy) = last_known_residual_energy
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
-                BatteryLog::builder()
+                battery::LogEntry::builder()
                     .residual_energy(battery_state.residual_millis())
                     .metrics(self.meter_client.get_measurement().await?)
                     .build()

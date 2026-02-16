@@ -1,5 +1,5 @@
 use bon::Builder;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -25,6 +25,15 @@ pub struct LogEntry {
     /// Hint: if you add the PV yield, you will get the total consumption.
     #[serde(rename = "netKilowattHours")]
     pub pv_deficit: KilowattHours,
+}
+
+impl LogEntry {
+    /// Check whether the other log entry belongs to the same day and hour.
+    #[must_use]
+    pub fn same_hour_as(&self, other: &Self) -> bool {
+        (self.timestamp.date_naive(), self.timestamp.hour())
+            == (other.timestamp.date_naive(), other.timestamp.hour())
+    }
 }
 
 impl TimeSeries for LogEntry {

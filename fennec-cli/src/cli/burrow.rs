@@ -2,7 +2,12 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     api::foxcloud,
-    cli::{db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
+    cli::{
+        battery::BatteryPowerLimits,
+        db::DbArgs,
+        estimation::EstimationArgs,
+        foxess::FoxEssApiArgs,
+    },
     db::{battery, consumption},
     prelude::*,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
@@ -62,13 +67,16 @@ pub struct BurrowConsumptionArgs {
 
     #[clap(flatten)]
     estimation: EstimationArgs,
+
+    #[clap(flatten)]
+    power_limits: BatteryPowerLimits,
 }
 
 impl BurrowConsumptionArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
         let logs = db.find_logs::<consumption::LogEntry>(self.estimation.since()).await?;
-        let statistics = ConsumptionStatistics::try_estimate(logs).await?;
+        let statistics = ConsumptionStatistics::try_estimate(self.power_limits, logs).await?;
         db.shutdown().await;
         println!("{}", statistics.hourly_table());
         Ok(())

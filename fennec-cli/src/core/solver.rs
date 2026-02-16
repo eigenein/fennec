@@ -84,7 +84,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .power_deficit(self.consumption_statistics.on_hour(interval.start.hour()))
+                .power_deficit(self.consumption_statistics.deficit_on(interval.start.hour()))
                 .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
@@ -111,7 +111,7 @@ impl Solver<'_> {
                     // TODO: de-dup this:
                     interval = interval.with_start(self.now);
                 }
-                let stand_by_power = self.consumption_statistics.on_hour(interval.start.hour());
+                let stand_by_power = self.consumption_statistics.deficit_on(interval.start.hour());
                 self.loss(grid_rate, stand_by_power * interval.len())
             })
             .sum()

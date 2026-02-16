@@ -5,6 +5,7 @@ use futures_util::TryStreamExt;
 use itertools::Itertools;
 
 use crate::{
+    cli::battery::BatteryPowerLimits,
     db::consumption::LogEntry,
     prelude::*,
     quantity::power::Kilowatts,
@@ -12,42 +13,42 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone)]
 pub struct ConsumptionStatistics {
     average_deficit: Kilowatts,
-    hourly: [Option<Kilowatts>; 24],
+    hourly_deficit: [Option<Kilowatts>; 24],
 }
 
 impl ConsumptionStatistics {
     #[instrument(skip_all)]
-    pub async fn try_estimate<T>(mut logs: T) -> Result<Self>
+    pub async fn try_estimate<T>(power_limits: BatteryPowerLimits, mut logs: T) -> Result<Self>
     where
         T: TryStream<Ok = LogEntry, Error = Error> + Unpin,
     {
         info!("crunching consumption logs…");
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
-        let mut total = EnergyAccumulator::default();
-        let mut hourly = [EnergyAccumulator::default(); 24];
+        let mut total_deficit_accumulator = EnergyAccumulator::default();
+        let mut hourly_deficit_accumulators = [EnergyAccumulator::default(); 24];
 
-        while let Some(current) = logs.try_next().await? {
-            let delta = EnergyAccumulator {
-                time: current.timestamp - previous.timestamp,
-                value: current.pv_deficit - previous.pv_deficit,
-            };
-            total += delta;
-            if current.timestamp.date_naive() == previous.timestamp.date_naive()
-                && current.timestamp.hour() == previous.timestamp.hour()
-            {
-                let local_hour = current.timestamp.with_timezone(&Local).hour() as usize;
-                hourly[local_hour] += delta;
+        while let Some(next) = logs.try_next().await? {
+            let time_delta = next.timestamp - previous.timestamp;
+            let pv_deficit = next.pv_deficit - previous.pv_deficit;
+            let delta = EnergyAccumulator { time_delta, value: pv_deficit };
+            total_deficit_accumulator += delta;
+
+            if next.same_hour_as(&previous) {
+                let local_hour = next.timestamp.with_timezone(&Local).hour() as usize;
+                hourly_deficit_accumulators[local_hour] += delta;
             }
-            previous = current;
+
+            previous = next;
         }
 
         Ok(Self {
-            average_deficit: total.average_power().context("empty consumption logs")?,
-            hourly: hourly
+            average_deficit: total_deficit_accumulator
+                .average_power()
+                .context("empty consumption logs")?,
+            hourly_deficit: hourly_deficit_accumulators
                 .into_iter()
                 .map(EnergyAccumulator::average_power)
                 .collect_array()
@@ -55,8 +56,8 @@ impl ConsumptionStatistics {
         })
     }
 
-    pub fn on_hour(&self, hour: u32) -> Kilowatts {
-        self.hourly[hour as usize].unwrap_or(self.average_deficit)
+    pub fn deficit_on(&self, hour: u32) -> Kilowatts {
+        self.hourly_deficit[hour as usize].unwrap_or(self.average_deficit)
     }
 
     #[must_use]
@@ -70,7 +71,7 @@ impl ConsumptionStatistics {
                 Cell::from("Hour"),
                 Cell::from("Deficit").set_alignment(CellAlignment::Right),
             ]);
-        for (hour, power) in self.hourly.iter().enumerate() {
+        for (hour, power) in self.hourly_deficit.iter().enumerate() {
             table.add_row(vec![
                 Cell::new(hour),
                 power

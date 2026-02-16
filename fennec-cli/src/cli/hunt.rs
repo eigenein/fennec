@@ -101,7 +101,7 @@ impl HuntArgs {
         };
         let consumption_statistics = {
             let consumption_logs = db.find_logs::<consumption::LogEntry>(since).await?;
-            ConsumptionStatistics::try_estimate(consumption_logs).await?
+            ConsumptionStatistics::try_estimate(self.battery.power_limits, consumption_logs).await?
         };
         db.shutdown().await;
 

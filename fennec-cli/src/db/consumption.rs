@@ -17,7 +17,7 @@ pub struct LogEntry {
     /// Total lifetime PV yield.
     ///
     /// It will become required in the future.
-    #[serde(rename = "totalPvYieldKilowattHours")]
+    #[serde(rename = "pvKilowattHours")]
     pub pv_yield: Option<KilowattHours>,
 
     /// Total lifetime net contribution from the grid and battery.

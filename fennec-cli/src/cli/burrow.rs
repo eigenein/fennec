@@ -70,7 +70,6 @@ impl BurrowConsumptionArgs {
         let logs = db.find_logs::<consumption::LogEntry>(self.estimation.since()).await?;
         let statistics = ConsumptionStatistics::try_estimate(logs).await?;
         db.shutdown().await;
-        println!("{}", statistics.summary_table());
         println!("{}", statistics.hourly_table());
         Ok(())
     }

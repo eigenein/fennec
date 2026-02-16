@@ -103,7 +103,6 @@ impl HuntArgs {
             let consumption_logs = db.find_logs::<consumption::LogEntry>(since).await?;
             ConsumptionStatistics::try_estimate(consumption_logs).await?
         };
-        println!("{}", consumption_statistics.summary_table());
         db.shutdown().await;
 
         let initial_energy_level = self.quantum.quantize(battery_state.energy.residual());

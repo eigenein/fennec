@@ -1,4 +1,4 @@
-mod battery_state;
+pub mod battery;
 mod pool;
 mod url;
 mod value;
@@ -8,12 +8,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time::timeout};
 use tokio_modbus::client::Reader;
 
-pub use self::{
-    battery_state::{BatteryEnergyState, BatterySettings, BatteryState},
-    pool::connect,
-    url::ParsedUrl,
-    value::Value,
-};
+pub use self::{url::ParsedUrl, value::Value};
 use crate::{
     api::modbus::url::{DataType, Operation, Register},
     prelude::*,

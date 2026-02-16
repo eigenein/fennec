@@ -7,13 +7,13 @@ use crate::{
 };
 
 #[must_use]
-pub struct BatteryEnergyState {
+pub struct EnergyState {
     pub design_capacity: DecawattHours,
     pub state_of_charge: Percent,
     pub state_of_health: Percent,
 }
 
-impl BatteryEnergyState {
+impl EnergyState {
     /// Battery capacity corrected on the state of health.
     pub fn actual_capacity(&self) -> KilowattHours {
         KilowattHours::from(self.design_capacity) * self.state_of_health
@@ -31,17 +31,17 @@ impl BatteryEnergyState {
 }
 
 #[must_use]
-pub struct BatterySettings {
+pub struct Settings {
     pub allowed_state_of_charge: RangeInclusive<Percent>,
 }
 
 #[must_use]
-pub struct BatteryState {
-    pub energy: BatteryEnergyState,
-    pub settings: BatterySettings,
+pub struct State {
+    pub energy: EnergyState,
+    pub settings: Settings,
 }
 
-impl BatteryState {
+impl State {
     pub fn min_residual_energy(&self) -> KilowattHours {
         self.energy.actual_capacity() * self.settings.allowed_state_of_charge.min
     }

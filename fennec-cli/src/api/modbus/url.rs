@@ -6,7 +6,7 @@ use tokio_modbus::{Address, SlaveId};
 use url::Host;
 
 use crate::{
-    api::modbus::{Client, Value, connect},
+    api::modbus::{Client, Value, pool::connect},
     prelude::*,
 };
 

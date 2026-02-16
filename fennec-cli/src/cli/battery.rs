@@ -2,15 +2,7 @@
 
 use clap::Parser;
 
-use crate::{
-    api::{
-        modbus,
-        modbus::{BatteryEnergyState, BatterySettings, BatteryState},
-    },
-    ops::RangeInclusive,
-    prelude::*,
-    quantity::power::Kilowatts,
-};
+use crate::{api::modbus, ops::RangeInclusive, prelude::*, quantity::power::Kilowatts};
 
 #[derive(Parser)]
 pub struct BatteryConnectionArgs {
@@ -22,8 +14,11 @@ pub struct BatteryConnectionArgs {
 }
 
 impl BatteryConnectionArgs {
-    pub async fn read(&self) -> Result<BatteryState> {
-        Ok(BatteryState { energy: self.energy.read().await?, settings: self.setting.read().await? })
+    pub async fn read(&self) -> Result<modbus::battery::State> {
+        Ok(modbus::battery::State {
+            energy: self.energy.read().await?,
+            settings: self.setting.read().await?,
+        })
     }
 }
 
@@ -40,8 +35,8 @@ pub struct BatteryEnergyStateUrls {
 }
 
 impl BatteryEnergyStateUrls {
-    pub async fn read(&self) -> Result<BatteryEnergyState> {
-        Ok(BatteryEnergyState {
+    pub async fn read(&self) -> Result<modbus::battery::EnergyState> {
+        Ok(modbus::battery::EnergyState {
             design_capacity: u16::try_from(self.design_capacity.read().await?)?.into(),
             state_of_charge: u16::try_from(self.state_of_charge.read().await?)?.into(),
             state_of_health: u16::try_from(self.state_of_health.read().await?)?.into(),
@@ -59,10 +54,10 @@ pub struct BatterySettingUrls {
 }
 
 impl BatterySettingUrls {
-    pub async fn read(&self) -> Result<BatterySettings> {
+    pub async fn read(&self) -> Result<modbus::battery::Settings> {
         let min_state_of_charge = u16::try_from(self.min_state_of_charge.read().await?)?.into();
         let max_state_of_charge = u16::try_from(self.max_state_of_charge.read().await?)?.into();
-        Ok(BatterySettings {
+        Ok(modbus::battery::Settings {
             allowed_state_of_charge: RangeInclusive::from_std(
                 min_state_of_charge..=max_state_of_charge,
             ),

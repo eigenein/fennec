@@ -108,8 +108,9 @@ struct BatteryLogger {
 
 impl BatteryLogger {
     async fn run(self) -> Result {
+        let battery_energy_state_client = self.energy_state_args.connect().await?;
         loop {
-            let battery_state = self.energy_state_args.read().await?;
+            let battery_state = battery_energy_state_client.read().await?;
             let last_known_residual_energy = self
                 .db
                 .set_application_state(&BatteryResidualEnergy::from(

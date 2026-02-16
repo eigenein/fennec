@@ -31,22 +31,17 @@ impl EnergyState {
 }
 
 #[must_use]
-pub struct Settings {
+pub struct FullState {
+    pub energy: EnergyState,
     pub allowed_state_of_charge: RangeInclusive<Percent>,
 }
 
-#[must_use]
-pub struct State {
-    pub energy: EnergyState,
-    pub settings: Settings,
-}
-
-impl State {
+impl FullState {
     pub fn min_residual_energy(&self) -> KilowattHours {
-        self.energy.actual_capacity() * self.settings.allowed_state_of_charge.min
+        self.energy.actual_capacity() * self.allowed_state_of_charge.min
     }
 
     pub fn max_residual_energy(&self) -> KilowattHours {
-        self.energy.actual_capacity() * self.settings.allowed_state_of_charge.max
+        self.energy.actual_capacity() * self.allowed_state_of_charge.max
     }
 }

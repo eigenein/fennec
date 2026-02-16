@@ -6,10 +6,11 @@ use tokio_modbus::{Address, SlaveId};
 use url::Host;
 
 use crate::{
-    api::modbus::{Client, Value, pool::connect},
+    api::modbus::{Client, pool::connect},
     prelude::*,
 };
 
+#[must_use]
 #[derive(Clone)]
 pub struct ParsedUrl {
     pub(super) endpoint: Endpoint,
@@ -21,10 +22,6 @@ impl ParsedUrl {
 
     pub async fn connect(&self) -> Result<Client> {
         connect(self).await
-    }
-
-    pub async fn read(&self) -> Result<Value> {
-        self.connect().await?.read().await
     }
 }
 

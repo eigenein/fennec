@@ -3,5 +3,5 @@ mod state;
 
 pub use self::{
     simulator::Simulator,
-    state::{EnergyState, Settings, State},
+    state::{EnergyState, FullState},
 };

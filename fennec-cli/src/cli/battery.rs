@@ -3,31 +3,35 @@
 use clap::Parser;
 
 use crate::{
-    api::modbus,
-    core::battery,
-    ops::RangeInclusive,
+    api::{modbus, modbus::foxess},
     prelude::*,
     quantity::power::Kilowatts,
 };
 
+#[must_use]
 #[derive(Parser)]
 pub struct BatteryConnectionArgs {
     #[clap(flatten)]
     pub energy: BatteryEnergyStateUrls,
 
-    #[clap(flatten)]
-    pub setting: BatterySettingUrls,
+    #[clap(long, env = "BATTERY_MIN_STATE_OF_CHARGE_URL")]
+    pub min_state_of_charge: modbus::ParsedUrl,
+
+    #[clap(long, env = "BATTERY_MAX_STATE_OF_CHARGE_URL")]
+    pub max_state_of_charge: modbus::ParsedUrl,
 }
 
 impl BatteryConnectionArgs {
-    pub async fn read(&self) -> Result<battery::State> {
-        Ok(battery::State {
-            energy: self.energy.read().await?,
-            settings: self.setting.read().await?,
+    pub async fn connect(&self) -> Result<foxess::Clients> {
+        Ok(foxess::Clients {
+            energy_state: self.energy.connect().await?,
+            min_state_of_charge: self.min_state_of_charge.connect().await?,
+            max_state_of_charge: self.max_state_of_charge.connect().await?,
         })
     }
 }
 
+#[must_use]
 #[derive(Parser)]
 pub struct BatteryEnergyStateUrls {
     #[clap(long, env = "BATTERY_STATE_OF_CHARGE_URL")]
@@ -41,36 +45,16 @@ pub struct BatteryEnergyStateUrls {
 }
 
 impl BatteryEnergyStateUrls {
-    pub async fn read(&self) -> Result<battery::EnergyState> {
-        Ok(battery::EnergyState {
-            design_capacity: u16::try_from(self.design_capacity.read().await?)?.into(),
-            state_of_charge: u16::try_from(self.state_of_charge.read().await?)?.into(),
-            state_of_health: u16::try_from(self.state_of_health.read().await?)?.into(),
+    pub async fn connect(&self) -> Result<foxess::EnergyStateClients> {
+        Ok(foxess::EnergyStateClients {
+            state_of_charge: self.state_of_charge.connect().await?,
+            state_of_health: self.state_of_health.connect().await?,
+            design_capacity: self.design_capacity.connect().await?,
         })
     }
 }
 
-#[derive(Parser)]
-pub struct BatterySettingUrls {
-    #[clap(long, env = "BATTERY_MIN_STATE_OF_CHARGE_URL")]
-    pub min_state_of_charge: modbus::ParsedUrl,
-
-    #[clap(long, env = "BATTERY_MAX_STATE_OF_CHARGE_URL")]
-    pub max_state_of_charge: modbus::ParsedUrl,
-}
-
-impl BatterySettingUrls {
-    pub async fn read(&self) -> Result<battery::Settings> {
-        let min_state_of_charge = u16::try_from(self.min_state_of_charge.read().await?)?.into();
-        let max_state_of_charge = u16::try_from(self.max_state_of_charge.read().await?)?.into();
-        Ok(battery::Settings {
-            allowed_state_of_charge: RangeInclusive::from_std(
-                min_state_of_charge..=max_state_of_charge,
-            ),
-        })
-    }
-}
-
+#[must_use]
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryPowerLimits {
     /// Charging power in kilowatts.

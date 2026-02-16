@@ -84,7 +84,7 @@ impl HuntArgs {
         ensure!(!grid_rates.is_empty());
         info!(len = grid_rates.len(), "fetched energy rates");
 
-        let battery_state = self.battery.connection.read().await?;
+        let battery_state = self.battery.connection.connect().await?.read().await?;
         info!(
             residual_energy = ?battery_state.energy.residual(),
             state_of_charge = ?battery_state.energy.state_of_charge,

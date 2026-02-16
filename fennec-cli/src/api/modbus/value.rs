@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
-#[derive(Copy, Clone)]
+#[must_use]
+#[derive(Copy, Clone, Debug)]
 pub enum Value {
     U16(u16),
     I32(i32),

@@ -19,3 +19,15 @@ impl TryFrom<Value> for u16 {
         }
     }
 }
+
+impl TryFrom<Value> for u64 {
+    type Error = Error;
+
+    fn try_from(value: Value) -> std::result::Result<Self, Self::Error> {
+        match value {
+            Value::U16(value) => Ok(value.into()),
+            Value::I32(value) => Ok(value.try_into()?),
+            Value::U64(value) => Ok(value),
+        }
+    }
+}

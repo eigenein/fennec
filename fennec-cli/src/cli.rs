@@ -5,6 +5,7 @@ mod estimation;
 mod foxess;
 mod hunt;
 mod log;
+mod pv;
 mod sentry;
 
 use clap::{Parser, Subcommand};

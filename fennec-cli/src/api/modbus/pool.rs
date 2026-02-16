@@ -28,15 +28,17 @@ static POOL: Mutex<HashMap<Endpoint, Arc<Mutex<tokio_modbus::client::Context>>, 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Connect to the register by the URL in the form of `modbus+tcp://host:port/slave-id#register`.
-#[instrument(skip_all, fields(host = %url.endpoint.host, port = url.endpoint.port))]
+#[instrument(
+    skip_all,
+    fields(host = %url.endpoint.host, port = url.endpoint.port, slave_id = url.endpoint.slave_id),
+)]
 pub async fn connect(url: &modbus::ParsedUrl) -> Result<Client> {
     let mut pool = POOL.lock().await;
     let context = match pool.entry(url.endpoint.clone()) {
         Entry::Occupied(entry) => entry.get().clone(),
         Entry::Vacant(entry) => {
             let context = Arc::new(Mutex::const_new(new_context(&url.endpoint).await?));
-            entry.insert(context.clone());
-            context
+            entry.insert(context).clone()
         }
     };
     drop(pool);

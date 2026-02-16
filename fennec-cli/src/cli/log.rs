@@ -6,8 +6,12 @@ use reqwest::Url;
 use tokio::time::sleep;
 
 use crate::{
-    api::{heartbeat, homewizard},
-    cli::{battery::BatteryEnergyStateUrls, db::DbArgs},
+    api::{
+        heartbeat,
+        homewizard,
+        modbus::{foxess::EnergyStateClients, sma},
+    },
+    cli::{battery::BatteryEnergyStateUrls, db::DbArgs, pv::PvUrls},
     db::{Db, TimeSeries, battery, consumption, state::BatteryResidualEnergy},
     prelude::*,
     quantity::energy::MilliwattHours,
@@ -33,6 +37,9 @@ pub struct LogArgs {
     #[clap(flatten)]
     battery_energy_state_urls: BatteryEnergyStateUrls,
 
+    #[clap(flatten)]
+    pv_urls: PvUrls,
+
     #[clap(long = "battery-heartbeat-url", env = "BATTERY_HEARTBEAT_URL")]
     battery_heartbeat_url: Option<Url>,
 
@@ -49,7 +56,7 @@ impl LogArgs {
             .db(db.clone())
             .heartbeat(heartbeat::Client::new(self.battery_heartbeat_url.clone()))
             .interval(self.battery_polling_interval)
-            .energy_state_args(self.battery_energy_state_urls)
+            .energy_state_clients(self.battery_energy_state_urls.connect().await?)
             .meter_client(battery_meter_client.clone())
             .build();
         let consumption_logger = ConsumptionLogger::builder()
@@ -58,6 +65,7 @@ impl LogArgs {
             .heartbeat(heartbeat::Client::new(self.consumption_heartbeat_url.clone()))
             .total_meter_client(homewizard::Client::new(self.total_energy_meter_url.clone())?)
             .battery_meter_client(battery_meter_client)
+            .pv_total_yield_client(sma::Client(self.pv_urls.total_yield.connect().await?))
             .build();
 
         let result = tokio::try_join!(battery_logger.run(), consumption_logger.run());
@@ -70,6 +78,7 @@ impl LogArgs {
 struct ConsumptionLogger {
     battery_meter_client: homewizard::Client,
     total_meter_client: homewizard::Client,
+    pv_total_yield_client: sma::Client,
     db: Db,
     heartbeat: heartbeat::Client,
 
@@ -80,9 +89,10 @@ struct ConsumptionLogger {
 impl ConsumptionLogger {
     async fn run(self) -> Result {
         loop {
-            let (total_metrics, battery_metrics) = tokio::try_join!(
+            let (total_metrics, battery_metrics, pv_total_yield) = tokio::try_join!(
                 self.total_meter_client.get_measurement(),
-                self.battery_meter_client.get_measurement()
+                self.battery_meter_client.get_measurement(),
+                self.pv_total_yield_client.read_total_yield(),
             )?;
             consumption::LogEntry::builder()
                 .net(total_metrics.net_consumption() - battery_metrics.net_consumption())
@@ -97,7 +107,7 @@ impl ConsumptionLogger {
 
 #[derive(Builder)]
 struct BatteryLogger {
-    energy_state_args: BatteryEnergyStateUrls,
+    energy_state_clients: EnergyStateClients,
     meter_client: homewizard::Client,
     db: Db,
     heartbeat: heartbeat::Client,
@@ -108,9 +118,8 @@ struct BatteryLogger {
 
 impl BatteryLogger {
     async fn run(self) -> Result {
-        let battery_energy_state_client = self.energy_state_args.connect().await?;
         loop {
-            let battery_state = battery_energy_state_client.read().await?;
+            let battery_state = self.energy_state_clients.read().await?;
             let last_known_residual_energy = self
                 .db
                 .set_application_state(&BatteryResidualEnergy::from(

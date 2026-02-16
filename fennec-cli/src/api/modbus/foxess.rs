@@ -1,3 +1,5 @@
+//! FoxESS Modbus clients.
+
 use crate::{api::modbus, core::battery, prelude::*};
 
 #[must_use]

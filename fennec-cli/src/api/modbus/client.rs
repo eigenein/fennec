@@ -25,7 +25,7 @@ impl Client {
         fields(address = self.register.address, data_type = ?self.register.options.data_type),
     )]
     pub async fn read_value(&self) -> Result<Value> {
-        let value = self.convert(self.read_words().await?);
+        let value = self.convert(&self.read_words().await?);
         info!(?value, "read");
         Ok(value)
     }
@@ -53,7 +53,7 @@ impl Client {
     }
 
     /// Convert the raw words to the target value.
-    fn convert(&self, words: Vec<u16>) -> Value {
+    fn convert(&self, words: &[u16]) -> Value {
         match self.register.options.data_type {
             DataType::U16 => Value::U16(words[0]),
             DataType::I32 =>

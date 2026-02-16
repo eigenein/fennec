@@ -5,6 +5,7 @@ use derive_more::{AddAssign, Div};
 
 use crate::{
     cli::battery::BatteryPowerLimits,
+    core::working_mode::WorkingMode,
     quantity::{Quantity, energy::KilowattHours, power::Kilowatts},
 };
 
@@ -40,13 +41,22 @@ pub struct SystemFlow<T> {
 impl SystemFlow<KilowattHours> {
     pub fn new(
         battery_power_limits: BatteryPowerLimits,
+        working_mode: WorkingMode,
         time_delta: TimeDelta,
         net_deficit: KilowattHours,
     ) -> Self {
-        let battery_net_import = (-net_deficit).clamp(
-            -battery_power_limits.discharging * time_delta,
-            battery_power_limits.charging * time_delta,
-        );
+        let battery_net_import = match working_mode {
+            WorkingMode::Idle => Quantity::ZERO,
+            WorkingMode::Harvest => {
+                (-net_deficit).clamp(Quantity::ZERO, battery_power_limits.charging * time_delta)
+            }
+            WorkingMode::SelfUse => (-net_deficit).clamp(
+                -battery_power_limits.discharging * time_delta,
+                battery_power_limits.charging * time_delta,
+            ),
+            WorkingMode::Charge => battery_power_limits.charging * time_delta,
+            WorkingMode::Discharge => -battery_power_limits.discharging * time_delta,
+        };
         let grid_net_import = net_deficit + battery_net_import;
         Self {
             grid: Flow {

@@ -61,5 +61,6 @@ async fn new_tcp_stream(host: &Host, port: u16) -> Result<TcpStream> {
         .context("timed out while connecting to the battery")?
         .context("failed to connect to the battery")?;
     tcp_stream.set_nodelay(true)?;
+    info!("connected");
     Ok(tcp_stream)
 }

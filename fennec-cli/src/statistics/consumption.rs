@@ -1,6 +1,7 @@
 use std::{
     fmt::{Display, Formatter},
     iter::once,
+    time::Instant,
 };
 
 use chrono::{Local, Timelike};
@@ -20,7 +21,10 @@ use crate::{
 
 #[must_use]
 pub struct ConsumptionStatistics {
+    /// Fallback power flow for when a specific hourly power flow is not available.
     fallback: WorkingModeMap<SystemFlow<Kilowatts>>,
+
+    /// Average hourly power flows per battery working mode.
     hourly: [Option<WorkingModeMap<SystemFlow<Kilowatts>>>; 24],
 }
 
@@ -34,20 +38,23 @@ impl ConsumptionStatistics {
         T: TryStream<Ok = LogEntry, Error = Error> + Unpin,
     {
         info!("crunching consumption logs…");
+        let start_time = Instant::now();
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut fallback = WorkingModeMap::<Integrator<SystemFlow<KilowattHours>>>::default();
+        let mut fallback = Integrator::<WorkingModeMap<SystemFlow<KilowattHours>>>::default();
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
             let time_delta = next.timestamp - previous.timestamp;
             let net_deficit = next.net_deficit - previous.net_deficit;
 
-            let flows = WorkingModeMap::new(|working_mode| Integrator {
+            let flows = Integrator {
                 time_delta,
-                value: SystemFlow::new(battery_power_limits, working_mode, time_delta, net_deficit),
-            });
+                value: WorkingModeMap::new(|working_mode| {
+                    SystemFlow::new(battery_power_limits, working_mode, time_delta, net_deficit)
+                }),
+            };
             fallback += flows;
 
             // TODO: I may consider simple linear interpolation for cross-hour intervals:
@@ -59,20 +66,12 @@ impl ConsumptionStatistics {
             previous = next;
         }
 
+        info!(elapsed = ?start_time.elapsed(), "done");
         Ok(Self {
-            fallback: WorkingModeMap::try_new(|working_mode| {
-                fallback[working_mode].average().context("no samples")
-            })?,
-            hourly: hourly
-                .into_iter()
-                .map(|map| {
-                    WorkingModeMap::try_new(|working_mode| {
-                        map[working_mode].average().context("no samples")
-                    })
-                    .ok()
-                })
-                .collect_array()
-                .unwrap(),
+            fallback: fallback
+                .average()
+                .context("no samples to calculate the fallback power flow")?,
+            hourly: hourly.into_iter().map(Integrator::average).collect_array().unwrap(),
         })
     }
 

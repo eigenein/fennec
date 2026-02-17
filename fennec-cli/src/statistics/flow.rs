@@ -71,7 +71,11 @@ where
 }
 
 impl SystemFlow<KilowattHours> {
-    /// Split the net household deficit into grid and battery energy flows based on the battery working mode.
+    /// Split the net household deficit into grid and battery energy flows
+    /// based on the battery working mode.
+    ///
+    /// This allows to track not just the net deficit, but actually how much the battery can
+    /// compensate or absorb.
     pub fn new(
         battery_power_limits: BatteryPowerLimits,
         working_mode: WorkingMode,

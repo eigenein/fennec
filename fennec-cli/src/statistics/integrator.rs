@@ -3,8 +3,6 @@ use std::ops::Div;
 use chrono::TimeDelta;
 use derive_more::AddAssign;
 
-use crate::{quantity::energy::KilowattHours, statistics::flow::SystemFlow};
-
 /// Value accumulator over time.
 #[derive(Copy, Clone, AddAssign)]
 pub struct Integrator<T> {
@@ -12,9 +10,9 @@ pub struct Integrator<T> {
     pub value: T,
 }
 
-impl Default for Integrator<SystemFlow<KilowattHours>> {
+impl<T: Default> Default for Integrator<T> {
     fn default() -> Self {
-        Self { time_delta: TimeDelta::zero(), value: SystemFlow::default() }
+        Self { time_delta: TimeDelta::zero(), value: T::default() }
     }
 }
 

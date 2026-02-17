@@ -1,13 +1,11 @@
 use std::{
     fmt::{Display, Formatter},
-    ops::{Index, IndexMut},
+    ops::{Div, Index, IndexMut},
 };
 
 use comfy_table::Color;
 use derive_more::AddAssign;
 use enumset::EnumSetType;
-
-use crate::prelude::*;
 
 #[derive(Debug, Hash, clap::ValueEnum, EnumSetType)]
 pub enum WorkingMode {
@@ -71,16 +69,6 @@ impl<V> WorkingModeMap<V> {
             discharge: map(WorkingMode::Discharge),
         }
     }
-
-    pub fn try_new(map: impl Fn(WorkingMode) -> Result<V>) -> Result<Self> {
-        Ok(Self {
-            idle: map(WorkingMode::Idle)?,
-            harvest: map(WorkingMode::Harvest)?,
-            self_use: map(WorkingMode::SelfUse)?,
-            charge: map(WorkingMode::Charge)?,
-            discharge: map(WorkingMode::Discharge)?,
-        })
-    }
 }
 
 impl<V> Index<WorkingMode> for WorkingModeMap<V> {
@@ -105,6 +93,20 @@ impl<V> IndexMut<WorkingMode> for WorkingModeMap<V> {
             WorkingMode::SelfUse => &mut self.self_use,
             WorkingMode::Charge => &mut self.charge,
             WorkingMode::Discharge => &mut self.discharge,
+        }
+    }
+}
+
+impl<V: Div<Rhs>, Rhs: Copy> Div<Rhs> for WorkingModeMap<V> {
+    type Output = WorkingModeMap<<V as Div<Rhs>>::Output>;
+
+    fn div(self, rhs: Rhs) -> Self::Output {
+        WorkingModeMap {
+            idle: self.idle / rhs,
+            harvest: self.harvest / rhs,
+            self_use: self.self_use / rhs,
+            charge: self.charge / rhs,
+            discharge: self.discharge / rhs,
         }
     }
 }

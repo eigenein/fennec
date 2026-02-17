@@ -1,7 +1,8 @@
 use crate::{
     core::{energy_level::EnergyLevel, working_mode::WorkingMode},
     ops::Interval,
-    quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    quantity::{cost::Cost, energy::KilowattHours, rate::KilowattHourRate},
+    statistics::flow::SystemFlow,
 };
 
 /// Single-hour working plan step.
@@ -14,24 +15,8 @@ pub struct Step {
 
     pub interval: Interval,
     pub grid_rate: KilowattHourRate,
-    pub power_deficit: Kilowatts,
+    pub system_flow: SystemFlow<KilowattHours>,
     pub working_mode: WorkingMode,
-    pub residual_energy_before: KilowattHours,
     pub residual_energy_after: KilowattHours,
     pub energy_level_after: EnergyLevel,
-    pub grid_consumption: KilowattHours,
-}
-
-impl Step {
-    pub fn residual_energy_change(&self) -> KilowattHours {
-        self.residual_energy_after - self.residual_energy_before
-    }
-
-    pub fn charge(&self) -> KilowattHours {
-        self.residual_energy_change().max(KilowattHours::ZERO)
-    }
-
-    pub fn discharge(&self) -> KilowattHours {
-        -self.residual_energy_change().min(KilowattHours::ZERO)
-    }
 }

@@ -1,4 +1,4 @@
 pub mod battery;
 pub mod consumption;
-mod flow;
+pub mod flow;
 mod integrator;

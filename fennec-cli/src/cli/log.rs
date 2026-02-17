@@ -6,12 +6,8 @@ use reqwest::Url;
 use tokio::time::sleep;
 
 use crate::{
-    api::{
-        heartbeat,
-        homewizard,
-        modbus::{foxess::EnergyStateClients, sma},
-    },
-    cli::{battery::BatteryEnergyStateUrls, db::DbArgs, pv::PvUrls},
+    api::{heartbeat, homewizard, modbus::foxess::EnergyStateClients},
+    cli::{battery::BatteryEnergyStateUrls, db::DbArgs},
     db::{Db, TimeSeries, battery, consumption, state::BatteryResidualEnergy},
     prelude::*,
     quantity::energy::MilliwattHours,
@@ -22,7 +18,7 @@ pub struct LogArgs {
     #[clap(long, env = "BATTERY_POLLING_INTERVAL", default_value = "5s")]
     battery_polling_interval: humantime::Duration,
 
-    #[clap(long, env = "METER_POLLING_INTERVAL", default_value = "1min")]
+    #[clap(long, env = "METER_POLLING_INTERVAL", default_value = "10s")]
     meter_polling_interval: humantime::Duration,
 
     #[clap(long, env = "TOTAL_ENERGY_METER_URL")]
@@ -36,9 +32,6 @@ pub struct LogArgs {
 
     #[clap(flatten)]
     battery_energy_state_urls: BatteryEnergyStateUrls,
-
-    #[clap(flatten)]
-    pv_urls: PvUrls,
 
     #[clap(long = "battery-heartbeat-url", env = "BATTERY_HEARTBEAT_URL")]
     battery_heartbeat_url: Option<Url>,
@@ -65,7 +58,6 @@ impl LogArgs {
             .heartbeat(heartbeat::Client::new(self.consumption_heartbeat_url.clone()))
             .total_meter_client(homewizard::Client::new(self.total_energy_meter_url.clone())?)
             .battery_meter_client(battery_meter_client)
-            .total_pv_yield_client(sma::Client(self.pv_urls.total_yield.connect().await?))
             .build();
 
         let result = tokio::try_join!(battery_logger.run(), consumption_logger.run());
@@ -79,7 +71,6 @@ impl LogArgs {
 struct ConsumptionLogger {
     battery_meter_client: homewizard::Client,
     total_meter_client: homewizard::Client,
-    total_pv_yield_client: sma::Client,
     db: Db,
     heartbeat: heartbeat::Client,
 
@@ -90,16 +81,14 @@ struct ConsumptionLogger {
 impl ConsumptionLogger {
     async fn run(self) -> Result {
         loop {
-            let (total_metrics, battery_metrics, pv_yield) = tokio::try_join!(
+            let (total_metrics, battery_metrics) = tokio::try_join!(
                 self.total_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement(),
-                self.total_pv_yield_client.read_total_export(),
             )?;
             let entry = consumption::LogEntry::builder()
-                .pv_deficit(total_metrics.net_import() - battery_metrics.net_import())
-                .pv_yield(pv_yield)
+                .net_deficit(total_metrics.net_import() - battery_metrics.net_import())
                 .build();
-            info!(deficit = ?entry.pv_deficit, yield = ?entry.pv_yield, "consumption log");
+            info!(deficit = ?entry.net_deficit, "consumption log");
             entry.insert_into(&self.db).await?;
             self.heartbeat.send().await;
             sleep(self.interval).await;

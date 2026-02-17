@@ -1,8 +1,15 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    ops::{Index, IndexMut},
+};
 
 use comfy_table::Color;
+use derive_more::AddAssign;
+use enumset::EnumSetType;
 
-#[derive(Debug, clap::ValueEnum, enumset::EnumSetType)]
+use crate::prelude::*;
+
+#[derive(Debug, Hash, clap::ValueEnum, EnumSetType)]
 pub enum WorkingMode {
     /// Do not do anything.
     Idle,
@@ -22,13 +29,14 @@ pub enum WorkingMode {
 
 impl Display for WorkingMode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::SelfUse => write!(f, "Self-use"),
-            Self::Idle => write!(f, "Idle"),
-            Self::Harvest => write!(f, "Harvest"),
-            Self::Charge => write!(f, "Charge"),
-            Self::Discharge => write!(f, "Discharge"),
-        }
+        let text = match self {
+            Self::SelfUse => "Self-use",
+            Self::Idle => "Idle",
+            Self::Harvest => "Harvest",
+            Self::Charge => "Charge",
+            Self::Discharge => "Discharge",
+        };
+        text.fmt(f)
     }
 }
 
@@ -40,6 +48,63 @@ impl WorkingMode {
             Self::SelfUse => Color::DarkYellow,
             Self::Harvest => Color::Cyan,
             Self::Idle => Color::Reset,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Default, AddAssign)]
+pub struct WorkingModeMap<V> {
+    pub idle: V,
+    pub harvest: V,
+    pub self_use: V,
+    pub charge: V,
+    pub discharge: V,
+}
+
+impl<V> WorkingModeMap<V> {
+    pub fn new(map: impl Fn(WorkingMode) -> V) -> Self {
+        Self {
+            idle: map(WorkingMode::Idle),
+            harvest: map(WorkingMode::Harvest),
+            self_use: map(WorkingMode::SelfUse),
+            charge: map(WorkingMode::Charge),
+            discharge: map(WorkingMode::Discharge),
+        }
+    }
+
+    pub fn try_new(map: impl Fn(WorkingMode) -> Result<V>) -> Result<Self> {
+        Ok(Self {
+            idle: map(WorkingMode::Idle)?,
+            harvest: map(WorkingMode::Harvest)?,
+            self_use: map(WorkingMode::SelfUse)?,
+            charge: map(WorkingMode::Charge)?,
+            discharge: map(WorkingMode::Discharge)?,
+        })
+    }
+}
+
+impl<V> Index<WorkingMode> for WorkingModeMap<V> {
+    type Output = V;
+
+    fn index(&self, working_mode: WorkingMode) -> &Self::Output {
+        match working_mode {
+            WorkingMode::Idle => &self.idle,
+            WorkingMode::Harvest => &self.harvest,
+            WorkingMode::SelfUse => &self.self_use,
+            WorkingMode::Charge => &self.charge,
+            WorkingMode::Discharge => &self.discharge,
+        }
+    }
+}
+
+impl<V> IndexMut<WorkingMode> for WorkingModeMap<V> {
+    fn index_mut(&mut self, working_mode: WorkingMode) -> &mut Self::Output {
+        match working_mode {
+            WorkingMode::Idle => &mut self.idle,
+            WorkingMode::Harvest => &mut self.harvest,
+            WorkingMode::SelfUse => &mut self.self_use,
+            WorkingMode::Charge => &mut self.charge,
+            WorkingMode::Discharge => &mut self.discharge,
         }
     }
 }

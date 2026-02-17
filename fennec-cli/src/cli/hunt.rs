@@ -7,7 +7,13 @@ use reqwest::Url;
 use crate::{
     api::{foxcloud, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
-    core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
+    core::{
+        energy_level::Quantum,
+        provider::Provider,
+        solution::SolutionSummary,
+        solver::Solver,
+        working_mode::WorkingMode,
+    },
     db::{battery, consumption},
     prelude::*,
     quantity::rate::KilowattHourRate,
@@ -115,7 +121,6 @@ impl HuntArgs {
                 // Current residual may be higher than the maximum SoC setting:
                 battery_state.max_residual_energy().max(battery_state.energy.residual()),
             )
-            .battery_power_limits(self.battery.power_limits)
             .battery_efficiency(battery_efficiency)
             .purchase_fee(self.provider.purchase_fee())
             .now(now)
@@ -123,9 +128,9 @@ impl HuntArgs {
             .quantum(self.quantum)
             .build();
         let base_loss = solver.base_loss();
-        let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
-        println!("{}", metrics.with(battery_state.energy.actual_capacity(), base_loss));
-        println!("{}", build_steps_table(&steps, self.battery.power_limits.discharging));
+        let (loss, steps) = solver.solve().backtrack(initial_energy_level)?;
+        println!("{}", SolutionSummary { loss, base_loss });
+        println!("{}", build_steps_table(&steps));
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();

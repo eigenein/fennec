@@ -14,17 +14,11 @@ pub struct LogEntry {
     #[builder(default = Utc::now())]
     pub timestamp: DateTime<Utc>,
 
-    /// Total lifetime PV yield.
-    ///
-    /// It will become required in the future.
-    #[serde(rename = "pvKilowattHours")]
-    pub pv_yield: Option<KilowattHours>,
-
     /// Total lifetime net contribution from the grid and battery.
     ///
     /// Hint: if you add the PV yield, you will get the total consumption.
     #[serde(rename = "netKilowattHours")]
-    pub pv_deficit: KilowattHours,
+    pub net_deficit: KilowattHours,
 }
 
 impl LogEntry {

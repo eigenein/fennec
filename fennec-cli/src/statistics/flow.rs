@@ -1,7 +1,7 @@
-use std::ops::{AddAssign, Div};
+use std::ops::{Div, Mul};
 
 use chrono::TimeDelta;
-use derive_more::{AddAssign, Div};
+use derive_more::{Add, AddAssign, Sub};
 
 use crate::{
     cli::battery::BatteryPowerLimits,
@@ -11,15 +11,30 @@ use crate::{
 
 /// Generic bidirectional energy flow.
 #[must_use]
+#[derive(Copy, Clone, Add, Sub, AddAssign)]
 pub struct Flow<T> {
-    import: T,
-    export: T,
+    pub import: T,
+    pub export: T,
 }
 
-impl AddAssign for Flow<KilowattHours> {
-    fn add_assign(&mut self, rhs: Self) {
-        self.import += rhs.import;
-        self.export += rhs.export;
+impl Default for Flow<KilowattHours> {
+    fn default() -> Self {
+        Self { import: KilowattHours::ZERO, export: KilowattHours::ZERO }
+    }
+}
+
+impl<T: Copy> Flow<T> {
+    /// Get the reversed flow where the import becomes export and vice versa.
+    pub const fn reversed(self) -> Self {
+        Self { import: self.export, export: self.import }
+    }
+}
+
+impl Mul<TimeDelta> for Flow<Kilowatts> {
+    type Output = Flow<KilowattHours>;
+
+    fn mul(self, time_delta: TimeDelta) -> Self::Output {
+        Flow { import: self.import * time_delta, export: self.export * time_delta }
     }
 }
 
@@ -32,10 +47,19 @@ impl Div<TimeDelta> for Flow<KilowattHours> {
 }
 
 #[must_use]
-#[derive(AddAssign, Div)]
+#[derive(Copy, Clone, AddAssign)]
 pub struct SystemFlow<T> {
-    grid: Flow<T>,
-    battery: Flow<T>,
+    pub grid: Flow<T>,
+    pub battery: Flow<T>,
+}
+
+impl<T> Default for SystemFlow<T>
+where
+    Flow<T>: Default,
+{
+    fn default() -> Self {
+        Self { grid: Flow::default(), battery: Flow::default() }
+    }
 }
 
 impl SystemFlow<KilowattHours> {
@@ -68,5 +92,13 @@ impl SystemFlow<KilowattHours> {
                 export: (-battery_net_import).max(Quantity::ZERO),
             },
         }
+    }
+}
+
+impl Div<TimeDelta> for SystemFlow<KilowattHours> {
+    type Output = SystemFlow<Kilowatts>;
+
+    fn div(self, time_delta: TimeDelta) -> Self::Output {
+        SystemFlow { grid: self.grid / time_delta, battery: self.battery / time_delta }
     }
 }

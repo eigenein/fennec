@@ -5,19 +5,22 @@ use chrono::{DateTime, Local, Timelike};
 use enumset::EnumSet;
 
 use crate::{
-    cli::battery::BatteryPowerLimits,
     core::{
         battery,
         energy_level::Quantum,
-        solution::{CumulativeMetrics, Solution},
+        solution::Solution,
         solution_space::SolutionSpace,
         step::Step,
-        working_mode::WorkingMode,
+        working_mode::{WorkingMode, WorkingModeMap},
     },
     ops::Interval,
     prelude::*,
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
-    statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
+    statistics::{
+        battery::BatteryEfficiency,
+        consumption::ConsumptionStatistics,
+        flow::{Flow, SystemFlow},
+    },
 };
 
 #[derive(Builder)]
@@ -34,7 +37,6 @@ pub struct Solver<'a> {
     /// Maximum allowed residual energy.
     max_residual_energy: KilowattHours,
 
-    battery_power_limits: BatteryPowerLimits,
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
     degradation_rate: KilowattHourRate,
@@ -84,7 +86,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .power_deficit(self.consumption_statistics.deficit_on(interval.start.hour()))
+                .requested_flows(self.consumption_statistics.on_hour(interval.start.hour()))
                 .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
@@ -111,8 +113,12 @@ impl Solver<'_> {
                     // TODO: de-dup this:
                     interval = interval.with_start(self.now);
                 }
-                let stand_by_power = self.consumption_statistics.deficit_on(interval.start.hour());
-                self.loss(grid_rate, stand_by_power * interval.len())
+                let idle_flow =
+                    self.consumption_statistics.on_hour(interval.start.hour())[WorkingMode::Idle];
+                self.loss(
+                    grid_rate,
+                    (idle_flow.grid + idle_flow.battery.reversed()) * interval.len(),
+                )
             })
             .sum()
     }
@@ -126,7 +132,7 @@ impl Solver<'_> {
         &self,
         interval_index: usize,
         interval: Interval,
-        power_deficit: Kilowatts,
+        requested_flows: &WorkingModeMap<SystemFlow<Kilowatts>>,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         solutions: &SolutionSpace,
@@ -144,7 +150,7 @@ impl Solver<'_> {
                     .simulate_step()
                     .interval(interval)
                     .grid_rate(grid_rate)
-                    .power_deficit(power_deficit)
+                    .requested_flow(&requested_flows[working_mode])
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery)
                     .working_mode(working_mode)
@@ -152,16 +158,9 @@ impl Solver<'_> {
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after)?;
-                Some(Solution {
-                    cumulative_metrics: CumulativeMetrics {
-                        loss: step.loss + next_solution.cumulative_metrics.loss,
-                        charge: step.charge() + next_solution.cumulative_metrics.charge,
-                        discharge: step.discharge() + next_solution.cumulative_metrics.discharge,
-                    },
-                    step: Some(step),
-                })
+                Some(Solution { loss: step.loss + next_solution.loss, step: Some(step) })
             })
-            .min_by_key(|partial_solution| partial_solution.cumulative_metrics.loss)
+            .min_by_key(|solution| solution.loss)
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions,
@@ -171,52 +170,31 @@ impl Solver<'_> {
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        power_deficit: Kilowatts,
+        requested_flow: &SystemFlow<Kilowatts>,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
     ) -> Step {
         let duration = interval.len();
-
-        // Requested external power flow to (positive) or from (negative) the battery:
-        let battery_external_power = match working_mode {
-            WorkingMode::Idle => Kilowatts::ZERO,
-            WorkingMode::Harvest => (-power_deficit).max(Kilowatts::ZERO),
-            WorkingMode::Charge => self.battery_power_limits.charging,
-            WorkingMode::Discharge => -self.battery_power_limits.discharging,
-            WorkingMode::SelfUse => (-power_deficit)
-                .clamp(-self.battery_power_limits.discharging, self.battery_power_limits.charging),
-        };
-
-        // Apply the load to the battery:
-        let battery_active_time = battery.apply_load(battery_external_power, duration);
-
-        // Total household energy balance:
-        let grid_consumption =
-            battery_external_power * battery_active_time + power_deficit * duration;
-
+        let battery_flow = battery.apply(requested_flow.battery, duration);
+        let requested_battery = requested_flow.battery * duration;
+        let battery_shortage = requested_battery - battery_flow;
+        let grid_flow = requested_flow.grid * duration + battery_shortage.reversed();
         Step {
             interval,
             grid_rate,
-            power_deficit,
             working_mode,
-            residual_energy_before: initial_residual_energy,
+            system_flow: SystemFlow { grid: grid_flow, battery: battery_flow },
             residual_energy_after: battery.residual_energy(),
             energy_level_after: self.quantum.quantize(battery.residual_energy()),
-            grid_consumption,
-            loss: self.loss(grid_rate, grid_consumption)
+            loss: self.loss(grid_rate, grid_flow)
                 + (initial_residual_energy - battery.residual_energy()).abs()
                     * self.degradation_rate,
         }
     }
 
     /// Calculate the grid consumption or production loss.
-    fn loss(&self, grid_rate: KilowattHourRate, consumption: KilowattHours) -> Cost {
-        if consumption >= KilowattHours::ZERO {
-            consumption * grid_rate
-        } else {
-            // We sell excess energy cheaper:
-            consumption * (grid_rate - self.purchase_fee)
-        }
+    fn loss(&self, rate: KilowattHourRate, flow: Flow<KilowattHours>) -> Cost {
+        flow.import * rate - flow.export * (rate - self.purchase_fee)
     }
 }

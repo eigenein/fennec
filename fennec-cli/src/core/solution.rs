@@ -1,15 +1,13 @@
 use std::fmt::{Display, Formatter};
 
-use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets};
+use comfy_table::{Cell, Table, modifiers, presets};
 
-use crate::{
-    core::step::Step,
-    quantity::{Quantity, cost::Cost, energy::KilowattHours},
-};
+use crate::{core::step::Step, quantity::cost::Cost};
 
 #[must_use]
 pub struct Solution {
-    pub cumulative_metrics: CumulativeMetrics,
+    /// Cumulative loss till the end of the forecast period – our primary optimization target.
+    pub loss: Cost,
 
     /// First step associated with this solution.
     ///
@@ -19,51 +17,20 @@ pub struct Solution {
 
 impl Solution {
     /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { cumulative_metrics: CumulativeMetrics::ZERO, step: None };
-}
-
-#[must_use]
-pub struct CumulativeMetrics {
-    /// Cumulative loss till the end of the forecast period – our primary optimization target.
-    pub loss: Cost,
-
-    /// Cumulative charge till the end of the forecast period.
-    pub charge: KilowattHours,
-
-    /// Cumulative discharge till the end of the forecast period.
-    pub discharge: KilowattHours,
-}
-
-impl CumulativeMetrics {
-    pub const ZERO: Self =
-        Self { loss: Quantity::ZERO, charge: Quantity::ZERO, discharge: Quantity::ZERO };
-
-    pub const fn with(self, actual_capacity: KilowattHours, base_loss: Cost) -> SolutionSummary {
-        SolutionSummary { actual_capacity, base_loss, cumulative_metrics: self }
-    }
-
-    pub fn energy_flow(&self) -> KilowattHours {
-        self.charge + self.discharge
-    }
+    pub const BOUNDARY: Self = Self { loss: Cost::ZERO, step: None };
 }
 
 #[must_use]
 pub struct SolutionSummary {
-    actual_capacity: KilowattHours,
-
-    cumulative_metrics: CumulativeMetrics,
+    pub loss: Cost,
 
     /// Estimated loss without using the battery.
-    base_loss: Cost,
+    pub base_loss: Cost,
 }
 
 impl SolutionSummary {
     fn profit(&self) -> Cost {
-        self.base_loss - self.cumulative_metrics.loss
-    }
-
-    pub fn cycles(&self) -> f64 {
-        self.cumulative_metrics.energy_flow() / self.actual_capacity / 2.0
+        self.base_loss - self.loss
     }
 }
 
@@ -74,21 +41,11 @@ impl Display for SolutionSummary {
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
-            .set_header(vec![
-                Cell::from("Net profit"),
-                Cell::from("Cycle profit"),
-                Cell::from("Charge"),
-                Cell::from("Discharge"),
-                Cell::from("Base loss"),
-                Cell::from("Loss"),
-            ])
+            .set_header(vec![Cell::from("Net profit"), Cell::from("Base loss"), Cell::from("Loss")])
             .add_row(vec![
                 Cell::from(self.profit()),
-                Cell::from(self.profit() / self.cycles()).add_attribute(Attribute::Bold),
-                Cell::from(self.cumulative_metrics.charge).fg(Color::Green),
-                Cell::from(self.cumulative_metrics.discharge).fg(Color::Red),
                 Cell::from(self.base_loss),
-                Cell::from(self.cumulative_metrics.loss),
+                Cell::from(self.loss),
             ]);
         write!(f, "{table}")
     }

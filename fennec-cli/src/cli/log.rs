@@ -18,7 +18,7 @@ pub struct LogArgs {
     #[clap(long, env = "BATTERY_POLLING_INTERVAL", default_value = "5s")]
     battery_polling_interval: humantime::Duration,
 
-    #[clap(long, env = "METER_POLLING_INTERVAL", default_value = "10s")]
+    #[clap(long, env = "METER_POLLING_INTERVAL", default_value = "1min")]
     meter_polling_interval: humantime::Duration,
 
     #[clap(long, env = "TOTAL_ENERGY_METER_URL")]

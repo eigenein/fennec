@@ -13,7 +13,10 @@ use crate::{
 #[must_use]
 #[derive(Copy, Clone, Add, Sub, AddAssign)]
 pub struct Flow<T> {
+    /// Importing from grid or charging the battery.
     pub import: T,
+
+    /// Exporting to the grid or discharging the battery.
     pub export: T,
 }
 
@@ -25,7 +28,12 @@ impl Default for Flow<KilowattHours> {
 
 impl<T: Copy> Flow<T> {
     /// Get the reversed flow where the import becomes export and vice versa.
-    pub const fn reversed(self) -> Self {
+    ///
+    /// This is used to off-load unserved battery flow onto the grid:
+    ///
+    /// - Unserved charge becomes grid export
+    /// - Unserved discharge becomes grid import
+    pub const fn reversed(&self) -> Self {
         Self { import: self.export, export: self.import }
     }
 }
@@ -63,6 +71,7 @@ where
 }
 
 impl SystemFlow<KilowattHours> {
+    /// Split the net household deficit into grid and battery energy flows based on the battery working mode.
     pub fn new(
         battery_power_limits: BatteryPowerLimits,
         working_mode: WorkingMode,

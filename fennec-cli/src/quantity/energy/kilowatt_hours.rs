@@ -45,18 +45,6 @@ impl Mul<KilowattHourRate> for KilowattHours {
     }
 }
 
-impl Div<Kilowatts> for KilowattHours {
-    type Output = TimeDelta;
-
-    fn div(self, rhs: Kilowatts) -> Self::Output {
-        let hours = self.0 / rhs.0;
-        assert!(hours.is_finite());
-
-        #[expect(clippy::cast_possible_truncation)]
-        TimeDelta::seconds((hours * 3600.0) as i64)
-    }
-}
-
 impl Div<TimeDelta> for KilowattHours {
     type Output = Kilowatts;
 

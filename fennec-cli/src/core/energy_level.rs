@@ -47,8 +47,8 @@ impl Debug for EnergyLevel {
 impl EnergyLevel {
     /// Convert the quantized energy level back to conventional energy.
     #[expect(clippy::cast_precision_loss)]
-    pub fn dequantize(self, quantizer: Quantum) -> KilowattHours {
-        quantizer.0 * (self.0 as f64)
+    pub fn dequantize(self, quantum: Quantum) -> KilowattHours {
+        quantum.0 * (self.0 as f64)
     }
 
     /// Iterate through the energy levels starting with zero and ending with the current level.

@@ -128,7 +128,8 @@ impl HuntArgs {
             .quantum(self.quantum)
             .build();
         let base_loss = solver.base_loss();
-        let (loss, steps) = solver.solve().backtrack(initial_energy_level)?;
+        let (loss, steps) =
+            solver.solve(battery_state.energy.residual()).backtrack(initial_energy_level)?;
         println!("{}", SolutionSummary { loss, base_loss });
         println!("{}", build_steps_table(&steps));
 

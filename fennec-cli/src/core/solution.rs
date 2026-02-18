@@ -15,11 +15,6 @@ pub struct Solution {
     pub step: Option<Step>,
 }
 
-impl Solution {
-    /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { loss: Cost::ZERO, step: None };
-}
-
 #[must_use]
 pub struct SolutionSummary {
     pub loss: Cost,

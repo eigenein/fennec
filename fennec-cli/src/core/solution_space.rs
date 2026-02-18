@@ -4,10 +4,14 @@ use bon::bon;
 use itertools::Itertools;
 
 use crate::{
-    core::{energy_level::EnergyLevel, solution::Solution, step::Step},
+    core::{
+        energy_level::{EnergyLevel, Quantum},
+        solution::Solution,
+        step::Step,
+    },
     ops::RangeInclusive,
     prelude::*,
-    quantity::cost::Cost,
+    quantity::{cost::Cost, energy::KilowattHours, rate::KilowattHourRate},
 };
 
 #[must_use]
@@ -29,9 +33,24 @@ impl SolutionSpace {
     pub fn new(
         n_intervals: usize,
         #[builder(into)] allowed_energy_levels: RangeInclusive<EnergyLevel>,
+        quantum: Quantum,
+        residual_rate: KilowattHourRate,
+        initial_residual_energy: KilowattHours,
     ) -> Self {
-        let flat_matrix =
-            (0..(n_intervals * (allowed_energy_levels.max.0 + 1))).map(|_| None).collect_vec();
+        let flat_matrix = (0..=n_intervals)
+            .cartesian_product(0..=allowed_energy_levels.max.0)
+            .map(|(interval_index, energy_level)| {
+                (interval_index == n_intervals).then(|| {
+                    // Boundary solution based on the cost of residual energy:
+                    Solution {
+                        loss: (initial_residual_energy
+                            - EnergyLevel(energy_level).dequantize(quantum))
+                            * residual_rate,
+                        step: None,
+                    }
+                })
+            })
+            .collect_vec();
         Self { allowed_energy_levels, n_intervals, flat_matrix }
     }
 }
@@ -43,16 +62,9 @@ impl SolutionSpace {
     #[must_use]
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
         match interval_index.cmp(&self.n_intervals) {
-            Ordering::Less => {
+            Ordering::Less | Ordering::Equal => {
                 if self.allowed_energy_levels.contains(energy_level) {
                     self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
-                } else {
-                    None
-                }
-            }
-            Ordering::Equal => {
-                if self.allowed_energy_levels.contains(energy_level) {
-                    Some(&Solution::BOUNDARY)
                 } else {
                     None
                 }

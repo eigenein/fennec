@@ -15,7 +15,13 @@ use crate::{
     },
     ops::Interval,
     prelude::*,
-    quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    quantity::{
+        Quantity,
+        cost::Cost,
+        energy::KilowattHours,
+        power::Kilowatts,
+        rate::KilowattHourRate,
+    },
     statistics::{
         battery::BatteryEfficiency,
         consumption::ConsumptionStatistics,
@@ -60,17 +66,23 @@ impl Solver<'_> {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(self) -> SolutionSpace {
+    pub fn solve(self, initial_residual_energy: KilowattHours) -> SolutionSpace {
         let start_instant = Instant::now();
 
         let max_energy_level = self.quantum.ceil(self.max_residual_energy);
         info!(?self.quantum, ?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
+
+        let minimum_rate =
+            self.grid_rates.iter().map(|(_, rate)| *rate).min().unwrap_or(Quantity::ZERO);
 
         let mut solutions = SolutionSpace::builder()
             .n_intervals(self.grid_rates.len())
             .allowed_energy_levels(
                 self.quantum.quantize(self.min_residual_energy)..=max_energy_level,
             )
+            .quantum(self.quantum)
+            .residual_rate(minimum_rate)
+            .initial_residual_energy(initial_residual_energy)
             .build();
 
         // Going backwards:

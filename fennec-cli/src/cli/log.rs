@@ -3,7 +3,10 @@ use std::time::Duration;
 use bon::Builder;
 use clap::Parser;
 use reqwest::Url;
-use tokio::{time::sleep, try_join};
+use tokio::{
+    time::{MissedTickBehavior, interval},
+    try_join,
+};
 
 use crate::{
     api::{heartbeat, homewizard, modbus::foxess::EnergyStateClients},
@@ -86,7 +89,13 @@ struct LegacyConsumptionLogger {
 
 impl LegacyConsumptionLogger {
     async fn run(self) -> Result {
+        let mut interval = interval(self.interval);
+        interval.reset_after(self.interval);
+        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
         loop {
+            interval.tick().await;
+
             let (grid_metrics, battery_metrics) = tokio::try_join!(
                 self.grid_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement(),
@@ -96,8 +105,8 @@ impl LegacyConsumptionLogger {
                 .build();
             info!(deficit = ?entry.net_deficit, "consumption log");
             entry.insert_into(&self.db).await?;
+
             self.heartbeat.send().await;
-            sleep(self.interval).await;
         }
     }
 }
@@ -116,7 +125,13 @@ struct Logger {
 
 impl Logger {
     async fn run(self) -> Result {
+        let mut interval = interval(self.interval);
+        interval.reset_after(self.interval);
+        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
         loop {
+            interval.tick().await;
+
             let (battery_state, battery_metrics, grid_metrics) = try_join!(
                 self.energy_state_clients.read(),
                 self.battery_meter_client.get_measurement(),
@@ -143,7 +158,6 @@ impl Logger {
                 entry.insert_into(&self.db).await?;
             }
 
-            info!(active_power = ?grid_metrics.active_power, "grid meter");
             power::Measurement::builder()
                 .deficit(grid_metrics.active_power - battery_metrics.active_power)
                 .build()
@@ -151,7 +165,6 @@ impl Logger {
                 .await?;
 
             self.heartbeat.send().await;
-            sleep(self.interval).await;
         }
     }
 }

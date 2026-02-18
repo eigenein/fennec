@@ -16,7 +16,7 @@ impl Api {
         Ok(Self { client, resolution })
     }
 
-    #[instrument(skip_all)]
+    #[instrument(skip_all, fields(on = ?on))]
     pub async fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
         debug!(?on, "fetching…");
         let Some(data) = self

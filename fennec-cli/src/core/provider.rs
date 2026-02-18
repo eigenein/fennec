@@ -1,4 +1,4 @@
-use chrono::{Days, NaiveDate};
+use chrono::NaiveDate;
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
@@ -32,17 +32,6 @@ impl Provider {
         }
     }
 
-    pub async fn get_rates_two_days(
-        self,
-        since: NaiveDate,
-    ) -> Result<Vec<(Interval, KilowattHourRate)>> {
-        let mut rates = self.get_rates(since).await?;
-        let next_date = since.checked_add_days(Days::new(1)).unwrap();
-        rates.extend(self.get_rates(next_date).await?);
-        Ok(rates)
-    }
-
-    #[instrument(skip_all)]
     pub async fn get_rates(self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
         match self {
             Self::NextEnergy => next_energy::Api::new()?.get_rates(on).await,

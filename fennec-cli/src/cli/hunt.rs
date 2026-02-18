@@ -1,4 +1,4 @@
-use chrono::{Local, Timelike};
+use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
 use itertools::Itertools;
@@ -15,6 +15,7 @@ use crate::{
         working_mode::WorkingMode,
     },
     db::{battery, consumption},
+    ops::Interval,
     prelude::*,
     quantity::rate::KilowattHourRate,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
@@ -74,21 +75,10 @@ impl HuntArgs {
     #[instrument(skip_all)]
     pub async fn run(self) -> Result {
         let db = self.db.connect().await?;
-
         let fox_ess = foxcloud::Api::new(self.fox_ess_api.api_key.clone())?;
         let working_modes = self.working_modes();
-
         let now = Local::now().with_nanosecond(0).unwrap();
-        let grid_rates = self
-            .provider
-            .get_rates_two_days(now.date_naive())
-            .await?
-            .into_iter()
-            .filter(|(interval, _)| interval.end > now)
-            .collect_vec();
-
-        ensure!(!grid_rates.is_empty());
-        info!(len = grid_rates.len(), "fetched energy rates");
+        let grid_rates = self.get_rates(now).await?;
 
         let battery_state = self.battery.connection.connect().await?.read().await?;
         info!(
@@ -143,5 +133,28 @@ impl HuntArgs {
 
         heartbeat::Client::new(self.heartbeat_url).send().await;
         Ok(())
+    }
+
+    #[instrument(skip_all, fields(now = ?now))]
+    async fn get_rates(&self, now: DateTime<Local>) -> Result<Vec<(Interval, KilowattHourRate)>> {
+        const ONE_DAY: Days = Days::new(1);
+
+        let today = now.date_naive();
+        let today_rates = self.provider.get_rates(today).await?;
+        ensure!(!today_rates.is_empty());
+
+        let mut tomorrow_rates =
+            self.provider.get_rates(today.checked_add_days(ONE_DAY).unwrap()).await?;
+        if tomorrow_rates.is_empty() {
+            warn!("using today's rates for tomorrow");
+            tomorrow_rates =
+                today_rates.iter().map(|(interval, rate)| (*interval + ONE_DAY, *rate)).collect();
+        }
+
+        let mut rates = today_rates;
+        rates.extend(tomorrow_rates);
+        rates.retain(|(interval, _)| interval.end > now);
+        info!(len = rates.len(), "fetched energy rates");
+        Ok(rates)
     }
 }

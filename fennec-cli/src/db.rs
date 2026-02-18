@@ -1,7 +1,6 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 
 use bson::{deserialize_from_document, doc, serialize_to_document};
-use chrono::{DateTime, Local};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use mongodb::{
@@ -11,9 +10,13 @@ use mongodb::{
     options::{ReturnDocument, TimeseriesOptions},
 };
 
-use crate::{db::state::ApplicationState, prelude::*};
+use crate::{
+    db::{commands::set_expiration_time, state::ApplicationState},
+    prelude::*,
+};
 
 pub mod battery;
+mod commands;
 pub mod consumption;
 mod measurement;
 pub mod state;
@@ -32,7 +35,7 @@ impl Db {
 
     /// Connect to the database with the specified URI.
     ///
-    /// The URO *must* specify the database name.
+    /// The URI *must* specify the database name.
     #[instrument(skip_all)]
     pub async fn with_uri(uri: impl AsRef<str> + Debug) -> Result<Self> {
         let client = Client::with_uri_str(uri).await?;
@@ -40,21 +43,35 @@ impl Db {
             .default_database()
             .context("MongoDB URI does not define the default database")?;
         let this = Self { client, inner };
-        this.initialize_time_series::<battery::Measurement>().await?;
-        this.initialize_time_series::<consumption::Measurement>().await?;
+        this.create_time_series::<battery::Measurement>().await?;
+        this.create_time_series::<consumption::Measurement>().await?;
         Ok(this)
     }
 
+    /// Set expiration time for all the time series.
+    #[instrument(skip_all, fields(expiration_time=?expiration_time))]
+    pub async fn set_expiration_time(&self, expiration_time: Duration) -> Result {
+        self.inner
+            .run_command(set_expiration_time::<battery::Measurement>(expiration_time)?)
+            .await?;
+        self.inner
+            .run_command(set_expiration_time::<consumption::Measurement>(expiration_time)?)
+            .await?;
+        Ok(())
+    }
+
+    /// Read all the persisted measurements.
+    ///
+    /// The measurements get evicted by the database based on the set expiration time.
     #[instrument(skip_all)]
     pub async fn measurements<M: Measurement>(
         &self,
-        since: DateTime<Local>,
     ) -> Result<impl TryStream<Ok = M, Error = Error>> {
-        info!(collection_name = M::COLLECTION_NAME, ?since, "querying logs…");
+        info!(collection_name = M::COLLECTION_NAME, "querying logs…");
         Ok(self
             .inner
             .collection::<M>(M::COLLECTION_NAME)
-            .find(doc! { "timestamp": { "$gte": since } })
+            .find(doc! {})
             .sort(doc! { "timestamp": 1 })
             .await
             .context("failed to query the battery logs")?
@@ -101,26 +118,20 @@ impl Db {
 
     /// Initialize the underlying time-series collection.
     #[instrument(skip_all, fields(collection_name = M::COLLECTION_NAME))]
-    async fn initialize_time_series<M: Measurement>(&self) -> Result {
+    async fn create_time_series<M: Measurement>(&self) -> Result {
         let options = TimeseriesOptions::builder()
             .time_field("timestamp")
             .granularity(M::GRANULARITY)
             .build();
         self.inner.create_collection(M::COLLECTION_NAME).timeseries(options).await.or_else(
-            |error| match error.kind.as_ref() {
+            |error| match *error.kind {
                 ErrorKind::Command(error) if error.code == 48 => {
-                    warn!("collection already exists");
+                    info!("collection already exists");
                     Ok(())
                 }
                 _ => Err(error),
             },
         )?;
-        self.inner
-            .run_command(doc! {
-                "collMod": M::COLLECTION_NAME,
-                "expireAfterSeconds": M::EXPIRE_AFTER_SECONDS,
-            })
-            .await?;
         Ok(())
     }
 }

@@ -94,8 +94,8 @@ impl BatteryEfficiency {
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
-            let imported_energy = log.metrics.import - previous.metrics.import;
-            let exported_energy = log.metrics.export - previous.metrics.export;
+            let imported_energy = log.import - previous.import;
+            let exported_energy = log.export - previous.export;
             let hours = {
                 let time_delta = log.timestamp - previous.timestamp;
                 total_time += time_delta;

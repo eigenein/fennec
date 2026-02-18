@@ -50,13 +50,13 @@ impl Client {
 #[must_use]
 #[derive(Copy, Clone, Serialize, Deserialize, Builder)]
 pub struct EnergyMetrics {
-    #[serde(rename(serialize = "activePowerWatts", deserialize = "active_power_w"))]
+    #[serde(rename = "active_power_w")]
     pub active_power: Watts,
 
-    #[serde(rename(serialize = "importKilowattHours", deserialize = "total_power_import_kwh"))]
+    #[serde(rename = "total_power_import_kwh")]
     pub import: KilowattHours,
 
-    #[serde(rename(serialize = "exportKilowattHours", deserialize = "total_power_export_kwh"))]
+    #[serde(rename = "total_power_export_kwh")]
     pub export: KilowattHours,
 }
 

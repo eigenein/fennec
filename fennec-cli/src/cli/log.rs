@@ -27,6 +27,9 @@ pub struct LogArgs {
     #[clap(long, env = "BATTERY_ENERGY_METER_URL")]
     battery_energy_meter_url: Url,
 
+    #[clap(long, env = "MEASUREMENT_EXPIRATION_TIME", default_value = "14days")]
+    measurement_expiration_time: humantime::Duration,
+
     #[clap(flatten)]
     db: DbArgs,
 
@@ -43,6 +46,7 @@ pub struct LogArgs {
 impl LogArgs {
     pub async fn run(self) -> Result {
         let db = self.db.connect().await?;
+        db.set_expiration_time(self.measurement_expiration_time.into()).await?;
         let battery_meter_client = homewizard::Client::new(self.battery_energy_meter_url.clone())?;
 
         let battery_logger = BatteryLogger::builder()
@@ -122,11 +126,13 @@ impl BatteryLogger {
             if let Some(last_known_residual_energy) = last_known_residual_energy
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
+                let metrics = self.meter_client.get_measurement().await?;
                 let entry = battery::Measurement::builder()
                     .residual_energy(battery_state.residual_millis())
-                    .metrics(self.meter_client.get_measurement().await?)
+                    .import(metrics.import)
+                    .export(metrics.export)
                     .build();
-                info!(residual = ?entry.residual_energy, import = ?entry.metrics.import, export = ?entry.metrics.export, "battery log");
+                info!(residual = ?entry.residual_energy, import = ?entry.import, export = ?entry.export, "battery log");
                 entry.insert_into(&self.db).await?;
             }
             self.heartbeat.send().await;

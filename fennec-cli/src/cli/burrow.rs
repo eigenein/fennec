@@ -53,7 +53,7 @@ pub struct BurrowBatteryArgs {
 impl BurrowBatteryArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let logs = db.measurements::<battery::Measurement>(self.estimation.since()).await?;
+        let logs = db.measurements::<battery::Measurement>().await?;
         let _ = BatteryEfficiency::try_estimate(logs, self.estimation.weight_mode).await?;
         db.shutdown().await;
         Ok(())
@@ -75,7 +75,7 @@ pub struct BurrowConsumptionArgs {
 impl BurrowConsumptionArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let logs = db.measurements::<consumption::Measurement>(self.estimation.since()).await?;
+        let logs = db.measurements::<consumption::Measurement>().await?;
         let statistics = ConsumptionStatistics::try_estimate(self.power_limits, logs).await?;
         db.shutdown().await;
         println!("{statistics}");

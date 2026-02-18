@@ -5,7 +5,10 @@ use http::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::{prelude::*, quantity::energy::KilowattHours};
+use crate::{
+    prelude::*,
+    quantity::{energy::KilowattHours, power::Watts},
+};
 
 #[derive(Clone)]
 pub struct Client {
@@ -47,10 +50,13 @@ impl Client {
 #[must_use]
 #[derive(Copy, Clone, Serialize, Deserialize, Builder)]
 pub struct EnergyMetrics {
-    #[serde(rename = "importKilowattHours", alias = "total_power_import_kwh")]
+    #[serde(rename(serialize = "activePowerWatts", deserialize = "active_power_w"))]
+    pub active_power: Watts,
+
+    #[serde(rename(serialize = "importKilowattHours", deserialize = "total_power_import_kwh"))]
     pub import: KilowattHours,
 
-    #[serde(rename = "exportKilowattHours", alias = "total_power_export_kwh")]
+    #[serde(rename(serialize = "exportKilowattHours", deserialize = "total_power_export_kwh"))]
     pub export: KilowattHours,
 }
 

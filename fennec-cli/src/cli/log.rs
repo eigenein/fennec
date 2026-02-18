@@ -8,7 +8,7 @@ use tokio::time::sleep;
 use crate::{
     api::{heartbeat, homewizard, modbus::foxess::EnergyStateClients},
     cli::{battery::BatteryEnergyStateUrls, db::DbArgs},
-    db::{Db, TimeSeries, battery, consumption, state::BatteryResidualEnergy},
+    db::{Db, Measurement, battery, consumption, state::BatteryResidualEnergy},
     prelude::*,
     quantity::energy::MilliwattHours,
 };
@@ -85,7 +85,7 @@ impl ConsumptionLogger {
                 self.total_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement(),
             )?;
-            let entry = consumption::LogEntry::builder()
+            let entry = consumption::Measurement::builder()
                 .net_deficit(total_metrics.net_import() - battery_metrics.net_import())
                 .build();
             info!(deficit = ?entry.net_deficit, "consumption log");
@@ -122,7 +122,7 @@ impl BatteryLogger {
             if let Some(last_known_residual_energy) = last_known_residual_energy
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
-                let entry = battery::LogEntry::builder()
+                let entry = battery::Measurement::builder()
                     .residual_energy(battery_state.residual_millis())
                     .metrics(self.meter_client.get_measurement().await?)
                     .build();

@@ -4,16 +4,21 @@ use bson::{deserialize_from_document, doc, serialize_to_document};
 use chrono::{DateTime, Local};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
-use mongodb::{Client, Database, options::ReturnDocument};
+use mongodb::{
+    Client,
+    Database,
+    error::ErrorKind,
+    options::{ReturnDocument, TimeseriesOptions},
+};
 
 use crate::{db::state::ApplicationState, prelude::*};
 
 pub mod battery;
 pub mod consumption;
-mod log;
+mod measurement;
 pub mod state;
 
-pub use self::log::TimeSeries;
+pub use self::measurement::Measurement;
 
 #[must_use]
 #[derive(Clone)]
@@ -35,20 +40,20 @@ impl Db {
             .default_database()
             .context("MongoDB URI does not define the default database")?;
         let this = Self { client, inner };
-        battery::LogEntry::initialize(&this).await?;
-        consumption::LogEntry::initialize(&this).await?;
+        this.initialize_time_series::<battery::Measurement>().await?;
+        this.initialize_time_series::<consumption::Measurement>().await?;
         Ok(this)
     }
 
     #[instrument(skip_all)]
-    pub async fn find_logs<L: TimeSeries>(
+    pub async fn measurements<M: Measurement>(
         &self,
         since: DateTime<Local>,
-    ) -> Result<impl TryStream<Ok = L, Error = Error>> {
-        info!(collection_name = L::COLLECTION_NAME, ?since, "querying logs…");
+    ) -> Result<impl TryStream<Ok = M, Error = Error>> {
+        info!(collection_name = M::COLLECTION_NAME, ?since, "querying logs…");
         Ok(self
             .inner
-            .collection::<L>(L::COLLECTION_NAME)
+            .collection::<M>(M::COLLECTION_NAME)
             .find(doc! { "timestamp": { "$gte": since } })
             .sort(doc! { "timestamp": 1 })
             .await
@@ -92,5 +97,30 @@ impl Db {
 
     pub async fn shutdown(self) {
         self.client.shutdown().await;
+    }
+
+    /// Initialize the underlying time-series collection.
+    #[instrument(skip_all, fields(collection_name = M::COLLECTION_NAME))]
+    async fn initialize_time_series<M: Measurement>(&self) -> Result {
+        let options = TimeseriesOptions::builder()
+            .time_field("timestamp")
+            .granularity(M::GRANULARITY)
+            .build();
+        self.inner.create_collection(M::COLLECTION_NAME).timeseries(options).await.or_else(
+            |error| match error.kind.as_ref() {
+                ErrorKind::Command(error) if error.code == 48 => {
+                    warn!("collection already exists");
+                    Ok(())
+                }
+                _ => Err(error),
+            },
+        )?;
+        self.inner
+            .run_command(doc! {
+                "collMod": M::COLLECTION_NAME,
+                "expireAfterSeconds": M::EXPIRE_AFTER_SECONDS,
+            })
+            .await?;
+        Ok(())
     }
 }

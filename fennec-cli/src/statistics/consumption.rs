@@ -13,7 +13,7 @@ use itertools::Itertools;
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::{WorkingMode, WorkingModeMap},
-    db::consumption::LogEntry,
+    db::consumption::Measurement,
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
     statistics::{flow::SystemFlow, integrator::Integrator},
@@ -35,7 +35,7 @@ impl ConsumptionStatistics {
         mut logs: T,
     ) -> Result<Self>
     where
-        T: TryStream<Ok = LogEntry, Error = Error> + Unpin,
+        T: TryStream<Ok = Measurement, Error = Error> + Unpin,
     {
         info!("crunching consumption logs…");
         let start_time = Instant::now();

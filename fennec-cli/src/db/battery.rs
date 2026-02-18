@@ -1,15 +1,16 @@
 use bon::Builder;
 use bson::doc;
 use chrono::{DateTime, Utc};
+use mongodb::options::TimeseriesGranularity;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{api::homewizard::EnergyMetrics, db::log::TimeSeries, quantity::energy::KilowattHours};
+use crate::{api::homewizard::EnergyMetrics, db, quantity::energy::KilowattHours};
 
 /// Battery energy meter entry.
 #[serde_as]
 #[derive(Serialize, Deserialize, Builder)]
-pub struct LogEntry {
+pub struct Measurement {
     #[serde_as(as = "bson::serde_helpers::datetime::FromChrono04DateTime")]
     #[serde(rename = "timestamp")]
     #[builder(default = Utc::now())]
@@ -23,6 +24,7 @@ pub struct LogEntry {
     pub metrics: EnergyMetrics,
 }
 
-impl TimeSeries for LogEntry {
+impl db::Measurement for Measurement {
     const COLLECTION_NAME: &'static str = "batteryLogs";
+    const GRANULARITY: TimeseriesGranularity = TimeseriesGranularity::Minutes;
 }

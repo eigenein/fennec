@@ -1,14 +1,15 @@
 use bon::Builder;
 use chrono::{DateTime, Timelike, Utc};
+use mongodb::options::TimeseriesGranularity;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{db::log::TimeSeries, quantity::energy::KilowattHours};
+use crate::{db, quantity::energy::KilowattHours};
 
 /// Household energy meter log entry.
 #[serde_as]
 #[derive(Serialize, Deserialize, Builder)]
-pub struct LogEntry {
+pub struct Measurement {
     #[serde_as(as = "bson::serde_helpers::datetime::FromChrono04DateTime")]
     #[serde(rename = "timestamp")]
     #[builder(default = Utc::now())]
@@ -21,7 +22,7 @@ pub struct LogEntry {
     pub net_deficit: KilowattHours,
 }
 
-impl LogEntry {
+impl Measurement {
     /// Check whether the other log entry belongs to the same day and hour.
     #[must_use]
     pub fn same_hour_as(&self, other: &Self) -> bool {
@@ -30,6 +31,7 @@ impl LogEntry {
     }
 }
 
-impl TimeSeries for LogEntry {
+impl db::Measurement for Measurement {
     const COLLECTION_NAME: &str = "consumptionLogs";
+    const GRANULARITY: TimeseriesGranularity = TimeseriesGranularity::Minutes;
 }

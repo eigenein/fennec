@@ -5,9 +5,15 @@ use std::{
 
 use chrono::TimeDelta;
 
-use crate::quantity::{Quantity, energy::KilowattHours};
+use crate::quantity::{Quantity, energy::KilowattHours, power::Watts};
 
 pub type Kilowatts = Quantity<1, 0, 0>;
+
+impl From<Watts> for Kilowatts {
+    fn from(watts: Watts) -> Self {
+        Self(watts.0 / 1000.0)
+    }
+}
 
 impl Display for Kilowatts {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

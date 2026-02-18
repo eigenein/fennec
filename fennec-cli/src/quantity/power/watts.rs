@@ -1,9 +1,12 @@
 use std::fmt::{Debug, Display, Formatter};
 
+use derive_more::Sub;
+use serde::{Deserialize, Serialize};
+
 use crate::quantity::power::kilowatts::Kilowatts;
 
-#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Watts(f64);
+#[derive(Copy, Clone, Sub, Serialize, Deserialize)]
+pub struct Watts(pub f64);
 
 impl From<Kilowatts> for Watts {
     fn from(kilowatts: Kilowatts) -> Self {

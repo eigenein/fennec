@@ -3,12 +3,12 @@ use std::time::Duration;
 use bon::Builder;
 use clap::Parser;
 use reqwest::Url;
-use tokio::time::sleep;
+use tokio::{time::sleep, try_join};
 
 use crate::{
     api::{heartbeat, homewizard, modbus::foxess::EnergyStateClients},
     cli::{battery::BatteryEnergyStateUrls, db::DbArgs},
-    db::{Db, Measurement, battery, consumption, state::BatteryResidualEnergy},
+    db::{Db, Measurement, battery, consumption, power, state::BatteryResidualEnergy},
     prelude::*,
     quantity::energy::MilliwattHours,
 };
@@ -47,24 +47,26 @@ impl LogArgs {
     pub async fn run(self) -> Result {
         let db = self.db.connect().await?;
         db.set_expiration_time(self.measurement_expiration_time.into()).await?;
-        let battery_meter_client = homewizard::Client::new(self.battery_energy_meter_url.clone())?;
+        let grid_meter_client = homewizard::Client::new(self.total_energy_meter_url)?;
+        let battery_meter_client = homewizard::Client::new(self.battery_energy_meter_url)?;
 
-        let battery_logger = BatteryLogger::builder()
+        let logger = Logger::builder()
             .db(db.clone())
             .heartbeat(heartbeat::Client::new(self.battery_heartbeat_url.clone()))
             .interval(self.battery_polling_interval)
             .energy_state_clients(self.battery_energy_state_urls.connect().await?)
-            .meter_client(battery_meter_client.clone())
+            .battery_meter_client(battery_meter_client.clone())
+            .grid_meter_client(grid_meter_client.clone())
             .build();
-        let consumption_logger = ConsumptionLogger::builder()
+        let legacy_consumption_logger = LegacyConsumptionLogger::builder()
             .interval(self.meter_polling_interval)
             .db(db.clone())
             .heartbeat(heartbeat::Client::new(self.consumption_heartbeat_url.clone()))
-            .total_meter_client(homewizard::Client::new(self.total_energy_meter_url.clone())?)
+            .grid_meter_client(grid_meter_client)
             .battery_meter_client(battery_meter_client)
             .build();
 
-        let result = tokio::try_join!(battery_logger.run(), consumption_logger.run());
+        let result = tokio::try_join!(logger.run(), legacy_consumption_logger.run());
         db.shutdown().await;
         result?;
         Ok(())
@@ -72,9 +74,9 @@ impl LogArgs {
 }
 
 #[derive(Builder)]
-struct ConsumptionLogger {
+struct LegacyConsumptionLogger {
     battery_meter_client: homewizard::Client,
-    total_meter_client: homewizard::Client,
+    grid_meter_client: homewizard::Client,
     db: Db,
     heartbeat: heartbeat::Client,
 
@@ -82,15 +84,15 @@ struct ConsumptionLogger {
     interval: Duration,
 }
 
-impl ConsumptionLogger {
+impl LegacyConsumptionLogger {
     async fn run(self) -> Result {
         loop {
-            let (total_metrics, battery_metrics) = tokio::try_join!(
-                self.total_meter_client.get_measurement(),
+            let (grid_metrics, battery_metrics) = tokio::try_join!(
+                self.grid_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement(),
             )?;
             let entry = consumption::Measurement::builder()
-                .net_deficit(total_metrics.net_import() - battery_metrics.net_import())
+                .net_deficit(grid_metrics.net_import() - battery_metrics.net_import())
                 .build();
             info!(deficit = ?entry.net_deficit, "consumption log");
             entry.insert_into(&self.db).await?;
@@ -101,9 +103,10 @@ impl ConsumptionLogger {
 }
 
 #[derive(Builder)]
-struct BatteryLogger {
+struct Logger {
     energy_state_clients: EnergyStateClients,
-    meter_client: homewizard::Client,
+    battery_meter_client: homewizard::Client,
+    grid_meter_client: homewizard::Client,
     db: Db,
     heartbeat: heartbeat::Client,
 
@@ -111,30 +114,42 @@ struct BatteryLogger {
     interval: Duration,
 }
 
-impl BatteryLogger {
+impl Logger {
     async fn run(self) -> Result {
         loop {
-            let battery_state = self.energy_state_clients.read().await?;
+            let (battery_state, battery_metrics, grid_metrics) = try_join!(
+                self.energy_state_clients.read(),
+                self.battery_meter_client.get_measurement(),
+                self.grid_meter_client.get_measurement()
+            )?;
+
             info!(residual = ?battery_state.residual_millis(), "battery state");
-            let last_known_residual_energy = self
+            let previous_residual_energy = self
                 .db
                 .set_application_state(&BatteryResidualEnergy::from(
                     battery_state.residual_millis(),
                 ))
                 .await?
                 .map(MilliwattHours::from);
-            if let Some(last_known_residual_energy) = last_known_residual_energy
+            if let Some(last_known_residual_energy) = previous_residual_energy
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
-                let metrics = self.meter_client.get_measurement().await?;
                 let entry = battery::Measurement::builder()
                     .residual_energy(battery_state.residual_millis())
-                    .import(metrics.import)
-                    .export(metrics.export)
+                    .import(battery_metrics.import)
+                    .export(battery_metrics.export)
                     .build();
                 info!(residual = ?entry.residual_energy, import = ?entry.import, export = ?entry.export, "battery log");
                 entry.insert_into(&self.db).await?;
             }
+
+            info!(active_power = ?grid_metrics.active_power, "grid meter");
+            power::Measurement::builder()
+                .deficit(grid_metrics.active_power - battery_metrics.active_power)
+                .build()
+                .insert_into(&self.db)
+                .await?;
+
             self.heartbeat.send().await;
             sleep(self.interval).await;
         }

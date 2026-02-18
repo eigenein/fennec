@@ -19,6 +19,7 @@ pub mod battery;
 mod commands;
 pub mod consumption;
 mod measurement;
+pub mod power;
 pub mod state;
 
 pub use self::measurement::Measurement;
@@ -45,6 +46,7 @@ impl Db {
         let this = Self { client, inner };
         this.create_time_series::<battery::Measurement>().await?;
         this.create_time_series::<consumption::Measurement>().await?;
+        this.create_time_series::<power::Measurement>().await?;
         Ok(this)
     }
 
@@ -57,6 +59,7 @@ impl Db {
         self.inner
             .run_command(set_expiration_time::<consumption::Measurement>(expiration_time)?)
             .await?;
+        self.inner.run_command(set_expiration_time::<power::Measurement>(expiration_time)?).await?;
         Ok(())
     }
 

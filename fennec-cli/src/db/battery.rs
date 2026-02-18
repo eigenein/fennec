@@ -9,11 +9,12 @@ use crate::{db, quantity::energy::KilowattHours};
 
 /// Battery energy meter entry.
 #[serde_as]
-#[derive(Serialize, Deserialize, Builder)]
+#[derive(derive_more::Debug, Serialize, Deserialize, Builder)]
 pub struct Measurement {
     #[serde_as(as = "bson::serde_helpers::datetime::FromChrono04DateTime")]
     #[serde(rename = "timestamp")]
     #[builder(default = Utc::now())]
+    #[debug(skip)]
     pub timestamp: DateTime<Utc>,
 
     #[serde(rename = "residualEnergyKilowattHours")]

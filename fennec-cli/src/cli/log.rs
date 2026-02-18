@@ -100,11 +100,11 @@ impl LegacyConsumptionLogger {
                 self.grid_meter_client.get_measurement(),
                 self.battery_meter_client.get_measurement(),
             )?;
-            let entry = consumption::Measurement::builder()
+            consumption::Measurement::builder()
                 .net_deficit(grid_metrics.net_import() - battery_metrics.net_import())
-                .build();
-            info!(deficit = ?entry.net_deficit, "consumption log");
-            entry.insert_into(&self.db).await?;
+                .build()
+                .insert_into(&self.db)
+                .await?;
 
             self.heartbeat.send().await;
         }
@@ -138,7 +138,6 @@ impl Logger {
                 self.grid_meter_client.get_measurement()
             )?;
 
-            info!(residual = ?battery_state.residual_millis(), "battery state");
             let previous_residual_energy = self
                 .db
                 .set_application_state(&BatteryResidualEnergy::from(
@@ -149,17 +148,17 @@ impl Logger {
             if let Some(last_known_residual_energy) = previous_residual_energy
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
-                let entry = battery::Measurement::builder()
+                battery::Measurement::builder()
                     .residual_energy(battery_state.residual_millis())
                     .import(battery_metrics.import)
                     .export(battery_metrics.export)
-                    .build();
-                info!(residual = ?entry.residual_energy, import = ?entry.import, export = ?entry.export, "battery log");
-                entry.insert_into(&self.db).await?;
+                    .build()
+                    .insert_into(&self.db)
+                    .await?;
             }
 
             power::Measurement::builder()
-                .deficit(grid_metrics.active_power - battery_metrics.active_power)
+                .net(grid_metrics.active_power - battery_metrics.active_power)
                 .build()
                 .insert_into(&self.db)
                 .await?;

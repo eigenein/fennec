@@ -98,9 +98,9 @@ impl Db {
     }
 
     /// Replace the typed global state and return the previous value.
-    #[instrument(skip_all, fields(id = ?S::ID))]
+    #[instrument(skip_all)]
     pub async fn set_application_state<S: ApplicationState>(&self, state: &S) -> Result<Option<S>> {
-        info!("saving the state…");
+        info!("{state:?}");
         let filter = doc! { "_id": S::ID };
         let mut replacement = serialize_to_document(state)?;
         replacement.insert("_id", S::ID);

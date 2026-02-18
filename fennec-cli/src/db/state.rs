@@ -1,16 +1,18 @@
+use std::fmt::Debug;
+
 use bson::doc;
 use derive_more::{From, Into};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::quantity::energy::MilliwattHours;
 
-pub trait ApplicationState: Serialize + DeserializeOwned {
+pub trait ApplicationState: Debug + Serialize + DeserializeOwned {
     const ID: &str;
 }
 
 /// Last known battery residual energy.
 #[must_use]
-#[derive(Copy, Clone, Serialize, Deserialize, From, Into)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, From, Into)]
 pub struct BatteryResidualEnergy {
     #[serde(rename = "milliwattHours")]
     residual_energy: MilliwattHours,

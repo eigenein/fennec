@@ -8,7 +8,7 @@ use crate::{
         estimation::EstimationArgs,
         foxess::FoxEssApiArgs,
     },
-    db::{battery, consumption},
+    db::{battery, power},
     prelude::*,
     statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
 };
@@ -75,7 +75,7 @@ pub struct BurrowConsumptionArgs {
 impl BurrowConsumptionArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let logs = db.measurements::<consumption::Measurement>().await?;
+        let logs = db.measurements::<power::Measurement>().await?;
         let statistics = ConsumptionStatistics::try_estimate(self.power_limits, logs).await?;
         db.shutdown().await;
         println!("{statistics}");

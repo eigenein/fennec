@@ -17,7 +17,6 @@ use crate::{
 
 pub mod battery;
 mod commands;
-pub mod consumption;
 mod measurement;
 pub mod power;
 pub mod state;
@@ -45,7 +44,6 @@ impl Db {
             .context("MongoDB URI does not define the default database")?;
         let this = Self { client, inner };
         this.create_time_series::<battery::Measurement>().await?;
-        this.create_time_series::<consumption::Measurement>().await?;
         this.create_time_series::<power::Measurement>().await?;
         Ok(this)
     }
@@ -55,9 +53,6 @@ impl Db {
     pub async fn set_expiration_time(&self, expiration_time: Duration) -> Result {
         self.inner
             .run_command(set_expiration_time::<battery::Measurement>(expiration_time)?)
-            .await?;
-        self.inner
-            .run_command(set_expiration_time::<consumption::Measurement>(expiration_time)?)
             .await?;
         self.inner.run_command(set_expiration_time::<power::Measurement>(expiration_time)?).await?;
         Ok(())

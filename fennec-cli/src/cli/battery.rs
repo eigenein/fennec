@@ -5,7 +5,7 @@ use clap::Parser;
 use crate::{
     api::{modbus, modbus::foxess},
     prelude::*,
-    quantity::power::Kilowatts,
+    quantity::power::Watts,
 };
 
 #[must_use]
@@ -62,21 +62,17 @@ impl BatteryEnergyStateUrls {
 #[must_use]
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryPowerLimits {
-    /// Charging power in kilowatts.
-    #[clap(
-        long = "charging-power-kilowatts",
-        default_value = "1.2",
-        env = "CHARGING_POWER_KILOWATTS"
-    )]
-    pub charging: Kilowatts,
+    /// Charging power in watts.
+    #[clap(long = "charging-power-watts", default_value = "1200", env = "CHARGING_POWER_WATTS")]
+    pub charging: Watts,
 
-    /// Discharging power in kilowatts.
+    /// Discharging power in watts.
     #[clap(
-        long = "discharging-power-kilowatts",
-        default_value = "0.8",
-        env = "DISCHARGING_POWER_KILOWATTS"
+        long = "discharging-power-watts",
+        default_value = "800",
+        env = "DISCHARGING_POWER_WATTS"
     )]
-    pub discharging: Kilowatts,
+    pub discharging: Watts,
 }
 
 #[derive(Parser)]

@@ -1,6 +1,6 @@
 use std::{
     fmt::{Display, Formatter},
-    ops::{Div, Index, IndexMut},
+    ops::{Div, Index, IndexMut, Mul},
 };
 
 use comfy_table::Color;
@@ -93,6 +93,20 @@ impl<V> IndexMut<WorkingMode> for WorkingModeMap<V> {
             WorkingMode::SelfUse => &mut self.self_use,
             WorkingMode::Charge => &mut self.charge,
             WorkingMode::Discharge => &mut self.discharge,
+        }
+    }
+}
+
+impl<V: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for WorkingModeMap<V> {
+    type Output = WorkingModeMap<<V as Mul<Rhs>>::Output>;
+
+    fn mul(self, rhs: Rhs) -> Self::Output {
+        WorkingModeMap {
+            idle: self.idle * rhs,
+            harvest: self.harvest * rhs,
+            self_use: self.self_use * rhs,
+            charge: self.charge * rhs,
+            discharge: self.discharge * rhs,
         }
     }
 }

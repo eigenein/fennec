@@ -60,12 +60,6 @@ pub struct EnergyMetrics {
     pub export: KilowattHours,
 }
 
-impl EnergyMetrics {
-    pub fn net_import(self) -> KilowattHours {
-        self.import - self.export
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

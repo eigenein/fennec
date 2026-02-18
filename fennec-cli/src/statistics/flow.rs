@@ -6,7 +6,10 @@ use derive_more::{Add, AddAssign, Sub};
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode,
-    quantity::{Quantity, energy::KilowattHours, power::Kilowatts},
+    quantity::{
+        energy::KilowattHours,
+        power::{Kilowatts, Watts},
+    },
 };
 
 /// Generic bidirectional energy flow.
@@ -38,8 +41,8 @@ impl<T: Copy> Flow<T> {
     }
 }
 
-impl Mul<TimeDelta> for Flow<Kilowatts> {
-    type Output = Flow<KilowattHours>;
+impl<T: Mul<TimeDelta>> Mul<TimeDelta> for Flow<T> {
+    type Output = Flow<<T as Mul<TimeDelta>>::Output>;
 
     fn mul(self, time_delta: TimeDelta) -> Self::Output {
         Flow { import: self.import * time_delta, export: self.export * time_delta }
@@ -70,7 +73,7 @@ where
     }
 }
 
-impl SystemFlow<KilowattHours> {
+impl SystemFlow<Watts> {
     /// Split the net household deficit into grid and battery energy flows
     /// based on the battery working mode.
     ///
@@ -79,32 +82,38 @@ impl SystemFlow<KilowattHours> {
     pub fn new(
         battery_power_limits: BatteryPowerLimits,
         working_mode: WorkingMode,
-        time_delta: TimeDelta,
-        net_deficit: KilowattHours,
+        net_power: Watts,
     ) -> Self {
         let battery_net_import = match working_mode {
-            WorkingMode::Idle => Quantity::ZERO,
+            WorkingMode::Idle => Watts::zero(),
             WorkingMode::Harvest => {
-                (-net_deficit).clamp(Quantity::ZERO, battery_power_limits.charging * time_delta)
+                (-net_power).clamp(Watts::zero(), battery_power_limits.charging)
             }
-            WorkingMode::SelfUse => (-net_deficit).clamp(
-                -battery_power_limits.discharging * time_delta,
-                battery_power_limits.charging * time_delta,
-            ),
-            WorkingMode::Charge => battery_power_limits.charging * time_delta,
-            WorkingMode::Discharge => -battery_power_limits.discharging * time_delta,
+            WorkingMode::SelfUse => {
+                (-net_power).clamp(-battery_power_limits.discharging, battery_power_limits.charging)
+            }
+            WorkingMode::Charge => battery_power_limits.charging,
+            WorkingMode::Discharge => -battery_power_limits.discharging,
         };
-        let grid_net_import = net_deficit + battery_net_import;
+        let grid_net_import = net_power + battery_net_import;
         Self {
             grid: Flow {
-                import: grid_net_import.max(Quantity::ZERO),
-                export: (-grid_net_import).max(Quantity::ZERO),
+                import: grid_net_import.max(Watts::zero()),
+                export: (-grid_net_import).max(Watts::zero()),
             },
             battery: Flow {
-                import: battery_net_import.max(Quantity::ZERO),
-                export: (-battery_net_import).max(Quantity::ZERO),
+                import: battery_net_import.max(Watts::zero()),
+                export: (-battery_net_import).max(Watts::zero()),
             },
         }
+    }
+}
+
+impl<T: Mul<TimeDelta>> Mul<TimeDelta> for SystemFlow<T> {
+    type Output = SystemFlow<<T as Mul<TimeDelta>>::Output>;
+
+    fn mul(self, time_delta: TimeDelta) -> Self::Output {
+        SystemFlow { grid: self.grid * time_delta, battery: self.battery * time_delta }
     }
 }
 

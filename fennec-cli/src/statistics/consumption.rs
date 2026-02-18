@@ -13,7 +13,7 @@ use itertools::Itertools;
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::{WorkingMode, WorkingModeMap},
-    db::consumption::Measurement,
+    db::power,
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
     statistics::{flow::SystemFlow, integrator::Integrator},
@@ -35,7 +35,7 @@ impl ConsumptionStatistics {
         mut logs: T,
     ) -> Result<Self>
     where
-        T: TryStream<Ok = Measurement, Error = Error> + Unpin,
+        T: TryStream<Ok = power::Measurement, Error = Error> + Unpin,
     {
         info!("crunching consumption logs…");
         let start_time = Instant::now();
@@ -47,17 +47,16 @@ impl ConsumptionStatistics {
 
         while let Some(next) = logs.try_next().await? {
             let time_delta = next.timestamp - previous.timestamp;
-            let net_deficit = next.net_deficit - previous.net_deficit;
+            let net_power = (next.net_power + previous.net_power) / 2.0;
 
             let flows = Integrator {
                 time_delta,
                 value: WorkingModeMap::new(|working_mode| {
-                    SystemFlow::new(battery_power_limits, working_mode, time_delta, net_deficit)
-                }),
+                    SystemFlow::new(battery_power_limits, working_mode, net_power)
+                }) * time_delta,
             };
             fallback += flows;
 
-            // TODO: I may consider simple linear interpolation for cross-hour intervals:
             if next.same_hour_as(&previous) {
                 let local_hour = usize::try_from(next.timestamp.with_timezone(&Local).hour())?;
                 hourly[local_hour] += flows;

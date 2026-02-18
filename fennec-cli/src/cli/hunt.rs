@@ -14,7 +14,7 @@ use crate::{
         solver::Solver,
         working_mode::WorkingMode,
     },
-    db::{battery, consumption},
+    db::{battery, power},
     ops::Interval,
     prelude::*,
     quantity::rate::KilowattHourRate,
@@ -95,8 +95,8 @@ impl HuntArgs {
                 .unwrap_or_default()
         };
         let consumption_statistics = {
-            let consumption_logs = db.measurements::<consumption::Measurement>().await?;
-            ConsumptionStatistics::try_estimate(self.battery.power_limits, consumption_logs).await?
+            let power_logs = db.measurements::<power::Measurement>().await?;
+            ConsumptionStatistics::try_estimate(self.battery.power_limits, power_logs).await?
         };
         db.shutdown().await;
 

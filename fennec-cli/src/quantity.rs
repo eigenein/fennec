@@ -30,8 +30,7 @@ use crate::quantity::proportions::Percent;
     derive_more::SubAssign,
     derive_more::Sum,
 )]
-#[from(u16, i32, f64)]
-#[into(f64)]
+#[from(u16, i32)]
 #[must_use]
 pub struct Quantity<const POWER: isize, const TIME: isize, const COST: isize>(pub f64);
 

@@ -25,12 +25,6 @@ impl Mul<BasisPoints> for DecawattHours {
     }
 }
 
-impl From<DecawattHours> for KilowattHours {
-    fn from(value: DecawattHours) -> Self {
-        Self(0.01 * f64::from(value.0))
-    }
-}
-
 impl From<DecawattHours> for WattHours {
     fn from(value: DecawattHours) -> Self {
         Self(f64::from(value.0) * 10.0)
@@ -41,14 +35,6 @@ impl From<MilliwattHours> for KilowattHours {
     fn from(value: MilliwattHours) -> Self {
         #[expect(clippy::cast_precision_loss)]
         Self(value.0 as f64 * 0.000_001)
-    }
-}
-
-impl Mul<Percentage> for KilowattHours {
-    type Output = Self;
-
-    fn mul(self, percentage: Percentage) -> Self::Output {
-        self * percentage.to_proportion()
     }
 }
 

@@ -4,7 +4,7 @@ use std::{
 };
 
 use chrono::{Local, Timelike};
-use comfy_table::{Cell, CellAlignment, Table, modifiers, presets};
+use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
@@ -86,7 +86,7 @@ impl Display for FlowStatistics {
             .enforce_styling()
             .set_header(vec![
                 Cell::new("Hour").set_alignment(CellAlignment::Right),
-                Cell::new("Grid\nimport").set_alignment(CellAlignment::Right),
+                Cell::new("Grid\nimport").set_alignment(CellAlignment::Right).fg(Color::Red),
                 Cell::new("Grid\nexport").set_alignment(CellAlignment::Right),
                 Cell::new("Battery\nimport")
                     .set_alignment(CellAlignment::Right)
@@ -99,7 +99,9 @@ impl Display for FlowStatistics {
             let flow = flow.unwrap_or(self.fallback);
             table.add_row(vec![
                 Cell::new(hour),
-                Cell::new(flow.grid.import).set_alignment(CellAlignment::Right),
+                Cell::new(flow.grid.import)
+                    .set_alignment(CellAlignment::Right)
+                    .fg(if flow.grid.import > Watts::zero() { Color::Red } else { Color::Reset }),
                 Cell::new(flow.grid.export).set_alignment(CellAlignment::Right),
                 Cell::new(flow.battery.import)
                     .fg(WorkingMode::Charge.color())

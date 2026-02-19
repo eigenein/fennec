@@ -2,7 +2,7 @@ use crate::{
     ops::RangeInclusive,
     quantity::{
         energy::{DecawattHours, MilliwattHours, WattHours},
-        proportions::Percentage,
+        ratios::Percentage,
     },
 };
 

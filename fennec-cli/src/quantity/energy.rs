@@ -2,7 +2,7 @@ use std::ops::{Div, Mul};
 
 use crate::quantity::{
     power::Watts,
-    proportions::{BasisPoints, Percentage},
+    ratios::{BasisPoints, Percentage},
     time::Hours,
 };
 
@@ -49,7 +49,7 @@ impl Mul<Percentage> for WattHours {
     type Output = Self;
 
     fn mul(self, percentage: Percentage) -> Self::Output {
-        self * percentage.to_proportion()
+        self * percentage.to_ratio()
     }
 }
 

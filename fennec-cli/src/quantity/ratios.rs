@@ -4,7 +4,8 @@ quantity!(Percentage, via: u16, suffix: "%", precision: 1);
 quantity!(BasisPoints, via: u16, suffix: "‱", precision: 0);
 
 impl Percentage {
-    pub const fn to_proportion(self) -> f64 {
+    /// Convert the percentage into `0.0..=1.0`.
+    pub const fn to_ratio(self) -> f64 {
         0.01 * self.0 as f64
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     api::modbus,
     core::battery,
     prelude::*,
-    quantity::{energy::DecawattHours, proportions::Percentage},
+    quantity::{energy::DecawattHours, ratios::Percentage},
 };
 
 #[must_use]

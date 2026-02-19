@@ -30,6 +30,19 @@ impl From<BatteryPowerLimits> for Flow<Kilowatts> {
     }
 }
 
+impl Flow<Kilowatts> {
+    pub fn normalize(&mut self) {
+        if self.import < Quantity::ZERO {
+            self.export -= self.import;
+            self.import = Quantity::ZERO;
+        }
+        if self.export < Quantity::ZERO {
+            self.import -= self.export;
+            self.export = Quantity::ZERO;
+        }
+    }
+}
+
 impl Default for Flow<Kilowatts> {
     fn default() -> Self {
         Self { import: Quantity::ZERO, export: Quantity::ZERO }
@@ -131,12 +144,18 @@ impl SystemFlow<Kilowatts> {
                 // Nothing changes.
             }
             WorkingMode::Charge => {
-                self.grid.import += battery_power_limits.import - self.battery.import;
+                self.grid.import +=
+                    battery_power_limits.import + (self.battery.export - self.battery.import);
+                self.grid.normalize();
                 self.battery.import = battery_power_limits.import;
+                self.battery.export = Quantity::ZERO;
             }
             WorkingMode::Discharge => {
-                self.grid.export += battery_power_limits.export - self.battery.export;
+                self.grid.export +=
+                    battery_power_limits.export + (self.battery.import - self.battery.export);
+                self.grid.normalize();
                 self.battery.export = battery_power_limits.export;
+                self.battery.import = Quantity::ZERO;
             }
         }
         self

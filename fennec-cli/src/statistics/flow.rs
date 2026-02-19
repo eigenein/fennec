@@ -20,6 +20,10 @@ pub struct Flow<T> {
 }
 
 impl Flow<Watts> {
+    pub const fn zero() -> Self {
+        Self { import: Watts::zero(), export: Watts::zero() }
+    }
+
     pub fn normalize(&mut self) {
         if self.import < Watts::zero() {
             self.export -= self.import;
@@ -29,12 +33,6 @@ impl Flow<Watts> {
             self.import -= self.export;
             self.export = Watts::zero();
         }
-    }
-}
-
-impl Default for Flow<Watts> {
-    fn default() -> Self {
-        Self { import: Watts::zero(), export: Watts::zero() }
     }
 }
 
@@ -123,7 +121,7 @@ impl SystemFlow<Watts> {
         match working_mode {
             WorkingMode::Idle => {
                 self.grid += self.battery.reversed();
-                self.battery = Flow::default();
+                self.battery = Flow::zero();
             }
             WorkingMode::Harvest => {
                 self.grid.import += self.battery.export;

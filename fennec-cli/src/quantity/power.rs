@@ -4,8 +4,8 @@ use chrono::TimeDelta;
 
 use crate::quantity::energy::KilowattHours;
 
-quantity!(Watts, f64, "W");
-quantity!(Kilowatts, f64, "kW");
+quantity!(Watts, via: f64, suffix: "W", precision: 0);
+quantity!(Kilowatts, via: f64, suffix: "kW", precision: 3);
 
 impl From<Kilowatts> for Watts {
     fn from(kilowatts: Kilowatts) -> Self {

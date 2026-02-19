@@ -1,7 +1,7 @@
 use std::ops::Mul;
 
-quantity!(Percentage, u16, "%");
-quantity!(BasisPoints, u16, "‱");
+quantity!(Percentage, via: u16, suffix: "%", precision: 1);
+quantity!(BasisPoints, via: u16, suffix: "‱", precision: 0);
 
 impl Percentage {
     pub const fn to_proportion(self) -> f64 {

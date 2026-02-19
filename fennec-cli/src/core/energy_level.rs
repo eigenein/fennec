@@ -1,20 +1,13 @@
-use std::fmt::{Debug, Formatter};
-
 use derive_more::{From, FromStr};
 
 use crate::quantity::energy::KilowattHours;
 
 /// Discrete unit of energy used in the solution space of the [`crate::core::solver::Solver`].
 #[must_use]
-#[derive(Copy, Clone, From, FromStr)]
+#[derive(Copy, Clone, From, FromStr, derive_more::Debug)]
+#[debug("{_0:?}")]
 #[from(KilowattHours)]
 pub struct Quantum(pub KilowattHours);
-
-impl Debug for Quantum {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&self.0, f)
-    }
-}
 
 impl Quantum {
     /// Convert the energy to quantized energy level.
@@ -35,14 +28,9 @@ impl Quantum {
 
 /// Discrete energy level expressed in units of quanta.
 #[must_use]
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, derive_more::Debug)]
+#[debug("{_0}")]
 pub struct EnergyLevel(pub usize);
-
-impl Debug for EnergyLevel {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 impl EnergyLevel {
     /// Convert the quantized energy level back to conventional energy.

@@ -1,1 +1,1 @@
-quantity!(KilowattHourRate, f64, "€/kWh");
+quantity!(KilowattHourRate, via: f64, suffix: "€/kWh", precision: 3);

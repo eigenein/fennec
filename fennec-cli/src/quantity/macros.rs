@@ -1,7 +1,8 @@
+#[rustfmt::skip]
 macro_rules! quantity {
-    ($name:ident, $inner:tt, $unit:literal) => {
+    ($name:ident, via: $inner:tt, suffix: $suffix:literal, precision: $precision:literal) => {
         new_type!($name, $inner);
-        fmt!($name, $unit);
+        fmt!($name, suffix: $suffix, precision: $precision);
 
         impl $name {
             pub const fn zero() -> Self {
@@ -11,6 +12,7 @@ macro_rules! quantity {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! new_type_base {
     ($name:ident, $inner:tt, #[$($derive:meta),*]) => {
         #[repr(transparent)]
@@ -31,8 +33,9 @@ macro_rules! new_type_base {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! new_type {
-    ($name:ident,u16) => {
+    ($name:ident, u16) => {
         new_type_base!($name, u16, #[
             ::std::cmp::PartialEq,
             ::std::cmp::Eq,
@@ -40,7 +43,7 @@ macro_rules! new_type {
             ::std::cmp::Ord
         ]);
     };
-    ($name:ident,i64) => {
+    ($name:ident, i64) => {
         new_type_base!($name, i64, #[
             ::std::cmp::PartialEq,
             ::std::cmp::Eq,
@@ -49,7 +52,7 @@ macro_rules! new_type {
             ::derive_more::Neg
         ]);
     };
-    ($name:ident,f64) => {
+    ($name:ident, f64) => {
         new_type_base!($name, f64, #[::derive_more::Neg]);
         ordered_float!($name);
 
@@ -79,24 +82,24 @@ macro_rules! new_type {
     };
 }
 
+#[rustfmt::skip]
 macro_rules! fmt {
-    ($name:ident, $unit:literal) => {
+    ($name:ident, suffix: $suffix:literal, precision: $precision:literal) => {
         impl ::std::fmt::Display for $name {
             fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                ::std::fmt::Display::fmt(&self.0, formatter)?;
-                write!(formatter, " {}", $unit)
+                write!(formatter, "{0:.1$} {2}", self.0, $precision, $suffix)
             }
         }
 
         impl ::std::fmt::Debug for $name {
             fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                ::std::fmt::Debug::fmt(&self.0, formatter)?;
-                write!(formatter, "{}", $unit)
+                write!(formatter, "{0:.1$}{2}", self.0, $precision, $suffix)
             }
         }
     };
 }
 
+#[rustfmt::skip]
 macro_rules! ordered_float {
     ($name:path) => {
         impl ::std::cmp::PartialOrd for $name {

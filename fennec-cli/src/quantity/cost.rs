@@ -2,7 +2,7 @@ use std::ops::Div;
 
 use crate::quantity::{energy::KilowattHours, rate::KilowattHourRate};
 
-quantity!(Cost, f64, "€");
+quantity!(Cost, via: f64, suffix: "€", precision: 3);
 
 impl Cost {
     pub const ONE_CENT: Self = Self(0.01);

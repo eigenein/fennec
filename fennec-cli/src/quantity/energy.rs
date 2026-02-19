@@ -9,9 +9,9 @@ use crate::quantity::{
     rate::KilowattHourRate,
 };
 
-quantity!(MilliwattHours, i64, "mWh");
-quantity!(DecawattHours, u16, "daWh");
-quantity!(KilowattHours, f64, "kWh");
+quantity!(MilliwattHours, via: i64, suffix: "mWh", precision: 0);
+quantity!(DecawattHours, via: u16, suffix: "daWh", precision: 1);
+quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 3);
 
 impl Mul<BasisPoints> for DecawattHours {
     type Output = MilliwattHours;

@@ -49,12 +49,12 @@ impl FlowStatistics {
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
-            let hours = Hours::from(next.timestamp - previous.timestamp);
+            let time_delta = Hours::from(next.timestamp - previous.timestamp);
             let net_power = (next.net_power + previous.net_power) / 2.0;
 
             let flows = Integrator {
-                hours,
-                value: SystemFlow::new(battery_power_limits, net_power) * hours,
+                hours: time_delta,
+                value: SystemFlow::new(battery_power_limits, net_power) * time_delta,
             };
             fallback += flows;
 

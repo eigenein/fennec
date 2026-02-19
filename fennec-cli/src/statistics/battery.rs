@@ -89,14 +89,14 @@ impl BatteryEfficiency {
     {
         let mut previous = battery_logs.try_next().await?.context("empty battery log stream")?;
         let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
-        let mut total_hours = Hours::zero();
+        let mut total_time = Hours::zero();
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
             let imported_energy = WattHours::from(log.legacy_import - previous.legacy_import);
             let exported_energy = WattHours::from(log.legacy_export - previous.legacy_export);
-            let hours = Hours::from(log.timestamp - previous.timestamp);
-            total_hours += hours;
+            let time_delta = Hours::from(log.timestamp - previous.timestamp);
+            total_time += time_delta;
             let residual_differential =
                 WattHours::from(log.legacy_residual_energy - previous.legacy_residual_energy);
 
@@ -113,7 +113,7 @@ impl BatteryEfficiency {
             dataset.records.push_row(aview1(&[
                 imported_energy.0 * weight_multiplier,
                 exported_energy.0 * weight_multiplier,
-                hours.0 * weight_multiplier,
+                time_delta.0 * weight_multiplier,
             ]))?;
             dataset
                 .targets
@@ -138,7 +138,7 @@ impl BatteryEfficiency {
             .discharging(-1.0 / regression.params()[1])
             .parasitic_load(Watts(-regression.params()[2]))
             .n_samples(dataset.nsamples())
-            .total_hours(total_hours)
+            .total_hours(total_time)
             .build()?;
         println!("{this}");
         Ok(this)

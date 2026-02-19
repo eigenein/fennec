@@ -1,17 +1,18 @@
 use std::ops::{Div, Mul};
 
-use chrono::TimeDelta;
-
 use crate::quantity::{
     cost::Cost,
     power::Kilowatts,
     proportions::{BasisPoints, Percentage},
     rate::KilowattHourRate,
+    time::Hours,
 };
 
 quantity!(MilliwattHours, via: i64, suffix: "mWh", precision: 0);
 quantity!(DecawattHours, via: u16, suffix: "daWh", precision: 1);
 quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 3);
+
+mul!(Kilowatts, Hours, KilowattHours);
 
 impl Mul<BasisPoints> for DecawattHours {
     type Output = MilliwattHours;
@@ -54,12 +55,10 @@ impl Mul<KilowattHourRate> for KilowattHours {
     }
 }
 
-impl Div<TimeDelta> for KilowattHours {
+impl Div<Hours> for KilowattHours {
     type Output = Kilowatts;
 
-    fn div(self, rhs: TimeDelta) -> Self::Output {
-        let hours = rhs.as_seconds_f64() / 3600.0;
-        assert!(hours.is_finite());
-        Kilowatts(self.0 / hours)
+    fn div(self, hours: Hours) -> Self::Output {
+        Kilowatts(self.0 / hours.0)
     }
 }

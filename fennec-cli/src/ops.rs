@@ -1,11 +1,11 @@
 mod interval;
 
-use std::{
-    fmt::{Debug, Formatter},
-    ops::Sub,
-};
+use std::fmt::{Debug, Formatter};
+
+use chrono::{DateTime, TimeZone};
 
 pub use self::interval::Interval;
+use crate::quantity::time::Hours;
 
 #[must_use]
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -36,10 +36,14 @@ impl<T: Copy> RangeExclusive<T> {
     }
 }
 
-impl<T: Copy + Sub> RangeExclusive<T> {
+impl<Tz> RangeExclusive<DateTime<Tz>>
+where
+    Tz: TimeZone,
+    <Tz as TimeZone>::Offset: Copy,
+{
     #[must_use]
-    pub fn len(self) -> <T as Sub>::Output {
-        self.end - self.start
+    pub fn hours(self) -> Hours {
+        (self.end - self.start).into()
     }
 }
 

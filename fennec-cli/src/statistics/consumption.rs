@@ -14,7 +14,7 @@ use crate::{
     core::working_mode::WorkingMode,
     db::power,
     prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
+    quantity::{energy::KilowattHours, power::Kilowatts, time::Hours},
     statistics::{flow::SystemFlow, integrator::Integrator},
 };
 
@@ -46,12 +46,12 @@ impl FlowStatistics {
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
-            let time_delta = next.timestamp - previous.timestamp;
+            let hours = Hours::from(next.timestamp - previous.timestamp);
             let net_power = (next.net_power + previous.net_power) / 2.0;
 
             let flows = Integrator {
-                time_delta,
-                value: SystemFlow::new(battery_power_limits, net_power) * time_delta,
+                hours,
+                value: SystemFlow::new(battery_power_limits, net_power) * hours,
             };
             fallback += flows;
 

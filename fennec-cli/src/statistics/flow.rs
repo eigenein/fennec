@@ -1,6 +1,5 @@
 use std::ops::{Div, Mul};
 
-use chrono::TimeDelta;
 use derive_more::{Add, AddAssign, Sub};
 
 use crate::{
@@ -69,19 +68,19 @@ impl<T> Flow<T> {
     }
 }
 
-impl<T: Mul<TimeDelta>> Mul<TimeDelta> for Flow<T> {
-    type Output = Flow<<T as Mul<TimeDelta>>::Output>;
+impl<T: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for Flow<T> {
+    type Output = Flow<<T as Mul<Rhs>>::Output>;
 
-    fn mul(self, time_delta: TimeDelta) -> Self::Output {
-        Flow { import: self.import * time_delta, export: self.export * time_delta }
+    fn mul(self, rhs: Rhs) -> Self::Output {
+        Flow { import: self.import * rhs, export: self.export * rhs }
     }
 }
 
-impl Div<TimeDelta> for Flow<KilowattHours> {
-    type Output = Flow<Kilowatts>;
+impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for Flow<T> {
+    type Output = Flow<<T as Div<Rhs>>::Output>;
 
-    fn div(self, time_delta: TimeDelta) -> Self::Output {
-        Flow { import: self.import / time_delta, export: self.export / time_delta }
+    fn div(self, rhs: Rhs) -> Self::Output {
+        Flow { import: self.import / rhs, export: self.export / rhs }
     }
 }
 
@@ -161,18 +160,18 @@ impl SystemFlow<Kilowatts> {
     }
 }
 
-impl<T: Mul<TimeDelta>> Mul<TimeDelta> for SystemFlow<T> {
-    type Output = SystemFlow<<T as Mul<TimeDelta>>::Output>;
+impl<T: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for SystemFlow<T> {
+    type Output = SystemFlow<<T as Mul<Rhs>>::Output>;
 
-    fn mul(self, time_delta: TimeDelta) -> Self::Output {
-        SystemFlow { grid: self.grid * time_delta, battery: self.battery * time_delta }
+    fn mul(self, rhs: Rhs) -> Self::Output {
+        SystemFlow { grid: self.grid * rhs, battery: self.battery * rhs }
     }
 }
 
-impl Div<TimeDelta> for SystemFlow<KilowattHours> {
-    type Output = SystemFlow<Kilowatts>;
+impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for SystemFlow<T> {
+    type Output = SystemFlow<<T as Div<Rhs>>::Output>;
 
-    fn div(self, time_delta: TimeDelta) -> Self::Output {
-        SystemFlow { grid: self.grid / time_delta, battery: self.battery / time_delta }
+    fn div(self, rhs: Rhs) -> Self::Output {
+        SystemFlow { grid: self.grid / rhs, battery: self.battery / rhs }
     }
 }

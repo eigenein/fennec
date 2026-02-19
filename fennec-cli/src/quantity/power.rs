@@ -1,8 +1,6 @@
 use std::ops::Mul;
 
-use chrono::TimeDelta;
-
-use crate::quantity::energy::KilowattHours;
+use crate::quantity::{energy::KilowattHours, time::Hours};
 
 quantity!(Watts, via: f64, suffix: "W", precision: 0);
 quantity!(Kilowatts, via: f64, suffix: "kW", precision: 3);
@@ -19,19 +17,10 @@ impl From<Watts> for Kilowatts {
     }
 }
 
-impl Mul<TimeDelta> for Kilowatts {
+impl Mul<Hours> for Watts {
     type Output = KilowattHours;
 
-    fn mul(self, rhs: TimeDelta) -> Self::Output {
-        let hours = rhs.as_seconds_f64() / 3600.0;
-        KilowattHours(self.0 * hours)
-    }
-}
-
-impl Mul<TimeDelta> for Watts {
-    type Output = KilowattHours;
-
-    fn mul(self, time_delta: TimeDelta) -> Self::Output {
-        Kilowatts::from(self) * time_delta
+    fn mul(self, hours: Hours) -> Self::Output {
+        Kilowatts::from(self) * hours
     }
 }

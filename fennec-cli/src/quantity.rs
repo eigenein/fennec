@@ -6,3 +6,4 @@ pub mod energy;
 pub mod power;
 pub mod proportions;
 pub mod rate;
+pub mod time;

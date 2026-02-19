@@ -1,7 +1,5 @@
-use chrono::TimeDelta;
-
 use crate::{
-    quantity::{energy::KilowattHours, power::Kilowatts},
+    quantity::{energy::KilowattHours, power::Kilowatts, time::Hours},
     statistics::{battery::BatteryEfficiency, flow::Flow},
 };
 
@@ -27,11 +25,7 @@ impl Simulator {
     }
 
     /// Apply the requested power, update the internal state and return actual billable energy flow.
-    pub fn apply(
-        &mut self,
-        external_power: Flow<Kilowatts>,
-        for_: TimeDelta,
-    ) -> Flow<KilowattHours> {
+    pub fn apply(&mut self, external_power: Flow<Kilowatts>, for_: Hours) -> Flow<KilowattHours> {
         // Apply the efficiency corrections first – then, we can model everything in terms of residual energy:
         let internal_power = Flow {
             import: external_power.import * self.efficiency.charging,

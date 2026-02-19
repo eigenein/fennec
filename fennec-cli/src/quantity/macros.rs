@@ -8,6 +8,11 @@ macro_rules! quantity {
             pub const fn zero() -> Self {
                 Self(0 as $inner)
             }
+
+            #[allow(clippy::float_cmp)]
+            pub const fn is_zero(self) -> bool {
+                self.0 == (0 as $inner)
+            }
         }
     };
 }
@@ -121,5 +126,25 @@ macro_rules! ordered_float {
         }
 
         impl ::std::cmp::Eq for $name {}
+    };
+}
+
+macro_rules! mul {
+    ($lhs:path, $rhs:path, $output:path) => {
+        impl ::std::ops::Mul<$rhs> for $lhs {
+            type Output = $output;
+
+            fn mul(self, rhs: $rhs) -> Self::Output {
+                $output(self.0 * rhs.0)
+            }
+        }
+
+        impl ::std::ops::Mul<$lhs> for $rhs {
+            type Output = $output;
+
+            fn mul(self, lhs: $lhs) -> Self::Output {
+                $output(lhs.0 * self.0)
+            }
+        }
     };
 }

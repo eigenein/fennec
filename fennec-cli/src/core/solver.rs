@@ -116,7 +116,7 @@ impl Solver<'_> {
                     interval = interval.with_start(self.now);
                 }
                 let flow = self.flow_statistics.on_hour(interval.start.hour());
-                self.loss(grid_rate, (flow.grid + flow.battery.reversed()) * interval.len())
+                self.loss(grid_rate, (flow.grid + flow.battery.reversed()) * interval.hours())
             })
             .sum()
     }
@@ -174,11 +174,11 @@ impl Solver<'_> {
         // Remember that the average flow represents theoretical possibility,
         // actual flow depends on the working mode:
         let flow_request = average_flow.with_working_mode(working_mode, self.battery_power_limits);
-        let duration = interval.len();
-        let battery_flow = battery.apply(flow_request.battery, duration);
-        let requested_battery = flow_request.battery * duration;
+        let hours = interval.hours();
+        let battery_flow = battery.apply(flow_request.battery, hours);
+        let requested_battery = flow_request.battery * hours;
         let battery_shortage = requested_battery - battery_flow;
-        let grid_flow = flow_request.grid * duration + battery_shortage.reversed();
+        let grid_flow = flow_request.grid * hours + battery_shortage.reversed();
         Step {
             interval,
             grid_rate,

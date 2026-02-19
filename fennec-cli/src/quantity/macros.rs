@@ -1,5 +1,18 @@
 macro_rules! quantity {
-    ($name:ident, $container:tt, $unit:literal) => {
+    ($name:ident, $inner:tt, $unit:literal) => {
+        new_type!($name, $inner);
+        fmt!($name, $unit);
+
+        impl $name {
+            pub const fn zero() -> Self {
+                Self(0 as $inner)
+            }
+        }
+    };
+}
+
+macro_rules! new_type_base {
+    ($name:ident, $inner:tt, #[$($derive:meta),*]) => {
         #[repr(transparent)]
         #[derive(
             ::derive_more::Add,
@@ -12,45 +25,32 @@ macro_rules! quantity {
             ::serde::Serialize,
             ::std::clone::Clone,
             ::std::marker::Copy,
+            $($derive),*
         )]
-        pub struct $name(pub $container);
-
-        impl ::std::fmt::Display for $name {
-            fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                ::std::fmt::Display::fmt(&self.0, formatter)?;
-                write!(formatter, " {}", $unit)
-            }
-        }
-
-        impl ::std::fmt::Debug for $name {
-            fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                ::std::fmt::Debug::fmt(&self.0, formatter)?;
-                write!(formatter, "{}", $unit)
-            }
-        }
-
-        impl ::std::cmp::PartialOrd for $name {
-            fn partial_cmp(&self, other: &Self) -> Option<::std::cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl ::std::cmp::Eq for $name {}
-
-        impl $name {
-            pub const fn zero() -> Self {
-                Self(0 as $container)
-            }
-        }
-
-        operations!($name, $container);
+        pub struct $name(pub $inner);
     };
 }
 
-/// Implement ordering for the quantity.
-macro_rules! operations {
-    ($name:path,f64) => {
-        derive_neg!($name);
+macro_rules! new_type {
+    ($name:ident,u16) => {
+        new_type_base!($name, u16, #[
+            ::std::cmp::PartialEq,
+            ::std::cmp::Eq,
+            ::std::cmp::PartialOrd,
+            ::std::cmp::Ord
+        ]);
+    };
+    ($name:ident,i64) => {
+        new_type_base!($name, i64, #[
+            ::std::cmp::PartialEq,
+            ::std::cmp::Eq,
+            ::std::cmp::PartialOrd,
+            ::std::cmp::Ord,
+            ::derive_more::Neg
+        ]);
+    };
+    ($name:ident,f64) => {
+        new_type_base!($name, f64, #[::derive_more::Neg]);
         ordered_float!($name);
 
         impl Mul<f64> for $name {
@@ -77,20 +77,34 @@ macro_rules! operations {
             }
         }
     };
-    ($name:path,u16) => {
-        derive_ord!($name);
-        derive_partial_eq!($name);
-    };
-    ($name:path,i64) => {
-        derive_neg!($name);
-        derive_ord!($name);
-        derive_partial_eq!($name);
+}
+
+macro_rules! fmt {
+    ($name:ident, $unit:literal) => {
+        impl ::std::fmt::Display for $name {
+            fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                ::std::fmt::Display::fmt(&self.0, formatter)?;
+                write!(formatter, " {}", $unit)
+            }
+        }
+
+        impl ::std::fmt::Debug for $name {
+            fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                ::std::fmt::Debug::fmt(&self.0, formatter)?;
+                write!(formatter, "{}", $unit)
+            }
+        }
     };
 }
 
-/// Derive ordering and equality via [`::ordered_float::OrderedFloat`].
 macro_rules! ordered_float {
     ($name:path) => {
+        impl ::std::cmp::PartialOrd for $name {
+            fn partial_cmp(&self, other: &Self) -> Option<::std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
         impl ::std::cmp::Ord for $name {
             fn cmp(&self, other: &Self) -> ::std::cmp::Ordering {
                 ::ordered_float::OrderedFloat(self.0).cmp(&::ordered_float::OrderedFloat(other.0))
@@ -102,38 +116,7 @@ macro_rules! ordered_float {
                 ::ordered_float::OrderedFloat(self.0).eq(&::ordered_float::OrderedFloat(other.0))
             }
         }
-    };
-}
 
-/// Derive [`::std::ops::Neg`] from the container type.
-macro_rules! derive_neg {
-    ($name:path) => {
-        impl ::std::ops::Neg for $name {
-            type Output = Self;
-
-            fn neg(self) -> Self::Output {
-                Self(-self.0)
-            }
-        }
-    };
-}
-
-macro_rules! derive_ord {
-    ($name:path) => {
-        impl ::std::cmp::Ord for $name {
-            fn cmp(&self, other: &Self) -> ::std::cmp::Ordering {
-                self.0.cmp(&other.0)
-            }
-        }
-    };
-}
-
-macro_rules! derive_partial_eq {
-    ($name:path) => {
-        impl ::std::cmp::PartialEq for $name {
-            fn eq(&self, other: &Self) -> bool {
-                self.0.eq(&other.0)
-            }
-        }
+        impl ::std::cmp::Eq for $name {}
     };
 }

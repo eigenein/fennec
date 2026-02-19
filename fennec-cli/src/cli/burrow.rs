@@ -10,7 +10,7 @@ use crate::{
     },
     db::{battery, power},
     prelude::*,
-    statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
+    statistics::{battery::BatteryEfficiency, consumption::FlowStatistics},
 };
 
 #[derive(Parser)]
@@ -76,7 +76,7 @@ impl BurrowConsumptionArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
         let logs = db.measurements::<power::Measurement>().await?;
-        let statistics = ConsumptionStatistics::try_estimate(self.power_limits, logs).await?;
+        let statistics = FlowStatistics::try_estimate(self.power_limits, logs).await?;
         db.shutdown().await;
         println!("{statistics}");
         Ok(())

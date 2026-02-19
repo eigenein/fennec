@@ -1,6 +1,5 @@
 use std::{
     fmt::{Display, Formatter},
-    iter::once,
     time::Instant,
 };
 
@@ -12,23 +11,24 @@ use itertools::Itertools;
 
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::working_mode::{WorkingMode, WorkingModeMap},
+    core::working_mode::WorkingMode,
     db::power,
     prelude::*,
     quantity::{energy::KilowattHours, power::Kilowatts},
     statistics::{flow::SystemFlow, integrator::Integrator},
 };
 
+/// TODO: move to the parent.
 #[must_use]
-pub struct ConsumptionStatistics {
-    /// Fallback power flow for when a specific hourly power flow is not available.
-    fallback: WorkingModeMap<SystemFlow<Kilowatts>>,
+pub struct FlowStatistics {
+    /// Fallback global average power flow for when a specific hourly power flow is not available.
+    fallback: SystemFlow<Kilowatts>,
 
-    /// Average hourly power flows per battery working mode.
-    hourly: [Option<WorkingModeMap<SystemFlow<Kilowatts>>>; 24],
+    /// Average hourly power flow.
+    hourly: [Option<SystemFlow<Kilowatts>>; 24],
 }
 
-impl ConsumptionStatistics {
+impl FlowStatistics {
     #[instrument(skip_all)]
     pub async fn try_estimate<T>(
         battery_power_limits: BatteryPowerLimits,
@@ -42,7 +42,7 @@ impl ConsumptionStatistics {
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut fallback = Integrator::<WorkingModeMap<SystemFlow<KilowattHours>>>::default();
+        let mut fallback = Integrator::<SystemFlow<KilowattHours>>::default();
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
@@ -51,9 +51,7 @@ impl ConsumptionStatistics {
 
             let flows = Integrator {
                 time_delta,
-                value: WorkingModeMap::new(|working_mode| {
-                    SystemFlow::new(battery_power_limits, working_mode, net_power)
-                }) * time_delta,
+                value: SystemFlow::new(battery_power_limits, net_power) * time_delta,
             };
             fallback += flows;
 
@@ -74,56 +72,42 @@ impl ConsumptionStatistics {
         })
     }
 
-    pub fn on_hour(&self, hour: u32) -> &WorkingModeMap<SystemFlow<Kilowatts>> {
-        self.hourly[hour as usize].as_ref().unwrap_or(&self.fallback)
+    pub fn on_hour(&self, hour: u32) -> SystemFlow<Kilowatts> {
+        self.hourly[hour as usize].unwrap_or(self.fallback)
     }
 }
 
-impl Display for ConsumptionStatistics {
+impl Display for FlowStatistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        const WORKING_MODES: [WorkingMode; 5] = [
-            WorkingMode::Idle,
-            WorkingMode::Harvest,
-            WorkingMode::SelfUse,
-            WorkingMode::Charge,
-            WorkingMode::Discharge,
-        ];
-
         let mut table = Table::new();
-        let header = WORKING_MODES.into_iter().flat_map(|mode| {
-            ["I", "E", "C", "D"].map(|title| {
-                Cell::new(format!("{mode:.1}{title}"))
-                    .set_alignment(CellAlignment::Right)
-                    .fg(mode.color())
-            })
-        });
         table
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
-            .set_header(once(Cell::new("Hr").set_alignment(CellAlignment::Right)).chain(header));
-        for (hour, flow_map) in self.hourly.iter().enumerate() {
-            if let Some(flow_map) = flow_map {
-                let row = WORKING_MODES.into_iter().flat_map(|mode| {
-                    [
-                        Cell::new(flow_map[mode].grid.import)
-                            .fg(mode.color())
-                            .set_alignment(CellAlignment::Right),
-                        Cell::new(flow_map[mode].grid.export)
-                            .fg(mode.color())
-                            .set_alignment(CellAlignment::Right),
-                        Cell::new(flow_map[mode].battery.import)
-                            .fg(mode.color())
-                            .set_alignment(CellAlignment::Right),
-                        Cell::new(flow_map[mode].battery.export)
-                            .fg(mode.color())
-                            .set_alignment(CellAlignment::Right),
-                    ]
-                });
-                table.add_row(once(Cell::new(hour)).chain(row));
-            } else {
-                table.add_row(vec![Cell::new(hour)]);
-            }
+            .set_header(vec![
+                Cell::new("Hour").set_alignment(CellAlignment::Right),
+                Cell::new("Grid\nimport").set_alignment(CellAlignment::Right),
+                Cell::new("Grid\nexport").set_alignment(CellAlignment::Right),
+                Cell::new("Battery\nimport")
+                    .set_alignment(CellAlignment::Right)
+                    .fg(WorkingMode::Charge.color()),
+                Cell::new("Battery\nexport")
+                    .set_alignment(CellAlignment::Right)
+                    .fg(WorkingMode::Discharge.color()),
+            ]);
+        for (hour, flow) in self.hourly.iter().enumerate() {
+            let flow = flow.unwrap_or(self.fallback);
+            table.add_row(vec![
+                Cell::new(hour),
+                Cell::new(flow.grid.import).set_alignment(CellAlignment::Right),
+                Cell::new(flow.grid.export).set_alignment(CellAlignment::Right),
+                Cell::new(flow.battery.import)
+                    .fg(WorkingMode::Charge.color())
+                    .set_alignment(CellAlignment::Right),
+                Cell::new(flow.battery.export)
+                    .fg(WorkingMode::Discharge.color())
+                    .set_alignment(CellAlignment::Right),
+            ]);
         }
         write!(f, "{table}")
     }

@@ -11,14 +11,14 @@ use crate::{
         solution::Solution,
         solution_space::SolutionSpace,
         step::Step,
-        working_mode::{WorkingMode, WorkingModeMap},
+        working_mode::WorkingMode,
     },
     ops::Interval,
     prelude::*,
     quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
     statistics::{
         battery::BatteryEfficiency,
-        consumption::ConsumptionStatistics,
+        consumption::FlowStatistics,
         flow::{Flow, SystemFlow},
     },
 };
@@ -26,7 +26,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver<'a> {
     grid_rates: &'a [(Interval, KilowattHourRate)],
-    consumption_statistics: &'a ConsumptionStatistics,
+    flow_statistics: &'a FlowStatistics,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -36,6 +36,9 @@ pub struct Solver<'a> {
 
     /// Maximum allowed residual energy.
     max_residual_energy: KilowattHours,
+
+    #[builder(into)]
+    battery_power_limits: Flow<Kilowatts>,
 
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
@@ -86,7 +89,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .requested_flows(self.consumption_statistics.on_hour(interval.start.hour()))
+                .average_flow(self.flow_statistics.on_hour(interval.start.hour()))
                 .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
@@ -113,12 +116,8 @@ impl Solver<'_> {
                     // TODO: de-dup this:
                     interval = interval.with_start(self.now);
                 }
-                let idle_flow =
-                    self.consumption_statistics.on_hour(interval.start.hour())[WorkingMode::Idle];
-                self.loss(
-                    grid_rate,
-                    (idle_flow.grid + idle_flow.battery.reversed()) * interval.len(),
-                )
+                let flow = self.flow_statistics.on_hour(interval.start.hour());
+                self.loss(grid_rate, (flow.grid + flow.battery.reversed()) * interval.len())
             })
             .sum()
     }
@@ -132,7 +131,7 @@ impl Solver<'_> {
         &self,
         interval_index: usize,
         interval: Interval,
-        requested_flows: &WorkingModeMap<SystemFlow<Kilowatts>>,
+        average_flow: SystemFlow<Kilowatts>,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         solutions: &SolutionSpace,
@@ -150,7 +149,7 @@ impl Solver<'_> {
                     .simulate_step()
                     .interval(interval)
                     .grid_rate(grid_rate)
-                    .requested_flow(&requested_flows[working_mode])
+                    .average_flow(average_flow)
                     .initial_residual_energy(initial_residual_energy)
                     .battery(battery)
                     .working_mode(working_mode)
@@ -170,16 +169,19 @@ impl Solver<'_> {
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        requested_flow: &SystemFlow<Kilowatts>,
+        average_flow: SystemFlow<Kilowatts>,
         grid_rate: KilowattHourRate,
         initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
     ) -> Step {
+        // Remember that the average flow represents theoretical possibility,
+        // actual flow depends on the working mode:
+        let flow_request = average_flow.with_working_mode(working_mode, self.battery_power_limits);
         let duration = interval.len();
-        let battery_flow = battery.apply(requested_flow.battery, duration);
-        let requested_battery = requested_flow.battery * duration;
+        let battery_flow = battery.apply(flow_request.battery, duration);
+        let requested_battery = flow_request.battery * duration;
         let battery_shortage = requested_battery - battery_flow;
-        let grid_flow = requested_flow.grid * duration + battery_shortage.reversed();
+        let grid_flow = flow_request.grid * duration + battery_shortage.reversed();
         Step {
             interval,
             grid_rate,

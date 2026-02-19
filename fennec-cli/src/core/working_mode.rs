@@ -1,10 +1,6 @@
-use std::{
-    fmt::{Display, Formatter},
-    ops::{Div, Index, IndexMut, Mul},
-};
+use std::fmt::{Display, Formatter};
 
 use comfy_table::Color;
-use derive_more::AddAssign;
 use enumset::EnumSetType;
 
 #[derive(Debug, Hash, clap::ValueEnum, EnumSetType)]
@@ -46,81 +42,6 @@ impl WorkingMode {
             Self::SelfUse => Color::DarkYellow,
             Self::Harvest => Color::Cyan,
             Self::Idle => Color::Reset,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Default, AddAssign)]
-pub struct WorkingModeMap<V> {
-    pub idle: V,
-    pub harvest: V,
-    pub self_use: V,
-    pub charge: V,
-    pub discharge: V,
-}
-
-impl<V> WorkingModeMap<V> {
-    pub fn new(map: impl Fn(WorkingMode) -> V) -> Self {
-        Self {
-            idle: map(WorkingMode::Idle),
-            harvest: map(WorkingMode::Harvest),
-            self_use: map(WorkingMode::SelfUse),
-            charge: map(WorkingMode::Charge),
-            discharge: map(WorkingMode::Discharge),
-        }
-    }
-}
-
-impl<V> Index<WorkingMode> for WorkingModeMap<V> {
-    type Output = V;
-
-    fn index(&self, working_mode: WorkingMode) -> &Self::Output {
-        match working_mode {
-            WorkingMode::Idle => &self.idle,
-            WorkingMode::Harvest => &self.harvest,
-            WorkingMode::SelfUse => &self.self_use,
-            WorkingMode::Charge => &self.charge,
-            WorkingMode::Discharge => &self.discharge,
-        }
-    }
-}
-
-impl<V> IndexMut<WorkingMode> for WorkingModeMap<V> {
-    fn index_mut(&mut self, working_mode: WorkingMode) -> &mut Self::Output {
-        match working_mode {
-            WorkingMode::Idle => &mut self.idle,
-            WorkingMode::Harvest => &mut self.harvest,
-            WorkingMode::SelfUse => &mut self.self_use,
-            WorkingMode::Charge => &mut self.charge,
-            WorkingMode::Discharge => &mut self.discharge,
-        }
-    }
-}
-
-impl<V: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for WorkingModeMap<V> {
-    type Output = WorkingModeMap<<V as Mul<Rhs>>::Output>;
-
-    fn mul(self, rhs: Rhs) -> Self::Output {
-        WorkingModeMap {
-            idle: self.idle * rhs,
-            harvest: self.harvest * rhs,
-            self_use: self.self_use * rhs,
-            charge: self.charge * rhs,
-            discharge: self.discharge * rhs,
-        }
-    }
-}
-
-impl<V: Div<Rhs>, Rhs: Copy> Div<Rhs> for WorkingModeMap<V> {
-    type Output = WorkingModeMap<<V as Div<Rhs>>::Output>;
-
-    fn div(self, rhs: Rhs) -> Self::Output {
-        WorkingModeMap {
-            idle: self.idle / rhs,
-            harvest: self.harvest / rhs,
-            self_use: self.self_use / rhs,
-            charge: self.charge / rhs,
-            discharge: self.discharge / rhs,
         }
     }
 }

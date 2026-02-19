@@ -2,7 +2,7 @@ use average::Mean;
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
-    core::step::Step,
+    core::{step::Step, working_mode::WorkingMode},
     quantity::{Quantity, cost::Cost, energy::KilowattHours, rate::KilowattHourRate},
 };
 
@@ -56,10 +56,18 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
                 },
             ),
             Cell::new(step.system_flow.battery.import)
-                .fg(Color::Green)
+                .fg(if step.system_flow.battery.import > KilowattHours::ONE_WATT_HOUR {
+                    WorkingMode::Charge.color()
+                } else {
+                    Color::Reset
+                })
                 .set_alignment(CellAlignment::Right),
             Cell::new(step.system_flow.battery.export)
-                .fg(Color::Blue)
+                .fg(if step.system_flow.battery.export > KilowattHours::ONE_WATT_HOUR {
+                    WorkingMode::Discharge.color()
+                } else {
+                    Color::Reset
+                })
                 .set_alignment(CellAlignment::Right),
             Cell::new(step.residual_energy_after).set_alignment(CellAlignment::Right),
             Cell::new(step.loss)

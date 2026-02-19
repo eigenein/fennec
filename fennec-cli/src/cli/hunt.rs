@@ -18,7 +18,7 @@ use crate::{
     ops::Interval,
     prelude::*,
     quantity::rate::KilowattHourRate,
-    statistics::{battery::BatteryEfficiency, consumption::ConsumptionStatistics},
+    statistics::{battery::BatteryEfficiency, consumption::FlowStatistics},
     tables::build_steps_table,
 };
 
@@ -94,16 +94,16 @@ impl HuntArgs {
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
                 .unwrap_or_default()
         };
-        let consumption_statistics = {
+        let flow_statistics = {
             let power_logs = db.measurements::<power::Measurement>().await?;
-            ConsumptionStatistics::try_estimate(self.battery.power_limits, power_logs).await?
+            FlowStatistics::try_estimate(self.battery.power_limits, power_logs).await?
         };
         db.shutdown().await;
 
         let initial_energy_level = self.quantum.quantize(battery_state.energy.residual());
         let solver = Solver::builder()
             .grid_rates(&grid_rates)
-            .consumption_statistics(&consumption_statistics)
+            .flow_statistics(&flow_statistics)
             .working_modes(working_modes)
             .min_residual_energy(battery_state.min_residual_energy())
             .max_residual_energy(
@@ -115,6 +115,7 @@ impl HuntArgs {
             .now(now)
             .degradation_rate(self.degradation_rate)
             .quantum(self.quantum)
+            .battery_power_limits(self.battery.power_limits)
             .build();
         let base_loss = solver.base_loss();
         let (loss, steps) = solver.solve().backtrack(initial_energy_level)?;

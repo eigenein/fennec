@@ -5,7 +5,10 @@ use mongodb::options::TimeseriesGranularity;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::{db, quantity::energy::KilowattHours};
+use crate::{
+    db,
+    quantity::energy::{KilowattHours, WattHours},
+};
 
 /// Battery energy meter entry.
 #[serde_as]
@@ -19,13 +22,25 @@ pub struct Measurement {
 
     #[serde(rename = "residualEnergyKilowattHours")]
     #[builder(into)]
-    pub residual_energy: KilowattHours,
+    pub legacy_residual_energy: KilowattHours,
+
+    #[serde(rename = "residualEnergyWattHours")]
+    #[builder(into)]
+    pub residual_energy: Option<WattHours>,
 
     #[serde(rename = "importKilowattHours")]
-    pub import: KilowattHours,
+    pub legacy_import: KilowattHours,
+
+    #[serde(rename = "importWattHours")]
+    #[builder(into)]
+    pub import: Option<WattHours>,
 
     #[serde(rename = "exportKilowattHours")]
-    pub export: KilowattHours,
+    pub legacy_export: KilowattHours,
+
+    #[serde(rename = "exportWattHours")]
+    #[builder(into)]
+    pub export: Option<WattHours>,
 }
 
 impl db::Measurement for Measurement {

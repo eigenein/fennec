@@ -93,12 +93,12 @@ impl BatteryEfficiency {
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
-            let imported_energy = WattHours::from(log.import - previous.import);
-            let exported_energy = WattHours::from(log.export - previous.export);
+            let imported_energy = WattHours::from(log.legacy_import - previous.legacy_import);
+            let exported_energy = WattHours::from(log.legacy_export - previous.legacy_export);
             let hours = Hours::from(log.timestamp - previous.timestamp);
             total_hours += hours;
             let residual_differential =
-                WattHours::from(log.residual_energy - previous.residual_energy);
+                WattHours::from(log.legacy_residual_energy - previous.legacy_residual_energy);
 
             let weight_multiplier = {
                 let weight = match weight_mode {

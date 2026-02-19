@@ -105,8 +105,11 @@ impl Logger {
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
                 battery::Measurement::builder()
+                    .legacy_residual_energy(battery_state.residual_millis())
                     .residual_energy(battery_state.residual_millis())
+                    .legacy_import(battery_metrics.import)
                     .import(battery_metrics.import)
+                    .legacy_export(battery_metrics.export)
                     .export(battery_metrics.export)
                     .build()
                     .insert_into(&self.db)

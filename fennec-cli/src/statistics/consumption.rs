@@ -14,7 +14,7 @@ use crate::{
     core::working_mode::WorkingMode,
     db::power,
     prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts, time::Hours},
+    quantity::{energy::WattHours, power::Watts, time::Hours},
     statistics::{flow::SystemFlow, integrator::Integrator},
 };
 
@@ -22,10 +22,10 @@ use crate::{
 #[must_use]
 pub struct FlowStatistics {
     /// Fallback global average power flow for when a specific hourly power flow is not available.
-    fallback: SystemFlow<Kilowatts>,
+    fallback: SystemFlow<Watts>,
 
     /// Average hourly power flow.
-    hourly: [Option<SystemFlow<Kilowatts>>; 24],
+    hourly: [Option<SystemFlow<Watts>>; 24],
 }
 
 impl FlowStatistics {
@@ -42,7 +42,7 @@ impl FlowStatistics {
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut fallback = Integrator::<SystemFlow<KilowattHours>>::default();
+        let mut fallback = Integrator::<SystemFlow<WattHours>>::default();
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
@@ -72,7 +72,7 @@ impl FlowStatistics {
         })
     }
 
-    pub fn on_hour(&self, hour: u32) -> SystemFlow<Kilowatts> {
+    pub fn on_hour(&self, hour: u32) -> SystemFlow<Watts> {
         self.hourly[hour as usize].unwrap_or(self.fallback)
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     core::{energy_level::EnergyLevel, solution::Solution, step::Step},
     ops::RangeInclusive,
     prelude::*,
-    quantity::cost::Cost,
+    quantity::currency::Mills,
 };
 
 #[must_use]
@@ -88,7 +88,7 @@ impl SolutionSpace {
         }
     }
 
-    pub fn backtrack(mut self, initial_energy_level: EnergyLevel) -> Result<(Cost, Vec<Step>)> {
+    pub fn backtrack(mut self, initial_energy_level: EnergyLevel) -> Result<(Mills, Vec<Step>)> {
         let solution = self.get_mut(0, initial_energy_level).take().with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level:?}")
         })?;

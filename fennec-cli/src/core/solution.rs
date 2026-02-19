@@ -2,12 +2,12 @@ use std::fmt::{Display, Formatter};
 
 use comfy_table::{Cell, Table, modifiers, presets};
 
-use crate::{core::step::Step, quantity::cost::Cost};
+use crate::{core::step::Step, quantity::currency::Mills};
 
 #[must_use]
 pub struct Solution {
     /// Cumulative loss till the end of the forecast period – our primary optimization target.
-    pub loss: Cost,
+    pub loss: Mills,
 
     /// First step associated with this solution.
     ///
@@ -17,19 +17,19 @@ pub struct Solution {
 
 impl Solution {
     /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { loss: Cost::zero(), step: None };
+    pub const BOUNDARY: Self = Self { loss: Mills::zero(), step: None };
 }
 
 #[must_use]
 pub struct SolutionSummary {
-    pub loss: Cost,
+    pub loss: Mills,
 
     /// Estimated loss without using the battery.
-    pub base_loss: Cost,
+    pub base_loss: Mills,
 }
 
 impl SolutionSummary {
-    fn profit(&self) -> Cost {
+    fn profit(&self) -> Mills {
         self.base_loss - self.loss
     }
 }

@@ -3,7 +3,7 @@ use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, prese
 
 use crate::{
     core::{step::Step, working_mode::WorkingMode},
-    quantity::{cost::Cost, energy::KilowattHours, rate::KilowattHourRate},
+    quantity::{currency::Mills, energy::WattHours, rate::KilowattHourRate},
 };
 
 pub fn build_steps_table(steps: &[Step]) -> Table {
@@ -46,28 +46,28 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             }),
             Cell::new(step.working_mode).fg(step.working_mode.color()),
             Cell::new(step.system_flow.grid.import).set_alignment(CellAlignment::Right).fg(
-                if step.system_flow.grid.import > KilowattHours::ONE_WATT_HOUR {
+                if step.system_flow.grid.import > WattHours::ONE {
                     Color::Red
                 } else {
                     Color::Green
                 },
             ),
             Cell::new(step.system_flow.grid.export).set_alignment(CellAlignment::Right).fg(
-                if step.system_flow.grid.export > KilowattHours::ONE_WATT_HOUR {
+                if step.system_flow.grid.export > WattHours::ONE {
                     Color::Blue
                 } else {
                     Color::Reset
                 },
             ),
             Cell::new(step.system_flow.battery.import)
-                .fg(if step.system_flow.battery.import > KilowattHours::ONE_WATT_HOUR {
+                .fg(if step.system_flow.battery.import > WattHours::ONE {
                     WorkingMode::Charge.color()
                 } else {
                     Color::Reset
                 })
                 .set_alignment(CellAlignment::Right),
             Cell::new(step.system_flow.battery.export)
-                .fg(if step.system_flow.battery.export > KilowattHours::ONE_WATT_HOUR {
+                .fg(if step.system_flow.battery.export > WattHours::ONE {
                     WorkingMode::Discharge.color()
                 } else {
                     Color::Reset
@@ -76,7 +76,7 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             Cell::new(step.residual_energy_after).set_alignment(CellAlignment::Right),
             Cell::new(step.loss)
                 .set_alignment(CellAlignment::Right)
-                .fg(if step.loss >= Cost::ONE_CENT { Color::Red } else { Color::Green }),
+                .fg(if step.loss >= Mills::TEN { Color::Red } else { Color::Green }),
         ]);
     }
     table

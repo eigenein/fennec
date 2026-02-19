@@ -4,7 +4,6 @@ use std::{
 };
 
 use bon::bon;
-use chrono::TimeDelta;
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
@@ -21,13 +20,13 @@ use crate::{
     db::battery::Measurement,
     fmt::FormattedPercentage,
     prelude::*,
-    quantity::{energy::KilowattHours, power::Kilowatts},
+    quantity::{energy::WattHours, power::Watts, time::Hours},
 };
 
 #[must_use]
 #[derive(Copy, Clone)]
 pub struct BatteryEfficiency {
-    pub parasitic_load: Kilowatts,
+    pub parasitic_load: Watts,
 
     /// Charging efficiency, `0..=1`.
     pub charging: f64,
@@ -37,17 +36,17 @@ pub struct BatteryEfficiency {
 
     pub n_samples: usize,
 
-    pub total_time: TimeDelta,
+    pub total_hours: Hours,
 }
 
 impl Default for BatteryEfficiency {
     fn default() -> Self {
         Self {
-            parasitic_load: Kilowatts::zero(),
+            parasitic_load: Watts::zero(),
             charging: 1.0,
             discharging: 1.0,
             n_samples: 0,
-            total_time: TimeDelta::zero(),
+            total_hours: Hours::zero(),
         }
     }
 }
@@ -56,15 +55,15 @@ impl Default for BatteryEfficiency {
 impl BatteryEfficiency {
     #[builder]
     pub fn new(
-        parasitic_load: Kilowatts,
+        parasitic_load: Watts,
         charging: f64,
         discharging: f64,
         n_samples: usize,
-        total_time: TimeDelta,
+        total_hours: Hours,
     ) -> Result<Self> {
         if parasitic_load.0.is_nan()
             || parasitic_load.0.is_infinite()
-            || parasitic_load < Kilowatts::zero()
+            || parasitic_load < Watts::zero()
         {
             bail!("invalid parasitic load: {parasitic_load}");
         }
@@ -74,7 +73,7 @@ impl BatteryEfficiency {
         if discharging.is_nan() || discharging.is_infinite() {
             bail!("invalid discharging efficiency: {discharging}");
         }
-        Ok(Self { parasitic_load, charging, discharging, n_samples, total_time })
+        Ok(Self { parasitic_load, charging, discharging, n_samples, total_hours })
     }
 }
 
@@ -90,24 +89,22 @@ impl BatteryEfficiency {
     {
         let mut previous = battery_logs.try_next().await?.context("empty battery log stream")?;
         let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
-        let mut total_time = TimeDelta::zero();
+        let mut total_hours = Hours::zero();
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
-            let imported_energy = log.import - previous.import;
-            let exported_energy = log.export - previous.export;
-            let hours = {
-                let time_delta = log.timestamp - previous.timestamp;
-                total_time += time_delta;
-                time_delta.as_seconds_f64() / 3600.0
-            };
-            let residual_differential = log.residual_energy - previous.residual_energy;
+            let imported_energy = WattHours::from(log.import - previous.import);
+            let exported_energy = WattHours::from(log.export - previous.export);
+            let hours = Hours::from(log.timestamp - previous.timestamp);
+            total_hours += hours;
+            let residual_differential =
+                WattHours::from(log.residual_energy - previous.residual_energy);
 
             let weight_multiplier = {
                 let weight = match weight_mode {
                     WeightMode::None => 1.0,
                     WeightMode::EnergyFlow => {
-                        (imported_energy + exported_energy + KilowattHours::ONE_WATT_HOUR).0
+                        (imported_energy + exported_energy + WattHours::ONE).0
                     }
                 };
                 weight.sqrt()
@@ -116,7 +113,7 @@ impl BatteryEfficiency {
             dataset.records.push_row(aview1(&[
                 imported_energy.0 * weight_multiplier,
                 exported_energy.0 * weight_multiplier,
-                hours * weight_multiplier,
+                hours.0 * weight_multiplier,
             ]))?;
             dataset
                 .targets
@@ -139,9 +136,9 @@ impl BatteryEfficiency {
         let this = Self::builder()
             .charging(regression.params()[0])
             .discharging(-1.0 / regression.params()[1])
-            .parasitic_load(Kilowatts(-regression.params()[2]))
+            .parasitic_load(Watts(-regression.params()[2]))
             .n_samples(dataset.nsamples())
-            .total_time(total_time)
+            .total_hours(total_hours)
             .build()?;
         println!("{this}");
         Ok(this)
@@ -168,10 +165,7 @@ impl Display for BatteryEfficiency {
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
             .set_header(vec![Cell::from("Battery")])
-            .add_row(vec![
-                Cell::from("Total time"),
-                Cell::from(format!("{:.1} days", self.total_time.as_seconds_f64() / 86400.0)),
-            ])
+            .add_row(vec![Cell::from("Total time"), Cell::from(self.total_hours)])
             .add_row(vec![
                 Cell::from("Samples"),
                 Cell::from(self.n_samples).set_alignment(CellAlignment::Right),

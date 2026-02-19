@@ -5,6 +5,7 @@ use chrono::{DateTime, Local, Timelike};
 use enumset::EnumSet;
 
 use crate::{
+    cli::battery::BatteryPowerLimits,
     core::{
         battery,
         energy_level::Quantum,
@@ -15,7 +16,7 @@ use crate::{
     },
     ops::Interval,
     prelude::*,
-    quantity::{cost::Cost, energy::KilowattHours, power::Kilowatts, rate::KilowattHourRate},
+    quantity::{currency::Mills, energy::WattHours, power::Watts, rate::KilowattHourRate},
     statistics::{
         battery::BatteryEfficiency,
         consumption::FlowStatistics,
@@ -32,14 +33,12 @@ pub struct Solver<'a> {
     working_modes: EnumSet<WorkingMode>,
 
     /// Minimum allowed residual energy.
-    min_residual_energy: KilowattHours,
+    min_residual_energy: WattHours,
 
     /// Maximum allowed residual energy.
-    max_residual_energy: KilowattHours,
+    max_residual_energy: WattHours,
 
-    #[builder(into)]
-    battery_power_limits: Flow<Kilowatts>,
-
+    battery_power_limits: BatteryPowerLimits,
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
     now: DateTime<Local>,
@@ -106,7 +105,7 @@ impl Solver<'_> {
         solutions
     }
 
-    pub fn base_loss(&self) -> Cost {
+    pub fn base_loss(&self) -> Mills {
         self.grid_rates
             .iter()
             .copied()
@@ -130,9 +129,9 @@ impl Solver<'_> {
         &self,
         interval_index: usize,
         interval: Interval,
-        average_flow: SystemFlow<Kilowatts>,
+        average_flow: SystemFlow<Watts>,
         grid_rate: KilowattHourRate,
-        initial_residual_energy: KilowattHours,
+        initial_residual_energy: WattHours,
         solutions: &SolutionSpace,
     ) -> Option<Solution> {
         let battery = battery::Simulator::builder()
@@ -167,7 +166,7 @@ impl Solver<'_> {
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        average_flow: SystemFlow<Kilowatts>,
+        average_flow: SystemFlow<Watts>,
         grid_rate: KilowattHourRate,
         working_mode: WorkingMode,
     ) -> Step {
@@ -191,7 +190,7 @@ impl Solver<'_> {
     }
 
     /// Calculate the grid consumption or production loss.
-    fn loss(&self, rate: KilowattHourRate, flow: Flow<KilowattHours>) -> Cost {
+    fn loss(&self, rate: KilowattHourRate, flow: Flow<WattHours>) -> Mills {
         flow.import * rate - flow.export * (rate - self.purchase_fee)
     }
 }

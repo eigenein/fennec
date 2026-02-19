@@ -5,10 +5,7 @@ use derive_more::{Add, AddAssign, Sub};
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode,
-    quantity::{
-        energy::KilowattHours,
-        power::{Kilowatts, Watts},
-    },
+    quantity::{energy::WattHours, power::Watts},
 };
 
 /// Generic bidirectional energy flow.
@@ -22,34 +19,28 @@ pub struct Flow<T> {
     pub export: T,
 }
 
-impl From<BatteryPowerLimits> for Flow<Kilowatts> {
-    fn from(limits: BatteryPowerLimits) -> Self {
-        Self { import: limits.charging.into(), export: limits.discharging.into() }
-    }
-}
-
-impl Flow<Kilowatts> {
+impl Flow<Watts> {
     pub fn normalize(&mut self) {
-        if self.import < Kilowatts::zero() {
+        if self.import < Watts::zero() {
             self.export -= self.import;
-            self.import = Kilowatts::zero();
+            self.import = Watts::zero();
         }
-        if self.export < Kilowatts::zero() {
+        if self.export < Watts::zero() {
             self.import -= self.export;
-            self.export = Kilowatts::zero();
+            self.export = Watts::zero();
         }
     }
 }
 
-impl Default for Flow<Kilowatts> {
+impl Default for Flow<Watts> {
     fn default() -> Self {
-        Self { import: Kilowatts::zero(), export: Kilowatts::zero() }
+        Self { import: Watts::zero(), export: Watts::zero() }
     }
 }
 
-impl Default for Flow<KilowattHours> {
+impl Default for Flow<WattHours> {
     fn default() -> Self {
-        Self { import: KilowattHours::zero(), export: KilowattHours::zero() }
+        Self { import: WattHours::zero(), export: WattHours::zero() }
     }
 }
 
@@ -122,12 +113,12 @@ impl SystemFlow<Watts> {
     }
 }
 
-impl SystemFlow<Kilowatts> {
+impl SystemFlow<Watts> {
     /// Re-distribute the power flow based on the working mode.
     pub fn with_working_mode(
         mut self,
         working_mode: WorkingMode,
-        battery_power_limits: Flow<Kilowatts>,
+        battery_power_limits: BatteryPowerLimits,
     ) -> Self {
         match working_mode {
             WorkingMode::Idle => {
@@ -136,24 +127,24 @@ impl SystemFlow<Kilowatts> {
             }
             WorkingMode::Harvest => {
                 self.grid.import += self.battery.export;
-                self.battery.export = Kilowatts::zero();
+                self.battery.export = Watts::zero();
             }
             WorkingMode::SelfUse => {
                 // Nothing changes.
             }
             WorkingMode::Charge => {
                 self.grid.import +=
-                    battery_power_limits.import + (self.battery.export - self.battery.import);
+                    battery_power_limits.charging + (self.battery.export - self.battery.import);
                 self.grid.normalize();
-                self.battery.import = battery_power_limits.import;
-                self.battery.export = Kilowatts::zero();
+                self.battery.import = battery_power_limits.charging;
+                self.battery.export = Watts::zero();
             }
             WorkingMode::Discharge => {
                 self.grid.export +=
-                    battery_power_limits.export + (self.battery.import - self.battery.export);
+                    battery_power_limits.discharging + (self.battery.import - self.battery.export);
                 self.grid.normalize();
-                self.battery.export = battery_power_limits.export;
-                self.battery.import = Kilowatts::zero();
+                self.battery.export = battery_power_limits.discharging;
+                self.battery.import = Watts::zero();
             }
         }
         self

@@ -1,7 +1,7 @@
 use crate::{
     ops::RangeInclusive,
     quantity::{
-        energy::{DecawattHours, KilowattHours, MilliwattHours},
+        energy::{DecawattHours, MilliwattHours, WattHours},
         proportions::Percentage,
     },
 };
@@ -15,12 +15,12 @@ pub struct EnergyState {
 
 impl EnergyState {
     /// Battery capacity corrected on the state of health.
-    pub fn actual_capacity(&self) -> KilowattHours {
-        KilowattHours::from(self.design_capacity) * self.state_of_health
+    pub fn actual_capacity(&self) -> WattHours {
+        WattHours::from(self.design_capacity) * self.state_of_health
     }
 
     /// Residual energy corrected on the state of health.
-    pub fn residual(&self) -> KilowattHours {
+    pub fn residual(&self) -> WattHours {
         self.actual_capacity() * self.state_of_charge
     }
 
@@ -37,11 +37,11 @@ pub struct FullState {
 }
 
 impl FullState {
-    pub fn min_residual_energy(&self) -> KilowattHours {
+    pub fn min_residual_energy(&self) -> WattHours {
         self.energy.actual_capacity() * self.allowed_state_of_charge.min
     }
 
-    pub fn max_residual_energy(&self) -> KilowattHours {
+    pub fn max_residual_energy(&self) -> WattHours {
         self.energy.actual_capacity() * self.allowed_state_of_charge.max
     }
 }

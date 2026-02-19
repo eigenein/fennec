@@ -1,14 +1,16 @@
 #[rustfmt::skip]
 macro_rules! quantity {
-    ($name:ident, via: $inner:tt, suffix: $suffix:literal, precision: $precision:literal) => {
-        new_type!($name, $inner);
+    ($(#[$meta:meta])* $name:ident, via: $inner:tt, suffix: $suffix:literal, precision: $precision:literal) => {
+        new_type!($(#[$meta])* $name, $inner);
         fmt!($name, suffix: $suffix, precision: $precision);
 
         impl $name {
+            #[allow(dead_code)]
             pub const fn zero() -> Self {
                 Self(0 as $inner)
             }
 
+            #[allow(dead_code)]
             #[allow(clippy::float_cmp)]
             pub const fn is_zero(self) -> bool {
                 self.0 == (0 as $inner)
@@ -19,7 +21,9 @@ macro_rules! quantity {
 
 #[rustfmt::skip]
 macro_rules! new_type_base {
-    ($name:ident, $inner:tt, #[$($derive:meta),*]) => {
+    ($(#[$meta:meta])* $name:ident, $inner:tt, #[$($derive:meta),*]) => {
+        $(#[$meta])*
+        #[must_use]
         #[repr(transparent)]
         #[derive(
             ::derive_more::Add,
@@ -40,16 +44,16 @@ macro_rules! new_type_base {
 
 #[rustfmt::skip]
 macro_rules! new_type {
-    ($name:ident, u16) => {
-        new_type_base!($name, u16, #[
+    ($(#[$meta:meta])* $name:ident, u16) => {
+        new_type_base!($(#[$meta])* $name, u16, #[
             ::std::cmp::PartialEq,
             ::std::cmp::Eq,
             ::std::cmp::PartialOrd,
             ::std::cmp::Ord
         ]);
     };
-    ($name:ident, i64) => {
-        new_type_base!($name, i64, #[
+    ($(#[$meta:meta])* $name:ident, i64) => {
+        new_type_base!($(#[$meta])* $name, i64, #[
             ::std::cmp::PartialEq,
             ::std::cmp::Eq,
             ::std::cmp::PartialOrd,
@@ -57,8 +61,8 @@ macro_rules! new_type {
             ::derive_more::Neg
         ]);
     };
-    ($name:ident, f64) => {
-        new_type_base!($name, f64, #[::derive_more::Neg]);
+    ($(#[$meta:meta])* $name:ident, f64) => {
+        new_type_base!($(#[$meta])* $name, f64, #[::derive_more::Neg]);
         ordered_float!($name);
 
         impl ::std::ops::Mul<f64> for $name {

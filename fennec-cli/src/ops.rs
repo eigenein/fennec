@@ -41,7 +41,6 @@ where
     Tz: TimeZone,
     <Tz as TimeZone>::Offset: Copy,
 {
-    #[must_use]
     pub fn hours(self) -> Hours {
         (self.end - self.start).into()
     }

@@ -1,6 +1,11 @@
 //! FoxESS Modbus clients.
 
-use crate::{api::modbus, core::battery, prelude::*};
+use crate::{
+    api::modbus,
+    core::battery,
+    prelude::*,
+    quantity::{energy::DecawattHours, proportions::Percent},
+};
 
 #[must_use]
 pub struct EnergyStateClients {
@@ -13,9 +18,9 @@ impl EnergyStateClients {
     /// Read the battery energy state.
     pub async fn read(&self) -> Result<battery::EnergyState> {
         Ok(battery::EnergyState {
-            design_capacity: u16::try_from(self.design_capacity.read_value().await?)?.into(),
-            state_of_charge: u16::try_from(self.state_of_charge.read_value().await?)?.into(),
-            state_of_health: u16::try_from(self.state_of_health.read_value().await?)?.into(),
+            design_capacity: DecawattHours(self.design_capacity.read_value().await?.try_into()?),
+            state_of_charge: Percent(self.state_of_charge.read_value().await?.try_into()?),
+            state_of_health: Percent(self.state_of_health.read_value().await?.try_into()?),
         })
     }
 }
@@ -30,10 +35,8 @@ pub struct Clients {
 impl Clients {
     /// Read the full battery state.
     pub async fn read(&self) -> Result<battery::FullState> {
-        let min_state_of_charge =
-            u16::try_from(self.min_state_of_charge.read_value().await?)?.into();
-        let max_state_of_charge =
-            u16::try_from(self.max_state_of_charge.read_value().await?)?.into();
+        let min_state_of_charge = Percent(self.min_state_of_charge.read_value().await?.try_into()?);
+        let max_state_of_charge = Percent(self.max_state_of_charge.read_value().await?.try_into()?);
         Ok(battery::FullState {
             energy: self.energy_state.read().await?,
             allowed_state_of_charge: (min_state_of_charge..=max_state_of_charge).into(),

@@ -16,7 +16,6 @@ rust-version = "1.92"
 version = "0.67.0"
 
 [workspace.lints.clippy]
-derive_ord_xor_partial_ord = "allow"
 future_not_send = "allow"
 missing_errors_doc = "allow"
 type_repetition_in_bounds = "allow"

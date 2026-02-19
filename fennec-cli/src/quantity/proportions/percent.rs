@@ -1,27 +1,8 @@
-use std::{
-    fmt::{Debug, Display, Formatter},
-    ops::Mul,
-};
-
-use derive_more::From;
-use serde::{Deserialize, Serialize};
+use std::ops::Mul;
 
 use crate::quantity::proportions::BasisPoints;
 
-#[derive(Copy, Clone, Eq, PartialEq, From, Serialize, Deserialize)]
-pub struct Percent(u16);
-
-impl Display for Percent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
-
-impl Debug for Percent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}%", self.0)
-    }
-}
+quantity!(Percent, u16, "%");
 
 impl Percent {
     pub const fn to_proportion(self) -> f64 {

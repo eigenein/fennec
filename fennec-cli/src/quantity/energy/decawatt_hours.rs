@@ -1,22 +1,11 @@
-use std::{
-    fmt::{Debug, Formatter},
-    ops::Mul,
-};
+use std::ops::Mul;
 
 use crate::quantity::{
     energy::{KilowattHours, MilliwattHours},
     proportions::BasisPoints,
 };
 
-/// Decawatt-hours, 1 daWh = 10 Wh.
-#[derive(Copy, Clone, derive_more::From)]
-pub struct DecawattHours(u16);
-
-impl Debug for DecawattHours {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}daWh", self.0)
-    }
-}
+quantity!(DecawattHours, u16, "daWh");
 
 impl From<DecawattHours> for KilowattHours {
     fn from(value: DecawattHours) -> Self {

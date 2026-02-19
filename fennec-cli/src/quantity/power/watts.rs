@@ -1,47 +1,14 @@
-use std::{
-    cmp::Ordering,
-    fmt::{Debug, Display, Formatter},
-    ops::{Div, Mul},
-};
+use std::ops::{Div, Mul};
 
 use chrono::TimeDelta;
-use derive_more::{Add, FromStr, Neg, Sub};
-use serde::{Deserialize, Serialize};
 
 use crate::quantity::{energy::KilowattHours, power::kilowatts::Kilowatts};
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, FromStr, Add, Sub, Neg, Serialize, Deserialize)]
-pub struct Watts(pub f64);
-
-impl Watts {
-    pub const fn zero() -> Self {
-        Self(0.0)
-    }
-}
+quantity!(Watts, f64, "W");
 
 impl From<Kilowatts> for Watts {
     fn from(kilowatts: Kilowatts) -> Self {
         Self(kilowatts.0 * 1000.0)
-    }
-}
-
-impl Debug for Watts {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.0}W", self.0)
-    }
-}
-
-impl Display for Watts {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.0} W", self.0)
-    }
-}
-
-impl Eq for Watts {}
-
-impl Ord for Watts {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
     }
 }
 

@@ -18,8 +18,8 @@ use crate::{
     prelude::*,
     quantity::{currency::Mills, energy::WattHours, power::Watts, rate::KilowattHourRate},
     statistics::{
+        FlowStatistics,
         battery::BatteryEfficiency,
-        consumption::FlowStatistics,
         flow::{Flow, SystemFlow},
     },
 };

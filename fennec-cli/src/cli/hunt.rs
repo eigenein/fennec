@@ -18,7 +18,7 @@ use crate::{
     ops::Interval,
     prelude::*,
     quantity::rate::KilowattHourRate,
-    statistics::{battery::BatteryEfficiency, consumption::FlowStatistics},
+    statistics::{FlowStatistics, battery::BatteryEfficiency},
     tables::build_steps_table,
 };
 

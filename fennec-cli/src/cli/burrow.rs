@@ -10,7 +10,7 @@ use crate::{
     },
     db::{battery, power},
     prelude::*,
-    statistics::{battery::BatteryEfficiency, consumption::FlowStatistics},
+    statistics::{FlowStatistics, battery::BatteryEfficiency},
 };
 
 #[derive(Parser)]

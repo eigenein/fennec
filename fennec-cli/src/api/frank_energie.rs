@@ -3,11 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    ops::Interval,
-    prelude::*,
-    quantity::{Quantity, rate::KilowattHourRate},
-};
+use crate::{ops::Interval, prelude::*, quantity::rate::KilowattHourRate};
 
 pub struct Api {
     client: reqwest::Client,
@@ -39,7 +35,7 @@ impl Api {
             .market_prices
             .electricity
             .into_iter()
-            .map(|item| (Interval::from_std(item.from..item.till), Quantity(item.all_in)))
+            .map(|item| (Interval::from_std(item.from..item.till), KilowattHourRate(item.all_in)))
             .collect())
     }
 }

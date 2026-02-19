@@ -53,7 +53,7 @@ macro_rules! new_type {
         new_type_base!($name, f64, #[::derive_more::Neg]);
         ordered_float!($name);
 
-        impl Mul<f64> for $name {
+        impl ::std::ops::Mul<f64> for $name {
             type Output = Self;
 
             fn mul(self, rhs: f64) -> Self::Output {
@@ -61,7 +61,7 @@ macro_rules! new_type {
             }
         }
 
-        impl Div<Self> for $name {
+        impl ::std::ops::Div<Self> for $name {
             type Output = f64;
 
             fn div(self, rhs: Self) -> Self::Output {
@@ -69,7 +69,7 @@ macro_rules! new_type {
             }
         }
 
-        impl Div<f64> for $name {
+        impl ::std::ops::Div<f64> for $name {
             type Output = Self;
 
             fn div(self, rhs: f64) -> Self::Output {

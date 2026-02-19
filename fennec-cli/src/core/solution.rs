@@ -17,7 +17,7 @@ pub struct Solution {
 
 impl Solution {
     /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { loss: Cost::ZERO, step: None };
+    pub const BOUNDARY: Self = Self { loss: Cost::zero(), step: None };
 }
 
 #[must_use]

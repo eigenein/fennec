@@ -4,7 +4,7 @@ use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
     ops::Interval,
     prelude::*,
-    quantity::{Quantity, rate::KilowattHourRate},
+    quantity::rate::KilowattHourRate,
 };
 
 #[derive(
@@ -27,8 +27,8 @@ pub enum Provider {
 impl Provider {
     pub const fn purchase_fee(self) -> KilowattHourRate {
         match self {
-            Self::NextEnergy => Quantity(0.021),
-            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => Quantity(0.0182),
+            Self::NextEnergy => KilowattHourRate(0.021),
+            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => KilowattHourRate(0.0182),
         }
     }
 

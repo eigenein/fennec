@@ -21,7 +21,7 @@ use crate::{
     db::battery::Measurement,
     fmt::FormattedPercentage,
     prelude::*,
-    quantity::{Quantity, energy::KilowattHours, power::Kilowatts},
+    quantity::{energy::KilowattHours, power::Kilowatts},
 };
 
 #[must_use]
@@ -43,7 +43,7 @@ pub struct BatteryEfficiency {
 impl Default for BatteryEfficiency {
     fn default() -> Self {
         Self {
-            parasitic_load: Kilowatts::ZERO,
+            parasitic_load: Kilowatts::zero(),
             charging: 1.0,
             discharging: 1.0,
             n_samples: 0,
@@ -64,7 +64,7 @@ impl BatteryEfficiency {
     ) -> Result<Self> {
         if parasitic_load.0.is_nan()
             || parasitic_load.0.is_infinite()
-            || parasitic_load < Kilowatts::ZERO
+            || parasitic_load < Kilowatts::zero()
         {
             bail!("invalid parasitic load: {parasitic_load}");
         }
@@ -139,7 +139,7 @@ impl BatteryEfficiency {
         let this = Self::builder()
             .charging(regression.params()[0])
             .discharging(-1.0 / regression.params()[1])
-            .parasitic_load(Quantity(-regression.params()[2]))
+            .parasitic_load(Kilowatts(-regression.params()[2]))
             .n_samples(dataset.nsamples())
             .total_time(total_time)
             .build()?;

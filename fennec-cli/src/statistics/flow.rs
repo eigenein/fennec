@@ -7,7 +7,6 @@ use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode,
     quantity::{
-        Quantity,
         energy::KilowattHours,
         power::{Kilowatts, Watts},
     },
@@ -32,20 +31,20 @@ impl From<BatteryPowerLimits> for Flow<Kilowatts> {
 
 impl Flow<Kilowatts> {
     pub fn normalize(&mut self) {
-        if self.import < Quantity::ZERO {
+        if self.import < Kilowatts::zero() {
             self.export -= self.import;
-            self.import = Quantity::ZERO;
+            self.import = Kilowatts::zero();
         }
-        if self.export < Quantity::ZERO {
+        if self.export < Kilowatts::zero() {
             self.import -= self.export;
-            self.export = Quantity::ZERO;
+            self.export = Kilowatts::zero();
         }
     }
 }
 
 impl Default for Flow<Kilowatts> {
     fn default() -> Self {
-        Self { import: Quantity::ZERO, export: Quantity::ZERO }
+        Self { import: Kilowatts::zero(), export: Kilowatts::zero() }
     }
 }
 
@@ -138,7 +137,7 @@ impl SystemFlow<Kilowatts> {
             }
             WorkingMode::Harvest => {
                 self.grid.import += self.battery.export;
-                self.battery.export = Quantity::ZERO;
+                self.battery.export = Kilowatts::zero();
             }
             WorkingMode::SelfUse => {
                 // Nothing changes.
@@ -148,14 +147,14 @@ impl SystemFlow<Kilowatts> {
                     battery_power_limits.import + (self.battery.export - self.battery.import);
                 self.grid.normalize();
                 self.battery.import = battery_power_limits.import;
-                self.battery.export = Quantity::ZERO;
+                self.battery.export = Kilowatts::zero();
             }
             WorkingMode::Discharge => {
                 self.grid.export +=
                     battery_power_limits.export + (self.battery.import - self.battery.export);
                 self.grid.normalize();
                 self.battery.export = battery_power_limits.export;
-                self.battery.import = Quantity::ZERO;
+                self.battery.import = Kilowatts::zero();
             }
         }
         self

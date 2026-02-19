@@ -4,7 +4,7 @@ use crate::{
     api::modbus,
     core::battery,
     prelude::*,
-    quantity::{energy::DecawattHours, proportions::Percent},
+    quantity::{energy::DecawattHours, proportions::Percentage},
 };
 
 #[must_use]
@@ -19,8 +19,8 @@ impl EnergyStateClients {
     pub async fn read(&self) -> Result<battery::EnergyState> {
         Ok(battery::EnergyState {
             design_capacity: DecawattHours(self.design_capacity.read_value().await?.try_into()?),
-            state_of_charge: Percent(self.state_of_charge.read_value().await?.try_into()?),
-            state_of_health: Percent(self.state_of_health.read_value().await?.try_into()?),
+            state_of_charge: Percentage(self.state_of_charge.read_value().await?.try_into()?),
+            state_of_health: Percentage(self.state_of_health.read_value().await?.try_into()?),
         })
     }
 }
@@ -35,8 +35,10 @@ pub struct Clients {
 impl Clients {
     /// Read the full battery state.
     pub async fn read(&self) -> Result<battery::FullState> {
-        let min_state_of_charge = Percent(self.min_state_of_charge.read_value().await?.try_into()?);
-        let max_state_of_charge = Percent(self.max_state_of_charge.read_value().await?.try_into()?);
+        let min_state_of_charge =
+            Percentage(self.min_state_of_charge.read_value().await?.try_into()?);
+        let max_state_of_charge =
+            Percentage(self.max_state_of_charge.read_value().await?.try_into()?);
         Ok(battery::FullState {
             energy: self.energy_state.read().await?,
             allowed_state_of_charge: (min_state_of_charge..=max_state_of_charge).into(),

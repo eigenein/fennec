@@ -51,7 +51,7 @@ impl Default for Flow<Kilowatts> {
 
 impl Default for Flow<KilowattHours> {
     fn default() -> Self {
-        Self { import: Quantity::ZERO, export: Quantity::ZERO }
+        Self { import: KilowattHours::zero(), export: KilowattHours::zero() }
     }
 }
 

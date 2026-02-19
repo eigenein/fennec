@@ -21,14 +21,14 @@ impl Quantum {
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     pub fn quantize(self, energy: KilowattHours) -> EnergyLevel {
-        debug_assert!(energy >= KilowattHours::ZERO);
+        debug_assert!(energy >= KilowattHours::zero());
         EnergyLevel((energy / self.0).round() as usize)
     }
 
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     pub fn ceil(self, energy: KilowattHours) -> EnergyLevel {
-        debug_assert!(energy >= KilowattHours::ZERO);
+        debug_assert!(energy >= KilowattHours::zero());
         EnergyLevel((energy / self.0).ceil() as usize)
     }
 }
@@ -60,15 +60,14 @@ impl EnergyLevel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::quantity::Quantity;
 
     #[test]
     fn quantize_ok() {
-        assert_eq!(Quantum(Quantity(0.084)).quantize(Quantity(0.844)), EnergyLevel(10));
+        assert_eq!(Quantum(KilowattHours(0.084)).quantize(KilowattHours(0.844)), EnergyLevel(10));
     }
 
     #[test]
     fn dequantize_ok() {
-        assert_eq!(EnergyLevel(10).dequantize(Quantum(Quantity(0.1))), Quantity(1.0));
+        assert_eq!(EnergyLevel(10).dequantize(Quantum(KilowattHours(0.1))), KilowattHours(1.0));
     }
 }

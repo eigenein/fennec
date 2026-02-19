@@ -41,10 +41,6 @@ pub struct HuntArgs {
     )]
     working_modes: Vec<WorkingMode>,
 
-    /// Battery degradation rate per kilowatt-hour of the energy flow.
-    #[clap(long, env = "DEGRADATION_RATE", default_value = "0")]
-    degradation_rate: KilowattHourRate,
-
     #[clap(long = "quantum-kilowatts", env = "QUANTUM_KILOWATTS", default_value = "0.001")]
     quantum: Quantum,
 
@@ -113,7 +109,6 @@ impl HuntArgs {
             .battery_efficiency(battery_efficiency)
             .purchase_fee(self.provider.purchase_fee())
             .now(now)
-            .degradation_rate(self.degradation_rate)
             .quantum(self.quantum)
             .battery_power_limits(self.battery.power_limits)
             .build();

@@ -2,15 +2,15 @@ use crate::{
     ops::RangeInclusive,
     quantity::{
         energy::{DecawattHours, KilowattHours, MilliwattHours},
-        proportions::Percent,
+        proportions::Percentage,
     },
 };
 
 #[must_use]
 pub struct EnergyState {
     pub design_capacity: DecawattHours,
-    pub state_of_charge: Percent,
-    pub state_of_health: Percent,
+    pub state_of_charge: Percentage,
+    pub state_of_health: Percentage,
 }
 
 impl EnergyState {
@@ -33,7 +33,7 @@ impl EnergyState {
 #[must_use]
 pub struct FullState {
     pub energy: EnergyState,
-    pub allowed_state_of_charge: RangeInclusive<Percent>,
+    pub allowed_state_of_charge: RangeInclusive<Percentage>,
 }
 
 impl FullState {

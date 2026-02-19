@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Debug, Display, Formatter},
-    ops::{Div, Mul},
-};
+use std::ops::{Div, Mul};
 
 use chrono::TimeDelta;
 
@@ -10,10 +7,11 @@ use crate::quantity::{
     cost::Cost,
     energy::MilliwattHours,
     power::Kilowatts,
+    proportions::Percentage,
     rate::KilowattHourRate,
 };
 
-pub type KilowattHours = Quantity<1, 1, 0>;
+quantity!(KilowattHours, f64, "kWh");
 
 impl KilowattHours {
     pub const ONE_WATT_HOUR: Self = Self(0.001);
@@ -21,19 +19,16 @@ impl KilowattHours {
 
 impl From<MilliwattHours> for KilowattHours {
     fn from(value: MilliwattHours) -> Self {
-        Self(f64::from(value) * 0.000_001)
+        #[expect(clippy::cast_precision_loss)]
+        Self(value.0 as f64 * 0.000_001)
     }
 }
 
-impl Display for KilowattHours {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.0} Wh", self.0 * 1000.0)
-    }
-}
+impl Mul<Percentage> for KilowattHours {
+    type Output = Self;
 
-impl Debug for KilowattHours {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.0}Wh", self.0 * 1000.0)
+    fn mul(self, percentage: Percentage) -> Self::Output {
+        self * percentage.to_proportion()
     }
 }
 

@@ -61,7 +61,7 @@ impl Simulator {
             - self.efficiency.parasitic_load * for_;
 
         // Parasitic load may drain to the ground:
-        self.residual_energy = self.residual_energy.max(KilowattHours::ZERO);
+        self.residual_energy = self.residual_energy.max(KilowattHours::zero());
 
         // Convert the actual flow back to the external billable energy:
         Flow {

@@ -19,11 +19,3 @@ impl Mul<TimeDelta> for Watts {
         Kilowatts::from(self) * time_delta
     }
 }
-
-impl Div<f64> for Watts {
-    type Output = Self;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        Self(self.0 / rhs)
-    }
-}

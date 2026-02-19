@@ -32,6 +32,6 @@ impl Mul<TimeDelta> for Kilowatts {
 
     fn mul(self, rhs: TimeDelta) -> Self::Output {
         let hours = rhs.as_seconds_f64() / 3600.0;
-        Quantity(self.0 * hours)
+        KilowattHours(self.0 * hours)
     }
 }

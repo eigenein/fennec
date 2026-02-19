@@ -42,7 +42,6 @@ pub struct Solver<'a> {
 
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
-    degradation_rate: KilowattHourRate,
     now: DateTime<Local>,
     quantum: Quantum,
 }
@@ -150,7 +149,6 @@ impl Solver<'_> {
                     .interval(interval)
                     .grid_rate(grid_rate)
                     .average_flow(average_flow)
-                    .initial_residual_energy(initial_residual_energy)
                     .battery(battery)
                     .working_mode(working_mode)
                     .call();
@@ -171,7 +169,6 @@ impl Solver<'_> {
         interval: Interval,
         average_flow: SystemFlow<Kilowatts>,
         grid_rate: KilowattHourRate,
-        initial_residual_energy: KilowattHours,
         working_mode: WorkingMode,
     ) -> Step {
         // Remember that the average flow represents theoretical possibility,
@@ -189,9 +186,7 @@ impl Solver<'_> {
             system_flow: SystemFlow { grid: grid_flow, battery: battery_flow },
             residual_energy_after: battery.residual_energy(),
             energy_level_after: self.quantum.quantize(battery.residual_energy()),
-            loss: self.loss(grid_rate, grid_flow)
-                + (initial_residual_energy - battery.residual_energy()).abs()
-                    * self.degradation_rate,
+            loss: self.loss(grid_rate, grid_flow),
         }
     }
 

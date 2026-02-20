@@ -20,7 +20,7 @@ use crate::{
     db::battery::Measurement,
     fmt::FormattedPercentage,
     prelude::*,
-    quantity::{energy::WattHours, power::Watts, time::Hours},
+    quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };
 
 #[must_use]
@@ -42,11 +42,11 @@ pub struct BatteryEfficiency {
 impl Default for BatteryEfficiency {
     fn default() -> Self {
         Self {
-            parasitic_load: Watts::zero(),
+            parasitic_load: Watts::ZERO,
             charging: 1.0,
             discharging: 1.0,
             n_samples: 0,
-            total_hours: Hours::zero(),
+            total_hours: Hours::ZERO,
         }
     }
 }
@@ -63,7 +63,7 @@ impl BatteryEfficiency {
     ) -> Result<Self> {
         if parasitic_load.0.is_nan()
             || parasitic_load.0.is_infinite()
-            || parasitic_load < Watts::zero()
+            || parasitic_load < Watts::ZERO
         {
             bail!("invalid parasitic load: {parasitic_load}");
         }
@@ -89,7 +89,7 @@ impl BatteryEfficiency {
     {
         let mut previous = battery_logs.try_next().await?.context("empty battery log stream")?;
         let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
-        let mut total_time = Hours::zero();
+        let mut total_time = Hours::ZERO;
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {

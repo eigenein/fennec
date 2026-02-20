@@ -1,5 +1,5 @@
 use crate::{
-    quantity::{energy::WattHours, power::Watts, time::Hours},
+    quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
     statistics::{battery::BatteryEfficiency, flow::Flow},
 };
 
@@ -55,7 +55,7 @@ impl Simulator {
             - self.efficiency.parasitic_load * for_;
 
         // Parasitic load may drain to the ground:
-        self.residual_energy = self.residual_energy.max(WattHours::zero());
+        self.residual_energy = self.residual_energy.max(WattHours::ZERO);
 
         // Convert the actual flow back to the external billable energy:
         Flow {

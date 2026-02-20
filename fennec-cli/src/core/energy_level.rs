@@ -1,6 +1,6 @@
 use derive_more::{From, FromStr};
 
-use crate::quantity::energy::WattHours;
+use crate::quantity::{Zero, energy::WattHours};
 
 /// Discrete unit of energy used in the solution space of the [`crate::core::solver::Solver`].
 #[must_use]
@@ -13,14 +13,14 @@ impl Quantum {
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     pub fn quantize(self, energy: WattHours) -> EnergyLevel {
-        debug_assert!(energy >= WattHours::zero());
+        debug_assert!(energy >= WattHours::ZERO);
         EnergyLevel((energy / self.0).round() as usize)
     }
 
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     pub fn ceil(self, energy: WattHours) -> EnergyLevel {
-        debug_assert!(energy >= WattHours::zero());
+        debug_assert!(energy >= WattHours::ZERO);
         EnergyLevel((energy / self.0).ceil() as usize)
     }
 }

@@ -1,11 +1,11 @@
-use std::ops::{Div, Mul};
+use std::ops::{Add, Div, Mul, Sub, SubAssign};
 
 use derive_more::{Add, AddAssign, Sub};
 
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode,
-    quantity::{energy::WattHours, power::Watts},
+    quantity::{Zero, power::Watts},
 };
 
 /// Generic bidirectional energy flow.
@@ -19,27 +19,8 @@ pub struct Flow<T> {
     pub export: T,
 }
 
-impl Flow<Watts> {
-    pub const fn zero() -> Self {
-        Self { import: Watts::zero(), export: Watts::zero() }
-    }
-
-    pub fn normalize(&mut self) {
-        if self.import < Watts::zero() {
-            self.export -= self.import;
-            self.import = Watts::zero();
-        }
-        if self.export < Watts::zero() {
-            self.import -= self.export;
-            self.export = Watts::zero();
-        }
-    }
-}
-
-impl Flow<WattHours> {
-    pub const fn zero() -> Self {
-        Self { import: WattHours::zero(), export: WattHours::zero() }
-    }
+impl<T: Zero> Zero for Flow<T> {
+    const ZERO: Self = Self { import: T::ZERO, export: T::ZERO };
 }
 
 impl<T> Flow<T> {
@@ -54,6 +35,21 @@ impl<T> Flow<T> {
         T: Copy,
     {
         Self { import: self.export, export: self.import }
+    }
+
+    pub fn normalized(mut self) -> Self
+    where
+        T: Zero + PartialOrd + SubAssign,
+    {
+        if self.import < T::ZERO {
+            self.export -= self.import;
+            self.import = T::ZERO;
+        }
+        if self.export < T::ZERO {
+            self.import -= self.export;
+            self.export = T::ZERO;
+        }
+        self
     }
 }
 
@@ -80,10 +76,8 @@ pub struct SystemFlow<T> {
     pub battery: Flow<T>,
 }
 
-impl SystemFlow<WattHours> {
-    pub const fn zero() -> Self {
-        Self { grid: Flow::<WattHours>::zero(), battery: Flow::<WattHours>::zero() }
-    }
+impl<T: Zero> Zero for SystemFlow<T> {
+    const ZERO: Self = Self { grid: Flow::ZERO, battery: Flow::ZERO };
 }
 
 impl SystemFlow<Watts> {
@@ -97,49 +91,37 @@ impl SystemFlow<Watts> {
         let grid_net_import = net_power + battery_net_import;
         Self {
             grid: Flow {
-                import: grid_net_import.max(Watts::zero()),
-                export: (-grid_net_import).max(Watts::zero()),
+                import: grid_net_import.max(Watts::ZERO),
+                export: (-grid_net_import).max(Watts::ZERO),
             },
             battery: Flow {
-                import: battery_net_import.max(Watts::zero()),
-                export: (-battery_net_import).max(Watts::zero()),
+                import: battery_net_import.max(Watts::ZERO),
+                export: (-battery_net_import).max(Watts::ZERO),
             },
         }
     }
 
     /// Re-distribute the power flow based on the working mode.
-    pub fn with_working_mode(
-        mut self,
-        working_mode: WorkingMode,
-        battery_power_limits: BatteryPowerLimits,
-    ) -> Self {
-        match working_mode {
-            WorkingMode::Idle => {
-                self.grid += self.battery.reversed();
-                self.battery = Flow::<Watts>::zero();
-            }
-            WorkingMode::Harvest => {
-                self.grid.import += self.battery.export;
-                self.battery.export = Watts::zero();
-            }
-            WorkingMode::SelfUse => {
-                // Nothing changes.
-            }
-            WorkingMode::Charge => {
-                self.grid.import +=
-                    battery_power_limits.charging + (self.battery.export - self.battery.import);
-                self.grid.normalize();
-                self.battery.import = battery_power_limits.charging;
-                self.battery.export = Watts::zero();
-            }
-            WorkingMode::Discharge => {
-                self.grid.export +=
-                    battery_power_limits.discharging + (self.battery.import - self.battery.export);
-                self.grid.normalize();
-                self.battery.export = battery_power_limits.discharging;
-                self.battery.import = Watts::zero();
-            }
-        }
+    pub fn with_working_mode(self, working_mode: WorkingMode, limits: BatteryPowerLimits) -> Self {
+        self.with_battery_flow(match working_mode {
+            WorkingMode::Idle => Flow::ZERO,
+            WorkingMode::Harvest => Flow { import: self.battery.import, export: Watts::ZERO },
+            WorkingMode::SelfUse => self.battery,
+            WorkingMode::Charge => Flow { import: limits.charging, export: Watts::ZERO },
+            WorkingMode::Discharge => Flow { import: Watts::ZERO, export: limits.discharging },
+        })
+    }
+}
+
+impl<T> SystemFlow<T> {
+    /// Change the battery flow and re-balance the resulting grid flow.
+    fn with_battery_flow(mut self, battery_flow: Flow<T>) -> Self
+    where
+        T: Copy + Zero + PartialOrd + SubAssign,
+        Flow<T>: Add<Output = Flow<T>> + Sub<Output = Flow<T>>,
+    {
+        self.grid = (self.grid + (self.battery - battery_flow).reversed()).normalized();
+        self.battery = battery_flow;
         self
     }
 }

@@ -18,7 +18,7 @@ use crate::{
     core::working_mode::WorkingMode,
     db::power,
     prelude::*,
-    quantity::{energy::WattHours, power::Watts, time::Hours},
+    quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
     statistics::{flow::SystemFlow, integrator::Integrator},
 };
 
@@ -45,7 +45,7 @@ impl FlowStatistics {
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut fallback = Integrator::<SystemFlow<WattHours>>::new(SystemFlow::zero());
+        let mut fallback = Integrator::<SystemFlow<WattHours>>::new(SystemFlow::ZERO);
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
@@ -104,7 +104,7 @@ impl Display for FlowStatistics {
                 Cell::new(hour),
                 Cell::new(flow.grid.import)
                     .set_alignment(CellAlignment::Right)
-                    .fg(if flow.grid.import > Watts::zero() { Color::Red } else { Color::Reset }),
+                    .fg(if flow.grid.import > Watts::ZERO { Color::Red } else { Color::Reset }),
                 Cell::new(flow.grid.export).set_alignment(CellAlignment::Right),
                 Cell::new(flow.battery.import)
                     .fg(WorkingMode::Charge.color())

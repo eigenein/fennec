@@ -4,17 +4,8 @@ macro_rules! quantity {
         new_type!($(#[$meta])* $name, $inner);
         fmt!($name, suffix: $suffix, precision: $precision);
 
-        impl $name {
-            #[allow(dead_code)]
-            pub const fn zero() -> Self {
-                Self(0 as $inner)
-            }
-
-            #[allow(dead_code)]
-            #[allow(clippy::float_cmp)]
-            pub const fn is_zero(self) -> bool {
-                self.0 == (0 as $inner)
-            }
+        impl super::Zero for $name {
+            const ZERO: Self = Self(<$inner as super::Zero>::ZERO);
         }
     };
 }

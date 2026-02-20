@@ -3,17 +3,13 @@ use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, prese
 
 use crate::{
     core::{step::Step, working_mode::WorkingMode},
-    quantity::{currency::Mills, energy::WattHours, rate::KilowattHourRate},
+    quantity::{Zero, currency::Mills, energy::WattHours, rate::KilowattHourRate},
 };
 
 pub fn build_steps_table(steps: &[Step]) -> Table {
     let mean_rate: KilowattHourRate = {
         let estimate: Mean = steps.iter().map(|step| step.grid_rate.0).collect();
-        if estimate.is_empty() {
-            KilowattHourRate::zero()
-        } else {
-            KilowattHourRate(estimate.mean())
-        }
+        if estimate.is_empty() { KilowattHourRate::ZERO } else { KilowattHourRate(estimate.mean()) }
     };
 
     let mut table = Table::new();

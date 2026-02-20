@@ -2,7 +2,10 @@ use std::fmt::{Display, Formatter};
 
 use comfy_table::{Cell, Table, modifiers, presets};
 
-use crate::{core::step::Step, quantity::currency::Mills};
+use crate::{
+    core::step::Step,
+    quantity::{Zero, currency::Mills},
+};
 
 #[must_use]
 pub struct Solution {
@@ -17,7 +20,7 @@ pub struct Solution {
 
 impl Solution {
     /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { loss: Mills::zero(), step: None };
+    pub const BOUNDARY: Self = Self { loss: Mills::ZERO, step: None };
 }
 
 #[must_use]

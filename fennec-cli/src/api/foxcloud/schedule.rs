@@ -17,7 +17,7 @@ use crate::{
     core::working_mode::WorkingMode as CoreWorkingMode,
     ops::Interval,
     prelude::*,
-    quantity::power::Watts,
+    quantity::{Zero, power::Watts},
 };
 
 #[serde_as]
@@ -174,7 +174,7 @@ impl Groups {
                 let (working_mode, feed_power) = match working_mode {
                     CoreWorkingMode::Idle => {
                         // Forced charging at 0W is effectively idling:
-                        (WorkingMode::ForceCharge, Watts::zero())
+                        (WorkingMode::ForceCharge, Watts::ZERO)
                     }
                     CoreWorkingMode::Harvest => {
                         (WorkingMode::Backup, battery_power_limits.charging)

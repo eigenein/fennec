@@ -7,3 +7,6 @@ pub mod power;
 pub mod rate;
 pub mod ratios;
 pub mod time;
+mod zero;
+
+pub use self::zero::Zero;

@@ -4,23 +4,22 @@ use derive_more::AddAssign;
 
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::working_mode::WorkingMode,
+    core::{flow::Flow, working_mode::WorkingMode},
     quantity::{Zero, power::Watts},
-    statistics::Flow,
 };
 
 #[must_use]
 #[derive(Copy, Clone, AddAssign)]
-pub struct SystemFlow<T> {
+pub struct EnergyBalance<T> {
     pub grid: Flow<T>,
     pub battery: Flow<T>,
 }
 
-impl<T: Zero> Zero for SystemFlow<T> {
+impl<T: Zero> Zero for EnergyBalance<T> {
     const ZERO: Self = Self { grid: Flow::ZERO, battery: Flow::ZERO };
 }
 
-impl SystemFlow<Watts> {
+impl EnergyBalance<Watts> {
     /// Split the net household deficit into grid and battery energy flows.
     ///
     /// This allows to track not just the net deficit, but also how much the battery can actually
@@ -53,7 +52,7 @@ impl SystemFlow<Watts> {
     }
 }
 
-impl<T> SystemFlow<T> {
+impl<T> EnergyBalance<T> {
     /// Change the battery flow and re-balance the resulting grid flow.
     fn with_battery_flow(mut self, battery_flow: Flow<T>) -> Self
     where
@@ -66,18 +65,18 @@ impl<T> SystemFlow<T> {
     }
 }
 
-impl<T: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for SystemFlow<T> {
-    type Output = SystemFlow<<T as Mul<Rhs>>::Output>;
+impl<T: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for EnergyBalance<T> {
+    type Output = EnergyBalance<<T as Mul<Rhs>>::Output>;
 
     fn mul(self, rhs: Rhs) -> Self::Output {
-        SystemFlow { grid: self.grid * rhs, battery: self.battery * rhs }
+        EnergyBalance { grid: self.grid * rhs, battery: self.battery * rhs }
     }
 }
 
-impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for SystemFlow<T> {
-    type Output = SystemFlow<<T as Div<Rhs>>::Output>;
+impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for EnergyBalance<T> {
+    type Output = EnergyBalance<<T as Div<Rhs>>::Output>;
 
     fn div(self, rhs: Rhs) -> Self::Output {
-        SystemFlow { grid: self.grid / rhs, battery: self.battery / rhs }
+        EnergyBalance { grid: self.grid / rhs, battery: self.battery / rhs }
     }
 }

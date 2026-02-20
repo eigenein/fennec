@@ -9,6 +9,7 @@ use crate::{
     core::{
         battery,
         energy_level::Quantum,
+        flow::{EnergyBalance, Flow},
         solution::Solution,
         solution_space::SolutionSpace,
         step::Step,
@@ -17,7 +18,7 @@ use crate::{
     ops::Interval,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours, power::Watts, rate::KilowattHourRate},
-    statistics::{Flow, FlowStatistics, SystemFlow, battery::BatteryEfficiency},
+    statistics::{FlowStatistics, battery::BatteryEfficiency},
 };
 
 #[derive(Builder)]
@@ -125,7 +126,7 @@ impl Solver<'_> {
         &self,
         interval_index: usize,
         interval: Interval,
-        average_flow: SystemFlow<Watts>,
+        average_flow: EnergyBalance<Watts>,
         grid_rate: KilowattHourRate,
         initial_residual_energy: WattHours,
         solutions: &SolutionSpace,
@@ -162,7 +163,7 @@ impl Solver<'_> {
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        average_flow: SystemFlow<Watts>,
+        average_flow: EnergyBalance<Watts>,
         grid_rate: KilowattHourRate,
         working_mode: WorkingMode,
     ) -> Step {
@@ -178,7 +179,7 @@ impl Solver<'_> {
             interval,
             grid_rate,
             working_mode,
-            system_flow: SystemFlow { grid: grid_flow, battery: battery_flow },
+            system_flow: EnergyBalance { grid: grid_flow, battery: battery_flow },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
             loss: self.loss(grid_rate, grid_flow),

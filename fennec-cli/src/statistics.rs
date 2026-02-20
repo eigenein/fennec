@@ -1,7 +1,5 @@
 pub mod battery;
-mod flow;
 mod integrator;
-mod system_flow;
 
 use std::{
     fmt::{Display, Formatter},
@@ -14,10 +12,9 @@ use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 
-pub use self::{flow::Flow, system_flow::SystemFlow};
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::working_mode::WorkingMode,
+    core::{flow::EnergyBalance, working_mode::WorkingMode},
     db::power,
     prelude::*,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
@@ -27,10 +24,10 @@ use crate::{
 #[must_use]
 pub struct FlowStatistics {
     /// Fallback global average power flow for when a specific hourly power flow is not available.
-    fallback: SystemFlow<Watts>,
+    fallback: EnergyBalance<Watts>,
 
     /// Average hourly power flow.
-    hourly: [Option<SystemFlow<Watts>>; 24],
+    hourly: [Option<EnergyBalance<Watts>>; 24],
 }
 
 impl FlowStatistics {
@@ -47,7 +44,7 @@ impl FlowStatistics {
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut fallback = Integrator::<SystemFlow<WattHours>>::new();
+        let mut fallback = Integrator::<EnergyBalance<WattHours>>::new();
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
@@ -56,7 +53,7 @@ impl FlowStatistics {
 
             let flows = Integrator {
                 total_time: time_delta,
-                value: SystemFlow::new(battery_power_limits, net_power) * time_delta,
+                value: EnergyBalance::new(battery_power_limits, net_power) * time_delta,
             };
             fallback += flows;
 
@@ -77,7 +74,7 @@ impl FlowStatistics {
         })
     }
 
-    pub fn on_hour(&self, hour: u32) -> SystemFlow<Watts> {
+    pub fn on_hour(&self, hour: u32) -> EnergyBalance<Watts> {
         self.hourly[hour as usize].unwrap_or(self.fallback)
     }
 }

@@ -1,5 +1,6 @@
 pub mod battery;
 pub mod energy_level;
+pub mod flow;
 pub mod provider;
 pub mod solution;
 mod solution_space;

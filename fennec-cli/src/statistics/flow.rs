@@ -36,8 +36,8 @@ impl Flow<Watts> {
     }
 }
 
-impl Default for Flow<WattHours> {
-    fn default() -> Self {
+impl Flow<WattHours> {
+    pub const fn zero() -> Self {
         Self { import: WattHours::zero(), export: WattHours::zero() }
     }
 }
@@ -80,12 +80,9 @@ pub struct SystemFlow<T> {
     pub battery: Flow<T>,
 }
 
-impl<T> Default for SystemFlow<T>
-where
-    Flow<T>: Default,
-{
-    fn default() -> Self {
-        Self { grid: Flow::default(), battery: Flow::default() }
+impl SystemFlow<WattHours> {
+    pub const fn zero() -> Self {
+        Self { grid: Flow::<WattHours>::zero(), battery: Flow::<WattHours>::zero() }
     }
 }
 
@@ -109,9 +106,7 @@ impl SystemFlow<Watts> {
             },
         }
     }
-}
 
-impl SystemFlow<Watts> {
     /// Re-distribute the power flow based on the working mode.
     pub fn with_working_mode(
         mut self,
@@ -121,7 +116,7 @@ impl SystemFlow<Watts> {
         match working_mode {
             WorkingMode::Idle => {
                 self.grid += self.battery.reversed();
-                self.battery = Flow::zero();
+                self.battery = Flow::<Watts>::zero();
             }
             WorkingMode::Harvest => {
                 self.grid.import += self.battery.export;

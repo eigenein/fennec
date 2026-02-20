@@ -11,13 +11,11 @@ pub struct Integrator<T> {
     pub value: T,
 }
 
-impl<T: Default> Default for Integrator<T> {
-    fn default() -> Self {
-        Self { hours: Hours::zero(), value: T::default() }
-    }
-}
-
 impl<T> Integrator<T> {
+    pub const fn new(init: T) -> Self {
+        Self { hours: Hours::zero(), value: init }
+    }
+
     pub fn average(self) -> Option<<T as Div<Hours>>::Output>
     where
         T: Div<Hours>,

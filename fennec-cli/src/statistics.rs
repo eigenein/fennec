@@ -45,7 +45,7 @@ impl FlowStatistics {
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut fallback = Integrator::<SystemFlow<WattHours>>::default();
+        let mut fallback = Integrator::<SystemFlow<WattHours>>::new(SystemFlow::zero());
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {

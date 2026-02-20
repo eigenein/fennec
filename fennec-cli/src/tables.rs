@@ -70,9 +70,9 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
                 })
                 .set_alignment(CellAlignment::Right),
             Cell::new(step.residual_energy_after).set_alignment(CellAlignment::Right),
-            Cell::new(step.loss)
+            Cell::new(step.grid_loss)
                 .set_alignment(CellAlignment::Right)
-                .fg(if step.loss >= Mills::TEN { Color::Red } else { Color::Green }),
+                .fg(if step.grid_loss >= Mills::TEN { Color::Red } else { Color::Green }),
         ]);
     }
     table

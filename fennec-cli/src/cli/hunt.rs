@@ -10,7 +10,7 @@ use crate::{
     core::{
         energy_level::Quantum,
         provider::Provider,
-        solution::SolutionSummary,
+        solution,
         solver::Solver,
         working_mode::WorkingMode,
     },
@@ -111,7 +111,7 @@ impl HuntArgs {
             .build();
         let base_loss = solver.base_loss();
         let (loss, steps) = solver.solve().backtrack(initial_energy_level)?;
-        println!("{}", SolutionSummary { loss, base_loss });
+        println!("{}", solution::Summary { grid_loss: loss, base_loss });
         println!("{}", build_steps_table(&steps));
 
         let schedule =

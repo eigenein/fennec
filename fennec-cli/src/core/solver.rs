@@ -151,9 +151,12 @@ impl Solver<'_> {
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after)?;
-                Some(Solution { loss: step.loss + next_solution.loss, step: Some(step) })
+                Some(Solution {
+                    grid_loss: step.grid_loss + next_solution.grid_loss,
+                    step: Some(step),
+                })
             })
-            .min_by(|lhs, rhs| lhs.loss.partial_cmp(&rhs.loss).unwrap())
+            .min()
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions,
@@ -183,7 +186,7 @@ impl Solver<'_> {
             energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flow },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
-            loss: self.loss(grid_rate, grid_flow),
+            grid_loss: self.loss(grid_rate, grid_flow),
         }
     }
 

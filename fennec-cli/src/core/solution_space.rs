@@ -94,7 +94,7 @@ impl SolutionSpace {
         })?;
 
         // Cumulative loss of the first entry is the loss of the entire chain:
-        let loss = solution.loss;
+        let loss = solution.grid_loss;
 
         // Unrolling the solution steps:
         let mut step = solution.step;

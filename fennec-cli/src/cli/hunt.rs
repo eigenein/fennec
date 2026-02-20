@@ -29,7 +29,7 @@ pub struct HuntArgs {
     #[clap(long)]
     scout: bool,
 
-    #[clap(long = "provider", env = "PROVIDER", default_value = "next-energy")]
+    #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
     provider: Provider,
 
     #[clap(

@@ -1,8 +1,11 @@
 use std::fmt::{Display, Formatter};
 
-use comfy_table::{Cell, Table, modifiers, presets};
+use comfy_table::{Cell, Color, Table, modifiers, presets};
 
-use crate::{core::solution::Losses, quantity::currency::Mills};
+use crate::{
+    core::solution::Losses,
+    quantity::{Zero, currency::Mills},
+};
 
 #[must_use]
 pub struct Summary {
@@ -32,7 +35,11 @@ impl Display for Summary {
                 Cell::from("Battery loss"),
             ])
             .add_row(vec![
-                Cell::from(self.profit()),
+                Cell::from(self.profit()).fg(if self.profit() > Mills::ZERO {
+                    Color::Green
+                } else {
+                    Color::Red
+                }),
                 Cell::from(self.base_loss),
                 Cell::from(self.losses.grid),
                 Cell::from(self.losses.battery),

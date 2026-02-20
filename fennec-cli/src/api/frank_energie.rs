@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
-use crate::{ops::Interval, prelude::*, quantity::rate::KilowattHourRate};
+use crate::{ops::Interval, prelude::*, quantity::price::KilowattHourPrice};
 
 pub struct Api {
     client: reqwest::Client,
@@ -17,7 +17,7 @@ impl Api {
     }
 
     #[instrument(skip_all, fields(on = ?on))]
-    pub async fn get_rates(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
+    pub async fn get_prices(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourPrice)>> {
         debug!(?on, "fetching…");
         let Some(data) = self
             .client
@@ -35,7 +35,7 @@ impl Api {
             .market_prices
             .electricity
             .into_iter()
-            .map(|item| (Interval::from_std(item.from..item.till), KilowattHourRate(item.all_in)))
+            .map(|item| (Interval::from_std(item.from..item.till), KilowattHourPrice(item.all_in)))
             .collect())
     }
 }
@@ -109,8 +109,8 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "makes the API request"]
-    async fn test_get_upcoming_rates_ok() -> Result {
-        let series = Api::new(Resolution::Quarterly)?.get_rates(Local::now().date_naive()).await?;
+    async fn get_prices_ok() -> Result {
+        let series = Api::new(Resolution::Quarterly)?.get_prices(Local::now().date_naive()).await?;
         assert!(!series.is_empty());
         assert!(series.len() <= 24 * 4);
         let (time_range, _) = &series[0];

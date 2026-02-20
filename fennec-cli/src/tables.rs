@@ -3,13 +3,17 @@ use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, prese
 
 use crate::{
     core::{step::Step, working_mode::WorkingMode},
-    quantity::{Zero, currency::Mills, energy::WattHours, rate::KilowattHourRate},
+    quantity::{Zero, currency::Mills, energy::WattHours, price::KilowattHourPrice},
 };
 
 pub fn build_steps_table(steps: &[Step]) -> Table {
-    let mean_rate: KilowattHourRate = {
-        let estimate: Mean = steps.iter().map(|step| step.grid_rate.0).collect();
-        if estimate.is_empty() { KilowattHourRate::ZERO } else { KilowattHourRate(estimate.mean()) }
+    let average_price: KilowattHourPrice = {
+        let estimate: Mean = steps.iter().map(|step| step.energy_price.0).collect();
+        if estimate.is_empty() {
+            KilowattHourPrice::ZERO
+        } else {
+            KilowattHourPrice(estimate.mean())
+        }
     };
 
     let mut table = Table::new();
@@ -21,7 +25,7 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             "Date",
             "Start",
             "End",
-            "Rate",
+            "Energy\nprice",
             "Mode",
             "Grid ↓",
             "Grid ↑",
@@ -36,7 +40,7 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             Cell::new(step.interval.start.format("%b %d")).add_attribute(Attribute::Dim),
             Cell::new(step.interval.start.format("%H:%M")),
             Cell::new(step.interval.end.format("%H:%M")).add_attribute(Attribute::Dim),
-            Cell::new(step.grid_rate).fg(if step.grid_rate >= mean_rate {
+            Cell::new(step.energy_price).fg(if step.energy_price >= average_price {
                 Color::Red
             } else {
                 Color::Green

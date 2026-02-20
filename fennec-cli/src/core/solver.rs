@@ -17,13 +17,13 @@ use crate::{
     },
     ops::Interval,
     prelude::*,
-    quantity::{currency::Mills, energy::WattHours, power::Watts, rate::KilowattHourRate},
+    quantity::{currency::Mills, energy::WattHours, power::Watts, price::KilowattHourPrice},
     statistics::{FlowStatistics, battery::BatteryEfficiency},
 };
 
 #[derive(Builder)]
 pub struct Solver<'a> {
-    grid_rates: &'a [(Interval, KilowattHourRate)],
+    energy_prices: &'a [(Interval, KilowattHourPrice)],
     flow_statistics: &'a FlowStatistics,
 
     /// Enabled working modes.
@@ -35,10 +35,10 @@ pub struct Solver<'a> {
     /// Maximum allowed residual energy.
     max_residual_energy: WattHours,
 
-    battery_degradation_rate: KilowattHourRate,
+    battery_degradation_cost: KilowattHourPrice,
     battery_power_limits: BatteryPowerLimits,
     battery_efficiency: BatteryEfficiency,
-    purchase_fee: KilowattHourRate,
+    purchase_fee: KilowattHourPrice,
     now: DateTime<Local>,
     quantum: Quantum,
 }
@@ -63,18 +63,18 @@ impl Solver<'_> {
         let start_instant = Instant::now();
 
         let max_energy_level = self.quantum.ceil(self.max_residual_energy);
-        info!(?self.quantum, ?max_energy_level, n_intervals = self.grid_rates.len(), "optimizing…");
+        info!(?self.quantum, ?max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
 
         let mut solutions = SolutionSpace::builder()
-            .n_intervals(self.grid_rates.len())
+            .n_intervals(self.energy_prices.len())
             .allowed_energy_levels(
                 self.quantum.quantize(self.min_residual_energy)..=max_energy_level,
             )
             .build();
 
         // Going backwards:
-        for (interval_index, (mut interval, grid_rate)) in
-            self.grid_rates.iter().copied().enumerate().rev()
+        for (interval_index, (mut interval, energy_price)) in
+            self.energy_prices.iter().copied().enumerate().rev()
         {
             if interval.contains(self.now) {
                 // The interval has already started, trim the start time:
@@ -86,7 +86,7 @@ impl Solver<'_> {
                 .interval_index(interval_index)
                 .interval(interval)
                 .average_balance(self.flow_statistics.on_hour(interval.start.hour()))
-                .grid_rate(grid_rate);
+                .energy_price(energy_price);
 
             // Calculate partial solutions for the current hour:
             // FIXME: when `interval_index == 0`, we don't need to solve all energy levels.
@@ -104,16 +104,19 @@ impl Solver<'_> {
     }
 
     pub fn base_loss(&self) -> Mills {
-        self.grid_rates
+        self.energy_prices
             .iter()
             .copied()
-            .map(|(mut interval, grid_rate)| {
+            .map(|(mut interval, energy_price)| {
                 if interval.contains(self.now) {
                     // TODO: de-dup this:
                     interval = interval.with_start(self.now);
                 }
                 let flow = self.flow_statistics.on_hour(interval.start.hour());
-                self.grid_loss(grid_rate, (flow.grid + flow.battery.reversed()) * interval.hours())
+                self.grid_loss(
+                    energy_price,
+                    (flow.grid + flow.battery.reversed()) * interval.hours(),
+                )
             })
             .sum()
     }
@@ -128,7 +131,7 @@ impl Solver<'_> {
         interval_index: usize,
         interval: Interval,
         average_balance: EnergyBalance<Watts>,
-        grid_rate: KilowattHourRate,
+        energy_price: KilowattHourPrice,
         initial_residual_energy: WattHours,
         solutions: &SolutionSpace,
     ) -> Option<Solution> {
@@ -144,7 +147,7 @@ impl Solver<'_> {
                 let step = self
                     .simulate_step()
                     .interval(interval)
-                    .grid_rate(grid_rate)
+                    .energy_price(energy_price)
                     .average_balance(average_balance)
                     .battery(battery)
                     .working_mode(working_mode)
@@ -165,7 +168,7 @@ impl Solver<'_> {
         mut battery: battery::Simulator,
         interval: Interval,
         average_balance: EnergyBalance<Watts>,
-        grid_rate: KilowattHourRate,
+        energy_price: KilowattHourPrice,
         working_mode: WorkingMode,
     ) -> Step {
         // Remember that the average flow represents theoretical possibility,
@@ -179,21 +182,21 @@ impl Solver<'_> {
         let grid_flow = balance_request.grid * hours + battery_shortage.reversed();
         Step {
             interval,
-            grid_rate,
+            energy_price,
             working_mode,
             energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flows.external },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
             losses: Losses {
-                grid: self.grid_loss(grid_rate, grid_flow),
+                grid: self.grid_loss(energy_price, grid_flow),
                 battery: (battery_flows.internal.import + battery_flows.internal.export)
-                    * self.battery_degradation_rate,
+                    * self.battery_degradation_cost,
             },
         }
     }
 
     /// Calculate the grid consumption or production loss.
-    fn grid_loss(&self, rate: KilowattHourRate, flow: Flow<WattHours>) -> Mills {
-        flow.import * rate - flow.export * (rate - self.purchase_fee)
+    fn grid_loss(&self, energy_price: KilowattHourPrice, flow: Flow<WattHours>) -> Mills {
+        flow.import * energy_price - flow.export * (energy_price - self.purchase_fee)
     }
 }

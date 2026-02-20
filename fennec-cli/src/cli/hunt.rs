@@ -17,7 +17,7 @@ use crate::{
     db::{battery, power},
     ops::Interval,
     prelude::*,
-    quantity::rate::KilowattHourRate,
+    quantity::price::KilowattHourPrice,
     statistics::{FlowStatistics, battery::BatteryEfficiency},
     tables::build_steps_table,
 };
@@ -71,7 +71,7 @@ impl HuntArgs {
         let fox_ess = foxcloud::Api::new(self.fox_ess_api.api_key.clone())?;
         let working_modes = self.working_modes();
         let now = Local::now().with_nanosecond(0).unwrap();
-        let grid_rates = self.get_rates(now).await?;
+        let energy_prices = self.get_prices(now).await?;
 
         let battery_state = self.battery.connection.connect().await?.read().await?;
         info!(
@@ -95,7 +95,7 @@ impl HuntArgs {
 
         let initial_energy_level = self.quantum.quantize(battery_state.energy.residual());
         let solver = Solver::builder()
-            .grid_rates(&grid_rates)
+            .energy_prices(&energy_prices)
             .flow_statistics(&flow_statistics)
             .working_modes(working_modes)
             .min_residual_energy(battery_state.min_residual_energy())
@@ -108,7 +108,7 @@ impl HuntArgs {
             .now(now)
             .quantum(self.quantum)
             .battery_power_limits(self.battery.power_limits)
-            .battery_degradation_rate(self.battery.degradation_rate)
+            .battery_degradation_cost(self.battery.degradation_cost)
             .build();
         let base_loss = solver.base_loss();
         let (losses, steps) = solver.solve().backtrack(initial_energy_level)?;
@@ -128,20 +128,21 @@ impl HuntArgs {
         Ok(())
     }
 
+    /// Fetch energy prices for up to 2 days.
     #[instrument(skip_all, fields(now = ?now))]
-    async fn get_rates(&self, now: DateTime<Local>) -> Result<Vec<(Interval, KilowattHourRate)>> {
+    async fn get_prices(&self, now: DateTime<Local>) -> Result<Vec<(Interval, KilowattHourPrice)>> {
         const ONE_DAY: Days = Days::new(1);
 
         let today = now.date_naive();
-        let mut rates = self.provider.get_rates(today).await?;
-        ensure!(!rates.is_empty());
+        let mut prices = self.provider.get_prices(today).await?;
+        ensure!(!prices.is_empty());
 
         let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
-        rates.extend(self.provider.get_rates(tomorrow).await?);
+        prices.extend(self.provider.get_prices(tomorrow).await?);
 
-        rates.retain(|(interval, _)| interval.end > now);
-        info!(len = rates.len(), "fetched energy rates");
+        prices.retain(|(interval, _)| interval.end > now);
+        info!(len = prices.len(), "fetched energy prices");
 
-        Ok(rates)
+        Ok(prices)
     }
 }

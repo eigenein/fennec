@@ -4,7 +4,7 @@ use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
     ops::Interval,
     prelude::*,
-    quantity::rate::KilowattHourRate,
+    quantity::price::KilowattHourPrice,
 };
 
 #[derive(
@@ -25,21 +25,21 @@ pub enum Provider {
 }
 
 impl Provider {
-    pub const fn purchase_fee(self) -> KilowattHourRate {
+    pub const fn purchase_fee(self) -> KilowattHourPrice {
         match self {
-            Self::NextEnergy => KilowattHourRate(0.021),
-            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => KilowattHourRate(0.0182),
+            Self::NextEnergy => KilowattHourPrice(0.021),
+            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => KilowattHourPrice(0.0182),
         }
     }
 
-    pub async fn get_rates(self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourRate)>> {
+    pub async fn get_prices(self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourPrice)>> {
         match self {
-            Self::NextEnergy => next_energy::Api::new()?.get_rates(on).await,
+            Self::NextEnergy => next_energy::Api::new()?.get_prices(on).await,
             Self::FrankEnergieQuarterly => {
-                frank_energie::Api::new(Resolution::Quarterly)?.get_rates(on).await
+                frank_energie::Api::new(Resolution::Quarterly)?.get_prices(on).await
             }
             Self::FrankEnergieHourly => {
-                frank_energie::Api::new(Resolution::Hourly)?.get_rates(on).await
+                frank_energie::Api::new(Resolution::Hourly)?.get_prices(on).await
             }
         }
     }

@@ -1,4 +1,4 @@
-use crate::quantity::{energy::WattHours, rate::KilowattHourRate};
+use crate::quantity::{energy::WattHours, price::KilowattHourPrice};
 
 quantity!(
     /// [Mill][1], one-thousandth of the base unit.
@@ -7,7 +7,7 @@ quantity!(
     Mills, via: f64, suffix: "₥", precision: 0
 );
 
-implement_mul!(KilowattHourRate, WattHours, Mills);
+implement_mul!(KilowattHourPrice, WattHours, Mills);
 
 impl Mills {
     /// One cent.

@@ -6,7 +6,7 @@ use crate::{
         working_mode::WorkingMode,
     },
     ops::Interval,
-    quantity::{energy::WattHours, rate::KilowattHourRate},
+    quantity::{energy::WattHours, price::KilowattHourPrice},
 };
 
 /// Single-hour working plan step.
@@ -16,7 +16,7 @@ use crate::{
 pub struct Step {
     pub losses: Losses,
     pub interval: Interval,
-    pub grid_rate: KilowattHourRate,
+    pub energy_price: KilowattHourPrice,
     pub energy_balance: EnergyBalance<WattHours>,
     pub working_mode: WorkingMode,
     pub residual_energy_after: WattHours,

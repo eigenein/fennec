@@ -5,7 +5,7 @@ use clap::Parser;
 use crate::{
     api::{modbus, modbus::foxess},
     prelude::*,
-    quantity::{power::Watts, rate::KilowattHourRate},
+    quantity::{power::Watts, price::KilowattHourPrice},
 };
 
 #[must_use]
@@ -83,11 +83,11 @@ pub struct BatteryArgs {
     #[clap(flatten)]
     pub connection: BatteryConnectionArgs,
 
-    /// Battery lifetime costs lost to the cycling in ¤/kWh.
+    /// Battery health costs lost to the cycling, in ¤/kWh.
     #[clap(
-        long = "battery-degradation-rate",
-        env = "BATTERY_DEGRADATION_RATE",
+        long = "battery-degradation-cost",
+        env = "BATTERY_DEGRADATION_COST",
         default_value = "0"
     )]
-    pub degradation_rate: KilowattHourRate,
+    pub degradation_cost: KilowattHourPrice,
 }

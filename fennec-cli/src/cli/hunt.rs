@@ -85,7 +85,7 @@ impl HuntArgs {
             BatteryEfficiency::try_estimate(battery_logs)
                 .await
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
-                .unwrap_or_default()
+                .unwrap_or(BatteryEfficiency::IDEAL)
         };
         let flow_statistics = {
             let power_logs = db.measurements::<power::Measurement>().await?;

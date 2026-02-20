@@ -130,12 +130,12 @@ impl Solver<'_> {
         initial_residual_energy: WattHours,
         solutions: &SolutionSpace,
     ) -> Option<Solution> {
-        let battery = battery::Simulator::builder()
-            .residual_energy(initial_residual_energy)
-            .min_residual_energy(self.min_residual_energy)
-            .max_residual_energy(self.max_residual_energy)
-            .efficiency(self.battery_efficiency)
-            .build();
+        let battery = battery::Simulator {
+            residual_energy: initial_residual_energy,
+            min_residual_energy: self.min_residual_energy,
+            max_residual_energy: self.max_residual_energy,
+            efficiency: self.battery_efficiency,
+        };
         self.working_modes
             .iter()
             .filter_map(|working_mode| {
@@ -179,8 +179,8 @@ impl Solver<'_> {
             grid_rate,
             working_mode,
             system_flow: SystemFlow { grid: grid_flow, battery: battery_flow },
-            residual_energy_after: battery.residual_energy(),
-            energy_level_after: self.quantum.quantize(battery.residual_energy()),
+            residual_energy_after: battery.residual_energy,
+            energy_level_after: self.quantum.quantize(battery.residual_energy),
             loss: self.loss(grid_rate, grid_flow),
         }
     }

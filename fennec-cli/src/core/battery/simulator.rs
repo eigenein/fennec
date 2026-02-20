@@ -3,27 +3,23 @@ use crate::{
     statistics::{Flow, battery::BatteryEfficiency},
 };
 
-#[derive(Copy, Clone, bon::Builder)]
+#[derive(Copy, Clone)]
 pub struct Simulator {
     /// Minimally allowed residual energy.
     ///
     /// This is normally calculated from the actual capacity and minimal state-of-charge setting.
-    min_residual_energy: WattHours,
+    pub min_residual_energy: WattHours,
 
     /// Current residual energy.
-    residual_energy: WattHours,
+    pub residual_energy: WattHours,
 
     /// Maximum allowed residual energy.
-    max_residual_energy: WattHours,
+    pub max_residual_energy: WattHours,
 
-    efficiency: BatteryEfficiency,
+    pub efficiency: BatteryEfficiency,
 }
 
 impl Simulator {
-    pub const fn residual_energy(&self) -> WattHours {
-        self.residual_energy
-    }
-
     /// Apply the requested power, update the internal state and return actual billable energy flow.
     pub fn apply(&mut self, external_power: Flow<Watts>, for_: Hours) -> Flow<WattHours> {
         // Apply the efficiency corrections first – then, we can model everything in terms of residual energy:
@@ -62,5 +58,55 @@ impl Simulator {
             import: actual_flow.import / self.efficiency.charging,
             export: actual_flow.export * self.efficiency.discharging,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verify normal charging without overflowing.
+    #[test]
+    fn normal_charging() {
+        let mut simulator = Simulator {
+            residual_energy: WattHours(5000.0),
+            min_residual_energy: WattHours::ZERO,
+            max_residual_energy: WattHours(10000.0),
+            efficiency: BatteryEfficiency::IDEAL,
+        };
+        let flow = simulator.apply(Flow { import: Watts(1000.0), export: Watts::ZERO }, Hours(1.0));
+        assert_eq!(flow.import, WattHours(1000.0));
+        assert_eq!(flow.export, WattHours::ZERO);
+        assert_eq!(simulator.residual_energy, WattHours(6000.0));
+    }
+
+    /// Verify capping at the maximum.
+    #[test]
+    fn overflow() {
+        let mut simulator = Simulator {
+            residual_energy: WattHours(9000.0),
+            min_residual_energy: WattHours::ZERO,
+            max_residual_energy: WattHours(10000.0),
+            efficiency: BatteryEfficiency::IDEAL,
+        };
+        let flow = simulator.apply(Flow { import: Watts(2000.0), export: Watts::ZERO }, Hours(1.0));
+        assert_eq!(flow.import, WattHours(1000.0));
+        assert_eq!(flow.export, WattHours::ZERO);
+        assert_eq!(simulator.residual_energy, WattHours(10000.0));
+    }
+
+    /// Verify capping at the minimum.
+    #[test]
+    fn underflow() {
+        let mut simulator = Simulator {
+            residual_energy: WattHours(1000.0),
+            min_residual_energy: WattHours(500.0),
+            max_residual_energy: WattHours(10000.0),
+            efficiency: BatteryEfficiency::IDEAL,
+        };
+        let flow = simulator.apply(Flow { import: Watts::ZERO, export: Watts(1000.0) }, Hours(1.0));
+        assert_eq!(flow.import, WattHours::ZERO);
+        assert_eq!(flow.export, WattHours(500.0));
+        assert_eq!(simulator.residual_energy, WattHours(500.0));
     }
 }

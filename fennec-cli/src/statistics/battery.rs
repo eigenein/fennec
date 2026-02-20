@@ -38,16 +38,14 @@ pub struct BatteryEfficiency {
     pub total_hours: Hours,
 }
 
-impl Default for BatteryEfficiency {
-    fn default() -> Self {
-        Self {
-            parasitic_load: Watts::ZERO,
-            charging: 1.0,
-            discharging: 1.0,
-            n_samples: 0,
-            total_hours: Hours::ZERO,
-        }
-    }
+impl BatteryEfficiency {
+    pub const IDEAL: Self = Self {
+        parasitic_load: Watts::ZERO,
+        charging: 1.0,
+        discharging: 1.0,
+        n_samples: 0,
+        total_hours: Hours::ZERO,
+    };
 }
 
 #[bon]

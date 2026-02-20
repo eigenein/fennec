@@ -1,7 +1,12 @@
 use crate::{
-    core::{energy_level::EnergyLevel, flow::EnergyBalance, working_mode::WorkingMode},
+    core::{
+        energy_level::EnergyLevel,
+        flow::EnergyBalance,
+        solution::Losses,
+        working_mode::WorkingMode,
+    },
     ops::Interval,
-    quantity::{currency::Mills, energy::WattHours, rate::KilowattHourRate},
+    quantity::{energy::WattHours, rate::KilowattHourRate},
 };
 
 /// Single-hour working plan step.
@@ -9,9 +14,7 @@ use crate::{
 /// Technically, it is not needed to store all the attributes here because I could always zip
 /// the back track with the original metrics, but having it here makes it much easier to work with.
 pub struct Step {
-    /// Loss to the grid within this single step.
-    pub grid_loss: Mills,
-
+    pub losses: Losses,
     pub interval: Interval,
     pub grid_rate: KilowattHourRate,
     pub energy_balance: EnergyBalance<WattHours>,

@@ -108,10 +108,11 @@ impl HuntArgs {
             .now(now)
             .quantum(self.quantum)
             .battery_power_limits(self.battery.power_limits)
+            .battery_degradation_rate(self.battery.degradation_rate)
             .build();
         let base_loss = solver.base_loss();
-        let (loss, steps) = solver.solve().backtrack(initial_energy_level)?;
-        println!("{}", solution::Summary { grid_loss: loss, base_loss });
+        let (losses, steps) = solver.solve().backtrack(initial_energy_level)?;
+        println!("{}", solution::Summary { losses, base_loss });
         println!("{}", build_steps_table(&steps));
 
         let schedule =

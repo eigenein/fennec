@@ -4,10 +4,13 @@ use bon::bon;
 use itertools::Itertools;
 
 use crate::{
-    core::{energy_level::EnergyLevel, solution::Solution, step::Step},
+    core::{
+        energy_level::EnergyLevel,
+        solution::{Losses, Solution},
+        step::Step,
+    },
     ops::RangeInclusive,
     prelude::*,
-    quantity::currency::Mills,
 };
 
 #[must_use]
@@ -88,13 +91,13 @@ impl SolutionSpace {
         }
     }
 
-    pub fn backtrack(mut self, initial_energy_level: EnergyLevel) -> Result<(Mills, Vec<Step>)> {
+    pub fn backtrack(mut self, initial_energy_level: EnergyLevel) -> Result<(Losses, Vec<Step>)> {
         let solution = self.get_mut(0, initial_energy_level).take().with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level:?}")
         })?;
 
-        // Cumulative loss of the first entry is the loss of the entire chain:
-        let loss = solution.grid_loss;
+        // Cumulative losses of the first entry is the loss of the entire chain:
+        let losses = solution.losses;
 
         // Unrolling the solution steps:
         let mut step = solution.step;
@@ -119,7 +122,7 @@ impl SolutionSpace {
             Some(current_step)
         });
 
-        Ok((loss, steps.collect()))
+        Ok((losses, steps.collect()))
     }
 
     /// Convert the indices into the respective index in the flattened array.

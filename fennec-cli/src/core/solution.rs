@@ -1,17 +1,14 @@
+mod losses;
 mod summary;
 
 use std::cmp::Ordering;
 
-pub use self::summary::Summary;
-use crate::{
-    core::step::Step,
-    quantity::{Zero, currency::Mills},
-};
+pub use self::{losses::Losses, summary::Summary};
+use crate::{core::step::Step, quantity::Zero};
 
 #[must_use]
 pub struct Solution {
-    /// Cumulative loss to the grid till the end of the forecast period
-    pub grid_loss: Mills,
+    pub losses: Losses,
 
     /// First step associated with this solution.
     ///
@@ -21,14 +18,14 @@ pub struct Solution {
 
 impl Solution {
     /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { grid_loss: Mills::ZERO, step: None };
+    pub const BOUNDARY: Self = Self { losses: Losses::ZERO, step: None };
 }
 
 impl Eq for Solution {}
 
 impl PartialEq<Self> for Solution {
     fn eq(&self, other: &Self) -> bool {
-        self.grid_loss == other.grid_loss
+        self.losses.total() == other.losses.total()
     }
 }
 
@@ -40,6 +37,6 @@ impl PartialOrd<Self> for Solution {
 
 impl Ord for Solution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.grid_loss.partial_cmp(&other.grid_loss).unwrap()
+        self.losses.total().partial_cmp(&other.losses.total()).unwrap()
     }
 }

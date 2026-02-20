@@ -28,7 +28,8 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             "Battery ↓",
             "Battery ↑",
             "Residual",
-            "Loss",
+            "Grid\nloss",
+            "Battery\nloss",
         ]);
     for step in steps {
         table.add_row(vec![
@@ -70,9 +71,12 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
                 })
                 .set_alignment(CellAlignment::Right),
             Cell::new(step.residual_energy_after).set_alignment(CellAlignment::Right),
-            Cell::new(step.grid_loss)
+            Cell::new(step.losses.grid)
                 .set_alignment(CellAlignment::Right)
-                .fg(if step.grid_loss >= Mills::TEN { Color::Red } else { Color::Green }),
+                .fg(if step.losses.grid >= Mills::TEN { Color::Red } else { Color::Green }),
+            Cell::new(step.losses.battery)
+                .set_alignment(CellAlignment::Right)
+                .fg(if step.losses.battery >= Mills::TEN { Color::Red } else { Color::Green }),
         ]);
     }
     table

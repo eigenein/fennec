@@ -10,7 +10,7 @@ use crate::{
         battery,
         energy_level::Quantum,
         flow::{EnergyBalance, Flow},
-        solution::Solution,
+        solution::{Losses, Solution},
         solution_space::SolutionSpace,
         step::Step,
         working_mode::WorkingMode,
@@ -35,6 +35,7 @@ pub struct Solver<'a> {
     /// Maximum allowed residual energy.
     max_residual_energy: WattHours,
 
+    battery_degradation_rate: KilowattHourRate,
     battery_power_limits: BatteryPowerLimits,
     battery_efficiency: BatteryEfficiency,
     purchase_fee: KilowattHourRate,
@@ -151,10 +152,7 @@ impl Solver<'_> {
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after)?;
-                Some(Solution {
-                    grid_loss: step.grid_loss + next_solution.grid_loss,
-                    step: Some(step),
-                })
+                Some(Solution { losses: step.losses + next_solution.losses, step: Some(step) })
             })
             .min()
     }
@@ -186,7 +184,11 @@ impl Solver<'_> {
             energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flows.external },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
-            grid_loss: self.grid_loss(grid_rate, grid_flow),
+            losses: Losses {
+                grid: self.grid_loss(grid_rate, grid_flow),
+                battery: (battery_flows.internal.import + battery_flows.internal.export)
+                    * self.battery_degradation_rate,
+            },
         }
     }
 

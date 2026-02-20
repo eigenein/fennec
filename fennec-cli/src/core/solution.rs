@@ -1,14 +1,14 @@
 mod losses;
-mod summary;
+mod metrics;
 
 use std::cmp::Ordering;
 
-pub use self::{losses::Losses, summary::Summary};
+pub use self::{losses::Losses, metrics::Metrics};
 use crate::{core::step::Step, quantity::Zero};
 
 #[must_use]
 pub struct Solution {
-    pub losses: Losses,
+    pub metrics: Metrics,
 
     /// First step associated with this solution.
     ///
@@ -18,14 +18,14 @@ pub struct Solution {
 
 impl Solution {
     /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { losses: Losses::ZERO, step: None };
+    pub const BOUNDARY: Self = Self { metrics: Metrics::ZERO, step: None };
 }
 
 impl Eq for Solution {}
 
 impl PartialEq<Self> for Solution {
     fn eq(&self, other: &Self) -> bool {
-        self.losses.total() == other.losses.total()
+        self.metrics.losses.total() == other.metrics.losses.total()
     }
 }
 
@@ -37,6 +37,6 @@ impl PartialOrd<Self> for Solution {
 
 impl Ord for Solution {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.losses.total().partial_cmp(&other.losses.total()).unwrap()
+        self.metrics.losses.total().partial_cmp(&other.metrics.losses.total()).unwrap()
     }
 }

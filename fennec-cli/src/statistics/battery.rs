@@ -176,7 +176,7 @@ impl Display for BatteryEfficiency {
                     .set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
-                Cell::from("Round trip").fg(Color::DarkYellow),
+                Cell::from("Round trip").add_attribute(Attribute::Bold).fg(Color::DarkYellow),
                 Cell::from(FormattedPercentage(self.round_trip()))
                     .set_alignment(CellAlignment::Right)
                     .fg(Color::DarkYellow)

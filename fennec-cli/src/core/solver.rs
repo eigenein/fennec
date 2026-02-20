@@ -10,7 +10,7 @@ use crate::{
         battery,
         energy_level::Quantum,
         flow::{EnergyBalance, Flow},
-        solution::{Losses, Solution},
+        solution::{Losses, Metrics, Solution},
         solution_space::SolutionSpace,
         step::Step,
         working_mode::WorkingMode,
@@ -155,7 +155,7 @@ impl Solver<'_> {
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after)?;
-                Some(Solution { losses: step.losses + next_solution.losses, step: Some(step) })
+                Some(Solution { metrics: step.metrics + next_solution.metrics, step: Some(step) })
             })
             .min()
     }
@@ -187,10 +187,13 @@ impl Solver<'_> {
             energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flows.external },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
-            losses: Losses {
-                grid: self.grid_loss(energy_price, grid_flow),
-                battery: (battery_flows.internal.import + battery_flows.internal.export)
-                    * self.battery_degradation_cost,
+            metrics: Metrics {
+                internal_battery_flow: battery_flows.internal,
+                losses: Losses {
+                    grid: self.grid_loss(energy_price, grid_flow),
+                    battery: (battery_flows.internal.import + battery_flows.internal.export)
+                        * self.battery_degradation_cost,
+                },
             },
         }
     }

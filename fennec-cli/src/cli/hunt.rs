@@ -7,13 +7,7 @@ use reqwest::Url;
 use crate::{
     api::{foxcloud, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, foxess::FoxCloudApiArgs},
-    core::{
-        energy_level::Quantum,
-        provider::Provider,
-        solution,
-        solver::Solver,
-        working_mode::WorkingMode,
-    },
+    core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{battery, power},
     ops::Interval,
     prelude::*,
@@ -111,9 +105,9 @@ impl HuntArgs {
             .battery_degradation_cost(self.battery.degradation_cost)
             .build();
         let base_loss = solver.base_loss();
-        let (losses, steps) = solver.solve().backtrack(initial_energy_level)?;
-        println!("{}", solution::Summary { losses, base_loss });
+        let (summary, steps) = solver.solve().backtrack(initial_energy_level)?;
         println!("{}", build_steps_table(&steps));
+        println!("{}", summary.into_table(base_loss));
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();

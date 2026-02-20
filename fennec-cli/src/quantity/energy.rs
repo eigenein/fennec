@@ -11,7 +11,7 @@ quantity!(WattHours, via: f64, suffix: "Wh", precision: 0);
 quantity!(DecawattHours, via: u16, suffix: "daWh", precision: 1);
 quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 3);
 
-mul!(Watts, Hours, WattHours);
+implement_mul!(Watts, Hours, WattHours);
 
 impl WattHours {
     pub const ONE: Self = Self(1.0);

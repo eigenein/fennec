@@ -7,7 +7,7 @@ quantity!(
     Mills, via: f64, suffix: "₥", precision: 0
 );
 
-mul!(KilowattHourRate, WattHours, Mills);
+implement_mul!(KilowattHourRate, WattHours, Mills);
 
 impl Mills {
     /// One cent.

@@ -1,7 +1,7 @@
 #[rustfmt::skip]
 macro_rules! quantity {
     ($(#[$meta:meta])* $name:ident, via: $inner:tt, suffix: $suffix:literal, precision: $precision:literal) => {
-        new_type!($(#[$meta])* $name, $inner);
+        implement_new_type!($(#[$meta])* $name, $inner);
         fmt!($name, suffix: $suffix, precision: $precision);
 
         impl super::Zero for $name {
@@ -11,7 +11,7 @@ macro_rules! quantity {
 }
 
 #[rustfmt::skip]
-macro_rules! new_type_base {
+macro_rules! new_type_struct {
     ($(#[$meta:meta])* $name:ident, $inner:tt, #[$($derive:meta),*]) => {
         $(#[$meta])*
         #[must_use]
@@ -34,9 +34,9 @@ macro_rules! new_type_base {
 }
 
 #[rustfmt::skip]
-macro_rules! new_type {
+macro_rules! implement_new_type {
     ($(#[$meta:meta])* $name:ident, u16) => {
-        new_type_base!($(#[$meta])* $name, u16, #[
+        new_type_struct!($(#[$meta])* $name, u16, #[
             ::std::cmp::PartialEq,
             ::std::cmp::Eq,
             ::std::cmp::PartialOrd,
@@ -44,7 +44,7 @@ macro_rules! new_type {
         ]);
     };
     ($(#[$meta:meta])* $name:ident, i64) => {
-        new_type_base!($(#[$meta])* $name, i64, #[
+        new_type_struct!($(#[$meta])* $name, i64, #[
             ::std::cmp::PartialEq,
             ::std::cmp::Eq,
             ::std::cmp::PartialOrd,
@@ -53,7 +53,7 @@ macro_rules! new_type {
         ]);
     };
     ($(#[$meta:meta])* $name:ident, f64) => {
-        new_type_base!($(#[$meta])* $name, f64, #[::derive_more::Neg]);
+        new_type_struct!($(#[$meta])* $name, f64, #[::derive_more::Neg]);
         ordered_float!($name);
 
         impl ::std::ops::Mul<f64> for $name {
@@ -124,7 +124,7 @@ macro_rules! ordered_float {
     };
 }
 
-macro_rules! mul {
+macro_rules! implement_mul {
     ($lhs:path, $rhs:path, $output:path) => {
         impl ::std::ops::Mul<$rhs> for $lhs {
             type Output = $output;

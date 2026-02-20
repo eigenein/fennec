@@ -133,21 +133,15 @@ impl HuntArgs {
         const ONE_DAY: Days = Days::new(1);
 
         let today = now.date_naive();
-        let today_rates = self.provider.get_rates(today).await?;
-        ensure!(!today_rates.is_empty());
+        let mut rates = self.provider.get_rates(today).await?;
+        ensure!(!rates.is_empty());
 
-        let mut tomorrow_rates =
-            self.provider.get_rates(today.checked_add_days(ONE_DAY).unwrap()).await?;
-        if tomorrow_rates.is_empty() {
-            warn!("using today's rates for tomorrow");
-            tomorrow_rates =
-                today_rates.iter().map(|(interval, rate)| (*interval + ONE_DAY, *rate)).collect();
-        }
+        let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
+        rates.extend(self.provider.get_rates(tomorrow).await?);
 
-        let mut rates = today_rates;
-        rates.extend(tomorrow_rates);
         rates.retain(|(interval, _)| interval.end > now);
         info!(len = rates.len(), "fetched energy rates");
+
         Ok(rates)
     }
 }

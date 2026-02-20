@@ -1,6 +1,6 @@
 use crate::{
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
-    statistics::{battery::BatteryEfficiency, flow::Flow},
+    statistics::{Flow, battery::BatteryEfficiency},
 };
 
 #[derive(Copy, Clone, bon::Builder)]

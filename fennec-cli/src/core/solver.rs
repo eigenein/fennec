@@ -17,11 +17,7 @@ use crate::{
     ops::Interval,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours, power::Watts, rate::KilowattHourRate},
-    statistics::{
-        FlowStatistics,
-        battery::BatteryEfficiency,
-        flow::{Flow, SystemFlow},
-    },
+    statistics::{Flow, FlowStatistics, SystemFlow, battery::BatteryEfficiency},
 };
 
 #[derive(Builder)]

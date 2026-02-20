@@ -2,7 +2,7 @@ use crate::{
     core::{energy_level::EnergyLevel, working_mode::WorkingMode},
     ops::Interval,
     quantity::{currency::Mills, energy::WattHours, rate::KilowattHourRate},
-    statistics::flow::SystemFlow,
+    statistics::SystemFlow,
 };
 
 /// Single-hour working plan step.

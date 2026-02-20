@@ -1,6 +1,7 @@
 pub mod battery;
-pub mod flow;
+mod flow;
 mod integrator;
+mod system_flow;
 
 use std::{
     fmt::{Display, Formatter},
@@ -13,13 +14,14 @@ use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 
+pub use self::{flow::Flow, system_flow::SystemFlow};
 use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode,
     db::power,
     prelude::*,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
-    statistics::{flow::SystemFlow, integrator::Integrator},
+    statistics::integrator::Integrator,
 };
 
 #[must_use]

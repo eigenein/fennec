@@ -175,15 +175,15 @@ impl Solver<'_> {
         let balance_request =
             average_balance.with_working_mode(working_mode, self.battery_power_limits);
         let hours = interval.hours();
-        let simulation = battery.apply(balance_request.battery, hours);
+        let battery_flows = battery.apply(balance_request.battery, hours);
         let requested_battery = balance_request.battery * hours;
-        let battery_shortage = requested_battery - simulation.flow;
+        let battery_shortage = requested_battery - battery_flows.external;
         let grid_flow = balance_request.grid * hours + battery_shortage.reversed();
         Step {
             interval,
             grid_rate,
             working_mode,
-            energy_balance: EnergyBalance { grid: grid_flow, battery: simulation.flow },
+            energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flows.external },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
             grid_loss: self.grid_loss(grid_rate, grid_flow),

@@ -84,7 +84,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .average_flow(self.flow_statistics.on_hour(interval.start.hour()))
+                .average_balance(self.flow_statistics.on_hour(interval.start.hour()))
                 .grid_rate(grid_rate);
 
             // Calculate partial solutions for the current hour:
@@ -126,7 +126,7 @@ impl Solver<'_> {
         &self,
         interval_index: usize,
         interval: Interval,
-        average_flow: EnergyBalance<Watts>,
+        average_balance: EnergyBalance<Watts>,
         grid_rate: KilowattHourRate,
         initial_residual_energy: WattHours,
         solutions: &SolutionSpace,
@@ -144,7 +144,7 @@ impl Solver<'_> {
                     .simulate_step()
                     .interval(interval)
                     .grid_rate(grid_rate)
-                    .average_flow(average_flow)
+                    .average_balance(average_balance)
                     .battery(battery)
                     .working_mode(working_mode)
                     .call();
@@ -163,23 +163,24 @@ impl Solver<'_> {
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        average_flow: EnergyBalance<Watts>,
+        average_balance: EnergyBalance<Watts>,
         grid_rate: KilowattHourRate,
         working_mode: WorkingMode,
     ) -> Step {
         // Remember that the average flow represents theoretical possibility,
         // actual flow depends on the working mode:
-        let flow_request = average_flow.with_working_mode(working_mode, self.battery_power_limits);
+        let balance_request =
+            average_balance.with_working_mode(working_mode, self.battery_power_limits);
         let hours = interval.hours();
-        let battery_flow = battery.apply(flow_request.battery, hours);
-        let requested_battery = flow_request.battery * hours;
+        let battery_flow = battery.apply(balance_request.battery, hours);
+        let requested_battery = balance_request.battery * hours;
         let battery_shortage = requested_battery - battery_flow;
-        let grid_flow = flow_request.grid * hours + battery_shortage.reversed();
+        let grid_flow = balance_request.grid * hours + battery_shortage.reversed();
         Step {
             interval,
             grid_rate,
             working_mode,
-            system_flow: EnergyBalance { grid: grid_flow, battery: battery_flow },
+            energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flow },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
             loss: self.loss(grid_rate, grid_flow),

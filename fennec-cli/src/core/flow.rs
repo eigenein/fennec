@@ -9,7 +9,8 @@ use crate::quantity::Zero;
 
 /// Generic bidirectional energy flow.
 #[must_use]
-#[derive(Copy, Clone, Add, Sub, AddAssign)]
+#[expect(clippy::derive_partial_eq_without_eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Add, Sub, AddAssign)]
 pub struct Flow<T> {
     /// Importing from grid or charging the battery.
     pub import: T,

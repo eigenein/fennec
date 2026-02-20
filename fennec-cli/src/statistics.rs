@@ -24,7 +24,7 @@ use crate::{
 #[must_use]
 pub struct FlowStatistics {
     /// Fallback global average power flow for when a specific hourly power flow is not available.
-    fallback: EnergyBalance<Watts>,
+    average_balance: EnergyBalance<Watts>,
 
     /// Average hourly power flow.
     hourly: [Option<EnergyBalance<Watts>>; 24],
@@ -51,15 +51,15 @@ impl FlowStatistics {
             let time_delta = Hours::from(next.timestamp - previous.timestamp);
             let net_power = (next.net_power + previous.net_power) / 2.0;
 
-            let flows = Integrator {
+            let part = Integrator {
                 total_time: time_delta,
                 value: EnergyBalance::new(battery_power_limits, net_power) * time_delta,
             };
-            fallback += flows;
+            fallback += part;
 
             if next.same_hour_as(&previous) {
                 let local_hour = usize::try_from(next.timestamp.with_timezone(&Local).hour())?;
-                hourly[local_hour] += flows;
+                hourly[local_hour] += part;
             }
 
             previous = next;
@@ -67,15 +67,15 @@ impl FlowStatistics {
 
         info!(elapsed = ?start_time.elapsed(), "done");
         Ok(Self {
-            fallback: fallback
+            average_balance: fallback
                 .average()
-                .context("no samples to calculate the fallback power flow")?,
+                .context("no samples to calculate the average energy balance")?,
             hourly: hourly.into_iter().map(Integrator::average).collect_array().unwrap(),
         })
     }
 
     pub fn on_hour(&self, hour: u32) -> EnergyBalance<Watts> {
-        self.hourly[hour as usize].unwrap_or(self.fallback)
+        self.hourly[hour as usize].unwrap_or(self.average_balance)
     }
 }
 
@@ -98,7 +98,7 @@ impl Display for FlowStatistics {
                     .fg(WorkingMode::Discharge.color()),
             ]);
         for (hour, flow) in self.hourly.iter().enumerate() {
-            let flow = flow.unwrap_or(self.fallback);
+            let flow = flow.unwrap_or(self.average_balance);
             table.add_row(vec![
                 Cell::new(hour),
                 Cell::new(flow.grid.import)

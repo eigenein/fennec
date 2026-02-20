@@ -41,29 +41,29 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
                 Color::Green
             }),
             Cell::new(step.working_mode).fg(step.working_mode.color()),
-            Cell::new(step.system_flow.grid.import).set_alignment(CellAlignment::Right).fg(
-                if step.system_flow.grid.import > WattHours::ONE {
+            Cell::new(step.energy_balance.grid.import).set_alignment(CellAlignment::Right).fg(
+                if step.energy_balance.grid.import > WattHours::ONE {
                     Color::Red
                 } else {
                     Color::Green
                 },
             ),
-            Cell::new(step.system_flow.grid.export).set_alignment(CellAlignment::Right).fg(
-                if step.system_flow.grid.export > WattHours::ONE {
+            Cell::new(step.energy_balance.grid.export).set_alignment(CellAlignment::Right).fg(
+                if step.energy_balance.grid.export > WattHours::ONE {
                     Color::Blue
                 } else {
                     Color::Reset
                 },
             ),
-            Cell::new(step.system_flow.battery.import)
-                .fg(if step.system_flow.battery.import > WattHours::ONE {
+            Cell::new(step.energy_balance.battery.import)
+                .fg(if step.energy_balance.battery.import > WattHours::ONE {
                     WorkingMode::Charge.color()
                 } else {
                     Color::Reset
                 })
                 .set_alignment(CellAlignment::Right),
-            Cell::new(step.system_flow.battery.export)
-                .fg(if step.system_flow.battery.export > WattHours::ONE {
+            Cell::new(step.energy_balance.battery.export)
+                .fg(if step.energy_balance.battery.export > WattHours::ONE {
                     WorkingMode::Discharge.color()
                 } else {
                     Color::Reset

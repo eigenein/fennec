@@ -6,7 +6,7 @@ use reqwest::Url;
 
 use crate::{
     api::{foxcloud, heartbeat},
-    cli::{battery::BatteryArgs, db::DbArgs, estimation::EstimationArgs, foxess::FoxEssApiArgs},
+    cli::{battery::BatteryArgs, db::DbArgs, foxess::FoxCloudApiArgs},
     core::{
         energy_level::Quantum,
         provider::Provider,
@@ -48,10 +48,7 @@ pub struct HuntArgs {
     battery: BatteryArgs,
 
     #[clap(flatten)]
-    fox_ess_api: FoxEssApiArgs,
-
-    #[clap(flatten)]
-    estimation: EstimationArgs,
+    fox_ess_api: FoxCloudApiArgs,
 
     #[clap(flatten)]
     db: DbArgs,
@@ -85,7 +82,7 @@ impl HuntArgs {
 
         let battery_efficiency = {
             let battery_logs = db.measurements::<battery::Measurement>().await?;
-            BatteryEfficiency::try_estimate(battery_logs, self.estimation.weight_mode)
+            BatteryEfficiency::try_estimate(battery_logs)
                 .await
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
                 .unwrap_or_default()

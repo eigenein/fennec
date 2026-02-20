@@ -2,12 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     api::foxcloud,
-    cli::{
-        battery::BatteryPowerLimits,
-        db::DbArgs,
-        estimation::EstimationArgs,
-        foxess::FoxEssApiArgs,
-    },
+    cli::{battery::BatteryPowerLimits, db::DbArgs, foxess::FoxCloudApiArgs},
     db::{battery, power},
     prelude::*,
     statistics::{FlowStatistics, battery::BatteryEfficiency},
@@ -45,16 +40,13 @@ pub enum BurrowCommand {
 pub struct BurrowBatteryArgs {
     #[clap(flatten)]
     db: DbArgs,
-
-    #[clap(flatten)]
-    estimation: EstimationArgs,
 }
 
 impl BurrowBatteryArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
         let logs = db.measurements::<battery::Measurement>().await?;
-        let _ = BatteryEfficiency::try_estimate(logs, self.estimation.weight_mode).await?;
+        let _ = BatteryEfficiency::try_estimate(logs).await?;
         db.shutdown().await;
         Ok(())
     }
@@ -64,9 +56,6 @@ impl BurrowBatteryArgs {
 pub struct BurrowConsumptionArgs {
     #[clap(flatten)]
     db: DbArgs,
-
-    #[clap(flatten)]
-    estimation: EstimationArgs,
 
     #[clap(flatten)]
     power_limits: BatteryPowerLimits,
@@ -86,7 +75,7 @@ impl BurrowConsumptionArgs {
 #[derive(Parser)]
 pub struct BurrowFoxEssArgs {
     #[clap(flatten)]
-    fox_ess_api: FoxEssApiArgs,
+    fox_ess_api: FoxCloudApiArgs,
 
     #[command(subcommand)]
     command: BurrowFoxEssCommand,

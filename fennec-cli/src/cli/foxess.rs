@@ -1,7 +1,7 @@
 use clap::Parser;
 
 #[derive(Parser)]
-pub struct FoxEssApiArgs {
+pub struct FoxCloudApiArgs {
     #[clap(long = "api-key", env = "FOX_ESS_API_KEY")]
     pub api_key: String,
 

@@ -16,7 +16,6 @@ use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
 
 use crate::{
-    cli::WeightMode,
     db::battery::Measurement,
     fmt::FormattedPercentage,
     prelude::*,
@@ -83,7 +82,7 @@ impl BatteryEfficiency {
     }
 
     #[instrument(skip_all)]
-    pub async fn try_estimate<S>(mut battery_logs: S, weight_mode: WeightMode) -> Result<Self>
+    pub async fn try_estimate<S>(mut battery_logs: S) -> Result<Self>
     where
         S: TryStream<Ok = Measurement, Error = Error> + Unpin,
     {
@@ -100,24 +99,12 @@ impl BatteryEfficiency {
             let residual_differential =
                 WattHours::from(log.legacy_residual_energy - previous.legacy_residual_energy);
 
-            let weight_multiplier = {
-                let weight = match weight_mode {
-                    WeightMode::None => 1.0,
-                    WeightMode::EnergyFlow => {
-                        (imported_energy + exported_energy + WattHours::ONE).0
-                    }
-                };
-                weight.sqrt()
-            };
-
             dataset.records.push_row(aview1(&[
-                imported_energy.0 * weight_multiplier,
-                exported_energy.0 * weight_multiplier,
-                time_delta.0 * weight_multiplier,
+                imported_energy.0,
+                exported_energy.0,
+                time_delta.0,
             ]))?;
-            dataset
-                .targets
-                .push(Axis(0), aview0(&(residual_differential.0 * weight_multiplier)))?;
+            dataset.targets.push(Axis(0), aview0(&(residual_differential.0)))?;
 
             previous = log;
         }
@@ -125,7 +112,7 @@ impl BatteryEfficiency {
             bail!("empty dataset");
         }
 
-        info!(n_samples = dataset.nsamples(), ?weight_mode, "estimating the battery efficiency…");
+        info!(n_samples = dataset.nsamples(), "estimating the battery efficiency…");
         let start_time = Instant::now();
         let regression = LinearRegression::new()
             .with_intercept(false)

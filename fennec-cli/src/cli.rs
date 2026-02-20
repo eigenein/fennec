@@ -1,7 +1,6 @@
 pub mod battery;
 mod burrow;
 mod db;
-mod estimation;
 mod foxess;
 mod hunt;
 mod log;
@@ -9,7 +8,6 @@ mod sentry;
 
 use clap::{Parser, Subcommand};
 
-pub use self::estimation::WeightMode;
 use crate::cli::{burrow::BurrowArgs, hunt::HuntArgs, log::LogArgs, sentry::SentryArgs};
 
 #[derive(Parser)]

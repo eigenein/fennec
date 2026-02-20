@@ -152,7 +152,7 @@ impl Solver<'_> {
                     solutions.get(interval_index + 1, step.energy_level_after)?;
                 Some(Solution { loss: step.loss + next_solution.loss, step: Some(step) })
             })
-            .min_by_key(|solution| solution.loss)
+            .min_by(|lhs, rhs| lhs.loss.partial_cmp(&rhs.loss).unwrap())
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions,

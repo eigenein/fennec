@@ -53,8 +53,28 @@ macro_rules! implement_new_type {
         ]);
     };
     ($(#[$meta:meta])* $name:ident, f64) => {
-        new_type_struct!($(#[$meta])* $name, f64, #[::derive_more::Neg]);
-        ordered_float!($name);
+        new_type_struct!($(#[$meta])* $name, f64, #[
+            ::std::cmp::PartialEq,
+            ::std::cmp::PartialOrd,
+            ::derive_more::Neg
+        ]);
+
+        impl $name {
+            #[allow(dead_code)]
+            pub const fn min(self, other: Self) -> Self {
+                Self(self.0.min(other.0))
+            }
+
+            #[allow(dead_code)]
+            pub const fn max(self, other: Self) -> Self {
+                Self(self.0.max(other.0))
+            }
+
+            #[allow(dead_code)]
+            pub const fn clamp(self, min: Self, max: Self) -> Self {
+                Self(self.0.clamp(min.0, max.0))
+            }
+        }
 
         impl ::std::ops::Mul<f64> for $name {
             type Output = Self;
@@ -96,31 +116,6 @@ macro_rules! fmt {
                 write!(formatter, "{0:.1$}{2}", self.0, $precision, $suffix)
             }
         }
-    };
-}
-
-#[rustfmt::skip]
-macro_rules! ordered_float {
-    ($name:path) => {
-        impl ::std::cmp::PartialOrd for $name {
-            fn partial_cmp(&self, other: &Self) -> Option<::std::cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
-
-        impl ::std::cmp::Ord for $name {
-            fn cmp(&self, other: &Self) -> ::std::cmp::Ordering {
-                ::ordered_float::OrderedFloat(self.0).cmp(&::ordered_float::OrderedFloat(other.0))
-            }
-        }
-
-        impl ::std::cmp::PartialEq for $name {
-            fn eq(&self, other: &Self) -> bool {
-                ::ordered_float::OrderedFloat(self.0).eq(&::ordered_float::OrderedFloat(other.0))
-            }
-        }
-
-        impl ::std::cmp::Eq for $name {}
     };
 }
 

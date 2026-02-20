@@ -112,7 +112,7 @@ impl Solver<'_> {
                     interval = interval.with_start(self.now);
                 }
                 let flow = self.flow_statistics.on_hour(interval.start.hour());
-                self.loss(grid_rate, (flow.grid + flow.battery.reversed()) * interval.hours())
+                self.grid_loss(grid_rate, (flow.grid + flow.battery.reversed()) * interval.hours())
             })
             .sum()
     }
@@ -175,23 +175,23 @@ impl Solver<'_> {
         let balance_request =
             average_balance.with_working_mode(working_mode, self.battery_power_limits);
         let hours = interval.hours();
-        let battery_flow = battery.apply(balance_request.battery, hours);
+        let simulation = battery.apply(balance_request.battery, hours);
         let requested_battery = balance_request.battery * hours;
-        let battery_shortage = requested_battery - battery_flow;
+        let battery_shortage = requested_battery - simulation.flow;
         let grid_flow = balance_request.grid * hours + battery_shortage.reversed();
         Step {
             interval,
             grid_rate,
             working_mode,
-            energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flow },
+            energy_balance: EnergyBalance { grid: grid_flow, battery: simulation.flow },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
-            grid_loss: self.loss(grid_rate, grid_flow),
+            grid_loss: self.grid_loss(grid_rate, grid_flow),
         }
     }
 
     /// Calculate the grid consumption or production loss.
-    fn loss(&self, rate: KilowattHourRate, flow: Flow<WattHours>) -> Mills {
+    fn grid_loss(&self, rate: KilowattHourRate, flow: Flow<WattHours>) -> Mills {
         flow.import * rate - flow.export * (rate - self.purchase_fee)
     }
 }

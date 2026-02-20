@@ -67,7 +67,7 @@ mod tests {
 
     /// Verify normal charging without overflowing.
     #[test]
-    fn normal_charging() {
+    fn normal_operation() {
         let mut simulator = Simulator {
             residual_energy: WattHours(5000.0),
             min_residual_energy: WattHours::ZERO,
@@ -78,6 +78,34 @@ mod tests {
         assert_eq!(flow.import, WattHours(1000.0));
         assert_eq!(flow.export, WattHours::ZERO);
         assert_eq!(simulator.residual_energy, WattHours(6000.0));
+    }
+
+    /// Verify efficiency corrections.
+    #[test]
+    fn efficiency() {
+        let efficiency = BatteryEfficiency {
+            parasitic_load: Watts(50.0),
+            charging: 0.9,
+            discharging: 0.5,
+            n_samples: 0,
+            total_hours: Hours::ZERO,
+        };
+        let mut simulator = Simulator {
+            residual_energy: WattHours(5000.0),
+            min_residual_energy: WattHours::ZERO,
+            max_residual_energy: WattHours(10000.0),
+            efficiency,
+        };
+        let flow =
+            simulator.apply(Flow { import: Watts(1000.0), export: Watts(1000.0) }, Hours(1.0));
+        assert_eq!(flow.import, WattHours(1000.0));
+        assert_eq!(flow.export, WattHours(1000.0));
+        assert_eq!(
+            simulator.residual_energy,
+            WattHours(5000.0) + WattHours(1000.0) * efficiency.charging
+                - WattHours(1000.0) / efficiency.discharging
+                - efficiency.parasitic_load * Hours(1.0)
+        );
     }
 
     /// Verify capping at the maximum.
@@ -108,5 +136,37 @@ mod tests {
         assert_eq!(flow.import, WattHours::ZERO);
         assert_eq!(flow.export, WattHours(500.0));
         assert_eq!(simulator.residual_energy, WattHours(500.0));
+    }
+
+    /// Verify bidirectional operation at the minimum SoC.
+    #[test]
+    fn min_soc_bidirectional() {
+        let mut simulator = Simulator {
+            residual_energy: WattHours(100.0),
+            min_residual_energy: WattHours(100.0),
+            max_residual_energy: WattHours(10000.0),
+            efficiency: BatteryEfficiency::IDEAL,
+        };
+        let flow =
+            simulator.apply(Flow { import: Watts(500.0), export: Watts(1000.0) }, Hours(1.0));
+        assert_eq!(flow.import, WattHours(500.0));
+        assert_eq!(flow.export, WattHours(500.0));
+        assert_eq!(simulator.residual_energy, WattHours(100.0));
+    }
+
+    /// Verify bidirectional operation at the maximum SoC.
+    #[test]
+    fn max_soc_bidirectional() {
+        let mut simulator = Simulator {
+            residual_energy: WattHours(10000.0),
+            min_residual_energy: WattHours(0.0),
+            max_residual_energy: WattHours(10000.0),
+            efficiency: BatteryEfficiency::IDEAL,
+        };
+        let flow =
+            simulator.apply(Flow { import: Watts(1000.0), export: Watts(500.0) }, Hours(1.0));
+        assert_eq!(flow.import, WattHours(500.0));
+        assert_eq!(flow.export, WattHours(500.0));
+        assert_eq!(simulator.residual_energy, WattHours(10000.0));
     }
 }

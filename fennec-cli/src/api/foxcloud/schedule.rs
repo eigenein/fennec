@@ -207,7 +207,13 @@ impl Display for &Groups {
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
-            .set_header(vec!["Start", "End", "Mode", "Feed power", "Other"]);
+            .set_header(vec![
+                "Start\ntime",
+                "End\ntime",
+                "Mode",
+                "Feed\npower",
+                "Other\nattributes",
+            ]);
         for group in &self.0 {
             let other = group
                 .extra

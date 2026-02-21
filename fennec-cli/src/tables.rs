@@ -22,18 +22,18 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
         .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
         .enforce_styling()
         .set_header(vec![
-            "Date",
-            "Start",
-            "End",
-            "Energy\nprice",
-            "Mode",
-            "Grid ↓",
-            "Grid ↑",
-            "Battery ↓",
-            "Battery ↑",
-            "Residual",
-            "Grid\nloss",
-            "Battery\nloss",
+            Cell::new("Date"),
+            Cell::new("Start\ntime"),
+            Cell::new("End\ntime"),
+            Cell::new("Energy\nprice"),
+            Cell::new("Mode"),
+            Cell::new("Grid\nimport"),
+            Cell::new("Grid\nexport"),
+            Cell::new("Battery\nimport").fg(WorkingMode::Charge.color()),
+            Cell::new("Battery\nexport").fg(WorkingMode::Discharge.color()),
+            Cell::new("Residual\nafter"),
+            Cell::new("Grid\nloss"),
+            Cell::new("Battery\nloss"),
         ]);
     for step in steps {
         table.add_row(vec![

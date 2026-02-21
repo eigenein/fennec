@@ -35,7 +35,7 @@ pub struct HuntArgs {
     )]
     working_modes: Vec<WorkingMode>,
 
-    #[clap(long = "quantum-watts", env = "QUANTUM_WATTS", default_value = "1")]
+    #[clap(long = "quantum-watthours", env = "QUANTUM_WATTHOURS", default_value = "1")]
     quantum: Quantum,
 
     #[clap(flatten)]

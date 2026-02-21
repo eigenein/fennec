@@ -13,7 +13,7 @@ publish = false
 readme = "README.md"
 repository = "https://github.com/eigenein/fennec"
 rust-version = "1.92"
-version = "0.71.1"
+version = "0.71.2"
 
 [workspace.lints.clippy]
 future_not_send = "allow"

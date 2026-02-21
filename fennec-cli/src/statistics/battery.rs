@@ -4,7 +4,7 @@ use std::{
 };
 
 use bon::bon;
-use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
+use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use linfa::{
@@ -159,28 +159,23 @@ impl Display for BatteryEfficiency {
                 Cell::from("Charging").fg(Color::Green),
                 Cell::from(FormattedPercentage(self.charging))
                     .set_alignment(CellAlignment::Right)
-                    .fg(Color::Green)
-                    .add_attribute(Attribute::Bold),
+                    .fg(Color::Green),
             ])
             .add_row(vec![
                 Cell::from("Discharging").fg(Color::Red),
                 Cell::from(FormattedPercentage(self.discharging))
                     .set_alignment(CellAlignment::Right)
-                    .fg(Color::Red)
-                    .add_attribute(Attribute::Bold),
+                    .fg(Color::Red),
             ])
             .add_row(vec![
                 Cell::from("Parasitic load"),
-                Cell::from(self.parasitic_load)
-                    .add_attribute(Attribute::Bold)
-                    .set_alignment(CellAlignment::Right),
+                Cell::from(self.parasitic_load).set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
-                Cell::from("Round trip").add_attribute(Attribute::Bold).fg(Color::DarkYellow),
+                Cell::from("Round trip").fg(Color::DarkYellow),
                 Cell::from(FormattedPercentage(self.round_trip()))
                     .set_alignment(CellAlignment::Right)
-                    .fg(Color::DarkYellow)
-                    .add_attribute(Attribute::Bold),
+                    .fg(Color::DarkYellow),
             ]);
         write!(f, "{table}")
     }

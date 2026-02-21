@@ -1,4 +1,4 @@
-use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets};
+use comfy_table::{Cell, Color, Table, modifiers, presets};
 use derive_more::Add;
 
 use crate::{
@@ -21,12 +21,13 @@ impl Metrics {
     pub fn into_table(self, base_loss: Mills) -> Table {
         let profit = base_loss - self.losses.total();
         let mut table = Table::new();
+        let profit_color = if profit > Mills::ZERO { Color::Green } else { Color::Red };
         table
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
             .set_header(vec![
-                Cell::from("Profit").add_attribute(Attribute::Bold),
+                Cell::from("Profit").fg(profit_color),
                 Cell::from("Base\nloss"),
                 Cell::from("Grid\nloss"),
                 Cell::from("Battery\ncharge").fg(WorkingMode::Charge.color()),
@@ -34,11 +35,7 @@ impl Metrics {
                 Cell::from("Battery\nloss"),
             ])
             .add_row(vec![
-                Cell::from(profit).add_attribute(Attribute::Bold).fg(if profit > Mills::ZERO {
-                    Color::Green
-                } else {
-                    Color::Red
-                }),
+                Cell::from(profit).fg(profit_color),
                 Cell::from(base_loss),
                 Cell::from(self.losses.grid),
                 Cell::from(self.internal_battery_flow.import).fg(WorkingMode::Charge.color()),

@@ -79,6 +79,13 @@ impl BatteryEfficiency {
         self.charging * self.discharging
     }
 
+    /// Residual energy sensor bias, assuming it's symmetrical in regard to charging and discharging.
+    ///
+    /// For now, only exists to correct the estimated degradation costs.
+    pub fn sensor_bias(&self) -> f64 {
+        (self.charging / self.discharging).sqrt()
+    }
+
     #[instrument(skip_all)]
     pub async fn try_estimate<S>(mut battery_logs: S) -> Result<Self>
     where
@@ -149,31 +156,38 @@ impl Display for BatteryEfficiency {
             .load_preset(presets::UTF8_FULL_CONDENSED)
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
-            .set_header(vec![Cell::from("Battery")])
-            .add_row(vec![Cell::from("Total time"), Cell::from(self.total_hours)])
+            .set_header(vec![Cell::new("Battery")])
+            .add_row(vec![Cell::new("Total time"), Cell::new(self.total_hours)])
             .add_row(vec![
-                Cell::from("Samples"),
-                Cell::from(self.n_samples).set_alignment(CellAlignment::Right),
+                Cell::new("Samples"),
+                Cell::new(self.n_samples).set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
-                Cell::from("Charging").fg(Color::Green),
-                Cell::from(FormattedPercentage(self.charging))
+                Cell::new("Charging").fg(Color::Green),
+                Cell::new(FormattedPercentage(self.charging))
                     .set_alignment(CellAlignment::Right)
                     .fg(Color::Green),
             ])
             .add_row(vec![
-                Cell::from("Discharging").fg(Color::Red),
-                Cell::from(FormattedPercentage(self.discharging))
+                Cell::new("Discharging").fg(Color::Red),
+                Cell::new(FormattedPercentage(self.discharging))
                     .set_alignment(CellAlignment::Right)
                     .fg(Color::Red),
             ])
             .add_row(vec![
-                Cell::from("Parasitic load"),
-                Cell::from(self.parasitic_load).set_alignment(CellAlignment::Right),
+                Cell::new("Sensor bias"),
+                Cell::new(FormattedPercentage(self.sensor_bias()))
+                    .set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
-                Cell::from("Round trip").fg(Color::DarkYellow),
-                Cell::from(FormattedPercentage(self.round_trip()))
+                Cell::new("Parasitic load").fg(Color::DarkYellow),
+                Cell::new(self.parasitic_load)
+                    .fg(Color::DarkYellow)
+                    .set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::new("Round trip").fg(Color::DarkYellow),
+                Cell::new(FormattedPercentage(self.round_trip()))
                     .set_alignment(CellAlignment::Right)
                     .fg(Color::DarkYellow),
             ]);

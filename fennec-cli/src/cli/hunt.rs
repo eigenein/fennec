@@ -102,7 +102,9 @@ impl HuntArgs {
             .now(now)
             .quantum(self.quantum)
             .battery_power_limits(self.battery.power_limits)
-            .battery_degradation_cost(self.battery.degradation_cost)
+            .battery_degradation_cost(
+                self.battery.degradation_cost / battery_efficiency.sensor_bias(),
+            )
             .build();
         let base_loss = solver.base_loss();
         let (summary, steps) = solver.solve().backtrack(initial_energy_level)?;

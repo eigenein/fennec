@@ -176,7 +176,7 @@ impl Groups {
                         // Forced charging at 0W is effectively idling:
                         (WorkingMode::ForceCharge, Watts::ZERO)
                     }
-                    CoreWorkingMode::Harvest => {
+                    CoreWorkingMode::Harness => {
                         (WorkingMode::Backup, battery_power_limits.charging)
                     }
                     CoreWorkingMode::Charge => {

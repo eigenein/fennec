@@ -9,7 +9,7 @@ pub enum WorkingMode {
     Idle,
 
     /// Only excess solar power charging without discharging.
-    Harvest,
+    Harness,
 
     /// Charge on excess solar power, compensate on insufficient solar power.
     SelfUse,
@@ -26,7 +26,7 @@ impl Display for WorkingMode {
         let text = match self {
             Self::SelfUse => "Self-use",
             Self::Idle => "Idle",
-            Self::Harvest => "Harvest",
+            Self::Harness => "Harness",
             Self::Charge => "Charge",
             Self::Discharge => "Discharge",
         };
@@ -40,7 +40,7 @@ impl WorkingMode {
             Self::Charge => Color::Green,
             Self::Discharge => Color::Blue,
             Self::SelfUse => Color::DarkYellow,
-            Self::Harvest => Color::Cyan,
+            Self::Harness => Color::Cyan,
             Self::Idle => Color::Reset,
         }
     }

@@ -44,7 +44,7 @@ impl EnergyBalance<Watts> {
     pub fn with_working_mode(self, working_mode: WorkingMode, limits: BatteryPowerLimits) -> Self {
         self.with_battery_flow(match working_mode {
             WorkingMode::Idle => Flow::ZERO,
-            WorkingMode::Harvest => Flow { import: self.battery.import, export: Watts::ZERO },
+            WorkingMode::Harness => Flow { import: self.battery.import, export: Watts::ZERO },
             WorkingMode::SelfUse => self.battery,
             WorkingMode::Charge => Flow { import: limits.charging, export: Watts::ZERO },
             WorkingMode::Discharge => Flow { import: Watts::ZERO, export: limits.discharging },

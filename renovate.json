@@ -7,7 +7,6 @@
   ],
   "commitMessagePrefix": "",
   "timezone": "Europe/Amsterdam",
-  "rangeStrategy": "pin",
   "packageRules": [
     {
       "matchPackageNames": ["linfa", "linfa-linear", "ndarray"],

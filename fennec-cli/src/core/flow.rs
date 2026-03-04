@@ -30,7 +30,7 @@ impl<T> Flow<T> {
     ///
     /// - Unserved charge becomes grid export
     /// - Unserved discharge becomes grid import
-    pub const fn reversed(&self) -> Self
+    pub const fn reversed(self) -> Self
     where
         T: Copy,
     {

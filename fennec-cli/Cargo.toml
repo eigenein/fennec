@@ -1,6 +1,6 @@
 [package]
 name = "fennec-cli"
-description = "FoxESS home battery steering based on Next Energy or Frank Energie real-time prices"
+description.workspace = true
 authors.workspace = true
 edition.workspace = true
 keywords.workspace = true

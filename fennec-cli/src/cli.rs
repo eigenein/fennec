@@ -1,7 +1,7 @@
 pub mod battery;
 mod burrow;
 mod db;
-mod foxess;
+mod foxcloud;
 mod hunt;
 mod log;
 mod sentry;

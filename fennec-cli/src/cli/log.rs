@@ -9,8 +9,8 @@ use tokio::{
 };
 
 use crate::{
-    api::{heartbeat, homewizard, modbus::foxess::EnergyStateClients},
-    cli::{battery::BatteryEnergyStateUrls, db::DbArgs},
+    api::{heartbeat, homewizard, modbus::foxess::MQ2200},
+    cli::{battery::BatteryConnectionArgs, db::DbArgs},
     db::{Db, Measurement, battery, power, state::BatteryResidualEnergy},
     prelude::*,
     quantity::energy::MilliwattHours,
@@ -37,7 +37,7 @@ pub struct LogArgs {
     db: DbArgs,
 
     #[clap(flatten)]
-    battery_energy_state_urls: BatteryEnergyStateUrls,
+    battery_connection: BatteryConnectionArgs,
 
     #[clap(long = "heartbeat-url", env = "LOG_HEARTBEAT_URL")]
     heartbeat_url: Option<Url>,
@@ -54,7 +54,7 @@ impl LogArgs {
             .db(db.clone())
             .heartbeat(heartbeat::Client::new(self.heartbeat_url.clone()))
             .interval(self.battery_polling_interval)
-            .energy_state_clients(self.battery_energy_state_urls.connect().await?)
+            .battery_client(self.battery_connection.connect().await?)
             .battery_meter_client(battery_meter_client)
             .grid_meter_client(grid_meter_client)
             .build()
@@ -69,7 +69,7 @@ impl LogArgs {
 /// TODO: just move the loop.
 #[derive(Builder)]
 struct Logger {
-    energy_state_clients: EnergyStateClients,
+    battery_client: MQ2200,
     battery_meter_client: homewizard::Client,
     grid_meter_client: homewizard::Client,
     db: Db,
@@ -80,7 +80,7 @@ struct Logger {
 }
 
 impl Logger {
-    async fn run(self) -> Result {
+    async fn run(mut self) -> Result {
         let mut interval = interval(self.interval);
         interval.reset_after(self.interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -89,7 +89,7 @@ impl Logger {
             interval.tick().await;
 
             let (battery_state, battery_metrics, grid_metrics) = try_join!(
-                self.energy_state_clients.read(),
+                self.battery_client.read_energy_state(),
                 self.battery_meter_client.get_measurement(),
                 self.grid_meter_client.get_measurement()
             )?;

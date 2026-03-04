@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     api::foxcloud,
-    cli::{battery::BatteryPowerLimits, db::DbArgs, foxess::FoxCloudApiArgs},
+    cli::{battery::BatteryPowerLimits, db::DbArgs, foxcloud::FoxCloudApiArgs},
     db::{battery, power},
     prelude::*,
     statistics::{FlowStatistics, battery::BatteryEfficiency},

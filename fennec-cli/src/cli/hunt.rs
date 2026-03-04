@@ -6,7 +6,7 @@ use reqwest::Url;
 
 use crate::{
     api::{foxcloud, heartbeat},
-    cli::{battery::BatteryArgs, db::DbArgs, foxess::FoxCloudApiArgs},
+    cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
     core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
     db::{battery, power},
     ops::Interval,
@@ -67,12 +67,8 @@ impl HuntArgs {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = self.get_prices(now).await?;
 
-        let battery_state = self.battery.connection.connect().await?.read().await?;
-        info!(
-            residual_energy = ?battery_state.energy.residual(),
-            state_of_charge = ?battery_state.energy.state_of_charge,
-            state_of_health = ?battery_state.energy.state_of_health,
-        );
+        let battery_state = self.battery.connection.connect().await?.read_full_state().await?;
+        println!("{battery_state}");
 
         let battery_efficiency = {
             let battery_logs = db.measurements::<battery::Measurement>().await?;

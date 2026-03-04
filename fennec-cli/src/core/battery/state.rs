@@ -1,3 +1,7 @@
+use std::fmt::{Display, Formatter};
+
+use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
+
 use crate::{
     ops::RangeInclusive,
     quantity::{
@@ -43,5 +47,44 @@ impl FullState {
 
     pub fn max_residual_energy(&self) -> WattHours {
         self.energy.actual_capacity() * self.allowed_state_of_charge.max
+    }
+}
+
+impl Display for FullState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Table::new()
+            .load_preset(presets::UTF8_FULL_CONDENSED)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+            .enforce_styling()
+            .set_header(vec![Cell::from("Battery")])
+            .add_row(vec![
+                Cell::from("Residual energy").fg(Color::Green),
+                Cell::from(self.energy.residual())
+                    .fg(Color::Green)
+                    .set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::from("Design capacity"),
+                Cell::from(self.energy.design_capacity).set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::from("State of charge").fg(Color::Green),
+                Cell::from(self.energy.state_of_charge)
+                    .fg(Color::Green)
+                    .set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::from("State of health"),
+                Cell::from(self.energy.state_of_health).set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::from("Minimum SoC"),
+                Cell::from(self.allowed_state_of_charge.min).set_alignment(CellAlignment::Right),
+            ])
+            .add_row(vec![
+                Cell::from("Maximum SoC"),
+                Cell::from(self.allowed_state_of_charge.min).set_alignment(CellAlignment::Right),
+            ])
+            .fmt(f)
     }
 }

@@ -3,7 +3,7 @@
 use clap::Parser;
 
 use crate::{
-    api::{modbus, modbus::foxess},
+    api::modbus::foxess::MQ2200,
     prelude::*,
     quantity::{power::Watts, price::KilowattHourPrice},
 };
@@ -11,51 +11,14 @@ use crate::{
 #[must_use]
 #[derive(Parser)]
 pub struct BatteryConnectionArgs {
-    #[clap(flatten)]
-    pub energy: BatteryEnergyStateUrls,
-
-    /// Modbus URL for the battery minimum SoC percentage setting.
-    #[clap(long = "battery-min-state-of-charge-url", env = "BATTERY_MIN_STATE_OF_CHARGE_URL")]
-    pub min_state_of_charge: modbus::ParsedUrl,
-
-    /// Modbus URL for the battery maximum SoC percentage setting.
-    #[clap(long = "battery-max-state-of-charge-url", env = "BATTERY_MAX_STATE_OF_CHARGE_URL")]
-    pub max_state_of_charge: modbus::ParsedUrl,
+    /// Battery Modbus address. Currently, only FoxESS MQ2200 is supported.
+    #[clap(long = "battery-address", env = "BATTERY_ADDRESS")]
+    address: String,
 }
 
 impl BatteryConnectionArgs {
-    pub async fn connect(&self) -> Result<foxess::Clients> {
-        Ok(foxess::Clients {
-            energy_state: self.energy.connect().await?,
-            min_state_of_charge: self.min_state_of_charge.connect().await?,
-            max_state_of_charge: self.max_state_of_charge.connect().await?,
-        })
-    }
-}
-
-#[must_use]
-#[derive(Parser)]
-pub struct BatteryEnergyStateUrls {
-    /// Modbus URL for the battery state of charge percentage.
-    #[clap(long = "battery-state-of-charge-url", env = "BATTERY_STATE_OF_CHARGE_URL")]
-    pub state_of_charge: modbus::ParsedUrl,
-
-    /// Modbus URL for the battery state of health percentage.
-    #[clap(long = "battery-min-state-of-health-url", env = "BATTERY_STATE_OF_HEALTH_URL")]
-    pub state_of_health: modbus::ParsedUrl,
-
-    /// Modbus URL for the battery design capacity in decawatt-hours.
-    #[clap(long = "battery-design-capacity-url", env = "BATTERY_DESIGN_CAPACITY_URL")]
-    pub design_capacity: modbus::ParsedUrl,
-}
-
-impl BatteryEnergyStateUrls {
-    pub async fn connect(&self) -> Result<foxess::EnergyStateClients> {
-        Ok(foxess::EnergyStateClients {
-            state_of_charge: self.state_of_charge.connect().await?,
-            state_of_health: self.state_of_health.connect().await?,
-            design_capacity: self.design_capacity.connect().await?,
-        })
+    pub async fn connect(&self) -> Result<MQ2200> {
+        MQ2200::connect(&self.address).await
     }
 }
 

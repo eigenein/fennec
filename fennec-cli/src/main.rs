@@ -3,6 +3,7 @@
 
 mod api;
 mod cli;
+mod collections;
 mod core;
 mod db;
 mod fmt;

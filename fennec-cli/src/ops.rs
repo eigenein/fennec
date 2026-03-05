@@ -9,30 +9,47 @@ use crate::quantity::time::Hours;
 
 #[must_use]
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct RangeExclusive<T: Copy> {
+pub struct RangeExclusive<T> {
     pub start: T,
     pub end: T,
 }
 
-impl<T: Copy + Debug> Debug for RangeExclusive<T> {
+impl<T: Debug> Debug for RangeExclusive<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}..{:?}", self.start, self.end)
     }
 }
 
-impl<T: Copy> RangeExclusive<T> {
-    pub const fn from_std(range: std::ops::Range<T>) -> Self {
+impl<T> RangeExclusive<T> {
+    pub const fn from_std(range: std::ops::Range<T>) -> Self
+    where
+        T: Copy,
+    {
         Self { start: range.start, end: range.end }
     }
 
-    pub const fn with_start(mut self, start: T) -> Self {
+    pub const fn with_start(mut self, start: T) -> Self
+    where
+        T: Copy,
+    {
         self.start = start;
         self
     }
 
-    pub const fn with_end(mut self, end: T) -> Self {
+    pub const fn with_end(mut self, end: T) -> Self
+    where
+        T: Copy,
+    {
         self.end = end;
         self
+    }
+
+    #[must_use]
+    pub fn contains(self, other: T) -> bool
+    where
+        T: Copy + PartialOrd,
+    {
+        (self.start <= other) && (other < self.end)
     }
 }
 
@@ -46,16 +63,9 @@ where
     }
 }
 
-impl<T: Copy + PartialOrd> RangeExclusive<T> {
-    #[must_use]
-    pub fn contains(self, other: T) -> bool {
-        (self.start <= other) && (other < self.end)
-    }
-}
-
 #[must_use]
 #[derive(Copy, Clone)]
-pub struct RangeInclusive<T: Copy> {
+pub struct RangeInclusive<T> {
     pub min: T,
     pub max: T,
 }
@@ -66,15 +76,19 @@ impl<T: Copy> From<std::ops::RangeInclusive<T>> for RangeInclusive<T> {
     }
 }
 
-impl<T: Copy> RangeInclusive<T> {
-    pub const fn from_std(range: std::ops::RangeInclusive<T>) -> Self {
+impl<T> RangeInclusive<T> {
+    pub const fn from_std(range: std::ops::RangeInclusive<T>) -> Self
+    where
+        T: Copy,
+    {
         Self { min: *range.start(), max: *range.end() }
     }
-}
 
-impl<T: Copy + PartialOrd> RangeInclusive<T> {
     #[must_use]
-    pub fn contains(self, other: T) -> bool {
+    pub fn contains(self, other: T) -> bool
+    where
+        T: Copy + PartialOrd,
+    {
         (self.min <= other) && (other <= self.max)
     }
 }

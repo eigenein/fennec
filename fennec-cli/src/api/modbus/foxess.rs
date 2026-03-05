@@ -15,7 +15,7 @@ use crate::{
     quantity::{energy::DecawattHours, ratios::Percentage},
 };
 
-/// [MQ2200]
+/// FoxESS MQ2200 Modbus client.
 #[must_use]
 pub struct MQ2200(tokio_modbus::client::Context);
 

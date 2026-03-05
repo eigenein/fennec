@@ -16,10 +16,10 @@ use crate::{
     },
     db,
     db::power,
+    fmt::tables::build_steps_table,
     ops::Interval,
     prelude::*,
     quantity::price::KilowattHourPrice,
-    tables::build_steps_table,
 };
 
 #[derive(Parser)]

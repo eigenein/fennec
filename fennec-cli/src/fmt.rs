@@ -1,3 +1,5 @@
+pub mod tables;
+
 use std::fmt::{Debug, Display, Formatter};
 
 pub struct FormattedPercentage(pub f64);

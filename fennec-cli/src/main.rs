@@ -10,7 +10,6 @@ mod ops;
 mod prelude;
 mod quantity;
 mod statistics;
-mod tables;
 
 use clap::{Parser, crate_version};
 use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};

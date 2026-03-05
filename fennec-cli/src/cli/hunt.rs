@@ -7,12 +7,18 @@ use reqwest::Url;
 use crate::{
     api::{foxcloud, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    core::{energy_level::Quantum, provider::Provider, solver::Solver, working_mode::WorkingMode},
-    db::{battery, power},
+    core::{
+        energy_level::Quantum,
+        flow,
+        provider::Provider,
+        solver::Solver,
+        working_mode::WorkingMode,
+    },
+    db,
+    db::power,
     ops::Interval,
     prelude::*,
     quantity::price::KilowattHourPrice,
-    statistics::{FlowStatistics, battery::BatteryEfficiency},
     tables::build_steps_table,
 };
 
@@ -71,15 +77,15 @@ impl HuntArgs {
         println!("{battery_state}");
 
         let battery_efficiency = {
-            let battery_logs = db.measurements::<battery::Measurement>().await?;
-            BatteryEfficiency::try_estimate(battery_logs)
+            let battery_logs = db.measurements::<db::battery::Measurement>().await?;
+            crate::core::battery::Efficiency::try_estimate(battery_logs)
                 .await
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
-                .unwrap_or(BatteryEfficiency::IDEAL)
+                .unwrap_or(crate::core::battery::Efficiency::IDEAL)
         };
         let flow_statistics = {
             let power_logs = db.measurements::<power::Measurement>().await?;
-            FlowStatistics::try_estimate(self.battery.power_limits, power_logs).await?
+            flow::Statistics::try_estimate(self.battery.power_limits, power_logs).await?
         };
         db.shutdown().await;
 

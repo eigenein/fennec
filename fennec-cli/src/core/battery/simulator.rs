@@ -1,7 +1,6 @@
 use crate::{
-    core::flow::Flow,
+    core::{battery, flow::Flow},
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
-    statistics::battery::BatteryEfficiency,
 };
 
 #[derive(Copy, Clone)]
@@ -17,7 +16,7 @@ pub struct Simulator {
     /// Maximum allowed residual energy.
     pub max_residual_energy: WattHours,
 
-    pub efficiency: BatteryEfficiency,
+    pub efficiency: battery::Efficiency,
 }
 
 impl Simulator {
@@ -81,7 +80,7 @@ mod tests {
             residual_energy: WattHours(5000.0),
             min_residual_energy: WattHours::ZERO,
             max_residual_energy: WattHours(10000.0),
-            efficiency: BatteryEfficiency::IDEAL,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts::ZERO }, Hours(1.0));
@@ -93,7 +92,7 @@ mod tests {
     /// Verify efficiency corrections.
     #[test]
     fn efficiency() {
-        let efficiency = BatteryEfficiency {
+        let efficiency = battery::Efficiency {
             parasitic_load: Watts(50.0),
             charging: 0.9,
             discharging: 0.5,
@@ -127,7 +126,7 @@ mod tests {
             residual_energy: WattHours(9000.0),
             min_residual_energy: WattHours::ZERO,
             max_residual_energy: WattHours(10000.0),
-            efficiency: BatteryEfficiency::IDEAL,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(2000.0), export: Watts::ZERO }, Hours(1.0));
@@ -143,7 +142,7 @@ mod tests {
             residual_energy: WattHours(1000.0),
             min_residual_energy: WattHours(500.0),
             max_residual_energy: WattHours(10000.0),
-            efficiency: BatteryEfficiency::IDEAL,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts::ZERO, export: Watts(1000.0) }, Hours(1.0));
@@ -159,7 +158,7 @@ mod tests {
             residual_energy: WattHours(100.0),
             min_residual_energy: WattHours(100.0),
             max_residual_energy: WattHours(10000.0),
-            efficiency: BatteryEfficiency::IDEAL,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(500.0), export: Watts(1000.0) }, Hours(1.0));
@@ -175,7 +174,7 @@ mod tests {
             residual_energy: WattHours(10000.0),
             min_residual_energy: WattHours(0.0),
             max_residual_energy: WattHours(10000.0),
-            efficiency: BatteryEfficiency::IDEAL,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts(500.0) }, Hours(1.0));

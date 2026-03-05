@@ -24,7 +24,7 @@ use crate::{
 
 #[must_use]
 #[derive(Copy, Clone)]
-pub struct BatteryEfficiency {
+pub struct Efficiency {
     pub parasitic_load: Watts,
 
     /// Charging efficiency, `0..=1`.
@@ -38,7 +38,7 @@ pub struct BatteryEfficiency {
     pub total_hours: Hours,
 }
 
-impl BatteryEfficiency {
+impl Efficiency {
     pub const IDEAL: Self = Self {
         parasitic_load: Watts::ZERO,
         charging: 1.0,
@@ -49,7 +49,7 @@ impl BatteryEfficiency {
 }
 
 #[bon]
-impl BatteryEfficiency {
+impl Efficiency {
     #[builder]
     pub fn new(
         parasitic_load: Watts,
@@ -74,7 +74,7 @@ impl BatteryEfficiency {
     }
 }
 
-impl BatteryEfficiency {
+impl Efficiency {
     pub const fn round_trip(&self) -> f64 {
         self.charging * self.discharging
     }
@@ -149,7 +149,7 @@ impl BatteryEfficiency {
     }
 }
 
-impl Display for BatteryEfficiency {
+impl Display for Efficiency {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
         table

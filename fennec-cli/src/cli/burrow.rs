@@ -3,9 +3,10 @@ use clap::{Parser, Subcommand};
 use crate::{
     api::foxcloud,
     cli::{battery::BatteryPowerLimits, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    db::{battery, power},
+    core::flow,
+    db,
+    db::power,
     prelude::*,
-    statistics::{FlowStatistics, battery::BatteryEfficiency},
 };
 
 #[derive(Parser)]
@@ -45,8 +46,8 @@ pub struct BurrowBatteryArgs {
 impl BurrowBatteryArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let logs = db.measurements::<battery::Measurement>().await?;
-        let _ = BatteryEfficiency::try_estimate(logs).await?;
+        let logs = db.measurements::<db::battery::Measurement>().await?;
+        let _ = crate::core::battery::Efficiency::try_estimate(logs).await?;
         db.shutdown().await;
         Ok(())
     }
@@ -65,7 +66,7 @@ impl BurrowConsumptionArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
         let logs = db.measurements::<power::Measurement>().await?;
-        let statistics = FlowStatistics::try_estimate(self.power_limits, logs).await?;
+        let statistics = flow::Statistics::try_estimate(self.power_limits, logs).await?;
         db.shutdown().await;
         println!("{statistics}");
         Ok(())

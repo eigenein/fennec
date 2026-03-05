@@ -9,6 +9,7 @@ use crate::{
     core::{
         battery,
         energy_level::Quantum,
+        flow,
         flow::{EnergyBalance, Flow},
         solution::{Losses, Metrics, Solution},
         solution_space::SolutionSpace,
@@ -18,13 +19,12 @@ use crate::{
     ops::Interval,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours, power::Watts, price::KilowattHourPrice},
-    statistics::{FlowStatistics, battery::BatteryEfficiency},
 };
 
 #[derive(Builder)]
 pub struct Solver<'a> {
     energy_prices: &'a [(Interval, KilowattHourPrice)],
-    flow_statistics: &'a FlowStatistics,
+    flow_statistics: &'a flow::Statistics,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -37,7 +37,7 @@ pub struct Solver<'a> {
 
     battery_degradation_cost: KilowattHourPrice,
     battery_power_limits: BatteryPowerLimits,
-    battery_efficiency: BatteryEfficiency,
+    battery_efficiency: battery::Efficiency,
     purchase_fee: KilowattHourPrice,
     now: DateTime<Local>,
     quantum: Quantum,

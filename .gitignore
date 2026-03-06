@@ -1,4 +1,5 @@
 .env
+.zig-cache
 flamegraph.svg
 node_modules
 

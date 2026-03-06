@@ -75,7 +75,9 @@ impl MQ2200 {
     async fn read_holding_register(&mut self, address: Address) -> Result<u16> {
         self.0
             .read_holding_registers(address, 1)
-            .await??
+            .await
+            .context("protocol or network error")?
+            .context("Modbus server error")?
             .into_iter()
             .next()
             .with_context(|| format!("register #{address} returned no data"))

@@ -9,13 +9,13 @@ use crate::{
         solution::{Metrics, Solution},
         step::Step,
     },
-    ops::RangeInclusive,
+    ops::range,
     prelude::*,
 };
 
 #[must_use]
 pub struct SolutionSpace {
-    allowed_energy_levels: RangeInclusive<EnergyLevel>,
+    allowed_energy_levels: range::Inclusive<EnergyLevel>,
 
     /// Number of time intervals.
     n_intervals: usize,
@@ -31,7 +31,7 @@ impl SolutionSpace {
     #[builder]
     pub fn new(
         n_intervals: usize,
-        #[builder(into)] allowed_energy_levels: RangeInclusive<EnergyLevel>,
+        #[builder(into)] allowed_energy_levels: range::Inclusive<EnergyLevel>,
     ) -> Self {
         let flat_matrix =
             (0..(n_intervals * (allowed_energy_levels.max.0 + 1))).map(|_| None).collect_vec();

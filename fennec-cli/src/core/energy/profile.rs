@@ -14,9 +14,9 @@ use crate::{
     cli::battery::BatteryPowerLimits,
     core::working_mode::WorkingMode,
     db::power,
+    ops::Integrator,
     prelude::*,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
-    statistics::Integrator,
 };
 
 #[must_use]

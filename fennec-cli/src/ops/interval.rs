@@ -2,9 +2,9 @@ use std::ops::Add;
 
 use chrono::{DateTime, Days, Local, TimeZone};
 
-use crate::ops::RangeExclusive;
+use crate::ops::range;
 
-pub type Interval<Tz = Local> = RangeExclusive<DateTime<Tz>>;
+pub type Interval<Tz = Local> = range::Exclusive<DateTime<Tz>>;
 
 impl<Tz> Add<Days> for Interval<Tz>
 where

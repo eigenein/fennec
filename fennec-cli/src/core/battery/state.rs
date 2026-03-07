@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 
 use crate::{
-    ops::RangeInclusive,
+    ops::range,
     quantity::{
         energy::{DecawattHours, MilliwattHours, WattHours},
         ratios::Percentage,
@@ -37,7 +37,7 @@ impl EnergyState {
 #[must_use]
 pub struct FullState {
     pub energy: EnergyState,
-    pub allowed_state_of_charge: RangeInclusive<Percentage>,
+    pub allowed_state_of_charge: range::Inclusive<Percentage>,
 }
 
 impl FullState {

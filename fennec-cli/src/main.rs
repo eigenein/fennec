@@ -9,7 +9,6 @@ mod fmt;
 mod ops;
 mod prelude;
 mod quantity;
-mod statistics;
 
 use clap::{Parser, crate_version};
 use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};

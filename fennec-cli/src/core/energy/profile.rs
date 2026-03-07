@@ -9,9 +9,10 @@ use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 
+use super::Balance;
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::{flow::EnergyBalance, working_mode::WorkingMode},
+    core::working_mode::WorkingMode,
     db::power,
     prelude::*,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
@@ -19,15 +20,15 @@ use crate::{
 };
 
 #[must_use]
-pub struct Statistics {
+pub struct BalanceProfile {
     /// Fallback global average power flow for when a specific hourly power flow is not available.
-    average_balance: EnergyBalance<Watts>,
+    average: Balance<Watts>,
 
     /// Average hourly power flow.
-    hourly: [Option<EnergyBalance<Watts>>; 24],
+    hourly: [Option<Balance<Watts>>; 24],
 }
 
-impl Statistics {
+impl BalanceProfile {
     #[instrument(skip_all)]
     pub async fn try_estimate<T>(
         battery_power_limits: BatteryPowerLimits,
@@ -41,7 +42,7 @@ impl Statistics {
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut fallback = Integrator::<EnergyBalance<WattHours>>::new();
+        let mut fallback = Integrator::<Balance<WattHours>>::new();
         let mut hourly = [fallback; 24];
 
         while let Some(next) = logs.try_next().await? {
@@ -49,8 +50,8 @@ impl Statistics {
             let net_power = (next.net_power + previous.net_power) / 2.0;
 
             let part = Integrator {
-                total_time: time_delta,
-                value: EnergyBalance::new(battery_power_limits, net_power) * time_delta,
+                time: time_delta,
+                value: Balance::new(battery_power_limits, net_power) * time_delta,
             };
             fallback += part;
 
@@ -64,19 +65,19 @@ impl Statistics {
 
         info!(elapsed = ?start_time.elapsed(), "done");
         Ok(Self {
-            average_balance: fallback
+            average: fallback
                 .average()
                 .context("no samples to calculate the average energy balance")?,
             hourly: hourly.into_iter().map(Integrator::average).collect_array().unwrap(),
         })
     }
 
-    pub fn on_hour(&self, hour: u32) -> EnergyBalance<Watts> {
-        self.hourly[hour as usize].unwrap_or(self.average_balance)
+    pub fn on_hour(&self, hour: u32) -> Balance<Watts> {
+        self.hourly[hour as usize].unwrap_or(self.average)
     }
 }
 
-impl Display for Statistics {
+impl Display for BalanceProfile {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
         table
@@ -95,7 +96,7 @@ impl Display for Statistics {
                     .fg(WorkingMode::Discharge.color()),
             ]);
         for (hour, flow) in self.hourly.iter().enumerate() {
-            let flow = flow.unwrap_or(self.average_balance);
+            let flow = flow.unwrap_or(self.average);
             table.add_row(vec![
                 Cell::new(hour),
                 Cell::new(flow.grid.import)

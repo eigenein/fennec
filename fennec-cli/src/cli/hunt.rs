@@ -8,8 +8,8 @@ use crate::{
     api::{foxcloud, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
     core::{
+        energy::BalanceProfile,
         energy_level::Quantum,
-        flow,
         provider::Provider,
         solver::Solver,
         working_mode::WorkingMode,
@@ -83,16 +83,16 @@ impl HuntArgs {
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
                 .unwrap_or(crate::core::battery::Efficiency::IDEAL)
         };
-        let flow_statistics = {
+        let balance_profile = {
             let power_logs = db.measurements::<power::Measurement>().await?;
-            flow::Statistics::try_estimate(self.battery.power_limits, power_logs).await?
+            BalanceProfile::try_estimate(self.battery.power_limits, power_logs).await?
         };
         db.shutdown().await;
 
         let initial_energy_level = self.quantum.quantize(battery_state.energy.residual());
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
-            .flow_statistics(&flow_statistics)
+            .balance_profile(&balance_profile)
             .working_modes(working_modes)
             .min_residual_energy(battery_state.min_residual_energy())
             .max_residual_energy(

@@ -1,11 +1,7 @@
-mod energy_balance;
-mod statistics;
-
 use std::ops::{Div, Mul, SubAssign};
 
 use derive_more::{Add, AddAssign, Sub};
 
-pub use self::{energy_balance::EnergyBalance, statistics::Statistics};
 use crate::quantity::Zero;
 
 /// Generic bidirectional energy flow.

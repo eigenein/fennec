@@ -8,9 +8,9 @@ use crate::{
     cli::battery::BatteryPowerLimits,
     core::{
         battery,
+        energy,
+        energy::{BalanceProfile, Flow},
         energy_level::Quantum,
-        flow,
-        flow::{EnergyBalance, Flow},
         solution::{Losses, Metrics, Solution},
         solution_space::SolutionSpace,
         step::Step,
@@ -24,7 +24,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver<'a> {
     energy_prices: &'a [(Interval, KilowattHourPrice)],
-    flow_statistics: &'a flow::Statistics,
+    balance_profile: &'a BalanceProfile,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -85,7 +85,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .average_balance(self.flow_statistics.on_hour(interval.start.hour()))
+                .average_balance(self.balance_profile.on_hour(interval.start.hour()))
                 .energy_price(energy_price);
 
             // Calculate partial solutions for the current hour:
@@ -112,7 +112,7 @@ impl Solver<'_> {
                     // TODO: de-dup this:
                     interval = interval.with_start(self.now);
                 }
-                let flow = self.flow_statistics.on_hour(interval.start.hour());
+                let flow = self.balance_profile.on_hour(interval.start.hour());
                 self.grid_loss(
                     energy_price,
                     (flow.grid + flow.battery.reversed()) * interval.hours(),
@@ -130,7 +130,7 @@ impl Solver<'_> {
         &self,
         interval_index: usize,
         interval: Interval,
-        average_balance: EnergyBalance<Watts>,
+        average_balance: energy::Balance<Watts>,
         energy_price: KilowattHourPrice,
         initial_residual_energy: WattHours,
         solutions: &SolutionSpace,
@@ -167,7 +167,7 @@ impl Solver<'_> {
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        average_balance: EnergyBalance<Watts>,
+        average_balance: energy::Balance<Watts>,
         energy_price: KilowattHourPrice,
         working_mode: WorkingMode,
     ) -> Step {
@@ -184,7 +184,7 @@ impl Solver<'_> {
             interval,
             energy_price,
             working_mode,
-            energy_balance: EnergyBalance { grid: grid_flow, battery: battery_flows.external },
+            energy_balance: energy::Balance { grid: grid_flow, battery: battery_flows.external },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.quantize(battery.residual_energy),
             metrics: Metrics {

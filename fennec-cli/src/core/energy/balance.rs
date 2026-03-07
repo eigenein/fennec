@@ -2,24 +2,25 @@ use std::ops::{Add, Div, Mul, Sub, SubAssign};
 
 use derive_more::AddAssign;
 
+use super::Flow;
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::{flow::Flow, working_mode::WorkingMode},
+    core::working_mode::WorkingMode,
     quantity::{Zero, power::Watts},
 };
 
 #[must_use]
 #[derive(Copy, Clone, Debug, PartialEq, AddAssign)]
-pub struct EnergyBalance<T> {
+pub struct Balance<T> {
     pub grid: Flow<T>,
     pub battery: Flow<T>,
 }
 
-impl<T: Zero> Zero for EnergyBalance<T> {
+impl<T: Zero> Zero for Balance<T> {
     const ZERO: Self = Self { grid: Flow::ZERO, battery: Flow::ZERO };
 }
 
-impl EnergyBalance<Watts> {
+impl Balance<Watts> {
     /// Split the net household deficit into grid and battery energy flows.
     ///
     /// This allows to track not just the net deficit, but also how much the battery can actually
@@ -52,7 +53,7 @@ impl EnergyBalance<Watts> {
     }
 }
 
-impl<T> EnergyBalance<T> {
+impl<T> Balance<T> {
     /// Change the battery flow and re-balance the resulting grid flow.
     fn with_battery_flow(mut self, battery_flow: Flow<T>) -> Self
     where
@@ -73,19 +74,19 @@ impl<T> EnergyBalance<T> {
     }
 }
 
-impl<T: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for EnergyBalance<T> {
-    type Output = EnergyBalance<<T as Mul<Rhs>>::Output>;
+impl<T: Mul<Rhs>, Rhs: Copy> Mul<Rhs> for Balance<T> {
+    type Output = Balance<<T as Mul<Rhs>>::Output>;
 
     fn mul(self, rhs: Rhs) -> Self::Output {
-        EnergyBalance { grid: self.grid * rhs, battery: self.battery * rhs }
+        Balance { grid: self.grid * rhs, battery: self.battery * rhs }
     }
 }
 
-impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for EnergyBalance<T> {
-    type Output = EnergyBalance<<T as Div<Rhs>>::Output>;
+impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for Balance<T> {
+    type Output = Balance<<T as Div<Rhs>>::Output>;
 
     fn div(self, rhs: Rhs) -> Self::Output {
-        EnergyBalance { grid: self.grid / rhs, battery: self.battery / rhs }
+        Balance { grid: self.grid / rhs, battery: self.battery / rhs }
     }
 }
 
@@ -95,11 +96,11 @@ mod tests {
 
     #[test]
     fn with_zero_battery_flow() {
-        let initial = EnergyBalance {
+        let initial = Balance {
             grid: Flow { import: Watts(100.0), export: Watts(50.0) },
             battery: Flow { import: Watts(10.0), export: Watts(20.0) },
         };
-        let expected = EnergyBalance {
+        let expected = Balance {
             grid: Flow {
                 // Battery used to power the household at 20W, but now the grid has to take over.
                 import: Watts(120.0),
@@ -114,11 +115,11 @@ mod tests {
 
     #[test]
     fn with_partial_battery_flow_reduction() {
-        let initial = EnergyBalance {
+        let initial = Balance {
             battery: Flow { import: Watts(50.0), export: Watts(500.0) },
             grid: Flow { import: Watts(100.0), export: Watts(200.0) },
         };
-        let expected = EnergyBalance {
+        let expected = Balance {
             // The battery is exporting 300W less:
             battery: Flow { import: Watts(50.0), export: Watts(200.0) },
             // Hence, we have to import these:
@@ -130,13 +131,13 @@ mod tests {
 
     #[test]
     fn battery_import_beyond_grid_export() {
-        let initial = EnergyBalance {
+        let initial = Balance {
             // Battery discharges 50W into the house:
             battery: Flow { import: Watts::ZERO, export: Watts(50.0) },
             // Grid covers the remaining 100W:
             grid: Flow { import: Watts(100.0), export: Watts::ZERO },
         };
-        let expected = EnergyBalance {
+        let expected = Balance {
             // Now we force 300W discharge – 250W more than before:
             battery: Flow { import: Watts::ZERO, export: Watts(300.0) },
             // That's 150W beyond what the grid was importing, so it flips to export:
@@ -148,12 +149,12 @@ mod tests {
 
     #[test]
     fn battery_export_beyond_grid_import() {
-        let initial = EnergyBalance {
+        let initial = Balance {
             battery: Flow::ZERO,
             // Grid has a small export surplus:
             grid: Flow { import: Watts(200.0), export: Watts(100.0) },
         };
-        let expected = EnergyBalance {
+        let expected = Balance {
             // Force 200W charging – that's 100W beyond grid export:
             battery: Flow { import: Watts(200.0), export: Watts::ZERO },
             // Grid export goes to 100 - 200 = -100, normalize flips to extra import:

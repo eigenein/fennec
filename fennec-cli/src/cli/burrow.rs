@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use crate::{
     api::foxcloud,
     cli::{battery::BatteryPowerLimits, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    core::flow,
+    core::energy::BalanceProfile,
     db,
     db::power,
     prelude::*,
@@ -19,7 +19,7 @@ impl BurrowArgs {
     pub async fn run(self) -> Result {
         match self.command {
             BurrowCommand::Battery(args) => args.run().await,
-            BurrowCommand::Consumption(args) => args.run().await,
+            BurrowCommand::EnergyBalanceProfile(args) => args.run().await,
             BurrowCommand::FoxEss(args) => args.run().await,
         }
     }
@@ -30,8 +30,8 @@ pub enum BurrowCommand {
     /// Estimate battery efficiency parameters.
     Battery(BurrowBatteryArgs),
 
-    /// Estimate net consumption profile.
-    Consumption(BurrowConsumptionArgs),
+    /// Estimate energy balance profile.
+    EnergyBalanceProfile(BurrowEnergyBalanceProfileArgs),
 
     /// Test FoxESS Cloud API connectivity.
     FoxEss(BurrowFoxEssArgs),
@@ -54,7 +54,7 @@ impl BurrowBatteryArgs {
 }
 
 #[derive(Parser)]
-pub struct BurrowConsumptionArgs {
+pub struct BurrowEnergyBalanceProfileArgs {
     #[clap(flatten)]
     db: DbArgs,
 
@@ -62,13 +62,13 @@ pub struct BurrowConsumptionArgs {
     power_limits: BatteryPowerLimits,
 }
 
-impl BurrowConsumptionArgs {
+impl BurrowEnergyBalanceProfileArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
         let logs = db.measurements::<power::Measurement>().await?;
-        let statistics = flow::Statistics::try_estimate(self.power_limits, logs).await?;
+        let profile = BalanceProfile::try_estimate(self.power_limits, logs).await?;
         db.shutdown().await;
-        println!("{statistics}");
+        println!("{profile}");
         Ok(())
     }
 }

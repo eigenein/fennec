@@ -6,7 +6,7 @@ use crate::quantity::{Zero, energy::WattHours};
 #[must_use]
 #[derive(Copy, Clone, From, FromStr, derive_more::Debug)]
 #[debug("{_0:?}")]
-pub struct Quantum(pub WattHours);
+pub struct Quantum(WattHours);
 
 impl Quantum {
     /// Convert the energy to quantized energy level.

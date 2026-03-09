@@ -6,11 +6,10 @@ jobs:
   review:
     runs-on: "ubuntu-latest"
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
-      actions: read
+      contents: "read"
+      pull-requests: "write"
+      issues: "write"
+      id-token: "write"
     steps:
       - name: "📥 Checkout"
         uses: "actions/checkout@v6"
@@ -21,5 +20,7 @@ jobs:
         name: "🧙 Claude"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          track_progress: true
           claude_args: "--model=claude-opus-4-6"
           prompt: "/review"

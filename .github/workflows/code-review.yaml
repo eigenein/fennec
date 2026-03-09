@@ -22,5 +22,4 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
-          claude_args: "--model=claude-opus-4-6"
           prompt: "/review"

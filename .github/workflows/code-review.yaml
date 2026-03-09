@@ -23,4 +23,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
           prompt: "/review"
-          claude_args: "--max-turns 3"
+          claude_args: |
+            --model claude-opus-4-6
+            --max-turns 3

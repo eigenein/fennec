@@ -6,10 +6,14 @@ jobs:
   review:
     runs-on: "ubuntu-latest"
     permissions:
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read
     steps:
       - uses: "anthropics/claude-code-action@v1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--model=claude-opus-4-6"
           prompt: "/review"

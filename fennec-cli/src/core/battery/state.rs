@@ -83,7 +83,7 @@ impl Display for FullState {
             ])
             .add_row(vec![
                 Cell::from("Maximum SoC"),
-                Cell::from(self.allowed_state_of_charge.min).set_alignment(CellAlignment::Right),
+                Cell::from(self.allowed_state_of_charge.max).set_alignment(CellAlignment::Right),
             ])
             .fmt(f)
     }

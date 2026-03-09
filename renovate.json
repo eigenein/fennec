@@ -6,6 +6,7 @@
     ":automergeMajor"
   ],
   "commitMessagePrefix": "",
+  "commitMessageSuffix": "⬆️",
   "timezone": "Europe/Amsterdam",
   "packageRules": [
     {

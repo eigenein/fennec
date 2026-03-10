@@ -1,5 +1,5 @@
 use bon::Builder;
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{DateTime, Utc};
 use mongodb::options::TimeseriesGranularity;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -29,11 +29,4 @@ pub struct Measurement {
 impl db::Measurement for Measurement {
     const COLLECTION_NAME: &str = "powerMeasurements";
     const GRANULARITY: TimeseriesGranularity = TimeseriesGranularity::Seconds;
-}
-
-impl Measurement {
-    pub fn same_hour_as(&self, other: &Self) -> bool {
-        (self.timestamp.date_naive() == other.timestamp.date_naive())
-            && (self.timestamp.hour() == other.timestamp.hour())
-    }
 }

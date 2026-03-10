@@ -85,7 +85,12 @@ impl HuntArgs {
         };
         let balance_profile = {
             let power_logs = db.measurements::<power::Measurement>().await?;
-            BalanceProfile::try_estimate(self.battery.power_limits, power_logs).await?
+            BalanceProfile::try_estimate(
+                self.battery.power_limits,
+                self.provider.time_step(),
+                power_logs,
+            )
+            .await?
         };
         db.shutdown().await;
 

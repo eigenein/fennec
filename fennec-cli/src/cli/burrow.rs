@@ -1,3 +1,4 @@
+use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 
 use crate::{
@@ -60,13 +61,18 @@ pub struct BurrowEnergyBalanceProfileArgs {
 
     #[clap(flatten)]
     power_limits: BatteryPowerLimits,
+
+    #[clap(long = "bucket-time-step", default_value = "15min")]
+    bucket_time_step: humantime::Duration,
 }
 
 impl BurrowEnergyBalanceProfileArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
         let logs = db.measurements::<power::Measurement>().await?;
-        let profile = BalanceProfile::try_estimate(self.power_limits, logs).await?;
+        let bucket_time_step = TimeDelta::from_std(self.bucket_time_step.into())?;
+        let profile =
+            BalanceProfile::try_estimate(self.power_limits, bucket_time_step, logs).await?;
         db.shutdown().await;
         println!("{profile}");
         Ok(())

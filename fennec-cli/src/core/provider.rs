@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{NaiveDate, TimeDelta};
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
@@ -29,6 +29,13 @@ impl Provider {
         match self {
             Self::NextEnergy => KilowattHourPrice(0.021),
             Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => KilowattHourPrice(0.0182),
+        }
+    }
+
+    pub const fn time_step(self) -> TimeDelta {
+        match self {
+            Self::NextEnergy | Self::FrankEnergieHourly => TimeDelta::hours(1),
+            Self::FrankEnergieQuarterly => TimeDelta::minutes(15),
         }
     }
 

@@ -24,3 +24,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
           prompt: "/review"
+          claude_args: "--model claude-haiku-4-5"

@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use bon::{Builder, bon};
-use chrono::{DateTime, Local, Timelike};
+use chrono::{DateTime, Local};
 use enumset::EnumSet;
 
 use crate::{
@@ -90,7 +90,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .average_balance(self.balance_profile.on_hour(interval.start.hour()))
+                .average_balance(self.balance_profile.on(interval.start.time()))
                 .energy_price(energy_price);
 
             // Calculate partial solutions for the current hour:
@@ -117,7 +117,7 @@ impl Solver<'_> {
                     // TODO: de-dup this:
                     interval = interval.with_start(self.now);
                 }
-                let flow = self.balance_profile.on_hour(interval.start.hour());
+                let flow = self.balance_profile.on(interval.start.time());
                 self.grid_loss(
                     energy_price,
                     (flow.grid + flow.battery.reversed()) * interval.hours(),

@@ -26,4 +26,4 @@ jobs:
           prompt: "/review"
           claude_args: |
             --model claude-opus-4-6
-            --max-turns 5
+            --max-turns 10

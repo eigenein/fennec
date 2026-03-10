@@ -5,7 +5,6 @@ use itertools::Itertools;
 
 use crate::{
     core::{
-        energy_level::EnergyLevel,
         solution::{Metrics, Solution},
         step::Step,
     },
@@ -15,7 +14,7 @@ use crate::{
 
 #[must_use]
 pub struct SolutionSpace {
-    allowed_energy_levels: range::Inclusive<EnergyLevel>,
+    allowed_energy_levels: range::Inclusive<usize>,
 
     /// Number of time intervals.
     n_intervals: usize,
@@ -31,10 +30,10 @@ impl SolutionSpace {
     #[builder]
     pub fn new(
         n_intervals: usize,
-        #[builder(into)] allowed_energy_levels: range::Inclusive<EnergyLevel>,
+        #[builder(into)] allowed_energy_levels: range::Inclusive<usize>,
     ) -> Self {
         let flat_matrix =
-            (0..(n_intervals * (allowed_energy_levels.max.0 + 1))).map(|_| None).collect_vec();
+            (0..(n_intervals * (allowed_energy_levels.max + 1))).map(|_| None).collect_vec();
         Self { allowed_energy_levels, n_intervals, flat_matrix }
     }
 }
@@ -44,7 +43,7 @@ impl SolutionSpace {
     ///
     /// This method respects allowed energy levels.
     #[must_use]
-    pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
+    pub fn get(&self, interval_index: usize, energy_level: usize) -> Option<&Solution> {
         match interval_index.cmp(&self.n_intervals) {
             Ordering::Less => {
                 if self.allowed_energy_levels.contains(energy_level) {
@@ -72,11 +71,7 @@ impl SolutionSpace {
     ///
     /// Panics on energy levels higher than upper bound.
     #[must_use]
-    pub fn get_mut(
-        &mut self,
-        interval_index: usize,
-        energy_level: EnergyLevel,
-    ) -> &mut Option<Solution> {
+    pub fn get_mut(&mut self, interval_index: usize, energy_level: usize) -> &mut Option<Solution> {
         match interval_index.cmp(&self.n_intervals) {
             Ordering::Less => {
                 let flat_index = self.flat_index(interval_index, energy_level);
@@ -91,9 +86,9 @@ impl SolutionSpace {
         }
     }
 
-    pub fn backtrack(mut self, initial_energy_level: EnergyLevel) -> Result<(Metrics, Vec<Step>)> {
+    pub fn backtrack(mut self, initial_energy_level: usize) -> Result<(Metrics, Vec<Step>)> {
         let solution = self.get_mut(0, initial_energy_level).take().with_context(|| {
-            format!("there is no solution starting at energy level {initial_energy_level:?}")
+            format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
 
         // First solution in the chain contains all the cumulative metrics we need:
@@ -129,8 +124,8 @@ impl SolutionSpace {
     ///
     /// Panics on energy levels higher than upper bound.
     #[must_use]
-    fn flat_index(&self, interval_index: usize, energy_level: EnergyLevel) -> usize {
+    fn flat_index(&self, interval_index: usize, energy_level: usize) -> usize {
         assert!(energy_level <= self.allowed_energy_levels.max);
-        interval_index * (self.allowed_energy_levels.max.0 + 1) + energy_level.0
+        interval_index * (self.allowed_energy_levels.max + 1) + energy_level
     }
 }

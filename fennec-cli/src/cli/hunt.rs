@@ -9,8 +9,8 @@ use crate::{
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
     core::{
         energy::BalanceProfile,
-        energy_level::Quantum,
         provider::Provider,
+        quantum::Quantum,
         solver::Solver,
         working_mode::WorkingMode,
     },
@@ -19,7 +19,7 @@ use crate::{
     fmt::tables::build_steps_table,
     ops::Interval,
     prelude::*,
-    quantity::price::KilowattHourPrice,
+    quantity::{energy::WattHours, price::KilowattHourPrice},
 };
 
 #[derive(Parser)]
@@ -42,7 +42,7 @@ pub struct HuntArgs {
     working_modes: Vec<WorkingMode>,
 
     #[clap(long = "quantum-watthours", env = "QUANTUM_WATTHOURS", default_value = "1")]
-    quantum: Quantum,
+    quantum: WattHours,
 
     #[clap(flatten)]
     battery: BatteryArgs,
@@ -89,7 +89,7 @@ impl HuntArgs {
         };
         db.shutdown().await;
 
-        let initial_energy_level = self.quantum.quantize(battery_state.energy.residual());
+        let initial_energy_level = self.quantum.index(battery_state.energy.residual()).unwrap();
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
             .balance_profile(&balance_profile)

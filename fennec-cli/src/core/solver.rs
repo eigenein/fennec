@@ -10,7 +10,7 @@ use crate::{
         battery,
         energy,
         energy::{BalanceProfile, Flow},
-        energy_level::Quantum,
+        quantum::{Midpoint, Quantum},
         solution::{Losses, Metrics, Solution},
         solution_space::SolutionSpace,
         step::Step,
@@ -40,7 +40,7 @@ pub struct Solver<'a> {
     battery_efficiency: battery::Efficiency,
     purchase_fee: KilowattHourPrice,
     now: DateTime<Local>,
-    quantum: Quantum,
+    quantum: WattHours,
 }
 
 #[bon]
@@ -53,7 +53,7 @@ impl Solver<'_> {
     /// The [DP][1] state space:
     ///
     /// - Time dimension: each hour in the forecast period
-    /// - Energy dimension: quantized to 10 Wh increments (decawatt-hours)
+    /// - Energy dimension: quantized with the specified step
     ///
     /// For each state, we pick the battery mode that minimizes total cost including future consequences.
     ///
@@ -62,14 +62,19 @@ impl Solver<'_> {
     pub fn solve(self) -> SolutionSpace {
         let start_instant = Instant::now();
 
-        let max_energy_level = self.quantum.ceil(self.max_residual_energy);
-        info!(?self.quantum, ?max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
+        let min_energy_level = self
+            .quantum
+            .index(self.min_residual_energy)
+            .expect("minimum energy level must be quantizable");
+        let max_energy_level = self
+            .quantum
+            .index(self.max_residual_energy)
+            .expect("maximum residual energy must be quantizable");
+        info!(?self.quantum, min_energy_level, max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
 
         let mut solutions = SolutionSpace::builder()
             .n_intervals(self.energy_prices.len())
-            .allowed_energy_levels(
-                self.quantum.quantize(self.min_residual_energy)..=max_energy_level,
-            )
+            .allowed_energy_levels(min_energy_level..=max_energy_level)
             .build();
 
         // Going backwards:
@@ -90,11 +95,11 @@ impl Solver<'_> {
 
             // Calculate partial solutions for the current hour:
             // FIXME: when `interval_index == 0`, we don't need to solve all energy levels.
-            for energy_level in max_energy_level.iter_from_zero() {
+            for energy_level in 0..=max_energy_level {
                 *solutions.get_mut(interval_index, energy_level) = optimize_step
                     .clone()
                     .solutions(&solutions)
-                    .initial_residual_energy(energy_level.dequantize(self.quantum))
+                    .initial_residual_energy(self.quantum.midpoint(energy_level))
                     .call();
             }
         }
@@ -186,7 +191,7 @@ impl Solver<'_> {
             working_mode,
             energy_balance: energy::Balance { grid: grid_flow, battery: battery_flows.external },
             residual_energy_after: battery.residual_energy,
-            energy_level_after: self.quantum.quantize(battery.residual_energy),
+            energy_level_after: self.quantum.index(battery.residual_energy).unwrap(),
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {

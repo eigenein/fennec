@@ -1,6 +1,5 @@
 pub mod battery;
 pub mod energy;
-pub mod energy_level;
 pub mod provider;
 pub mod quantum;
 pub mod solution;

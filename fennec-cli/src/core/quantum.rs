@@ -2,14 +2,16 @@ use chrono::{NaiveTime, TimeDelta};
 
 use crate::quantity::energy::WattHours;
 
-pub trait Quantum<V>: Sized {
+pub trait Quantum<V> {
     /// Project the value into a bucket index.
     #[must_use]
     fn index(self, value: V) -> Option<usize>;
+}
 
+pub trait Midpoint<V> {
     /// Un-project the bucket index into the value that represents the middle of the bucket.
     #[must_use]
-    fn midpoint(self, index: usize) -> Option<V>;
+    fn midpoint(self, index: usize) -> V;
 }
 
 impl Quantum<NaiveTime> for TimeDelta {
@@ -17,17 +19,6 @@ impl Quantum<NaiveTime> for TimeDelta {
         let nanos_since_midnight = (value - NaiveTime::MIN).num_nanoseconds()?;
         let quantum_nanos = self.num_nanoseconds()?;
         usize::try_from(nanos_since_midnight.checked_div(quantum_nanos)?).ok()
-    }
-
-    fn midpoint(self, index: usize) -> Option<NaiveTime> {
-        let quantum_nanoseconds = self.num_nanoseconds()?;
-        let duration_nanos = i64::try_from(index)
-            .ok()?
-            .checked_mul(quantum_nanoseconds)?
-            .checked_add(quantum_nanoseconds / 2)?;
-        let (naive_time, days) =
-            NaiveTime::MIN.overflowing_add_signed(Self::nanoseconds(duration_nanos));
-        (days == 0).then_some(naive_time)
     }
 }
 
@@ -38,10 +29,12 @@ impl Quantum<Self> for WattHours {
         let index = (value / self).floor();
         (index >= 0.0).then_some(index as usize)
     }
+}
 
+impl Midpoint<Self> for WattHours {
     #[expect(clippy::cast_precision_loss)]
-    fn midpoint(self, index: usize) -> Option<Self> {
-        Some(self * (index as f64) + self / 2.0)
+    fn midpoint(self, index: usize) -> Self {
+        self * (index as f64 + 0.5)
     }
 }
 
@@ -57,20 +50,13 @@ mod tests {
     }
 
     #[test]
-    fn dequantize_naive_time() {
-        assert_eq!(
-            TimeDelta::minutes(15).midpoint(95).unwrap(),
-            NaiveTime::from_hms_opt(23, 52, 30).unwrap(),
-        );
-    }
-
-    #[test]
     fn quantize_energy() {
-        assert_eq!(WattHours(1.0).index(WattHours(2.999)).unwrap(), 2);
+        assert_eq!(WattHours(1.0).index(WattHours(3.0)).unwrap(), 3);
+        assert_eq!(WattHours(1.0).index(WattHours(3.0_f64.next_down())).unwrap(), 2);
     }
 
     #[test]
     fn dequantize_energy() {
-        assert_eq!(WattHours(1.0).midpoint(2).unwrap(), WattHours(2.5));
+        assert_eq!(WattHours(1.0).midpoint(2), WattHours(2.5));
     }
 }

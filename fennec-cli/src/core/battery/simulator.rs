@@ -83,10 +83,10 @@ mod tests {
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
-            simulator.apply(Flow { import: Watts(1000.0), export: Watts::ZERO }, Hours(1.0));
+            simulator.apply(Flow { import: Watts(1000.0), export: Watts(700.0) }, Hours(1.0));
         assert_eq!(flows.external.import, WattHours(1000.0));
-        assert_eq!(flows.external.export, WattHours::ZERO);
-        assert_eq!(simulator.residual_energy, WattHours(6000.0));
+        assert_eq!(flows.external.export, WattHours(700.0));
+        assert_eq!(simulator.residual_energy, WattHours(5300.0));
     }
 
     /// Verify efficiency corrections.

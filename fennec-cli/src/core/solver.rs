@@ -189,7 +189,10 @@ impl Solver<'_> {
             interval,
             energy_price,
             working_mode,
-            energy_balance: energy::Balance { grid: grid_flow, battery: battery_flows.external },
+            energy_balance: energy::Balance {
+                grid: grid_flow.normalized(), // Normalize rare tiny negative values.
+                battery: battery_flows.external,
+            },
             residual_energy_after: battery.residual_energy,
             energy_level_after: self.quantum.index(battery.residual_energy).unwrap(),
             metrics: Metrics {

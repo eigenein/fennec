@@ -113,6 +113,9 @@ impl Display for BalanceProfile {
             ]);
         for (index, flow) in self.buckets.iter().enumerate() {
             let flow = flow.unwrap_or(self.average);
+
+            #[expect(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_wrap)]
             table.add_row(vec![
                 Cell::new(index).set_alignment(CellAlignment::Right).add_attribute(Attribute::Dim),
                 Cell::new((NaiveTime::MIN + self.time_step * index as i32).format("%H:%M"))

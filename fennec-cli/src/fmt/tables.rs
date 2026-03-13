@@ -82,6 +82,29 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
                 if step.metrics.losses.battery >= Mills::TEN { Color::Red } else { Color::Green },
             ),
         ]);
+        if step.energy_balance.grid.export < WattHours::ZERO {
+            sentry::configure_scope(|scope| {
+                let mut map = std::collections::BTreeMap::new();
+                map.insert(
+                    "energy_balance.grid.import".to_string(),
+                    step.energy_balance.grid.import.0.into(),
+                );
+                map.insert(
+                    "energy_balance.grid.export".to_string(),
+                    step.energy_balance.grid.export.0.into(),
+                );
+                map.insert(
+                    "energy_balance.battery.import".to_string(),
+                    step.energy_balance.battery.import.0.into(),
+                );
+                map.insert(
+                    "energy_balance.battery.export".to_string(),
+                    step.energy_balance.battery.export.0.into(),
+                );
+                scope.set_context("step", sentry::protocol::Context::Other(map));
+            });
+            sentry::capture_message("Unexpected negative energy value", sentry::Level::Warning);
+        }
     }
     table
 }

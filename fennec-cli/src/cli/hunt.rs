@@ -2,11 +2,10 @@ use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
 use itertools::Itertools;
-use reqwest::Url;
 
 use crate::{
     api::{foxcloud, heartbeat},
-    cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
+    cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs, heartbeat::HeartbeatArgs},
     core::{
         energy::BalanceProfile,
         provider::Provider,
@@ -53,8 +52,8 @@ pub struct HuntArgs {
     #[clap(flatten)]
     db: DbArgs,
 
-    #[clap(long = "heartbeat-url", env = "HUNT_HEARTBEAT_URL")]
-    heartbeat_url: Option<Url>,
+    #[clap(flatten)]
+    heartbeat: HeartbeatArgs,
 }
 
 impl HuntArgs {
@@ -127,7 +126,7 @@ impl HuntArgs {
             fox_ess.set_schedule(&self.fox_ess_api.serial_number, groups.as_ref()).await?;
         }
 
-        heartbeat::Client::new(self.heartbeat_url).send().await;
+        heartbeat::Client::new(self.heartbeat.url).send().await;
         Ok(())
     }
 

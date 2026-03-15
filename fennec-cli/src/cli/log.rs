@@ -10,7 +10,7 @@ use tokio::{
 
 use crate::{
     api::{heartbeat, homewizard, modbus::foxess::MQ2200},
-    cli::{battery::BatteryConnectionArgs, db::DbArgs},
+    cli::{battery::BatteryConnectionArgs, db::DbArgs, heartbeat::HeartbeatArgs},
     db::{Db, Measurement, battery, power, state::BatteryResidualEnergy},
     prelude::*,
     quantity::energy::MilliwattHours,
@@ -39,8 +39,8 @@ pub struct LogArgs {
     #[clap(flatten)]
     battery_connection: BatteryConnectionArgs,
 
-    #[clap(long = "heartbeat-url", env = "LOG_HEARTBEAT_URL")]
-    heartbeat_url: Option<Url>,
+    #[clap(flatten)]
+    heartbeat: HeartbeatArgs,
 }
 
 impl LogArgs {
@@ -52,7 +52,7 @@ impl LogArgs {
 
         let result = Logger::builder()
             .db(db.clone())
-            .heartbeat(heartbeat::Client::new(self.heartbeat_url.clone()))
+            .heartbeat(heartbeat::Client::new(self.heartbeat.url))
             .interval(self.battery_polling_interval)
             .battery_client(self.battery_connection.connect().await?)
             .battery_meter_client(battery_meter_client)

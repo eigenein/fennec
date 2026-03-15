@@ -2,6 +2,7 @@ pub mod battery;
 mod burrow;
 mod db;
 mod foxcloud;
+mod heartbeat;
 mod hunt;
 mod log;
 mod sentry;

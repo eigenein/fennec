@@ -232,8 +232,7 @@ impl Display for &Groups {
             };
             let attribute = match group.working_mode {
                 _ if group.extra.feed_power == Watts::ZERO => Attribute::Dim,
-                WorkingMode::ForceCharge | WorkingMode::ForceDischarge => Attribute::Bold,
-                _ => Attribute::NoBold,
+                _ => Attribute::NormalIntensity,
             };
             table.add_row(vec![
                 Cell::new(&group.start_time).fg(foreground_color).add_attribute(attribute),

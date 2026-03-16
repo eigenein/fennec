@@ -52,8 +52,9 @@ impl WorkingMode {
 
     pub const fn attribute(self) -> Attribute {
         match self {
-            Self::SelfUse | Self::Harness | Self::Compensate => Attribute::NormalIntensity,
-            Self::Charge | Self::Discharge => Attribute::Bold,
+            Self::SelfUse | Self::Harness | Self::Compensate | Self::Charge | Self::Discharge => {
+                Attribute::NormalIntensity
+            }
             Self::Idle => Attribute::Dim,
         }
     }

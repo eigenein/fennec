@@ -62,12 +62,12 @@ impl Display for WorkingMode {
 impl WorkingMode {
     pub const fn color(self) -> Color {
         match self {
-            Self::ForceDischarge => Color::Blue,
+            Self::ForceDischarge | Self::EasyMode => Color::Blue,
             Self::ForceCharge => Color::Green,
             Self::SelfUse => Color::DarkYellow,
             Self::FeedIn => Color::Magenta,
-            Self::Backup => Color::Cyan,
-            Self::EasyMode | Self::UnexpectedValue => Color::Reset,
+            Self::Backup => Color::DarkCyan,
+            Self::UnexpectedValue => Color::Grey,
         }
     }
 }

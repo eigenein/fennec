@@ -5,7 +5,7 @@ use std::{
 };
 
 use chrono::{DateTime, Local, TimeDelta, Timelike};
-use comfy_table::{Cell, CellAlignment, Table, modifiers, presets};
+use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 use derive_more::{AsRef, IntoIterator};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -225,12 +225,25 @@ impl Display for &Groups {
                 .sorted_unstable_by_key(|(key, _)| key.as_str())
                 .map(|(key, value)| format!("{key}={value}"))
                 .join(" ");
+            let foreground_color = if group.extra.feed_power == Watts::ZERO {
+                Color::Reset
+            } else {
+                group.working_mode.color()
+            };
+            let attribute = match group.working_mode {
+                _ if group.extra.feed_power == Watts::ZERO => Attribute::Dim,
+                WorkingMode::ForceCharge | WorkingMode::ForceDischarge => Attribute::Bold,
+                _ => Attribute::NoBold,
+            };
             table.add_row(vec![
-                Cell::new(&group.start_time),
-                Cell::new(&group.end_time),
-                Cell::new(group.working_mode).fg(group.working_mode.color()),
-                Cell::new(group.extra.feed_power).set_alignment(CellAlignment::Right),
-                Cell::new(other),
+                Cell::new(&group.start_time).fg(foreground_color).add_attribute(attribute),
+                Cell::new(&group.end_time).fg(foreground_color).add_attribute(attribute),
+                Cell::new(group.working_mode).fg(foreground_color).add_attribute(attribute),
+                Cell::new(group.extra.feed_power)
+                    .set_alignment(CellAlignment::Right)
+                    .fg(foreground_color)
+                    .add_attribute(attribute),
+                Cell::new(other).fg(foreground_color).add_attribute(attribute),
             ]);
         }
         write!(f, "{table}")

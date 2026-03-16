@@ -45,7 +45,9 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             } else {
                 Color::Green
             }),
-            Cell::new(step.working_mode).fg(step.working_mode.color()),
+            Cell::new(step.working_mode)
+                .fg(step.working_mode.color())
+                .add_attribute(step.working_mode.attribute()),
             Cell::new(step.energy_balance.grid.import).set_alignment(CellAlignment::Right).fg(
                 if step.energy_balance.grid.import > WattHours::ONE {
                     Color::Red

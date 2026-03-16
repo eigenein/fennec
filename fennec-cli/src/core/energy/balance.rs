@@ -49,6 +49,7 @@ impl Balance<Watts> {
             WorkingMode::SelfUse => self.battery,
             WorkingMode::Charge => Flow { import: limits.charging, export: Watts::ZERO },
             WorkingMode::Discharge => Flow { import: Watts::ZERO, export: limits.discharging },
+            WorkingMode::Compensate => Flow { import: Watts::ZERO, export: self.battery.export },
         })
     }
 }

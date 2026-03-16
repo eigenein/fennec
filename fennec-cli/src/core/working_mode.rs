@@ -11,6 +11,9 @@ pub enum WorkingMode {
     /// Only excess solar power charging without discharging.
     Harness,
 
+    /// Compensate on insufficient solar power, but never charge.
+    Compensate,
+
     /// Charge on excess solar power, compensate on insufficient solar power.
     SelfUse,
 
@@ -29,6 +32,7 @@ impl Display for WorkingMode {
             Self::Harness => "Harness",
             Self::Charge => "Charge",
             Self::Discharge => "Discharge",
+            Self::Compensate => "Compensate",
         };
         text.fmt(f)
     }
@@ -41,6 +45,7 @@ impl WorkingMode {
             Self::Discharge => Color::Blue,
             Self::SelfUse => Color::DarkYellow,
             Self::Harness => Color::Cyan,
+            Self::Compensate => Color::Magenta,
             Self::Idle => Color::Reset,
         }
     }

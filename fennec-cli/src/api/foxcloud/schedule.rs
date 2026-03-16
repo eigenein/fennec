@@ -188,6 +188,9 @@ impl Groups {
                     CoreWorkingMode::Discharge => {
                         (WorkingMode::ForceDischarge, battery_power_limits.discharging)
                     }
+                    CoreWorkingMode::Compensate => {
+                        (WorkingMode::FeedIn, battery_power_limits.discharging)
+                    }
                 };
                 Group {
                     start_time,

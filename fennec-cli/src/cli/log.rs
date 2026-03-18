@@ -30,8 +30,11 @@ pub struct LogArgs {
     #[clap(long, env = "BATTERY_ENERGY_METER_URL")]
     battery_energy_meter_url: Url,
 
-    #[clap(long, env = "MEASUREMENT_EXPIRATION_TIME", default_value = "14days")]
-    measurement_expiration_time: humantime::Duration,
+    #[clap(long = "power-log-ttl", env = "POWER_LOG_TTL", default_value = "14days")]
+    power_log_ttl: humantime::Duration,
+
+    #[clap(long = "battery-log-ttl", env = "BATTERY_LOG_TTL", default_value = "28days")]
+    battery_log_ttl: humantime::Duration,
 
     #[clap(flatten)]
     db: DbArgs,
@@ -46,7 +49,10 @@ pub struct LogArgs {
 impl LogArgs {
     pub async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        db.set_expiration_time(self.measurement_expiration_time.into()).await?;
+
+        db.set_expiration_time::<battery::Measurement>(self.battery_log_ttl.into()).await?;
+        db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
+
         let grid_meter_client = homewizard::Client::new(self.total_energy_meter_url)?;
         let battery_meter_client = homewizard::Client::new(self.battery_energy_meter_url)?;
 

@@ -19,7 +19,7 @@ use crate::{
     db::battery::Measurement,
     fmt::FormattedPercentage,
     prelude::*,
-    quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
+    quantity::{Zero, power::Watts, time::Hours},
 };
 
 #[must_use]
@@ -97,12 +97,11 @@ impl Efficiency {
 
         info!("reading the battery logs…");
         while let Some(log) = battery_logs.try_next().await? {
-            let imported_energy = WattHours::from(log.legacy_import - previous.legacy_import);
-            let exported_energy = WattHours::from(log.legacy_export - previous.legacy_export);
+            let imported_energy = log.import - previous.import;
+            let exported_energy = log.export - previous.export;
             let time_delta = Hours::from(log.timestamp - previous.timestamp);
+            let residual_differential = log.residual_energy - previous.residual_energy;
             total_time += time_delta;
-            let residual_differential =
-                WattHours::from(log.legacy_residual_energy - previous.legacy_residual_energy);
 
             dataset.records.push_row(aview1(&[
                 imported_energy.0,

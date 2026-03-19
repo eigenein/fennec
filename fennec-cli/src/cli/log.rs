@@ -33,7 +33,7 @@ pub struct LogArgs {
     #[clap(long = "power-log-ttl", env = "POWER_LOG_TTL", default_value = "14days")]
     power_log_ttl: humantime::Duration,
 
-    #[clap(long = "battery-log-ttl", env = "BATTERY_LOG_TTL", default_value = "28days")]
+    #[clap(long = "battery-log-ttl", env = "BATTERY_LOG_TTL", default_value = "14days")]
     battery_log_ttl: humantime::Duration,
 
     #[clap(flatten)]
@@ -111,11 +111,8 @@ impl Logger {
                 && (last_known_residual_energy != battery_state.residual_millis())
             {
                 battery::Measurement::builder()
-                    .legacy_residual_energy(battery_state.residual_millis())
                     .residual_energy(battery_state.residual_millis())
-                    .legacy_import(battery_metrics.import)
                     .import(battery_metrics.import)
-                    .legacy_export(battery_metrics.export)
                     .export(battery_metrics.export)
                     .build()
                     .insert_into(&self.db)

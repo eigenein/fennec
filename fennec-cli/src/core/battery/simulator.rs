@@ -97,7 +97,6 @@ mod tests {
             charging: 0.9,
             discharging: 0.5,
             n_samples: 0,
-            total_hours: Hours::ZERO,
         };
         let mut simulator = Simulator {
             residual_energy: WattHours(5000.0),

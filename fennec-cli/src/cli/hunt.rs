@@ -13,7 +13,6 @@ use crate::{
         solver::Solver,
         working_mode::WorkingMode,
     },
-    db,
     db::power,
     fmt::tables::build_steps_table,
     ops::Interval,
@@ -76,8 +75,7 @@ impl HuntArgs {
         println!("{battery_state}");
 
         let battery_efficiency = {
-            let battery_logs = db.measurements::<db::battery::Measurement>().await?;
-            crate::core::battery::Efficiency::try_estimate(battery_logs)
+            crate::core::battery::Efficiency::try_estimate(&db)
                 .await
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
                 .unwrap_or(crate::core::battery::Efficiency::IDEAL)

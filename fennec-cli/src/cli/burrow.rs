@@ -5,7 +5,6 @@ use crate::{
     api::foxcloud,
     cli::{battery::BatteryPowerLimits, db::DbArgs, foxcloud::FoxCloudApiArgs},
     core::energy::BalanceProfile,
-    db,
     db::power,
     prelude::*,
 };
@@ -47,8 +46,7 @@ pub struct BurrowBatteryArgs {
 impl BurrowBatteryArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let logs = db.measurements::<db::battery::Measurement>().await?;
-        let _ = crate::core::battery::Efficiency::try_estimate(logs).await?;
+        let _ = crate::core::battery::Efficiency::try_estimate(&db).await?;
         db.shutdown().await;
         Ok(())
     }

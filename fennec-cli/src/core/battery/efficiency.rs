@@ -5,18 +5,13 @@ use std::{
 
 use bon::bon;
 use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
-use futures_core::TryStream;
 use futures_util::TryStreamExt;
-use linfa::{
-    Dataset,
-    dataset::Records,
-    traits::{Fit, Predict},
-};
-use linfa_linear::{FittedLinearRegression, LinearRegression};
+use linfa::{Dataset, dataset::Records, traits::Fit};
+use linfa_linear::LinearRegression;
 use ndarray::{Array1, Array2, Axis, Ix1, aview0, aview1};
 
 use crate::{
-    db::battery::Measurement,
+    db::{Db, battery::Measurement},
     fmt::FormattedPercentage,
     prelude::*,
     quantity::{Zero, power::Watts, time::Hours},
@@ -34,18 +29,11 @@ pub struct Efficiency {
     pub discharging: f64,
 
     pub n_samples: usize,
-
-    pub total_hours: Hours,
 }
 
 impl Efficiency {
-    pub const IDEAL: Self = Self {
-        parasitic_load: Watts::ZERO,
-        charging: 1.0,
-        discharging: 1.0,
-        n_samples: 0,
-        total_hours: Hours::ZERO,
-    };
+    pub const IDEAL: Self =
+        Self { parasitic_load: Watts::ZERO, charging: 1.0, discharging: 1.0, n_samples: 0 };
 }
 
 #[bon]
@@ -56,7 +44,6 @@ impl Efficiency {
         charging: f64,
         discharging: f64,
         n_samples: usize,
-        total_hours: Hours,
     ) -> Result<Self> {
         if parasitic_load.0.is_nan()
             || parasitic_load.0.is_infinite()
@@ -70,7 +57,7 @@ impl Efficiency {
         if discharging.is_nan() || discharging.is_infinite() {
             bail!("invalid discharging efficiency: {discharging}");
         }
-        Ok(Self { parasitic_load, charging, discharging, n_samples, total_hours })
+        Ok(Self { parasitic_load, charging, discharging, n_samples })
     }
 }
 
@@ -87,34 +74,8 @@ impl Efficiency {
     }
 
     #[instrument(skip_all)]
-    pub async fn try_estimate<S>(mut battery_logs: S) -> Result<Self>
-    where
-        S: TryStream<Ok = Measurement, Error = Error> + Unpin,
-    {
-        let mut previous = battery_logs.try_next().await?.context("empty battery log stream")?;
-        let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
-        let mut total_time = Hours::ZERO;
-
-        info!("reading the battery logs…");
-        while let Some(log) = battery_logs.try_next().await? {
-            let imported_energy = log.import - previous.import;
-            let exported_energy = log.export - previous.export;
-            let time_delta = Hours::from(log.timestamp - previous.timestamp);
-            let residual_differential = log.residual_energy - previous.residual_energy;
-            total_time += time_delta;
-
-            dataset.records.push_row(aview1(&[
-                imported_energy.0,
-                exported_energy.0,
-                time_delta.0,
-            ]))?;
-            dataset.targets.push(Axis(0), aview0(&(residual_differential.0)))?;
-
-            previous = log;
-        }
-        if dataset.nsamples() == 0 {
-            bail!("empty dataset");
-        }
+    pub async fn try_estimate(db: &Db) -> Result<Self> {
+        let dataset = Self::read_dataset(db).await?;
 
         info!(n_samples = dataset.nsamples(), "estimating the battery efficiency…");
         let start_time = Instant::now();
@@ -129,22 +90,37 @@ impl Efficiency {
             .discharging(-1.0 / regression.params()[1])
             .parasitic_load(Watts(-regression.params()[2]))
             .n_samples(dataset.nsamples())
-            .total_hours(total_time)
             .build()?;
         println!("{this}");
         Ok(this)
     }
 
-    #[expect(unused)]
-    fn r_squared(
-        regression: &FittedLinearRegression<f64>,
-        dataset: &Dataset<f64, f64, Ix1>,
-    ) -> f64 {
-        let predicted = regression.predict(dataset);
-        let target_mean = dataset.targets().mean().unwrap();
-        let residual_squared_sum = (dataset.targets() - &predicted).mapv(|diff| diff * diff).sum();
-        let total_squares_sum = (dataset.targets() - target_mean).mapv(|diff| diff * diff).sum();
-        1.0 - residual_squared_sum / total_squares_sum
+    #[instrument(skip_all)]
+    async fn read_dataset(db: &Db) -> Result<Dataset<f64, f64, Ix1>> {
+        let mut measurements = db.measurements::<Measurement>().await?;
+        let mut previous = measurements.try_next().await?.context("empty battery log stream")?;
+        let mut dataset = Dataset::new(Array2::zeros((0, 3)), Array1::zeros(0));
+
+        info!("reading the battery logs…");
+        while let Some(log) = measurements.try_next().await? {
+            let imported_energy = log.import - previous.import;
+            let exported_energy = log.export - previous.export;
+            let time_delta = Hours::from(log.timestamp - previous.timestamp);
+            let residual_differential = log.residual_energy - previous.residual_energy;
+
+            dataset.records.push_row(aview1(&[
+                imported_energy.0,
+                exported_energy.0,
+                time_delta.0,
+            ]))?;
+            dataset.targets.push(Axis(0), aview0(&(residual_differential.0)))?;
+
+            previous = log;
+        }
+        if dataset.nsamples() == 0 {
+            bail!("empty dataset");
+        }
+        Ok(dataset)
     }
 }
 
@@ -156,7 +132,6 @@ impl Display for Efficiency {
             .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
             .enforce_styling()
             .set_header(vec![Cell::new("Battery")])
-            .add_row(vec![Cell::new("Total time"), Cell::new(self.total_hours)])
             .add_row(vec![
                 Cell::new("Samples"),
                 Cell::new(self.n_samples).set_alignment(CellAlignment::Right),

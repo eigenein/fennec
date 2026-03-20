@@ -7,7 +7,10 @@ use std::time::Duration;
 use chrono::Utc;
 use http::{HeaderMap, HeaderValue};
 use reqwest::Client;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{
+    Serialize,
+    de::{DeserializeOwned, IgnoredAny},
+};
 use serde_with::serde_as;
 
 use self::schedule::Schedule;
@@ -69,11 +72,12 @@ impl Api {
         }
 
         info!(n_groups = groups.len(), "setting…");
-        self.post(
+        self.post::<_, IgnoredAny>(
             "op/v3/device/scheduler/enable",
             SetScheduleRequest { serial_number, is_default_extra: true, groups, is_enabled: true },
         )
-        .await
+        .await?;
+        Ok(())
     }
 
     #[instrument(skip_all, level = Level::DEBUG, fields(path = path))]
@@ -95,7 +99,7 @@ impl Api {
         let text = response.text().await?;
         debug!(text, "fetched the response");
         serde_json::from_str::<Response<R>>(&text)
-            .with_context(|| format!("failed to deserialize `{path}` response JSON"))?
+            .with_context(|| format!("failed to deserialize `{path}` response JSON: {text}"))?
             .into()
     }
 

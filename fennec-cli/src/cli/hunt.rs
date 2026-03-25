@@ -22,13 +22,13 @@ use crate::{
 
 #[derive(Parser)]
 pub struct HuntArgs {
-    /// Do not push the final schedule to FoxESS Cloud (dry run).
+    /// Do not push schedules to FoxESS Cloud – only perform dry runs.
     #[expect(clippy::doc_markdown)]
     #[clap(long)]
     scout: bool,
 
     #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
-    provider: Provider,
+    energy_provider: Provider,
 
     #[clap(
         long = "working-modes",
@@ -84,7 +84,7 @@ impl HuntArgs {
             let power_logs = db.measurements::<power::Measurement>().await?;
             BalanceProfile::try_estimate(
                 self.battery.power_limits,
-                self.provider.time_step(),
+                self.energy_provider.time_step(),
                 power_logs,
             )
             .await?
@@ -102,7 +102,7 @@ impl HuntArgs {
                 battery_state.max_residual_energy().max(battery_state.energy.residual()),
             )
             .battery_efficiency(battery_efficiency)
-            .purchase_fee(self.provider.purchase_fee())
+            .purchase_fee(self.energy_provider.purchase_fee())
             .now(now)
             .quantum(self.quantum)
             .battery_power_limits(self.battery.power_limits)
@@ -134,11 +134,11 @@ impl HuntArgs {
         const ONE_DAY: Days = Days::new(1);
 
         let today = now.date_naive();
-        let mut prices = self.provider.get_prices(today).await?;
+        let mut prices = self.energy_provider.get_prices(today).await?;
         ensure!(!prices.is_empty());
 
         let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
-        prices.extend(self.provider.get_prices(tomorrow).await?);
+        prices.extend(self.energy_provider.get_prices(tomorrow).await?);
 
         prices.retain(|(interval, _)| interval.end > now);
         info!(len = prices.len(), "fetched energy prices");

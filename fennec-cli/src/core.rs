@@ -1,7 +1,6 @@
 pub mod battery;
 pub mod energy;
 pub mod solution;
-pub mod step;
 
 use std::time::Instant;
 
@@ -14,8 +13,7 @@ use crate::{
     core::{
         battery::WorkingMode,
         energy::{BalanceProfile, Flow},
-        solution::{Losses, Metrics, Solution, Space},
-        step::Step,
+        solution::{Losses, Metrics, Solution, Space, Step},
     },
     ops::Interval,
     prelude::*,

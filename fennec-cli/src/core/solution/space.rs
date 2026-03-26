@@ -4,10 +4,7 @@ use bon::bon;
 use itertools::Itertools;
 
 use crate::{
-    core::{
-        solution::{Metrics, Solution},
-        step::Step,
-    },
+    core::solution::{Metrics, Solution, Step},
     ops::range,
     prelude::*,
 };

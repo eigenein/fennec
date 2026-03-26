@@ -1,11 +1,12 @@
 mod losses;
 mod metrics;
 mod space;
+mod step;
 
 use std::cmp::Ordering;
 
-pub use self::{losses::Losses, metrics::Metrics, space::Space};
-use crate::{core::step::Step, quantity::Zero};
+pub use self::{losses::Losses, metrics::Metrics, space::Space, step::Step};
+use crate::quantity::Zero;
 
 #[must_use]
 pub struct Solution {

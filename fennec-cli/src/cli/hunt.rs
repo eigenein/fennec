@@ -4,8 +4,8 @@ use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
-    api::{foxcloud, heartbeat},
-    cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs, heartbeat::HeartbeatArgs},
+    api::foxcloud,
+    cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
     core::{energy, quantum::Quantum, solver::Solver, working_mode::WorkingMode},
     db::power,
     fmt::tables::build_steps_table,
@@ -44,9 +44,6 @@ pub struct HuntArgs {
 
     #[clap(flatten)]
     db: DbArgs,
-
-    #[clap(flatten)]
-    heartbeat: HeartbeatArgs,
 }
 
 impl HuntArgs {
@@ -118,7 +115,6 @@ impl HuntArgs {
             fox_ess.set_schedule(&self.fox_ess_api.serial_number, groups.as_ref()).await?;
         }
 
-        heartbeat::Client::new(self.heartbeat.url).send().await;
         Ok(())
     }
 

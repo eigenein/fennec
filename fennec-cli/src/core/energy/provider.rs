@@ -7,7 +7,6 @@ use crate::{
     quantity::price::KilowattHourPrice,
 };
 
-/// TODO: move under `energy`.
 #[derive(
     Copy, Clone, Hash, Eq, PartialEq, clap::ValueEnum, serde::Serialize, serde::Deserialize,
 )]

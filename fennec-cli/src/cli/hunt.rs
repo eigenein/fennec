@@ -6,13 +6,7 @@ use itertools::Itertools;
 use crate::{
     api::{foxcloud, heartbeat},
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs, heartbeat::HeartbeatArgs},
-    core::{
-        energy::BalanceProfile,
-        provider::Provider,
-        quantum::Quantum,
-        solver::Solver,
-        working_mode::WorkingMode,
-    },
+    core::{energy, quantum::Quantum, solver::Solver, working_mode::WorkingMode},
     db::power,
     fmt::tables::build_steps_table,
     ops::Interval,
@@ -28,7 +22,7 @@ pub struct HuntArgs {
     scout: bool,
 
     #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
-    energy_provider: Provider,
+    energy_provider: energy::Provider,
 
     #[clap(
         long = "working-modes",
@@ -82,7 +76,7 @@ impl HuntArgs {
         };
         let balance_profile = {
             let power_logs = db.measurements::<power::Measurement>().await?;
-            BalanceProfile::try_estimate(
+            energy::BalanceProfile::try_estimate(
                 self.battery.power_limits,
                 self.energy_provider.time_step(),
                 power_logs,

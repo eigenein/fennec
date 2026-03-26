@@ -7,13 +7,13 @@ use crate::{
     api::foxcloud,
     battery::WorkingMode,
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    core::Solver,
     db::power,
     energy,
     fmt::tables::build_steps_table,
     ops::Interval,
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
+    solution::Solver,
 };
 
 #[derive(Parser)]

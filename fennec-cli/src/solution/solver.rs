@@ -1,5 +1,3 @@
-pub mod solution;
-
 use std::time::Instant;
 
 use bon::{Builder, bon};
@@ -10,7 +8,6 @@ use crate::{
     battery,
     battery::WorkingMode,
     cli::battery::BatteryPowerLimits,
-    core::solution::{Losses, Metrics, Solution, Space, Step},
     energy,
     ops::Interval,
     prelude::*,
@@ -22,6 +19,7 @@ use crate::{
         power::Watts,
         price::KilowattHourPrice,
     },
+    solution::{Losses, Metrics, Solution, Space, Step},
 };
 
 #[derive(Builder)]

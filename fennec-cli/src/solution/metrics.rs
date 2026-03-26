@@ -3,8 +3,9 @@ use derive_more::Add;
 
 use crate::{
     battery::WorkingMode,
-    core::{energy::Flow, solution::Losses},
+    energy::Flow,
     quantity::{Zero, currency::Mills, energy::WattHours},
+    solution::Losses,
 };
 
 #[must_use]

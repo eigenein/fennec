@@ -1,11 +1,12 @@
 mod losses;
 mod metrics;
+mod solver;
 mod space;
 mod step;
 
 use std::cmp::Ordering;
 
-pub use self::{losses::Losses, metrics::Metrics, space::Space, step::Step};
+pub use self::{losses::Losses, metrics::Metrics, solver::Solver, space::Space, step::Step};
 use crate::quantity::Zero;
 
 #[must_use]

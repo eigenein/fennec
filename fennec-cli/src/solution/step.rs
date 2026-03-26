@@ -1,8 +1,9 @@
 use crate::{
     battery::WorkingMode,
-    core::{energy, solution},
+    energy,
     ops::Interval,
     quantity::{energy::WattHours, price::KilowattHourPrice},
+    solution,
 };
 
 /// Single-hour working plan step.

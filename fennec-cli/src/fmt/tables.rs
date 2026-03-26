@@ -3,8 +3,8 @@ use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, prese
 
 use crate::{
     battery::WorkingMode,
-    core::solution::Step,
     quantity::{Zero, currency::Mills, energy::WattHours, price::KilowattHourPrice},
+    solution::Step,
 };
 
 pub fn build_steps_table(steps: &[Step]) -> Table {

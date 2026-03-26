@@ -4,13 +4,13 @@
 mod api;
 mod battery;
 mod cli;
-mod core;
 mod db;
 mod energy;
 mod fmt;
 mod ops;
 mod prelude;
 mod quantity;
+mod solution;
 
 use clap::{Parser, crate_version};
 use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};

@@ -4,8 +4,8 @@ use clap::{Parser, Subcommand};
 use crate::{
     api::foxcloud,
     cli::{battery::BatteryPowerLimits, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    core::energy::BalanceProfile,
     db::power,
+    energy::BalanceProfile,
     prelude::*,
 };
 

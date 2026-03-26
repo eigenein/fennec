@@ -1,4 +1,3 @@
-pub mod energy;
 pub mod solution;
 
 use std::time::Instant;
@@ -11,10 +10,8 @@ use crate::{
     battery,
     battery::WorkingMode,
     cli::battery::BatteryPowerLimits,
-    core::{
-        energy::{BalanceProfile, Flow},
-        solution::{Losses, Metrics, Solution, Space, Step},
-    },
+    core::solution::{Losses, Metrics, Solution, Space, Step},
+    energy,
     ops::Interval,
     prelude::*,
     quantity::{
@@ -30,7 +27,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver<'a> {
     energy_prices: &'a [(Interval, KilowattHourPrice)],
-    balance_profile: &'a BalanceProfile,
+    balance_profile: &'a energy::BalanceProfile,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -213,7 +210,7 @@ impl Solver<'_> {
     }
 
     /// Calculate the grid consumption or production loss.
-    fn grid_loss(&self, energy_price: KilowattHourPrice, flow: Flow<WattHours>) -> Mills {
+    fn grid_loss(&self, energy_price: KilowattHourPrice, flow: energy::Flow<WattHours>) -> Mills {
         flow.import * energy_price - flow.export * (energy_price - self.purchase_fee)
     }
 }

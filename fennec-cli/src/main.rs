@@ -6,6 +6,7 @@ mod battery;
 mod cli;
 mod core;
 mod db;
+mod energy;
 mod fmt;
 mod ops;
 mod prelude;

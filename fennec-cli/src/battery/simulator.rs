@@ -1,5 +1,6 @@
 use crate::{
-    core::{battery, energy::Flow},
+    battery,
+    core::energy::Flow,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };
 

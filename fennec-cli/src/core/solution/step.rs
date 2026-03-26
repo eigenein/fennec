@@ -1,5 +1,6 @@
 use crate::{
-    core::{battery::WorkingMode, energy, solution},
+    battery::WorkingMode,
+    core::{energy, solution},
     ops::Interval,
     quantity::{energy::WattHours, price::KilowattHourPrice},
 };

@@ -13,8 +13,8 @@ use serde_with::serde_as;
 
 use crate::{
     api::foxcloud::working_mode::WorkingMode,
+    battery::WorkingMode as CoreWorkingMode,
     cli::battery::BatteryPowerLimits,
-    core::battery::WorkingMode as CoreWorkingMode,
     ops::Interval,
     prelude::*,
     quantity::{Zero, power::Watts},

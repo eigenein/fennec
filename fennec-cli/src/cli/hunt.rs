@@ -5,8 +5,9 @@ use itertools::Itertools;
 
 use crate::{
     api::foxcloud,
+    battery::WorkingMode,
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    core::{Solver, battery::WorkingMode, energy},
+    core::{Solver, energy},
     db::power,
     fmt::tables::build_steps_table,
     ops::Interval,
@@ -66,10 +67,10 @@ impl HuntArgs {
         println!("{battery_state}");
 
         let battery_efficiency = {
-            crate::core::battery::Efficiency::try_estimate(&db)
+            crate::battery::Efficiency::try_estimate(&db)
                 .await
                 .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
-                .unwrap_or(crate::core::battery::Efficiency::IDEAL)
+                .unwrap_or(crate::battery::Efficiency::IDEAL)
         };
         let balance_profile = {
             let power_logs = db.measurements::<power::Measurement>().await?;

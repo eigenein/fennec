@@ -10,8 +10,8 @@ use futures_util::TryStreamExt;
 
 use super::Balance;
 use crate::{
+    battery::WorkingMode,
     cli::battery::BatteryPowerLimits,
-    core::battery::WorkingMode,
     db::power,
     ops::Integrator,
     prelude::*,

@@ -46,7 +46,7 @@ pub struct BurrowBatteryArgs {
 impl BurrowBatteryArgs {
     async fn run(self) -> Result {
         let db = self.db.connect().await?;
-        let _ = crate::core::battery::Efficiency::try_estimate(&db).await?;
+        let _ = crate::battery::Efficiency::try_estimate(&db).await?;
         db.shutdown().await;
         Ok(())
     }

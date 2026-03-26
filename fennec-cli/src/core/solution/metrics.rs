@@ -2,7 +2,8 @@ use comfy_table::{Cell, Color, Table, modifiers, presets};
 use derive_more::Add;
 
 use crate::{
-    core::{battery::WorkingMode, energy::Flow, solution::Losses},
+    battery::WorkingMode,
+    core::{energy::Flow, solution::Losses},
     quantity::{Zero, currency::Mills, energy::WattHours},
 };
 

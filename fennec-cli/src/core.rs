@@ -1,4 +1,3 @@
-pub mod battery;
 pub mod energy;
 pub mod solution;
 
@@ -9,9 +8,10 @@ use chrono::{DateTime, Local};
 use enumset::EnumSet;
 
 use crate::{
+    battery,
+    battery::WorkingMode,
     cli::battery::BatteryPowerLimits,
     core::{
-        battery::WorkingMode,
         energy::{BalanceProfile, Flow},
         solution::{Losses, Metrics, Solution, Space, Step},
     },

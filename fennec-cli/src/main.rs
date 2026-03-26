@@ -2,6 +2,7 @@
 #![doc = include_str!("../../README.md")]
 
 mod api;
+mod battery;
 mod cli;
 mod core;
 mod db;

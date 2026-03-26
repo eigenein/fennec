@@ -10,7 +10,7 @@ use tokio_modbus::{
 };
 
 use crate::{
-    core::battery,
+    battery,
     prelude::*,
     quantity::{energy::DecawattHours, ratios::Percentage},
 };

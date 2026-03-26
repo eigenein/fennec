@@ -1,9 +1,11 @@
 mod efficiency;
 mod simulator;
 mod state;
+mod working_mode;
 
 pub use self::{
     efficiency::Efficiency,
     simulator::Simulator,
     state::{EnergyState, FullState},
+    working_mode::WorkingMode,
 };

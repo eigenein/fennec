@@ -5,7 +5,7 @@ use derive_more::AddAssign;
 use super::Flow;
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::working_mode::WorkingMode,
+    core::battery::WorkingMode,
     quantity::{Zero, power::Watts},
 };
 

@@ -6,7 +6,7 @@ use itertools::Itertools;
 use crate::{
     api::foxcloud,
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    core::{energy, quantum::Quantum, solver::Solver, working_mode::WorkingMode},
+    core::{battery::WorkingMode, energy, quantum::Quantum, solver::Solver},
     db::power,
     fmt::tables::build_steps_table,
     ops::Interval,

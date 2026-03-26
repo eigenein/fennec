@@ -11,7 +11,7 @@ use futures_util::TryStreamExt;
 use super::Balance;
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::{quantum::Quantum, working_mode::WorkingMode},
+    core::{battery::WorkingMode, quantum::Quantum},
     db::power,
     ops::Integrator,
     prelude::*,

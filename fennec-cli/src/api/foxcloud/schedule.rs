@@ -14,7 +14,7 @@ use serde_with::serde_as;
 use crate::{
     api::foxcloud::working_mode::WorkingMode,
     cli::battery::BatteryPowerLimits,
-    core::working_mode::WorkingMode as CoreWorkingMode,
+    core::battery::WorkingMode as CoreWorkingMode,
     ops::Interval,
     prelude::*,
     quantity::{Zero, power::Watts},

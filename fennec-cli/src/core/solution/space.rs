@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[must_use]
-pub struct SolutionSpace {
+pub struct Space {
     allowed_energy_levels: range::Inclusive<usize>,
 
     /// Number of time intervals.
@@ -26,7 +26,7 @@ pub struct SolutionSpace {
 }
 
 #[bon]
-impl SolutionSpace {
+impl Space {
     #[builder]
     pub fn new(
         n_intervals: usize,
@@ -38,7 +38,7 @@ impl SolutionSpace {
     }
 }
 
-impl SolutionSpace {
+impl Space {
     /// Get the solution at the given time slot index and energy.
     ///
     /// This method respects allowed energy levels.

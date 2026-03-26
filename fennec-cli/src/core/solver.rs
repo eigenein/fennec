@@ -11,8 +11,7 @@ use crate::{
         battery::WorkingMode,
         energy,
         energy::{BalanceProfile, Flow},
-        solution::{Losses, Metrics, Solution},
-        solution_space::SolutionSpace,
+        solution::{Losses, Metrics, Solution, Space},
         step::Step,
     },
     ops::Interval,
@@ -65,7 +64,7 @@ impl Solver<'_> {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(self) -> SolutionSpace {
+    pub fn solve(self) -> Space {
         let start_instant = Instant::now();
 
         let min_energy_level = self
@@ -78,7 +77,7 @@ impl Solver<'_> {
             .expect("maximum residual energy must be quantizable");
         info!(?self.quantum, min_energy_level, max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
 
-        let mut solutions = SolutionSpace::builder()
+        let mut solutions = Space::builder()
             .n_intervals(self.energy_prices.len())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .build();
@@ -144,7 +143,7 @@ impl Solver<'_> {
         average_balance: energy::Balance<Watts>,
         energy_price: KilowattHourPrice,
         initial_residual_energy: WattHours,
-        solutions: &SolutionSpace,
+        solutions: &Space,
     ) -> Option<Solution> {
         let battery = battery::Simulator {
             residual_energy: initial_residual_energy,

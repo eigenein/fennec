@@ -1,9 +1,10 @@
 mod losses;
 mod metrics;
+mod space;
 
 use std::cmp::Ordering;
 
-pub use self::{losses::Losses, metrics::Metrics};
+pub use self::{losses::Losses, metrics::Metrics, space::Space};
 use crate::{core::step::Step, quantity::Zero};
 
 #[must_use]

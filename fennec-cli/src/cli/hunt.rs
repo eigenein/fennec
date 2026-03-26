@@ -6,12 +6,12 @@ use itertools::Itertools;
 use crate::{
     api::foxcloud,
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    core::{battery::WorkingMode, energy, quantum::Quantum, solver::Solver},
+    core::{battery::WorkingMode, energy, solver::Solver},
     db::power,
     fmt::tables::build_steps_table,
     ops::Interval,
     prelude::*,
-    quantity::{energy::WattHours, price::KilowattHourPrice},
+    quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
 };
 
 #[derive(Parser)]

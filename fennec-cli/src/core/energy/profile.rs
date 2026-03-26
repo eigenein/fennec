@@ -11,11 +11,11 @@ use futures_util::TryStreamExt;
 use super::Balance;
 use crate::{
     cli::battery::BatteryPowerLimits,
-    core::{battery::WorkingMode, quantum::Quantum},
+    core::battery::WorkingMode,
     db::power,
     ops::Integrator,
     prelude::*,
-    quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
+    quantity::{Quantum, Zero, energy::WattHours, power::Watts, time::Hours},
 };
 
 #[must_use]

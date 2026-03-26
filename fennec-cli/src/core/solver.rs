@@ -11,14 +11,20 @@ use crate::{
         battery::WorkingMode,
         energy,
         energy::{BalanceProfile, Flow},
-        quantum::{Midpoint, Quantum},
         solution::{Losses, Metrics, Solution},
         solution_space::SolutionSpace,
         step::Step,
     },
     ops::Interval,
     prelude::*,
-    quantity::{currency::Mills, energy::WattHours, power::Watts, price::KilowattHourPrice},
+    quantity::{
+        Midpoint,
+        Quantum,
+        currency::Mills,
+        energy::WattHours,
+        power::Watts,
+        price::KilowattHourPrice,
+    },
 };
 
 #[derive(Builder)]

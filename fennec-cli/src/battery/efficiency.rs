@@ -66,13 +66,6 @@ impl Efficiency {
         self.charging * self.discharging
     }
 
-    /// Residual energy sensor bias, assuming it's symmetrical in regard to charging and discharging.
-    ///
-    /// For now, only exists to correct the estimated degradation costs.
-    pub fn sensor_bias(&self) -> f64 {
-        (self.charging / self.discharging).sqrt()
-    }
-
     #[instrument(skip_all)]
     pub async fn try_estimate(db: &Db) -> Result<Self> {
         let dataset = Self::read_dataset(db).await?;
@@ -147,11 +140,6 @@ impl Display for Efficiency {
                 Cell::new(FormattedPercentage(self.discharging))
                     .set_alignment(CellAlignment::Right)
                     .fg(Color::Red),
-            ])
-            .add_row(vec![
-                Cell::new("Sensor bias"),
-                Cell::new(FormattedPercentage(self.sensor_bias()))
-                    .set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
                 Cell::new("Parasitic load").fg(Color::DarkYellow),

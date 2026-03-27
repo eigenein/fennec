@@ -23,7 +23,7 @@ pub struct Measurement {
     /// Battery charging and discharging does not affect this value – exactly because our primary goal
     /// is to steer the battery on the basis of the net deficit.
     #[serde(rename = "netWatts")]
-    pub net_power: Watts,
+    pub active_power: Watts,
 }
 
 impl db::Measurement for Measurement {

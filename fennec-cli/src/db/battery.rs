@@ -27,7 +27,11 @@ pub struct Measurement {
 
     #[serde(rename = "exportWattHours")]
     #[builder(into)]
-    pub export: WattHours,
+    pub main_export: WattHours,
+
+    #[serde(rename = "epsExportWattHours")]
+    #[builder(into)]
+    pub eps_export: Option<WattHours>,
 }
 
 impl db::Measurement for Measurement {

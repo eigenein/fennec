@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use bon::Builder;
+use derive_more::FromStr;
 use http::{HeaderMap, HeaderName, HeaderValue};
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,15 +10,12 @@ use crate::{
     quantity::{energy::KilowattHours, power::Watts},
 };
 
-#[derive(Clone)]
-pub struct Client {
-    inner: reqwest::Client,
-    url: Url,
-}
+#[derive(Clone, FromStr)]
+pub struct Url(reqwest::Url);
 
-impl Client {
-    #[instrument(skip_all, fields(url = %url))]
-    pub fn new(url: Url) -> Result<Self> {
+impl Url {
+    #[instrument(skip_all, fields(url = %self.0))]
+    pub fn client(self) -> Result<Client> {
         let headers = HeaderMap::from_iter([(
             HeaderName::from_static("connection"),
             HeaderValue::from_static("close"),
@@ -28,9 +25,17 @@ impl Client {
             .default_headers(headers)
             .pool_max_idle_per_host(0)
             .build()?;
-        Ok(Self { inner, url })
+        Ok(Client { inner, url: self.0 })
     }
+}
 
+#[derive(Clone)]
+pub struct Client {
+    inner: reqwest::Client,
+    url: reqwest::Url,
+}
+
+impl Client {
     #[instrument(skip_all, fields(host = self.url.host_str()))]
     pub async fn get_measurement(&self) -> Result<EnergyMetrics> {
         let measurement: EnergyMetrics = self

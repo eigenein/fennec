@@ -104,7 +104,7 @@ impl Efficiency {
         info!("reading the battery logs…");
         while let Some(log) = measurements.try_next().await? {
             let imported_energy = log.import - previous.import;
-            let exported_energy = log.export - previous.export;
+            let exported_energy = log.main_export - previous.main_export;
             let time_delta = Hours::from(log.timestamp - previous.timestamp);
             let residual_differential = log.residual_energy - previous.residual_energy;
 

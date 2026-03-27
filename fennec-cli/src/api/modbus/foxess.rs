@@ -20,12 +20,12 @@ use crate::{
 pub struct MQ2200(tokio_modbus::client::Context);
 
 impl MQ2200 {
-    const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+    const TIMEOUT: Duration = Duration::from_secs(10);
 
     #[instrument(skip_all, fields(address = address))]
     pub async fn connect(address: &str) -> Result<Self> {
         info!("connecting…");
-        let tcp_stream = timeout(Self::CONNECT_TIMEOUT, TcpStream::connect(address))
+        let tcp_stream = timeout(Self::TIMEOUT, TcpStream::connect(address))
             .await
             .context("timed out while connecting to the battery")?
             .context("failed to connect to the battery")?;
@@ -73,9 +73,9 @@ impl MQ2200 {
 
     #[instrument(skip_all, fields(address = address))]
     async fn read_holding_register(&mut self, address: Address) -> Result<u16> {
-        self.0
-            .read_holding_registers(address, 1)
+        timeout(Self::TIMEOUT, self.0.read_holding_registers(address, 1))
             .await
+            .context("timed out while reading the register")?
             .context("protocol or network error")?
             .context("Modbus server error")?
             .into_iter()

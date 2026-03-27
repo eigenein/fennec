@@ -31,6 +31,7 @@ impl EnergyState {
     }
 }
 
+/// TODO: union everything into this state. Split when the separation would become clear.
 #[must_use]
 pub struct FullState {
     pub energy: EnergyState,

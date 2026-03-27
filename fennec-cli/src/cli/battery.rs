@@ -26,11 +26,17 @@ impl BatteryConnectionArgs {
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryPowerLimits {
     /// Charging power in watts.
-    #[clap(long = "charging-power-watts", default_value = "1200", env = "CHARGING_POWER_WATTS")]
+    #[clap(
+        name = "charging_power",
+        long = "charging-power-watts",
+        default_value = "1200",
+        env = "CHARGING_POWER_WATTS"
+    )]
     pub charging: Watts,
 
     /// Discharging power in watts.
     #[clap(
+        name = "discharging_power",
         long = "discharging-power-watts",
         default_value = "800",
         env = "DISCHARGING_POWER_WATTS"
@@ -65,10 +71,18 @@ pub struct Efficiency {
     pub parasitic_load: Watts,
 
     /// Charging efficiency as measured from register 39237 (positive) to 39134 (negative) when charging.
-    #[clap(long = "battery-charging-efficiency", default_value = "0.929")]
+    #[clap(
+        name = "charging_efficiency",
+        long = "battery-charging-efficiency",
+        default_value = "0.929"
+    )]
     pub charging: f64,
 
     /// Discharging efficiency as measured from register 39134 (positive) to 39237 (negative) when discharging.
-    #[clap(long = "battery-charging-efficiency", default_value = "0.84")]
+    #[clap(
+        name = "discharging_efficiency",
+        long = "battery-discharging-efficiency",
+        default_value = "0.84"
+    )]
     pub discharging: f64,
 }

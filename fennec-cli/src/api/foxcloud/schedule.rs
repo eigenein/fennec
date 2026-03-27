@@ -129,6 +129,7 @@ impl Groups {
         since: DateTime<Local>,
         battery_power_limits: BatteryPowerLimits,
     ) -> Self {
+        // TODO: don't split the interval:
         let until_exclusive = since + TimeDelta::days(1);
         info!(%since, %until_exclusive, "building a FoxESS schedule…");
         schedule
@@ -138,6 +139,7 @@ impl Groups {
                 // FIXME: extract and test:
                 if interval.contains(since) {
                     // This interval has already begun:
+                    // TODO: don't split the interval:
                     Some((interval.with_start(since), working_mode))
                 } else if interval.contains(until_exclusive) {
                     // This interval runs into the next day:

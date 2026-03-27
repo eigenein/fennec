@@ -28,6 +28,8 @@ pub struct LogArgs {
     grid_measurement_url: homewizard::Url,
 
     /// Battery EPS output energy socket measurement URL.
+    ///
+    /// TODO: read from the battery Modbus #39216.
     #[clap(long, env = "BATTERY_EPS_MEASUREMENT_URL")]
     battery_eps_measurement_url: homewizard::Url,
 

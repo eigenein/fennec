@@ -15,7 +15,6 @@ use crate::{
     prelude::*,
 };
 
-pub mod battery;
 mod commands;
 mod measurement;
 pub mod power;
@@ -43,7 +42,6 @@ impl Db {
             .default_database()
             .context("MongoDB URI does not define the default database")?;
         let this = Self { client, inner };
-        this.create_time_series::<battery::Measurement>().await?;
         this.create_time_series::<power::Measurement>().await?;
         Ok(this)
     }

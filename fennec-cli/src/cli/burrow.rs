@@ -18,7 +18,6 @@ pub struct BurrowArgs {
 impl BurrowArgs {
     pub async fn run(self) -> Result {
         match self.command {
-            BurrowCommand::Battery(args) => args.run().await,
             BurrowCommand::EnergyBalanceProfile(args) => args.run().await,
             BurrowCommand::FoxEss(args) => args.run().await,
         }
@@ -27,29 +26,11 @@ impl BurrowArgs {
 
 #[derive(Subcommand)]
 pub enum BurrowCommand {
-    /// Estimate battery efficiency parameters.
-    Battery(BurrowBatteryArgs),
-
     /// Estimate energy balance profile.
     EnergyBalanceProfile(BurrowEnergyBalanceProfileArgs),
 
     /// Test FoxESS Cloud API connectivity.
     FoxEss(BurrowFoxEssArgs),
-}
-
-#[derive(Parser)]
-pub struct BurrowBatteryArgs {
-    #[clap(flatten)]
-    db: DbArgs,
-}
-
-impl BurrowBatteryArgs {
-    async fn run(self) -> Result {
-        let db = self.db.connect().await?;
-        let _ = crate::battery::Efficiency::try_estimate(&db).await?;
-        db.shutdown().await;
-        Ok(())
-    }
 }
 
 #[derive(Parser)]

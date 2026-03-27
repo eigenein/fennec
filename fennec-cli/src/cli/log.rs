@@ -10,9 +10,8 @@ use tokio::{
 use crate::{
     api::{homewizard, homewizard::EnergyMetrics, modbus::foxess::MQ2200},
     cli::{battery::BatteryConnectionArgs, db::DbArgs},
-    db::{Db, Measurement, battery, power, state::BatteryResidualEnergy},
+    db::{Db, Measurement, power},
     prelude::*,
-    quantity::energy::MilliwattHours,
 };
 
 #[derive(Parser)]
@@ -52,7 +51,7 @@ impl LogArgs {
     pub async fn run(self) -> Result {
         let db = self.db.connect().await?;
 
-        db.set_expiration_time::<battery::Measurement>(self.battery_log_ttl.into()).await?;
+        // FIXME: db.set_expiration_time::<battery::Measurement>(self.battery_log_ttl.into()).await?;
         db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
 
         let result = Logger::builder()
@@ -94,7 +93,7 @@ impl Logger {
         loop {
             interval.tick().await;
 
-            let (battery_state, battery_main_metrics, battery_eps_metrics, grid_metrics) = try_join!(
+            let (_battery_state, battery_main_metrics, battery_eps_metrics, grid_metrics) = try_join!(
                 self.battery_client.read_energy_state(),
                 self.battery_main_measurement_client.get_measurement(),
                 self.battery_eps_measurement_client.get_measurement(),
@@ -107,26 +106,6 @@ impl Logger {
                 .battery_eps_metrics(&battery_eps_metrics)
                 .call()
                 .await?;
-
-            let previous_residual_energy = self
-                .db
-                .set_application_state(&BatteryResidualEnergy::from(
-                    battery_state.residual_millis(),
-                ))
-                .await?
-                .map(MilliwattHours::from);
-            if let Some(last_known_residual_energy) = previous_residual_energy
-                && (last_known_residual_energy != battery_state.residual_millis())
-            {
-                battery::Measurement::builder()
-                    .residual_energy(battery_state.residual_millis())
-                    .import(battery_main_metrics.import)
-                    .main_export(battery_main_metrics.export)
-                    .eps_export(battery_eps_metrics.export)
-                    .build()
-                    .insert_into(&self.db)
-                    .await?;
-            }
         }
     }
 }

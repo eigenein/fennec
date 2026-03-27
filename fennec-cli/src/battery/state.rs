@@ -27,11 +27,6 @@ impl EnergyState {
     pub fn residual(&self) -> WattHours {
         self.actual_capacity() * self.state_of_charge
     }
-
-    /// Residual energy corrected on the state of health.
-    pub fn residual_millis(&self) -> MilliwattHours {
-        self.design_capacity * (self.state_of_health * self.state_of_charge)
-    }
 }
 
 #[must_use]

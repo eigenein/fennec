@@ -67,12 +67,6 @@ impl HuntArgs {
         let battery_state = self.battery.connection.connect().await?.read_full_state().await?;
         println!("{battery_state}");
 
-        let battery_efficiency = {
-            crate::battery::Efficiency::try_estimate(&db)
-                .await
-                .inspect_err(|error| warn!("assuming an ideal battery: {error:#}"))
-                .unwrap_or(crate::battery::Efficiency::IDEAL)
-        };
         let balance_profile = {
             let power_logs = db.measurements::<power::Measurement>().await?;
             energy::BalanceProfile::try_estimate(
@@ -94,7 +88,7 @@ impl HuntArgs {
                 // Current residual may be higher than the maximum SoC setting:
                 battery_state.max_residual_energy().max(battery_state.energy.residual()),
             )
-            .battery_efficiency(battery_efficiency)
+            .battery_efficiency(self.battery.efficiency)
             .purchase_fee(self.energy_provider.purchase_fee())
             .now(now)
             .quantum(self.quantum)

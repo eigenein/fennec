@@ -5,7 +5,8 @@ use comfy_table::{Cell, CellAlignment, Color, Table, modifiers, presets};
 use crate::{
     ops::range,
     quantity::{
-        energy::{DecawattHours, MilliwattHours, WattHours},
+        energy::{DecawattHours, WattHours},
+        power::Watts,
         ratios::Percentage,
     },
 };
@@ -15,6 +16,7 @@ pub struct EnergyState {
     pub design_capacity: DecawattHours,
     pub state_of_charge: Percentage,
     pub state_of_health: Percentage,
+    pub active_power: Watts,
 }
 
 impl EnergyState {

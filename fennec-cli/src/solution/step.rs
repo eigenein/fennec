@@ -2,7 +2,7 @@ use crate::{
     battery::WorkingMode,
     energy,
     ops::Interval,
-    quantity::{energy::WattHours, price::KilowattHourPrice},
+    quantity::{energy::WattHours, price::KilowattHourPrice, time::Hours},
     solution,
 };
 
@@ -12,6 +12,7 @@ use crate::{
 /// the back track with the original metrics, but having it here makes it much easier to work with.
 pub struct Step {
     pub interval: Interval,
+    pub duration: Hours,
     pub energy_price: KilowattHourPrice,
     pub energy_balance: energy::Balance<WattHours>,
     pub working_mode: WorkingMode,

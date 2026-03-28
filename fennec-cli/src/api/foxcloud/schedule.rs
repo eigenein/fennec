@@ -118,60 +118,37 @@ impl FromIterator<Group> for Groups {
 }
 
 impl Groups {
-    /// Guardrail per the FoxCloud app is 96 groups which perfectly matches
-    /// 24 hours per day and 4 × 15-minute groups per hour.
-    /// This is gonna be useful for Frank Energie.
-    const N_MAX_GROUPS: usize = 96;
-
+    /// Convert the schedule into FoxESS Cloud scheduler groups.
     #[instrument(skip_all)]
     pub fn from_schedule(
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
-        since: DateTime<Local>,
         battery_power_limits: BatteryPowerLimits,
     ) -> Self {
-        // TODO: don't split the interval:
-        let until_exclusive = since + TimeDelta::days(1);
-        info!(%since, %until_exclusive, "building a FoxESS schedule…");
+        info!("building a FoxESS schedule…");
         schedule
             .into_iter()
-            .filter_map(|(interval, working_mode)| {
-                // We can only build a time slot sequence for 24 hours:
-                // FIXME: extract and test:
-                if interval.contains(since) {
-                    // This interval has already begun:
-                    // TODO: don't split the interval:
-                    Some((interval.with_start(since), working_mode))
-                } else if interval.contains(until_exclusive) {
-                    // This interval runs into the next day:
-                    Some((interval.with_end(until_exclusive), working_mode))
-                } else if since <= interval.start && interval.end <= until_exclusive {
-                    // Actual time span:
-                    Some((interval, working_mode))
+            .scan(None, |schedule_end, (mut interval, working_mode)| {
+                if let Some(schedule_end) = *schedule_end {
+                    if interval.start >= schedule_end {
+                        // Stop at first interval which starts outside the schedule.
+                        return None;
+                    }
+                    if interval.end > schedule_end {
+                        // Just in case the interval crosses the schedule boundary, cut it.
+                        interval = interval.with_end(schedule_end);
+                    }
                 } else {
-                    // Irrelevant time span:
-                    None
+                    // On first interval, just define the schedule end time (exclusive boundary).
+                    // FoxESS Cloud only accepts a 24-hour schedule.
+                    *schedule_end = Some(interval.start + TimeDelta::days(1));
                 }
+                Some((interval, working_mode))
             })
-            .chunk_by(|(_, mode)| {
-                // Group sequential time steps by the working mode:
-                *mode
-            })
-            .into_iter()
-            .flat_map(|(working_mode, chunk)| -> Result<_> {
-                // Compress the intervals:
-                let interval = {
-                    let mut chunk = chunk.into_iter();
-                    let first = chunk.next().unwrap().0;
-                    let last = chunk.last().map_or_else(|| first, |(last, _)| last);
-                    Interval::from_std(first.start..last.end)
-                };
-                // And convert into FoxESS time slots:
-                Ok(into_time_slots(interval)
+            .flat_map(|(interval, working_mode)| {
+                into_time_slots(interval)
                     .flatten()
-                    .map(move |(start_time, end_time)| (working_mode, start_time, end_time)))
+                    .map(move |(start_time, end_time)| (working_mode, start_time, end_time))
             })
-            .flatten()
-            .take(Self::N_MAX_GROUPS)
             .map(|(working_mode, start_time, end_time)| {
                 let (working_mode, feed_power) = match working_mode {
                     CoreWorkingMode::Idle => {

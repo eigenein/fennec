@@ -1,6 +1,6 @@
 use chrono::TimeDelta;
 
-quantity!(Hours, via: f64, suffix: "h", precision: 1);
+quantity!(Hours, via: f64, suffix: "h", precision: 2);
 
 impl From<TimeDelta> for Hours {
     fn from(time_delta: TimeDelta) -> Self {

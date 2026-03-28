@@ -104,8 +104,7 @@ impl HuntArgs {
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        // TODO: revert back to whole intervals instead of cutting at `now`, that drives FoxESS Cloud crazy:
-        let groups = foxcloud::Groups::from_schedule(schedule, now, self.battery.power_limits);
+        let groups = foxcloud::Groups::from_schedule(schedule, self.battery.power_limits);
         println!("{}", &groups);
 
         if !self.scout {

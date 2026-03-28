@@ -26,6 +26,7 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             Cell::new("Date"),
             Cell::new("Start\ntime"),
             Cell::new("End\ntime"),
+            Cell::new("Duration"),
             Cell::new("Energy\nprice"),
             Cell::new("Mode"),
             Cell::new("Grid\nimport"),
@@ -41,6 +42,7 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             Cell::new(step.interval.start.format("%b %d")).add_attribute(Attribute::Dim),
             Cell::new(step.interval.start.format("%H:%M")),
             Cell::new(step.interval.end.format("%H:%M")).add_attribute(Attribute::Dim),
+            Cell::new(step.duration).add_attribute(Attribute::Dim),
             Cell::new(step.energy_price).fg(if step.energy_price >= average_price {
                 Color::Red
             } else {

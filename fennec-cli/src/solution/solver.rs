@@ -78,14 +78,9 @@ impl Solver<'_> {
             .build();
 
         // Going backwards:
-        for (interval_index, (mut interval, energy_price)) in
+        for (interval_index, (interval, energy_price)) in
             self.energy_prices.iter().copied().enumerate().rev()
         {
-            if interval.contains(self.now) {
-                // The interval has already started, trim the start time:
-                interval = interval.with_start(self.now);
-            }
-
             let optimize_step = self
                 .optimize_step()
                 .interval_index(interval_index)
@@ -180,15 +175,23 @@ impl Solver<'_> {
         // actual flow depends on the working mode:
         let balance_request =
             average_balance.with_working_mode(working_mode, self.max_battery_flow);
-        let hours = interval.hours();
-        let battery_flows = battery.apply(balance_request.battery, hours);
-        let requested_battery = balance_request.battery * hours;
+
+        let duration = if interval.contains(self.now) {
+            // The interval has already started, trim the start time:
+            interval.with_start(self.now).hours()
+        } else {
+            interval.hours()
+        };
+
+        let battery_flows = battery.apply(balance_request.battery, duration);
+        let requested_battery = balance_request.battery * duration;
         let battery_shortage = requested_battery - battery_flows.external;
-        let grid_flow = balance_request.grid * hours + battery_shortage.reversed();
+        let grid_flow = balance_request.grid * duration + battery_shortage.reversed();
         Step {
             interval,
             energy_price,
             working_mode,
+            duration,
             energy_balance: energy::Balance {
                 grid: grid_flow.normalized(), // Normalize rare tiny negative values.
                 battery: battery_flows.external,

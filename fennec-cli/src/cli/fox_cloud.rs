@@ -8,7 +8,6 @@ pub struct FoxCloudConnectionArgs {
     api: FoxCloudApiArgs,
 
     /// Do not push schedules to Fox Cloud – only perform dry runs.
-    #[expect(clippy::doc_markdown)]
     #[clap(long)]
     scout: bool,
 }

@@ -64,7 +64,7 @@ pub struct BurrowFoxCloudArgs {
     fox_cloud: FoxCloudApiArgs,
 
     #[command(subcommand)]
-    command: BurrowFoxEssCommand,
+    command: BurrowFoxCloudCommand,
 }
 
 impl BurrowFoxCloudArgs {
@@ -73,7 +73,7 @@ impl BurrowFoxCloudArgs {
         let client = fox_cloud::Client::new(self.fox_cloud.api_key, self.fox_cloud.serial_number)?;
 
         match self.command {
-            BurrowFoxEssCommand::Schedule => {
+            BurrowFoxCloudCommand::Schedule => {
                 let schedule = client.get_schedule().await?;
                 info!(schedule.is_enabled, "gotcha");
                 println!("{}", &schedule.groups);
@@ -85,7 +85,7 @@ impl BurrowFoxCloudArgs {
 }
 
 #[derive(Subcommand)]
-enum BurrowFoxEssCommand {
+enum BurrowFoxCloudCommand {
     /// Get the schedule.
     Schedule,
 }

@@ -77,9 +77,16 @@ impl MQ2200 {
         self.read_u16(37624).await.map(Percentage)
     }
 
+    /// Read current active power.
+    ///
     /// Positive means discharging, negative means charging.
     async fn read_active_power(&mut self) -> Result<Watts> {
         self.read_i32(39134).await.map(Into::into)
+    }
+
+    /// Read current EPS output power.
+    async fn read_eps_power(&mut self) -> Result<Watts> {
+        self.read_i32(39216).await.map(Into::into)
     }
 
     async fn read_u16(&mut self, address: Address) -> Result<u16> {

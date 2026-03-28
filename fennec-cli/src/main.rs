@@ -23,10 +23,12 @@ use crate::{
 };
 
 fn main() -> Result {
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env()?
+        .add_directive("h2=warn".parse()?);
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().without_time().compact().with_filter(
-            EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).from_env()?,
-        ))
+        .with(tracing_subscriber::fmt::layer().without_time().compact().with_filter(env_filter))
         .with(sentry::integrations::tracing::layer().event_filter(
             |metadata| match *metadata.level() {
                 Level::ERROR => EventFilter::Event,

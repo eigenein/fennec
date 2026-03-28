@@ -57,8 +57,7 @@ impl LogArgs {
             .await;
 
         db.shutdown().await;
-        result?;
-        Ok(())
+        result
     }
 }
 

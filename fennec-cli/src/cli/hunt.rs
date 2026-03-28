@@ -1,13 +1,14 @@
+use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
-    api::foxcloud,
+    api::{foxcloud, modbus::foxess::MQ2200},
     battery::WorkingMode,
     cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    db::power,
+    db::{Db, power},
     energy,
     fmt::tables::build_steps_table,
     ops::Interval,
@@ -55,47 +56,58 @@ impl HuntArgs {
     }
 }
 
-impl HuntArgs {
+#[derive(Builder)]
+pub struct Hunter<'a> {
+    db: &'a Db,
+    battery: MQ2200,
+    foxcloud: foxcloud::Api,
+    serial_number: String,
+    battery_args: BatteryArgs,
+    working_modes: EnumSet<WorkingMode>,
+    energy_provider: energy::Provider,
+    quantum: WattHours,
+    scout: bool,
+}
+
+impl Hunter<'_> {
     #[instrument(skip_all)]
-    pub async fn run(self) -> Result {
-        let db = self.db.connect().await?;
-        let fox_ess = foxcloud::Api::new(self.fox_ess_api.api_key.clone())?;
-        let working_modes = self.working_modes();
+    pub async fn hunt(&mut self) -> Result {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = self.get_prices(now).await?;
 
-        let battery_state = self.battery.connection.connect().await?.read_state().await?;
+        let battery_state = self.battery.read_state().await?;
         println!("{battery_state}");
 
         let balance_profile = {
-            let power_logs = db.measurements::<power::Measurement>().await?;
+            let power_logs = self.db.measurements::<power::Measurement>().await?;
             energy::BalanceProfile::try_estimate(
-                self.battery.power_limits,
+                self.battery_args.power_limits,
                 self.energy_provider.time_step(),
                 power_logs,
             )
             .await?
         };
-        db.shutdown().await;
 
         let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
             .balance_profile(&balance_profile)
-            .working_modes(working_modes)
+            .working_modes(self.working_modes)
             .min_residual_energy(battery_state.min_residual_energy())
             .max_residual_energy(
                 // Current residual may be higher than the maximum SoC setting:
                 battery_state.max_residual_energy().max(battery_state.residual_energy()),
             )
-            .battery_efficiency(self.battery.efficiency)
+            .battery_efficiency(self.battery_args.efficiency)
             .purchase_fee(self.energy_provider.purchase_fee())
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(
-                self.battery.power_limits.max_effective_flow(balance_profile.average_eps_power),
+                self.battery_args
+                    .power_limits
+                    .max_effective_flow(balance_profile.average_eps_power),
             )
-            .battery_degradation_cost(self.battery.degradation_cost)
+            .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let base_loss = solver.base_loss();
         let (summary, steps) = solver.solve().backtrack(initial_energy_level)?;
@@ -104,11 +116,11 @@ impl HuntArgs {
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        let groups = foxcloud::Groups::from_schedule(schedule, self.battery.power_limits);
+        let groups = foxcloud::Groups::from_schedule(schedule, self.battery_args.power_limits);
         println!("{}", &groups);
 
         if !self.scout {
-            fox_ess.set_schedule(&self.fox_ess_api.serial_number, groups.as_ref()).await?;
+            self.foxcloud.set_schedule(&self.serial_number, groups.as_ref()).await?;
         }
 
         Ok(())
@@ -130,5 +142,31 @@ impl HuntArgs {
         info!(len = prices.len(), "fetched energy prices");
 
         Ok(prices)
+    }
+}
+
+impl HuntArgs {
+    pub async fn run(self) -> Result {
+        let db = self.db.connect().await?;
+        let foxcloud = foxcloud::Api::new(self.fox_ess_api.api_key.clone())?;
+        let working_modes = self.working_modes();
+        let battery = self.battery.connection.connect().await?;
+
+        let result = Hunter::builder()
+            .db(&db)
+            .foxcloud(foxcloud)
+            .working_modes(working_modes)
+            .battery(battery)
+            .serial_number(self.fox_ess_api.serial_number)
+            .energy_provider(self.energy_provider)
+            .battery_args(self.battery)
+            .quantum(self.quantum)
+            .scout(self.scout)
+            .build()
+            .hunt()
+            .await;
+
+        db.shutdown().await;
+        result
     }
 }

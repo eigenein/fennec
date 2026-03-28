@@ -9,7 +9,7 @@ use tokio::{
 
 use crate::{
     api::{homewizard, homewizard::EnergyMetrics, modbus::foxess::MQ2200},
-    battery::EnergyState,
+    battery,
     cli::{battery::BatteryConnectionArgs, db::DbArgs},
     db::{Db, Measurement, power},
     prelude::*,
@@ -26,12 +26,6 @@ pub struct LogArgs {
     /// P1 meter measurement URL.
     #[clap(long, env = "GRID_MEASUREMENT_URL")]
     grid_measurement_url: homewizard::Url,
-
-    /// Battery EPS output energy socket measurement URL.
-    ///
-    /// TODO: read from the battery Modbus #39216.
-    #[clap(long, env = "BATTERY_EPS_MEASUREMENT_URL")]
-    battery_eps_measurement_url: homewizard::Url,
 
     #[clap(long = "power-log-ttl", env = "POWER_LOG_TTL", default_value = "14days")]
     power_log_ttl: humantime::Duration,
@@ -57,7 +51,6 @@ impl LogArgs {
             .db(db.clone())
             .interval(self.battery_polling_interval)
             .battery_client(self.battery_connection.connect().await?)
-            .battery_eps_measurement_client(self.battery_eps_measurement_url.client()?)
             .grid_measurement_client(self.grid_measurement_url.client()?)
             .build()
             .run()
@@ -73,7 +66,6 @@ impl LogArgs {
 #[derive(Builder)]
 struct Logger {
     battery_client: MQ2200,
-    battery_eps_measurement_client: homewizard::Client,
     grid_measurement_client: homewizard::Client,
     db: Db,
 
@@ -90,15 +82,13 @@ impl Logger {
         loop {
             interval.tick().await;
 
-            let (battery_state, battery_eps_metrics, grid_metrics) = try_join!(
-                self.battery_client.read_energy_state(),
-                self.battery_eps_measurement_client.get_measurement(),
+            let (battery_state, grid_metrics) = try_join!(
+                self.battery_client.read_state(),
                 self.grid_measurement_client.get_measurement()
             )?;
             self.log_active_power()
                 .grid_metrics(&grid_metrics)
                 .battery_state(&battery_state)
-                .battery_eps_metrics(&battery_eps_metrics)
                 .call()
                 .await?;
         }
@@ -111,12 +101,13 @@ impl Logger {
     async fn log_active_power(
         &self,
         grid_metrics: &EnergyMetrics,
-        battery_state: &EnergyState,
-        battery_eps_metrics: &EnergyMetrics,
+        battery_state: &battery::State,
     ) -> Result {
-        let active_power = grid_metrics.active_power
-            + battery_state.active_power
-            + battery_eps_metrics.active_power;
-        power::Measurement::builder().active_power(active_power).build().insert_into(&self.db).await
+        power::Measurement::builder()
+            .net_deficit(grid_metrics.active_power + battery_state.battery_active_power)
+            .eps_active_power(battery_state.eps_active_power)
+            .build()
+            .insert_into(&self.db)
+            .await
     }
 }

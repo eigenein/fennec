@@ -55,6 +55,9 @@ impl Client {
 #[must_use]
 #[derive(Copy, Clone, Serialize, Deserialize, Builder)]
 pub struct EnergyMetrics {
+    /// Active power through the meter.
+    ///
+    /// Positive is consumption, negative is production.
     #[serde(rename = "active_power_w")]
     pub active_power: Watts,
 

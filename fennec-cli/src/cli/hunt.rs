@@ -64,7 +64,7 @@ impl HuntArgs {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = self.get_prices(now).await?;
 
-        let battery_state = self.battery.connection.connect().await?.read_full_state().await?;
+        let battery_state = self.battery.connection.connect().await?.read_state().await?;
         println!("{battery_state}");
 
         let balance_profile = {
@@ -78,7 +78,7 @@ impl HuntArgs {
         };
         db.shutdown().await;
 
-        let initial_energy_level = self.quantum.index(battery_state.energy.residual()).unwrap();
+        let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
             .balance_profile(&balance_profile)
@@ -86,7 +86,7 @@ impl HuntArgs {
             .min_residual_energy(battery_state.min_residual_energy())
             .max_residual_energy(
                 // Current residual may be higher than the maximum SoC setting:
-                battery_state.max_residual_energy().max(battery_state.energy.residual()),
+                battery_state.max_residual_energy().max(battery_state.residual_energy()),
             )
             .battery_efficiency(self.battery.efficiency)
             .purchase_fee(self.energy_provider.purchase_fee())

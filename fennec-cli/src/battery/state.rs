@@ -12,43 +12,49 @@ use crate::{
 };
 
 #[must_use]
-pub struct EnergyState {
+pub struct State {
+    /// State-of-charge (SoC) percentage.
+    pub charge: Percentage,
+
+    /// State-of-health (SoH) percentage.
+    pub health: Percentage,
+
+    /// Design capacity – constant for the product lifetime.
     pub design_capacity: DecawattHours,
-    pub state_of_charge: Percentage,
-    pub state_of_health: Percentage,
-    pub active_power: Watts,
+
+    /// Allowed on-grid SoC levels.
+    pub allowed_state_of_charge: range::Inclusive<Percentage>,
+
+    /// Battery active power.
+    ///
+    /// Positive means discharging, negative means charging.
+    pub battery_active_power: Watts,
+
+    /// Active power on the EPS output.
+    pub eps_active_power: Watts,
 }
 
-impl EnergyState {
+impl State {
     /// Battery capacity corrected on the state of health.
     pub fn actual_capacity(&self) -> WattHours {
-        WattHours::from(self.design_capacity) * self.state_of_health
+        WattHours::from(self.design_capacity) * self.health
     }
 
     /// Residual energy corrected on the state of health.
-    pub fn residual(&self) -> WattHours {
-        self.actual_capacity() * self.state_of_charge
+    pub fn residual_energy(&self) -> WattHours {
+        self.actual_capacity() * self.charge
     }
-}
 
-/// TODO: union everything into this state. Split when the separation would become clear.
-#[must_use]
-pub struct FullState {
-    pub energy: EnergyState,
-    pub allowed_state_of_charge: range::Inclusive<Percentage>,
-}
-
-impl FullState {
     pub fn min_residual_energy(&self) -> WattHours {
-        self.energy.actual_capacity() * self.allowed_state_of_charge.min
+        self.actual_capacity() * self.allowed_state_of_charge.min
     }
 
     pub fn max_residual_energy(&self) -> WattHours {
-        self.energy.actual_capacity() * self.allowed_state_of_charge.max
+        self.actual_capacity() * self.allowed_state_of_charge.max
     }
 }
 
-impl Display for FullState {
+impl Display for State {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Table::new()
             .load_preset(presets::UTF8_FULL_CONDENSED)
@@ -57,23 +63,21 @@ impl Display for FullState {
             .set_header(vec![Cell::from("Battery")])
             .add_row(vec![
                 Cell::from("Residual energy").fg(Color::Green),
-                Cell::from(self.energy.residual())
+                Cell::from(self.residual_energy())
                     .fg(Color::Green)
                     .set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
                 Cell::from("Design capacity"),
-                Cell::from(self.energy.design_capacity).set_alignment(CellAlignment::Right),
+                Cell::from(self.design_capacity).set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
                 Cell::from("State of charge").fg(Color::Green),
-                Cell::from(self.energy.state_of_charge)
-                    .fg(Color::Green)
-                    .set_alignment(CellAlignment::Right),
+                Cell::from(self.charge).fg(Color::Green).set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
                 Cell::from("State of health"),
-                Cell::from(self.energy.state_of_health).set_alignment(CellAlignment::Right),
+                Cell::from(self.health).set_alignment(CellAlignment::Right),
             ])
             .add_row(vec![
                 Cell::from("Minimum SoC"),

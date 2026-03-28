@@ -39,20 +39,24 @@ impl MQ2200 {
         Ok(Self(attach_slave(tcp_stream, Slave(1))))
     }
 
-    pub async fn read_energy_state(&mut self) -> Result<battery::EnergyState> {
-        Ok(battery::EnergyState {
-            design_capacity: self.read_design_capacity().await?,
-            state_of_charge: self.read_state_of_charge().await?,
-            state_of_health: self.read_state_of_health().await?,
-            active_power: self.read_active_power().await?,
-        })
-    }
-
-    pub async fn read_full_state(&mut self) -> Result<battery::FullState> {
+    pub async fn read_state(&mut self) -> Result<battery::State> {
+        // TODO: read these once and cache them:
+        let design_capacity = self.read_design_capacity().await?;
+        let health = self.read_state_of_health().await?;
         let min_state_of_charge = self.read_min_state_of_charge().await?;
         let max_state_of_charge = self.read_max_state_of_charge().await?;
-        Ok(battery::FullState {
-            energy: self.read_energy_state().await?,
+
+        // Fast-changing values should be read next to each other with minimum delays:
+        let charge = self.read_state_of_charge().await?;
+        let battery_active_power = self.read_battery_active_power().await?;
+        let eps_active_power = self.read_eps_active_power().await?;
+
+        Ok(battery::State {
+            design_capacity,
+            charge,
+            health,
+            battery_active_power,
+            eps_active_power,
             allowed_state_of_charge: (min_state_of_charge..=max_state_of_charge).into(),
         })
     }
@@ -77,15 +81,15 @@ impl MQ2200 {
         self.read_u16(37624).await.map(Percentage)
     }
 
-    /// Read current active power.
+    /// Read battery total active power.
     ///
     /// Positive means discharging, negative means charging.
-    async fn read_active_power(&mut self) -> Result<Watts> {
+    async fn read_battery_active_power(&mut self) -> Result<Watts> {
         self.read_i32(39134).await.map(Into::into)
     }
 
     /// Read current EPS output power.
-    async fn read_eps_power(&mut self) -> Result<Watts> {
+    async fn read_eps_active_power(&mut self) -> Result<Watts> {
         self.read_i32(39216).await.map(Into::into)
     }
 

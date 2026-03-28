@@ -16,14 +16,24 @@ pub struct Measurement {
     #[debug(skip)]
     pub timestamp: DateTime<Utc>,
 
-    /// Net power balance.
+    /// Net power deficit on the main connection.
     ///
-    /// Positive value means insufficient PV power, negative value means excess PV power.
+    /// Positive is net consumption, negative is net production.
     ///
-    /// Battery charging and discharging does not affect this value – exactly because our primary goal
-    /// is to steer the battery on the basis of the net deficit.
+    /// This is equal to «P1 net consumption plus battery net production»,
+    /// as we only need to track and compensate the net deficit, hence:
+    ///
+    /// - battery charging or discharging has no effect on it;
+    /// - PV production lowers it.
     #[serde(rename = "netWatts")]
-    pub active_power: Watts,
+    pub net_deficit: Watts,
+
+    /// Active EPS power.
+    ///
+    /// We track it separately, because in all modes, the battery serves the demand on this output
+    /// and competes for the inverter maximum power.
+    #[serde(rename = "epsActivePower")]
+    pub eps_active_power: Watts,
 }
 
 impl db::Measurement for Measurement {

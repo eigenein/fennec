@@ -54,7 +54,7 @@ impl BalanceProfile {
 
         while let Some(next) = logs.try_next().await? {
             let time_delta = Hours::from(next.timestamp - previous.timestamp);
-            let net_power = (next.active_power + previous.active_power) / 2.0;
+            let net_power = (next.net_deficit + previous.net_deficit) / 2.0;
 
             let part = Integrator {
                 time: time_delta,

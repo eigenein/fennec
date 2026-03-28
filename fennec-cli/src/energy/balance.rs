@@ -42,13 +42,13 @@ impl Balance<Watts> {
     }
 
     /// Re-distribute the power flow based on the working mode.
-    pub fn with_working_mode(self, working_mode: WorkingMode, limits: BatteryPowerLimits) -> Self {
+    pub fn with_working_mode(self, working_mode: WorkingMode, limits: Flow<Watts>) -> Self {
         self.with_battery_flow(match working_mode {
             WorkingMode::Idle => Flow::ZERO,
             WorkingMode::Harness => Flow { import: self.battery.import, export: Watts::ZERO },
             WorkingMode::SelfUse => self.battery,
-            WorkingMode::Charge => Flow { import: limits.charging, export: Watts::ZERO },
-            WorkingMode::Discharge => Flow { import: Watts::ZERO, export: limits.discharging },
+            WorkingMode::Charge => Flow { import: limits.import, export: Watts::ZERO },
+            WorkingMode::Discharge => Flow { import: Watts::ZERO, export: limits.export },
             WorkingMode::Compensate => Flow { import: Watts::ZERO, export: self.battery.export },
         })
     }

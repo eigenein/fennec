@@ -92,7 +92,9 @@ impl HuntArgs {
             .purchase_fee(self.energy_provider.purchase_fee())
             .now(now)
             .quantum(self.quantum)
-            .battery_power_limits(self.battery.power_limits)
+            .max_battery_flow(
+                self.battery.power_limits.max_effective_flow(balance_profile.average_eps_power),
+            )
             .battery_degradation_cost(self.battery.degradation_cost)
             .build();
         let base_loss = solver.base_loss();

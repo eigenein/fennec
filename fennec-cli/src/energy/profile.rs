@@ -28,7 +28,7 @@ pub struct BalanceProfile {
     /// Average power flow within the time bucket.
     buckets: Vec<Option<Balance<Watts>>>,
 
-    eps_average: Watts,
+    pub average_eps_power: Watts,
 }
 
 impl BalanceProfile {
@@ -79,15 +79,15 @@ impl BalanceProfile {
             previous = next;
         }
 
-        let eps_average = eps_power_integrator.average().unwrap_or(Watts::ZERO);
-        info!(?eps_average, elapsed = ?start_time.elapsed(), "done");
+        let average_eps_power = eps_power_integrator.average().unwrap_or(Watts::ZERO);
+        info!(?average_eps_power, elapsed = ?start_time.elapsed(), "done");
         Ok(Self {
             time_step: bucket_time_step,
             average_balance: average_balance_integrator
                 .average()
                 .context("no samples to calculate the average energy balance")?,
             buckets: buckets.into_iter().map(Integrator::average).collect(),
-            eps_average,
+            average_eps_power,
         })
     }
 

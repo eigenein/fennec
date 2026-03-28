@@ -4,6 +4,7 @@ use clap::Parser;
 
 use crate::{
     api::modbus::foxess::MQ2200,
+    energy,
     prelude::*,
     quantity::{power::Watts, price::KilowattHourPrice},
 };
@@ -51,6 +52,19 @@ pub struct BatteryPowerLimits {
         env = "MAX_INVERTER_OUTPUT_WATTS"
     )]
     pub max_inverter_output: Watts,
+}
+
+impl BatteryPowerLimits {
+    /// Calculate the effective power limits giving the average EPS power.
+    pub fn max_effective_flow(self, average_eps_power: Watts) -> energy::Flow<Watts> {
+        energy::Flow {
+            import: self.charging,
+
+            // EPS power does not compete with the grid output, hence adding it on top.
+            // The total discharging power, however, is limited by the maximum inverter output.
+            export: (self.discharging + average_eps_power).min(self.max_inverter_output),
+        }
+    }
 }
 
 #[derive(Parser)]

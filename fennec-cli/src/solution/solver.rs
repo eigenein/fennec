@@ -7,7 +7,6 @@ use enumset::EnumSet;
 use crate::{
     battery,
     battery::WorkingMode,
-    cli::battery::BatteryPowerLimits,
     energy,
     ops::Interval,
     prelude::*,
@@ -37,7 +36,7 @@ pub struct Solver<'a> {
     max_residual_energy: WattHours,
 
     battery_degradation_cost: KilowattHourPrice,
-    battery_power_limits: BatteryPowerLimits,
+    max_battery_flow: energy::Flow<Watts>,
     battery_efficiency: crate::cli::battery::Efficiency,
     purchase_fee: KilowattHourPrice,
     now: DateTime<Local>,
@@ -180,7 +179,7 @@ impl Solver<'_> {
         // Remember that the average flow represents theoretical possibility,
         // actual flow depends on the working mode:
         let balance_request =
-            average_balance.with_working_mode(working_mode, self.battery_power_limits);
+            average_balance.with_working_mode(working_mode, self.max_battery_flow);
         let hours = interval.hours();
         let battery_flows = battery.apply(balance_request.battery, hours);
         let requested_battery = balance_request.battery * hours;

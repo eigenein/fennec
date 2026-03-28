@@ -113,7 +113,7 @@ impl Hunter {
         if let Some(fox_cloud) = &self.connections.fox_cloud {
             fox_cloud.set_schedule(groups.as_ref()).await?;
         } else {
-            warn!("not pushing the schedule to FoxESS Cloud, just scouting");
+            warn!("not pushing the schedule to Fox Cloud, just scouting");
         }
 
         Ok(())

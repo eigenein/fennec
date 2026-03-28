@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use comfy_table::Color;
 use serde::{Deserialize, Serialize};
 
-/// FoxESS cloud working modes.
+/// Fox Cloud working modes.
 ///
 /// The descriptions in the app do match the actual function on my MQ2200.
 #[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]

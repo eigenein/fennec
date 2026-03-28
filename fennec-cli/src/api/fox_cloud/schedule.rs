@@ -118,7 +118,7 @@ impl FromIterator<Group> for Groups {
 }
 
 impl Groups {
-    /// Convert the schedule into FoxESS Cloud scheduler groups.
+    /// Convert the schedule into Fox Cloud scheduler groups.
     #[instrument(skip_all)]
     pub fn from_schedule(
         schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
@@ -139,7 +139,7 @@ impl Groups {
                     }
                 } else {
                     // On first interval, just define the schedule end time (exclusive boundary).
-                    // FoxESS Cloud only accepts a 24-hour schedule.
+                    // Fox Cloud only accepts a 24-hour schedule.
                     *schedule_end = Some(interval.start + TimeDelta::days(1));
                 }
                 Some((interval, working_mode))

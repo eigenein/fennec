@@ -19,7 +19,7 @@ impl BurrowArgs {
     pub async fn run(self) -> Result {
         match self.command {
             BurrowCommand::EnergyBalanceProfile(args) => args.run().await,
-            BurrowCommand::FoxEss(args) => args.run().await,
+            BurrowCommand::FoxCloud(args) => args.run().await,
         }
     }
 }
@@ -29,8 +29,8 @@ pub enum BurrowCommand {
     /// Estimate energy balance profile.
     EnergyBalanceProfile(BurrowEnergyBalanceProfileArgs),
 
-    /// Test FoxESS Cloud API connectivity.
-    FoxEss(BurrowFoxEssArgs),
+    /// Test Fox Cloud API connectivity.
+    FoxCloud(BurrowFoxCloudArgs),
 }
 
 #[derive(Parser)]
@@ -59,7 +59,7 @@ impl BurrowEnergyBalanceProfileArgs {
 }
 
 #[derive(Parser)]
-pub struct BurrowFoxEssArgs {
+pub struct BurrowFoxCloudArgs {
     #[clap(flatten)]
     fox_cloud: FoxCloudApiArgs,
 
@@ -67,7 +67,7 @@ pub struct BurrowFoxEssArgs {
     command: BurrowFoxEssCommand,
 }
 
-impl BurrowFoxEssArgs {
+impl BurrowFoxCloudArgs {
     #[instrument(skip_all)]
     async fn run(self) -> Result {
         let client = fox_cloud::Client::new(self.fox_cloud.api_key, self.fox_cloud.serial_number)?;

@@ -23,12 +23,9 @@ impl<R> From<Response<R>> for crate::prelude::Result<R> {
         if response.error_code == 0 {
             Ok(response.result)
         } else if let Some(message) = response.message {
-            bail!(
-                r#"FoxESS Cloud error {error_code} ("{message}")"#,
-                error_code = response.error_code,
-            )
+            bail!(r#"Fox Cloud error {error_code} ("{message}")"#, error_code = response.error_code,)
         } else {
-            bail!("FoxESS Cloud error {error_code}", error_code = response.error_code)
+            bail!("Fox Cloud error {error_code}", error_code = response.error_code)
         }
     }
 }

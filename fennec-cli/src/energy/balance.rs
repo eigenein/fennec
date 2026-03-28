@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub, SubAssign};
 
-use derive_more::AddAssign;
+use derive_more::{Add, AddAssign};
 
 use super::Flow;
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone, Debug, PartialEq, AddAssign)]
+#[derive(Copy, Clone, Debug, PartialEq, Add, AddAssign)]
 pub struct Balance<T> {
     pub grid: Flow<T>,
     pub battery: Flow<T>,

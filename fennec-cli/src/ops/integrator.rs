@@ -1,4 +1,4 @@
-use std::ops::Div;
+use std::ops::{Add, Div, Mul};
 
 use derive_more::AddAssign;
 
@@ -17,6 +17,13 @@ impl<T> Integrator<T> {
         T: Zero,
     {
         Self { time: Hours::ZERO, value: T::ZERO }
+    }
+
+    pub fn trapezoid<V>(time_delta: Hours, lhs: V, rhs: V) -> Self
+    where
+        V: Add<Output = V> + Div<f64, Output = V> + Mul<Hours, Output = T>,
+    {
+        Self { time: time_delta, value: (lhs + rhs) / 2.0 * time_delta }
     }
 
     pub fn average(self) -> Option<<T as Div<Hours>>::Output>

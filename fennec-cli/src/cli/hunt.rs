@@ -21,7 +21,7 @@ use crate::{
 };
 
 #[derive(Parser)]
-pub struct HuntArgs {
+pub struct HuntOnceArgs {
     #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
     energy_provider: energy::Provider,
 
@@ -44,7 +44,7 @@ pub struct HuntArgs {
     battery: BatteryArgs,
 }
 
-impl HuntArgs {
+impl HuntOnceArgs {
     #[must_use]
     pub fn working_modes(&self) -> EnumSet<WorkingMode> {
         self.working_modes.iter().copied().collect()
@@ -138,7 +138,7 @@ impl Hunter {
     }
 }
 
-impl HuntArgs {
+impl HuntOnceArgs {
     pub async fn run(self) -> Result {
         let working_modes = self.working_modes();
         let connections = self.connections.connect().await?;

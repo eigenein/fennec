@@ -9,7 +9,7 @@ mod sentry;
 
 use clap::{Parser, Subcommand};
 
-use crate::cli::{burrow::BurrowArgs, hunt::HuntArgs, log::LogArgs, sentry::SentryArgs};
+use crate::cli::{burrow::BurrowArgs, hunt::HuntOnceArgs, log::LogArgs, sentry::SentryArgs};
 
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
@@ -24,9 +24,9 @@ pub struct Args {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Main command: fetch the prices, optimize the schedule, and push it to the cloud.
-    #[clap(name = "hunt")]
-    Hunt(Box<HuntArgs>),
+    /// Immediately fetch the prices and optimize the schedule once, then exit.
+    #[clap(name = "hunt-once")]
+    HuntOnce(Box<HuntOnceArgs>),
 
     /// Log meter and battery measurements.
     #[clap(name = "log")]

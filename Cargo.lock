@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "fennec-cli"
-version = "0.79.0"
+version = "0.79.1"
 dependencies = [
  "anyhow",
  "average",

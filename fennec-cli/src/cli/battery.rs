@@ -42,6 +42,15 @@ pub struct BatteryPowerLimits {
         env = "DISCHARGING_POWER_WATTS"
     )]
     pub discharging: Watts,
+
+    /// Inverter output power limit in watts – limits the summed grid and EPS output when discharging.
+    #[clap(
+        name = "max_inverter_output_watts",
+        long = "max-inverter-output-watts",
+        default_value = "1200",
+        env = "MAX_INVERTER_OUTPUT_WATTS"
+    )]
+    pub max_inverter_output: Watts,
 }
 
 #[derive(Parser)]

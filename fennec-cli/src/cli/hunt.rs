@@ -5,10 +5,13 @@ use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
-    api::{foxcloud, modbus::foxess::MQ2200},
+    api::fox_cloud,
     battery::WorkingMode,
-    cli::{battery::BatteryArgs, db::DbArgs, foxcloud::FoxCloudApiArgs},
-    db::{Db, power},
+    cli::{
+        battery::BatteryArgs,
+        connection::{ConnectionArgs, Connections},
+    },
+    db::power,
     energy,
     fmt::tables::build_steps_table,
     ops::Interval,
@@ -19,11 +22,6 @@ use crate::{
 
 #[derive(Parser)]
 pub struct HuntArgs {
-    /// Do not push schedules to FoxESS Cloud – only perform dry runs.
-    #[expect(clippy::doc_markdown)]
-    #[clap(long)]
-    scout: bool,
-
     #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
     energy_provider: energy::Provider,
 
@@ -40,13 +38,10 @@ pub struct HuntArgs {
     quantum: WattHours,
 
     #[clap(flatten)]
+    connections: ConnectionArgs,
+
+    #[clap(flatten)]
     battery: BatteryArgs,
-
-    #[clap(flatten)]
-    fox_ess_api: FoxCloudApiArgs,
-
-    #[clap(flatten)]
-    db: DbArgs,
 }
 
 impl HuntArgs {
@@ -57,29 +52,25 @@ impl HuntArgs {
 }
 
 #[derive(Builder)]
-pub struct Hunter<'a> {
-    db: &'a Db,
-    battery: MQ2200,
-    foxcloud: foxcloud::Api,
-    serial_number: String,
+pub struct Hunter {
+    connections: Connections,
     battery_args: BatteryArgs,
     working_modes: EnumSet<WorkingMode>,
     energy_provider: energy::Provider,
     quantum: WattHours,
-    scout: bool,
 }
 
-impl Hunter<'_> {
+impl Hunter {
     #[instrument(skip_all)]
-    pub async fn hunt(&mut self) -> Result {
+    pub async fn run_once(&self) -> Result {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = self.get_prices(now).await?;
 
-        let battery_state = self.battery.read_state().await?;
+        let battery_state = self.connections.battery.read_state().await?;
         println!("{battery_state}");
 
         let balance_profile = {
-            let power_logs = self.db.measurements::<power::Measurement>().await?;
+            let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
             energy::BalanceProfile::try_estimate(
                 self.battery_args.power_limits,
                 self.energy_provider.time_step(),
@@ -116,11 +107,13 @@ impl Hunter<'_> {
 
         let schedule =
             steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        let groups = foxcloud::Groups::from_schedule(schedule, self.battery_args.power_limits);
+        let groups = fox_cloud::Groups::from_schedule(schedule, self.battery_args.power_limits);
         println!("{}", &groups);
 
-        if !self.scout {
-            self.foxcloud.set_schedule(&self.serial_number, groups.as_ref()).await?;
+        if let Some(fox_cloud) = &self.connections.fox_cloud {
+            fox_cloud.set_schedule(groups.as_ref()).await?;
+        } else {
+            warn!("not pushing the schedule to FoxESS Cloud, just scouting");
         }
 
         Ok(())
@@ -147,26 +140,20 @@ impl Hunter<'_> {
 
 impl HuntArgs {
     pub async fn run(self) -> Result {
-        let db = self.db.connect().await?;
-        let foxcloud = foxcloud::Api::new(self.fox_ess_api.api_key.clone())?;
         let working_modes = self.working_modes();
-        let battery = self.battery.connection.connect().await?;
+        let connections = self.connections.connect().await?;
 
         let result = Hunter::builder()
-            .db(&db)
-            .foxcloud(foxcloud)
+            .connections(connections.clone())
             .working_modes(working_modes)
-            .battery(battery)
-            .serial_number(self.fox_ess_api.serial_number)
             .energy_provider(self.energy_provider)
             .battery_args(self.battery)
             .quantum(self.quantum)
-            .scout(self.scout)
             .build()
-            .hunt()
+            .run_once()
             .await;
 
-        db.shutdown().await;
+        connections.db.shutdown().await;
         result
     }
 }

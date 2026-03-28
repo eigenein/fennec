@@ -37,6 +37,7 @@ impl Db {
     /// The URI *must* specify the database name.
     #[instrument(skip_all)]
     pub async fn with_uri(uri: impl AsRef<str> + Debug) -> Result<Self> {
+        info!("connecting…");
         let client = Client::with_uri_str(uri).await?;
         let inner = client
             .default_database()

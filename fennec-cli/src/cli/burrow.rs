@@ -2,8 +2,8 @@ use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 
 use crate::{
-    api::foxcloud,
-    cli::{battery::BatteryPowerLimits, db::DbArgs, foxcloud::FoxCloudApiArgs},
+    api::fox_cloud,
+    cli::{battery::BatteryPowerLimits, db::DbArgs, fox_cloud::FoxCloudApiArgs},
     db::power,
     energy::BalanceProfile,
     prelude::*,
@@ -61,7 +61,7 @@ impl BurrowEnergyBalanceProfileArgs {
 #[derive(Parser)]
 pub struct BurrowFoxEssArgs {
     #[clap(flatten)]
-    fox_ess_api: FoxCloudApiArgs,
+    fox_cloud: FoxCloudApiArgs,
 
     #[command(subcommand)]
     command: BurrowFoxEssCommand,
@@ -70,11 +70,11 @@ pub struct BurrowFoxEssArgs {
 impl BurrowFoxEssArgs {
     #[instrument(skip_all)]
     async fn run(self) -> Result {
-        let fox_ess = foxcloud::Api::new(self.fox_ess_api.api_key)?;
+        let client = fox_cloud::Client::new(self.fox_cloud.api_key, self.fox_cloud.serial_number)?;
 
         match self.command {
             BurrowFoxEssCommand::Schedule => {
-                let schedule = fox_ess.get_schedule(&self.fox_ess_api.serial_number).await?;
+                let schedule = client.get_schedule().await?;
                 info!(schedule.is_enabled, "gotcha");
                 println!("{}", &schedule.groups);
             }

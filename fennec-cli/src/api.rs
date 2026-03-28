@@ -1,4 +1,4 @@
-pub mod foxcloud;
+pub mod fox_cloud;
 pub mod frank_energie;
 pub mod homewizard;
 pub mod modbus;

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::{
-    api::foxcloud::working_mode::WorkingMode,
+    api::fox_cloud::working_mode::WorkingMode,
     battery::WorkingMode as CoreWorkingMode,
     cli::battery::BatteryPowerLimits,
     ops::Interval,

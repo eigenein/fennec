@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use chrono::Utc;
 use http::{HeaderMap, HeaderValue};
-use reqwest::Client;
 use serde::{
     Serialize,
     de::{DeserializeOwned, IgnoredAny},
@@ -15,29 +14,31 @@ use serde_with::serde_as;
 
 use self::schedule::Schedule;
 pub use self::schedule::{Group, Groups};
-use crate::{api::foxcloud::response::Response, prelude::*};
+use crate::{api::fox_cloud::response::Response, prelude::*};
 
-pub struct Api {
-    client: Client,
+#[derive(Clone)]
+pub struct Client {
+    inner: reqwest::Client,
     api_key: String,
+    serial_number: String,
 }
 
-impl Api {
-    pub fn new(api_key: String) -> Result<Self> {
+impl Client {
+    pub fn new(api_key: String, serial_number: String) -> Result<Self> {
         let mut headers = HeaderMap::new();
         headers.append("Timezone", HeaderValue::from_static("Europe/Amsterdam"));
         headers.append("Lang", HeaderValue::from_static("en"));
         headers.append("Token", HeaderValue::from_str(&api_key)?);
-        let client = Client::builder()
+        let inner = reqwest::Client::builder()
             .user_agent("fennec")
             .timeout(Duration::from_secs(15))
             .default_headers(headers)
             .build()?;
-        Ok(Self { client, api_key })
+        Ok(Self { inner, api_key, serial_number })
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub async fn get_schedule(&self, serial_number: &str) -> Result<Schedule> {
+    #[instrument(skip_all, fields(serial_number = self.serial_number))]
+    pub async fn get_schedule(&self) -> Result<Schedule> {
         #[derive(Serialize)]
         struct GetScheduleRequest<'a> {
             #[serde(rename = "deviceSN")]
@@ -45,13 +46,16 @@ impl Api {
         }
 
         info!("getting…");
-        self.post("op/v3/device/scheduler/get", &GetScheduleRequest { serial_number })
-            .await
-            .context("failed to get the schedule")
+        self.post(
+            "op/v3/device/scheduler/get",
+            &GetScheduleRequest { serial_number: &self.serial_number },
+        )
+        .await
+        .context("failed to get the schedule")
     }
 
-    #[instrument(skip_all, fields(serial_number = serial_number))]
-    pub async fn set_schedule(&self, serial_number: &str, groups: &[Group]) -> Result {
+    #[instrument(skip_all, fields(serial_number = self.serial_number))]
+    pub async fn set_schedule(&self, groups: &[Group]) -> Result {
         #[serde_as]
         #[derive(Serialize)]
         struct SetScheduleRequest<'a> {
@@ -74,7 +78,12 @@ impl Api {
         info!(n_groups = groups.len(), "setting…");
         self.post::<_, IgnoredAny>(
             "op/v3/device/scheduler/enable",
-            SetScheduleRequest { serial_number, is_default_extra: true, groups, is_enabled: true },
+            SetScheduleRequest {
+                serial_number: &self.serial_number,
+                is_default_extra: true,
+                groups,
+                is_enabled: true,
+            },
         )
         .await?;
         Ok(())
@@ -88,7 +97,7 @@ impl Api {
     {
         let (timestamp, signature) = self.build_signature(path);
         let response = self
-            .client
+            .inner
             .post(format!("https://www.foxesscloud.com/{path}"))
             .header("Timestamp", timestamp)
             .header("Signature", signature)

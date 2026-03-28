@@ -1,8 +1,8 @@
 //! FoxESS Modbus clients.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use tokio::{net::TcpStream, time::timeout};
+use tokio::{net::TcpStream, sync::Mutex, time::timeout};
 use tokio_modbus::{
     Address,
     Slave,
@@ -22,7 +22,8 @@ use crate::{
 /// - <https://raw.githubusercontent.com/openhab/openhab-addons/refs/heads/main/bundles/org.openhab.binding.modbus.foxinverter/src/main/java/org/openhab/binding/modbus/foxinverter/internal/MQ2200InverterRegisters.java>
 /// - <https://raw.githubusercontent.com/solakon-de/solakon-one-homeassistant/refs/heads/main/custom_components/solakon_one/const.py>
 #[must_use]
-pub struct MQ2200(tokio_modbus::client::Context);
+#[derive(Clone)]
+pub struct MQ2200(Arc<Mutex<tokio_modbus::client::Context>>);
 
 impl MQ2200 {
     const TIMEOUT: Duration = Duration::from_secs(10);
@@ -36,10 +37,10 @@ impl MQ2200 {
             .context("failed to connect to the battery")?;
         tcp_stream.set_nodelay(true)?;
         info!("connected");
-        Ok(Self(attach_slave(tcp_stream, Slave(1))))
+        Ok(Self(Arc::new(Mutex::new(attach_slave(tcp_stream, Slave(1))))))
     }
 
-    pub async fn read_state(&mut self) -> Result<battery::State> {
+    pub async fn read_state(&self) -> Result<battery::State> {
         // TODO: read these once and cache them:
         let design_capacity = self.read_design_capacity().await?;
         let health = self.read_state_of_health().await?;
@@ -61,39 +62,39 @@ impl MQ2200 {
         })
     }
 
-    async fn read_min_state_of_charge(&mut self) -> Result<Percentage> {
+    async fn read_min_state_of_charge(&self) -> Result<Percentage> {
         self.read_u16(46611).await.map(Percentage)
     }
 
-    async fn read_max_state_of_charge(&mut self) -> Result<Percentage> {
+    async fn read_max_state_of_charge(&self) -> Result<Percentage> {
         self.read_u16(46610).await.map(Percentage)
     }
 
-    async fn read_design_capacity(&mut self) -> Result<DecawattHours> {
+    async fn read_design_capacity(&self) -> Result<DecawattHours> {
         self.read_u16(37635).await.map(DecawattHours)
     }
 
-    async fn read_state_of_charge(&mut self) -> Result<Percentage> {
+    async fn read_state_of_charge(&self) -> Result<Percentage> {
         self.read_u16(39424).await.map(Percentage)
     }
 
-    async fn read_state_of_health(&mut self) -> Result<Percentage> {
+    async fn read_state_of_health(&self) -> Result<Percentage> {
         self.read_u16(37624).await.map(Percentage)
     }
 
     /// Read battery total active power.
     ///
     /// Positive means discharging, negative means charging.
-    async fn read_battery_active_power(&mut self) -> Result<Watts> {
+    async fn read_battery_active_power(&self) -> Result<Watts> {
         self.read_i32(39134).await.map(Into::into)
     }
 
     /// Read current EPS output power.
-    async fn read_eps_active_power(&mut self) -> Result<Watts> {
+    async fn read_eps_active_power(&self) -> Result<Watts> {
         self.read_i32(39216).await.map(Into::into)
     }
 
-    async fn read_u16(&mut self, address: Address) -> Result<u16> {
+    async fn read_u16(&self, address: Address) -> Result<u16> {
         self.read_holding_registers(address, 1)
             .await?
             .into_iter()
@@ -101,7 +102,7 @@ impl MQ2200 {
             .with_context(|| format!("register #{address} returned no data"))
     }
 
-    async fn read_i32(&mut self, address: Address) -> Result<i32> {
+    async fn read_i32(&self, address: Address) -> Result<i32> {
         let words = self.read_holding_registers(address, 2).await?;
         let [high, low] = words[..] else {
             bail!("register #{address} returned {} words, expected 2", words.len());
@@ -112,8 +113,8 @@ impl MQ2200 {
     }
 
     #[instrument(skip_all, fields(address = address))]
-    async fn read_holding_registers(&mut self, address: Address, count: u16) -> Result<Vec<u16>> {
-        timeout(Self::TIMEOUT, self.0.read_holding_registers(address, count))
+    async fn read_holding_registers(&self, address: Address, count: u16) -> Result<Vec<u16>> {
+        timeout(Self::TIMEOUT, self.0.lock().await.read_holding_registers(address, count))
             .await
             .context("timed out while reading the register")?
             .context("protocol or network error")?

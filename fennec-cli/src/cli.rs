@@ -1,7 +1,8 @@
 pub mod battery;
 mod burrow;
+mod connection;
 mod db;
-mod foxcloud;
+mod fox_cloud;
 mod hunt;
 mod log;
 mod sentry;

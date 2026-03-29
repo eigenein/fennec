@@ -1,3 +1,8 @@
+use std::{
+    net::IpAddr,
+    sync::{Arc, Mutex},
+};
+
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
@@ -21,6 +26,8 @@ use crate::{
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
+    web,
+    web::state,
 };
 
 #[derive(Parser)]
@@ -36,15 +43,29 @@ pub struct HuntArgs {
 
     #[clap(long = "power-log-ttl", env = "POWER_LOG_TTL", default_value = "14days")]
     power_log_ttl: humantime::Duration,
+
+    #[clap(long = "bind-address", env = "BIND_ADDRESS", default_value = "::")]
+    bind_address: IpAddr,
+
+    #[clap(long = "bind-port", env = "BIND_PORT", default_value = "80")]
+    bind_port: u16,
 }
 
 impl HuntArgs {
     pub async fn run(self) -> Result {
         let (connections, hunter) = self.shared.hunter().await?;
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
-        let logger =
-            Logger::builder().connections(connections.clone()).schedule(self.logger_cron).build();
-        try_join!(logger.run(), hunter.run(self.optimizer_cron))?;
+        let state = Arc::new(Mutex::new(state::Application::default()));
+        let logger = Logger::builder()
+            .connections(connections.clone())
+            .schedule(self.logger_cron)
+            .state(state.clone())
+            .build();
+        try_join!(
+            logger.run(),
+            hunter.run(self.optimizer_cron),
+            web::serve(self.bind_address, self.bind_port, state),
+        )?;
         connections.db.shutdown().await;
         Ok(())
     }

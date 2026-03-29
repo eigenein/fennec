@@ -12,6 +12,7 @@ mod ops;
 mod prelude;
 mod quantity;
 mod solution;
+mod web;
 
 use clap::{Parser, crate_version};
 use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};

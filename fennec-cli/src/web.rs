@@ -7,6 +7,7 @@ use std::{
 };
 
 use axum::{Router, routing::get};
+use chrono_humanize::HumanTime;
 use maud::{DOCTYPE, Markup, html};
 
 use crate::{prelude::*, web::color::Color};
@@ -22,7 +23,9 @@ pub async fn serve(address: IpAddr, port: u16, state: Arc<Mutex<state::Applicati
 async fn index(
     axum::extract::State(state): axum::extract::State<Arc<Mutex<state::Application>>>,
 ) -> Markup {
+    #[expect(clippy::significant_drop_tightening)]
     let state = state.lock().unwrap();
+
     html! {
         (DOCTYPE)
         html {
@@ -54,7 +57,13 @@ async fn index(
                             div.level-item.has-text-centered {
                                 div {
                                     p.heading { "Logger" }
-                                    p.title { "TODO" }
+                                    @match state.logger {
+                                        Some(Ok(last_log_timestamp)) => {
+                                            p.title title=(last_log_timestamp) { (HumanTime::from(last_log_timestamp)) }
+                                        }
+                                        Some(Err(_)) => p.title { "failed" },
+                                        None => p.title { "pending" },
+                                    }
                                 }
                             }
                         }

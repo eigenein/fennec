@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use bon::Builder;
-use chrono_humanize::HumanTime;
+use chrono::Local;
 use tokio::try_join;
 
 use crate::{
@@ -38,7 +38,7 @@ impl Logger {
                 .await?;
 
             // FIXME: handle «error» state.
-            // self.state.lock().unwrap().logger = state::Subsystem::Ok(HumanTime::now());
+            self.state.lock().unwrap().logger = Some(Ok(Local::now()));
         }
     }
 }

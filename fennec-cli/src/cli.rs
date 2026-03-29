@@ -9,7 +9,11 @@ mod sentry;
 
 use clap::{Parser, Subcommand};
 
-use crate::cli::{burrow::BurrowArgs, hunt::HuntOnceArgs, log::LogArgs, sentry::SentryArgs};
+use crate::cli::{
+    burrow::BurrowArgs,
+    hunt::{HuntArgs, HuntOnceArgs},
+    sentry::SentryArgs,
+};
 
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
@@ -24,13 +28,13 @@ pub struct Args {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Main entry point. Run the full-featured real-time optimization service.
+    #[clap(name = "hunt")]
+    Hunt(Box<HuntArgs>),
+
     /// Immediately fetch the prices and optimize the schedule once, then exit.
     #[clap(name = "hunt-once")]
     HuntOnce(Box<HuntOnceArgs>),
-
-    /// Log meter and battery measurements.
-    #[clap(name = "log")]
-    Log(Box<LogArgs>),
 
     /// Development tools.
     #[clap(name = "burrow")]

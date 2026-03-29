@@ -3,6 +3,7 @@ use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
 use itertools::Itertools;
+use tokio::try_join;
 
 use crate::{
     api::fox_cloud,
@@ -10,7 +11,9 @@ use crate::{
     cli::{
         battery::BatteryArgs,
         connection::{ConnectionArgs, Connections},
+        log::Logger,
     },
+    cron::CronSchedule,
     db::power,
     energy,
     fmt::tables::build_steps_table,
@@ -21,7 +24,34 @@ use crate::{
 };
 
 #[derive(Parser)]
-pub struct HuntOnceArgs {
+pub struct HuntArgs {
+    #[clap(flatten)]
+    shared: HuntSharedArgs,
+
+    #[clap(long = "logger-cron", env = "LOGGER_CRON", default_value = "*/5 * * * * *")]
+    logger_cron: CronSchedule,
+
+    #[clap(long = "optimizer-cron", env = "OPTIMIZER_CRON", default_value = "0 */15 * * * *")]
+    optimizer_cron: CronSchedule,
+
+    #[clap(long = "power-log-ttl", env = "POWER_LOG_TTL", default_value = "14days")]
+    power_log_ttl: humantime::Duration,
+}
+
+impl HuntArgs {
+    pub async fn run(self) -> Result {
+        let (connections, hunter) = self.shared.hunter().await?;
+        connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
+        let logger =
+            Logger::builder().connections(connections.clone()).schedule(self.logger_cron).build();
+        try_join!(logger.run(), hunter.run(self.optimizer_cron))?;
+        connections.db.shutdown().await;
+        Ok(())
+    }
+}
+
+#[derive(Parser)]
+pub struct HuntSharedArgs {
     #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
     energy_provider: energy::Provider,
 
@@ -44,13 +74,38 @@ pub struct HuntOnceArgs {
     battery: BatteryArgs,
 }
 
-impl HuntOnceArgs {
-    #[must_use]
-    pub fn working_modes(&self) -> EnumSet<WorkingMode> {
-        self.working_modes.iter().copied().collect()
+impl HuntSharedArgs {
+    pub async fn hunter(self) -> Result<(Connections, Hunter)> {
+        let connections = self.connections.connect().await?;
+        Ok((
+            connections.clone(),
+            Hunter::builder()
+                .connections(connections)
+                .working_modes(self.working_modes.iter().copied().collect())
+                .energy_provider(self.energy_provider)
+                .battery_args(self.battery)
+                .quantum(self.quantum)
+                .build(),
+        ))
     }
 }
 
+#[derive(Parser)]
+pub struct HuntOnceArgs {
+    #[clap(flatten)]
+    shared: HuntSharedArgs,
+}
+
+impl HuntOnceArgs {
+    pub async fn run(self) -> Result {
+        let (connections, hunter) = self.shared.hunter().await?;
+        let result = hunter.run_once().await;
+        connections.db.shutdown().await;
+        result
+    }
+}
+
+#[must_use]
 #[derive(Builder)]
 pub struct Hunter {
     connections: Connections,
@@ -61,8 +116,16 @@ pub struct Hunter {
 }
 
 impl Hunter {
+    async fn run(self, schedule: CronSchedule) -> Result {
+        let mut cron = schedule.start();
+        loop {
+            cron.wait_until_next().await?;
+            self.run_once().await?;
+        }
+    }
+
     #[instrument(skip_all)]
-    pub async fn run_once(&self) -> Result {
+    async fn run_once(&self) -> Result {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = self.get_prices(now).await?;
 
@@ -135,25 +198,5 @@ impl Hunter {
         info!(len = prices.len(), "fetched energy prices");
 
         Ok(prices)
-    }
-}
-
-impl HuntOnceArgs {
-    pub async fn run(self) -> Result {
-        let working_modes = self.working_modes();
-        let connections = self.connections.connect().await?;
-
-        let result = Hunter::builder()
-            .connections(connections.clone())
-            .working_modes(working_modes)
-            .energy_provider(self.energy_provider)
-            .battery_args(self.battery)
-            .quantum(self.quantum)
-            .build()
-            .run_once()
-            .await;
-
-        connections.db.shutdown().await;
-        result
     }
 }

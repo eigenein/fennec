@@ -26,6 +26,7 @@ bson = { version = "=3.1.0", features = ["chrono-0_4", "serde_with-3"] }
 chrono = { version = "=0.4.44", default-features = false, features = ["clock", "serde"] }
 clap = { version = "=4.6.0", features = ["cargo", "derive", "env", "unicode"] }
 comfy-table = "=7.2.2"
+croner = "3.0.1"
 derive_more = { version = "=2.1.1", features = ["full"] }
 dotenvy = "=0.15.7"
 enumset = "=1.1.10"

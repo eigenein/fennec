@@ -14,21 +14,28 @@ use crate::{
 #[derive(Builder)]
 pub struct Logger {
     connections: Connections,
-    system_state: Arc<Mutex<SystemState<()>>>,
 }
 
 impl Logger {
-    pub async fn run(self, schedule: CronSchedule) -> Result {
+    pub async fn run_forever(
+        self,
+        schedule: CronSchedule,
+        system_state: Arc<Mutex<SystemState<()>>>,
+    ) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *self.system_state.lock().unwrap() = match self.run_once().await {
-                Ok(logger_state) => SystemState::ok(logger_state),
-                Err(error) => {
-                    error!("logger iteration failed: {error:#}");
-                    SystemState::Err(error)
-                }
-            };
+            *system_state.lock().unwrap() = self.run_once_stateful().await;
+        }
+    }
+
+    async fn run_once_stateful(&self) -> SystemState<()> {
+        match self.run_once().await {
+            Ok(logger_state) => SystemState::ok(logger_state),
+            Err(error) => {
+                error!("logger iteration failed: {error:#}");
+                SystemState::Err(error)
+            }
         }
     }
 

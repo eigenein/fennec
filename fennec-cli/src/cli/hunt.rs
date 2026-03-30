@@ -59,13 +59,10 @@ impl HuntArgs {
 
         let (logger_result, hunter_result, web_result) = {
             let application_state = ApplicationState::default();
-            let logger = Logger::builder()
-                .connections(connections.clone())
-                .system_state(application_state.logger.clone())
-                .build();
+            let logger = Logger::builder().connections(connections.clone()).build();
             try_join!(
-                spawn(logger.run(self.logger_cron)),
-                spawn(hunter.run(self.optimizer_cron, application_state.solver.clone())),
+                spawn(logger.run_forever(self.logger_cron, application_state.logger.clone())),
+                spawn(hunter.run_forever(self.optimizer_cron, application_state.solver.clone())),
                 spawn(web::serve(self.bind_address, self.bind_port, application_state)),
             )?
         };
@@ -142,7 +139,7 @@ pub struct Hunter {
 }
 
 impl Hunter {
-    async fn run(
+    async fn run_forever(
         self,
         schedule: CronSchedule,
         system_state: Arc<Mutex<SystemState<SolverState>>>,
@@ -150,13 +147,17 @@ impl Hunter {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.lock().unwrap() = match self.run_once().await {
-                Ok(solver_state) => SystemState::ok(solver_state),
-                Err(error) => {
-                    error!("hunter iteration failed: {error:#}");
-                    SystemState::Err(error)
-                }
-            };
+            *system_state.lock().unwrap() = self.run_once_stateful().await;
+        }
+    }
+
+    async fn run_once_stateful(&self) -> SystemState<SolverState> {
+        match self.run_once().await {
+            Ok(solver_state) => SystemState::ok(solver_state),
+            Err(error) => {
+                error!("hunter iteration failed: {error:#}");
+                SystemState::Err(error)
+            }
         }
     }
 

@@ -1,5 +1,7 @@
+mod residual_energy;
 pub mod state;
 mod status;
+mod working_mode;
 
 use std::net::IpAddr;
 
@@ -10,8 +12,10 @@ use maud::{DOCTYPE, Markup, html};
 use crate::{
     prelude::*,
     web::{
+        residual_energy::ResidualEnergyIconText,
         state::{ApplicationState, SystemState},
         status::Status,
+        working_mode::WorkingModeColor,
     },
 };
 
@@ -102,10 +106,45 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                                         tfoot { (steps_table_header()) }
                                         tbody {
                                             @for step in &inner.steps {
-                                                tr {
-                                                    th { (step.interval.start.format("%b %d")) }
+                                                tr.(WorkingModeColor(step.working_mode)) {
+                                                    td { (step.interval.start.format("%b %d")) }
                                                     td { (step.interval.start.format("%H:%M")) }
                                                     td { (step.interval.end.format("%H:%M")) }
+                                                    td { (step.duration) }
+                                                    td.has-text-right.has-text-weight-semibold { (step.energy_price) }
+                                                    td { (step.working_mode) }
+                                                    td.has-text-right {
+                                                        span.icon-text {
+                                                            span { (step.energy_balance.grid.import) }
+                                                            span.icon { i.fas.fa-chevron-down {} }
+                                                        }
+                                                    }
+                                                    td.has-text-right {
+                                                        span.icon-text {
+                                                            span { (step.energy_balance.grid.export) }
+                                                            span.icon { i.fas.fa-chevron-up {} }
+                                                        }
+                                                    }
+                                                    td.has-text-right {
+                                                        span.icon-text {
+                                                            span { (step.energy_balance.battery.import) }
+                                                            span.icon { i.fas.fa-chevron-down {} }
+                                                        }
+                                                    }
+                                                    td.has-text-right {
+                                                        span.icon-text {
+                                                            span { (step.energy_balance.battery.export) }
+                                                            span.icon { i.fas.fa-chevron-up {} }
+                                                        }
+                                                    }
+                                                    td.has-text-right.has-text-weight-semibold {
+                                                        (ResidualEnergyIconText {
+                                                            residual_energy: step.residual_energy_after,
+                                                            actual_capacity: inner.actual_capacity,
+                                                        })
+                                                    }
+                                                    td.has-text-right { (step.metrics.losses.grid) }
+                                                    td.has-text-right { (step.metrics.losses.battery) }
                                                 }
                                             }
                                         }
@@ -126,6 +165,16 @@ fn steps_table_header() -> Markup {
             th { "Date" }
             th { "Start" br; "time" }
             th { "End" br; "time" }
+            th { "Duration" }
+            th.has-text-right { "Energy" br; "price" }
+            th { "Mode" }
+            th.has-text-right { "Grid" br; "import" }
+            th.has-text-right { "Grid" br; "export" }
+            th.has-text-right { "Battery" br; "import" }
+            th.has-text-right { "Battery" br; "export" }
+            th.has-text-right { "Residual" br; "after" }
+            th.has-text-right { "Grid" br; "loss" }
+            th.has-text-right { "Battery" br; "loss" }
         }
     }
 }

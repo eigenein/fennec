@@ -211,7 +211,7 @@ impl Hunter {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }
 
-        Ok(SolverState { steps })
+        Ok(SolverState { steps, actual_capacity: battery_state.actual_capacity() })
     }
 
     /// Fetch energy prices for up to 2 days.

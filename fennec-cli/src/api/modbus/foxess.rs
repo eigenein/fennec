@@ -114,11 +114,19 @@ impl MQ2200 {
 
     #[instrument(skip_all, fields(address = address))]
     async fn read_holding_registers(&self, address: Address, count: u16) -> Result<Vec<u16>> {
-        timeout(Self::TIMEOUT, self.0.lock().await.read_holding_registers(address, count))
+        let read = async {
+            self.0
+                .lock()
+                .await
+                .read_holding_registers(address, count)
+                .await
+                .context("protocol or network error")?
+                .context("Modbus server error")
+        };
+        // FIXME: reconnect on timeout.
+        timeout(Self::TIMEOUT, read)
             .await
             .context("timed out while reading the register")?
-            .context("protocol or network error")?
-            .context("Modbus server error")
             .inspect(|words| debug!(?words, "read"))
     }
 }

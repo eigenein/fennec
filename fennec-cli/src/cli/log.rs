@@ -8,14 +8,14 @@ use crate::{
     cron::CronSchedule,
     db::{Measurement, power},
     prelude::*,
-    web::{state, state::SystemState},
+    web::state::SystemState,
 };
 
 #[derive(Builder)]
 pub struct Logger {
     connections: Connections,
     schedule: CronSchedule,
-    application_state: Arc<Mutex<state::ApplicationState>>,
+    system_state: Arc<Mutex<SystemState<()>>>,
 }
 
 impl Logger {
@@ -37,7 +37,7 @@ impl Logger {
                 .await?;
 
             // FIXME: handle «error» state.
-            self.application_state.lock().unwrap().logger = SystemState::ok(());
+            *self.system_state.lock().unwrap() = SystemState::ok(());
         }
     }
 }

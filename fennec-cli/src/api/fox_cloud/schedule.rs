@@ -121,12 +121,13 @@ impl Groups {
     /// Convert the schedule into Fox Cloud scheduler groups.
     #[instrument(skip_all)]
     pub fn from_schedule(
-        schedule: impl IntoIterator<Item = (Interval, CoreWorkingMode)>,
+        schedule: &[(Interval, CoreWorkingMode)],
         battery_power_limits: BatteryPowerLimits,
     ) -> Self {
         info!("building a FoxESS schedule…");
         schedule
-            .into_iter()
+            .iter()
+            .copied()
             .scan(None, |schedule_end, (mut interval, working_mode)| {
                 if let Some(schedule_end) = *schedule_end {
                     if interval.start >= schedule_end {

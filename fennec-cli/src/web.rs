@@ -1,23 +1,22 @@
 pub mod state;
 mod status;
 
-use std::{
-    net::IpAddr,
-    sync::{Arc, Mutex},
-};
+use std::net::IpAddr;
 
-use axum::{Router, response::IntoResponse, routing::get};
+use axum::{Router, extract::State, response::IntoResponse, routing::get};
 use clap::crate_version;
 use http::header;
 use maud::{DOCTYPE, Markup, html};
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    web::{
+        state::{ApplicationState, SystemState},
+        status::Status,
+    },
+};
 
-pub async fn serve(
-    address: IpAddr,
-    port: u16,
-    state: Arc<Mutex<state::ApplicationState>>,
-) -> Result {
+pub async fn serve(address: IpAddr, port: u16, state: ApplicationState) -> Result {
     info!(%address, port, "serving web UI…");
     let app =
         Router::new().route("/favicon.svg", get(favicon)).route("/", get(index)).with_state(state);
@@ -41,11 +40,23 @@ async fn favicon() -> impl IntoResponse {
 }
 
 #[instrument(skip_all)]
-async fn index(
-    axum::extract::State(state): axum::extract::State<Arc<Mutex<state::ApplicationState>>>,
-) -> Markup {
-    let state = state.lock().unwrap();
-    let markup = html! {
+#[expect(clippy::significant_drop_tightening)]
+async fn index(State(state): State<ApplicationState>) -> Markup {
+    info!("access");
+
+    let logger = state.logger.lock().unwrap();
+    let solver = state.solver.lock().unwrap();
+
+    let status = if matches!(*logger, SystemState::Err(_)) || matches!(*solver, SystemState::Err(_))
+    {
+        Status::Error
+    } else if matches!(*logger, SystemState::Pending) || matches!(*solver, SystemState::Pending) {
+        Status::Warning
+    } else {
+        Status::Ok
+    };
+
+    html! {
         (DOCTYPE)
         html {
             head {
@@ -57,7 +68,7 @@ async fn index(
                 link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer";
             }
             body {
-                nav.navbar.(state.status()) role="navigation" aria-label="main navigation" {
+                nav.navbar.(status) role="navigation" aria-label="main navigation" {
                     div.container {
                         div.navbar-brand {
                             a.navbar-item href="/" {
@@ -74,13 +85,13 @@ async fn index(
                             div.navbar-item {
                                 div {
                                     p.is-size-7 { "logger" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { (state.logger.status()) }
+                                    p.is-size-7.is-uppercase.has-text-weight-medium { (logger.status()) }
                                 }
                             }
                             div.navbar-item {
                                 div {
                                     p.is-size-7 { "solver" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { (state.solver.status()) }
+                                    p.is-size-7.is-uppercase.has-text-weight-medium { (solver.status()) }
                                 }
                             }
                         }
@@ -88,11 +99,38 @@ async fn index(
                 }
                 section.section {
                     div.container {
+                        @if let SystemState::Ok { inner, .. } = &*solver {
+                            div.box {
+                                div.table-container {
+                                    table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                        thead { (steps_table_header()) }
+                                        tfoot { (steps_table_header()) }
+                                        tbody {
+                                            @for step in &inner.steps {
+                                                tr {
+                                                    th { (step.interval.start.format("%b %d")) }
+                                                    td { (step.interval.start.format("%H:%M")) }
+                                                    td { (step.interval.end.format("%H:%M")) }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-    };
-    drop(state);
-    markup
+    }
+}
+
+fn steps_table_header() -> Markup {
+    html! {
+        tr {
+            th { "Date" }
+            th { "Start" br; "time" }
+            th { "End" br; "time" }
+        }
+    }
 }

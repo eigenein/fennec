@@ -1,30 +1,28 @@
+use std::sync::{Arc, Mutex};
+
 use chrono::{DateTime, Local};
 use chrono_humanize::HumanTime;
 use maud::{Markup, html};
 
-use crate::{prelude::*, web::status::Status};
+use crate::{prelude::*, state::SolverState};
 
-#[derive(Default)]
+#[must_use]
+#[derive(Clone)]
 pub struct ApplicationState {
-    pub logger: SystemState<()>,
-    pub solver: SystemState<()>,
+    pub logger: Arc<Mutex<SystemState<()>>>,
+    pub solver: Arc<Mutex<SystemState<SolverState>>>,
 }
 
-impl ApplicationState {
-    pub const fn status(&self) -> Status {
-        if matches!(self.logger, SystemState::Err(_)) || matches!(self.solver, SystemState::Err(_))
-        {
-            return Status::Error;
+impl Default for ApplicationState {
+    fn default() -> Self {
+        Self {
+            logger: Arc::new(Mutex::new(SystemState::default())),
+            solver: Arc::new(Mutex::new(SystemState::default())),
         }
-        if matches!(self.logger, SystemState::Pending)
-            || matches!(self.solver, SystemState::Pending)
-        {
-            return Status::Warning;
-        }
-        Status::Ok
     }
 }
 
+#[must_use]
 #[derive(Default)]
 pub enum SystemState<T> {
     Ok {

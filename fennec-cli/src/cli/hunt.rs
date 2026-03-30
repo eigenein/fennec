@@ -26,6 +26,7 @@ use crate::{
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
+    state::SolverState,
     web,
     web::state::{ApplicationState, SystemState},
 };
@@ -57,15 +58,15 @@ impl HuntArgs {
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
 
         let (logger_result, hunter_result, web_result) = {
-            let application_state = Arc::new(Mutex::new(ApplicationState::default()));
+            let application_state = ApplicationState::default();
             let logger = Logger::builder()
                 .connections(connections.clone())
                 .schedule(self.logger_cron)
-                .application_state(application_state.clone())
+                .system_state(application_state.logger.clone())
                 .build();
             try_join!(
                 spawn(logger.run()),
-                spawn(hunter.run(self.optimizer_cron, application_state.clone())),
+                spawn(hunter.run(self.optimizer_cron, application_state.solver.clone())),
                 spawn(web::serve(self.bind_address, self.bind_port, application_state)),
             )?
         };
@@ -126,7 +127,8 @@ impl HuntOnceArgs {
         let (connections, hunter) = self.shared.hunter().await?;
         let result = hunter.run_once().await;
         connections.db.shutdown().await;
-        result
+        drop(result?);
+        Ok(())
     }
 }
 
@@ -141,19 +143,23 @@ pub struct Hunter {
 }
 
 impl Hunter {
-    async fn run(self, schedule: CronSchedule, state: Arc<Mutex<ApplicationState>>) -> Result {
+    async fn run(
+        self,
+        schedule: CronSchedule,
+        system_state: Arc<Mutex<SystemState<SolverState>>>,
+    ) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            self.run_once().await?;
+            let solver_state = self.run_once().await?;
 
             // FIXME: handle «error» state.
-            state.lock().unwrap().solver = SystemState::ok(());
+            *system_state.lock().unwrap() = SystemState::ok(solver_state);
         }
     }
 
     #[instrument(skip_all)]
-    async fn run_once(&self) -> Result {
+    async fn run_once(&self) -> Result<SolverState> {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = self.get_prices(now).await?;
 
@@ -196,9 +202,8 @@ impl Hunter {
         println!("{}", build_steps_table(&steps));
         println!("{}", summary.into_table(base_loss));
 
-        let schedule =
-            steps.into_iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        let groups = fox_cloud::Groups::from_schedule(schedule, self.battery_args.power_limits);
+        let schedule = steps.iter().map(|step| (step.interval, step.working_mode)).collect_vec();
+        let groups = fox_cloud::Groups::from_schedule(&schedule, self.battery_args.power_limits);
         println!("{}", &groups);
 
         if let Some(fox_cloud) = &self.connections.fox_cloud {
@@ -207,7 +212,7 @@ impl Hunter {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }
 
-        Ok(())
+        Ok(SolverState { steps })
     }
 
     /// Fetch energy prices for up to 2 days.

@@ -1,0 +1,17 @@
+POST https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices/DataActionGetDataPoints
+Content-Type: application/json
+X-CSRFToken: T6C+9iB49TLra4jEsMeSckDMNhQ=
+
+{
+  "viewName": "MainFlow.MarketPrices",
+  "versionInfo": {
+    "apiVersion": "4fAioRaV8iwFjjxeuz4+vw",
+    "moduleVersion": "yM5fgj6F4qiLDuJ6CWsCSg",
+  },
+    "screenData": {
+      "variables": {
+        "DistributionId": 3,
+        "Filter": { "CostsLevelId": "Market+", "PriceIncludingVat": true, "PriceDate": "2026-03-30" }
+      }
+    }
+}

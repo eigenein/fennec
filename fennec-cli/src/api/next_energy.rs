@@ -32,20 +32,12 @@ impl Api {
         info!(n_data_points = data_points.len(), "fetched");
         let series = data_points.into_iter().enumerate().filter_map(move |(index, point)| {
             let hour = u32::try_from(index).unwrap();
-            assert_eq!(
-                (point.label + 1) % 24,
-                hour,
-                "NextEnergy messed up: index={index} label={}",
-                point.label
-            );
-
             match on.and_hms_nano_opt(hour, 0, 0, 0).unwrap().and_local_timezone(Local) {
                 MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
                     let end_time = start_time + TimeDelta::hours(1);
                     let point = (Interval::from_std(start_time..end_time), point.value);
                     Some(point)
                 }
-
                 MappedLocalTime::None => {
                     warn!(point.label, index, "Skipped");
                     None

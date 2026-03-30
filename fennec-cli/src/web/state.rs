@@ -45,7 +45,7 @@ impl<T> SystemState<T> {
     pub fn status(&self) -> Markup {
         html! {
             @match self {
-                Self::Ok { last_run_at, .. } => span title=(last_run_at) {
+                Self::Ok { last_run_at, .. } => time datetime=(last_run_at.to_rfc3339()) {
                     (HumanTime::from(*last_run_at))
                 },
                 Self::Err(_) => "failed",

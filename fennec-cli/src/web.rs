@@ -28,6 +28,7 @@ pub async fn serve(address: IpAddr, port: u16, state: ApplicationState) -> Resul
 
 #[instrument(skip_all)]
 #[expect(clippy::significant_drop_tightening)]
+#[expect(clippy::too_many_lines)]
 async fn index(State(state): State<ApplicationState>) -> Markup {
     info!("access");
 
@@ -98,6 +99,26 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                 }
                 section.section {
                     div.container {
+                        @if let SystemState::Err(error) = &*solver {
+                            article.message.is-danger {
+                                div.message-header {
+                                    p { "Solver has failed" }
+                                }
+                                div.message-body {
+                                    (format!("{error:#}"))
+                                }
+                            }
+                        }
+                        @if let SystemState::Err(error) = &*logger {
+                            article.message.is-danger {
+                                div.message-header {
+                                    p { "Logger has failed" }
+                                }
+                                div.message-body {
+                                    (format!("{error:#}"))
+                                }
+                            }
+                        }
                         @if let SystemState::Ok { inner, .. } = &*solver {
                             div.box {
                                 div.table-container {
@@ -167,7 +188,7 @@ fn steps_table_header() -> Markup {
             th { "End" br; "time" }
             th { "Duration" }
             th.has-text-right { "Energy" br; "price" }
-            th { "Mode" }
+            th { "Working" br; "mode" }
             th.has-text-right { "Grid" br; "import" }
             th.has-text-right { "Grid" br; "export" }
             th.has-text-right { "Battery" br; "import" }

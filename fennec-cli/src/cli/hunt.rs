@@ -152,7 +152,10 @@ impl Hunter {
             cron.wait_until_next().await?;
             *system_state.lock().unwrap() = match self.run_once().await {
                 Ok(solver_state) => SystemState::ok(solver_state),
-                Err(error) => SystemState::Err(error),
+                Err(error) => {
+                    error!("hunter iteration failed: {error:#}");
+                    SystemState::Err(error)
+                }
             };
         }
     }

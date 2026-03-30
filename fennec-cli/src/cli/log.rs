@@ -24,7 +24,10 @@ impl Logger {
             cron.wait_until_next().await?;
             *self.system_state.lock().unwrap() = match self.run_once().await {
                 Ok(logger_state) => SystemState::ok(logger_state),
-                Err(error) => SystemState::Err(error),
+                Err(error) => {
+                    error!("logger iteration failed: {error:#}");
+                    SystemState::Err(error)
+                }
             };
         }
     }

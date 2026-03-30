@@ -8,7 +8,7 @@ impl Render for WorkingModeColor {
     fn render_to(&self, buffer: &mut String) {
         match self.0 {
             WorkingMode::Idle => {}
-            WorkingMode::Harness => buffer.push_str("is-info"),
+            WorkingMode::Harness => buffer.push_str("is-primary"),
             WorkingMode::Compensate => buffer.push_str("is-danger"),
             WorkingMode::SelfUse => buffer.push_str("is-warning"),
             WorkingMode::Charge => buffer.push_str("is-success"),

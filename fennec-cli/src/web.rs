@@ -3,9 +3,8 @@ mod status;
 
 use std::net::IpAddr;
 
-use axum::{Router, extract::State, response::IntoResponse, routing::get};
+use axum::{Router, extract::State, routing::get};
 use clap::crate_version;
-use http::header;
 use maud::{DOCTYPE, Markup, html};
 
 use crate::{

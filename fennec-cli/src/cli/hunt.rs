@@ -61,11 +61,10 @@ impl HuntArgs {
             let application_state = ApplicationState::default();
             let logger = Logger::builder()
                 .connections(connections.clone())
-                .schedule(self.logger_cron)
                 .system_state(application_state.logger.clone())
                 .build();
             try_join!(
-                spawn(logger.run()),
+                spawn(logger.run(self.logger_cron)),
                 spawn(hunter.run(self.optimizer_cron, application_state.solver.clone())),
                 spawn(web::serve(self.bind_address, self.bind_port, application_state)),
             )?
@@ -151,10 +150,10 @@ impl Hunter {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            let solver_state = self.run_once().await?;
-
-            // FIXME: handle «error» state.
-            *system_state.lock().unwrap() = SystemState::ok(solver_state);
+            *system_state.lock().unwrap() = match self.run_once().await {
+                Ok(solver_state) => SystemState::ok(solver_state),
+                Err(error) => SystemState::Err(error),
+            };
         }
     }
 

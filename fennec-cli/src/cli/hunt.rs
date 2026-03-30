@@ -8,7 +8,7 @@ use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
 use itertools::Itertools;
-use tokio::try_join;
+use tokio::{spawn, try_join};
 
 use crate::{
     api::fox_cloud,
@@ -27,7 +27,7 @@ use crate::{
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
     web,
-    web::state,
+    web::state::{ApplicationState, SystemState},
 };
 
 #[derive(Parser)]
@@ -55,19 +55,23 @@ impl HuntArgs {
     pub async fn run(self) -> Result {
         let (connections, hunter) = self.shared.hunter().await?;
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
-        let state = Arc::new(Mutex::new(state::Application::default()));
-        let logger = Logger::builder()
-            .connections(connections.clone())
-            .schedule(self.logger_cron)
-            .state(state.clone())
-            .build();
-        try_join!(
-            logger.run(),
-            hunter.run(self.optimizer_cron),
-            web::serve(self.bind_address, self.bind_port, state),
-        )?;
+
+        let (logger_result, hunter_result, web_result) = {
+            let application_state = Arc::new(Mutex::new(ApplicationState::default()));
+            let logger = Logger::builder()
+                .connections(connections.clone())
+                .schedule(self.logger_cron)
+                .application_state(application_state.clone())
+                .build();
+            try_join!(
+                spawn(logger.run()),
+                spawn(hunter.run(self.optimizer_cron, application_state.clone())),
+                spawn(web::serve(self.bind_address, self.bind_port, application_state)),
+            )?
+        };
+
         connections.db.shutdown().await;
-        Ok(())
+        logger_result.and(hunter_result).and(web_result)
     }
 }
 
@@ -137,11 +141,14 @@ pub struct Hunter {
 }
 
 impl Hunter {
-    async fn run(self, schedule: CronSchedule) -> Result {
+    async fn run(self, schedule: CronSchedule, state: Arc<Mutex<ApplicationState>>) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
             self.run_once().await?;
+
+            // FIXME: handle «error» state.
+            state.lock().unwrap().solver = SystemState::ok(());
         }
     }
 

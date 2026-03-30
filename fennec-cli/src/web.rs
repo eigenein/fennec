@@ -7,13 +7,16 @@ use std::{
 };
 
 use axum::{Router, routing::get};
-use chrono_humanize::HumanTime;
 use clap::crate_version;
 use maud::{DOCTYPE, Markup, html};
 
 use crate::prelude::*;
 
-pub async fn serve(address: IpAddr, port: u16, state: Arc<Mutex<state::Application>>) -> Result {
+pub async fn serve(
+    address: IpAddr,
+    port: u16,
+    state: Arc<Mutex<state::ApplicationState>>,
+) -> Result {
     info!(%address, port, "serving web UI…");
     let app = Router::new().route("/", get(index)).with_state(state);
     let listener = tokio::net::TcpListener::bind((address, port)).await?;
@@ -22,18 +25,9 @@ pub async fn serve(address: IpAddr, port: u16, state: Arc<Mutex<state::Applicati
 
 #[instrument(skip_all)]
 async fn index(
-    axum::extract::State(state): axum::extract::State<Arc<Mutex<state::Application>>>,
+    axum::extract::State(state): axum::extract::State<Arc<Mutex<state::ApplicationState>>>,
 ) -> Markup {
     let state = state.lock().unwrap();
-    let logger_status = html! {
-        @match state.logger {
-            Some(Ok(last_log_timestamp)) => span title=(last_log_timestamp) {
-                (HumanTime::from(last_log_timestamp))
-            },
-            Some(Err(_)) => "failed" ,
-            None => "pending",
-        }
-    };
     let markup = html! {
         (DOCTYPE)
         html {
@@ -63,13 +57,13 @@ async fn index(
                             div.navbar-item {
                                 div {
                                     p.is-size-7 { "logger" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { (logger_status) }
+                                    p.is-size-7.is-uppercase.has-text-weight-medium { (state.logger.status()) }
                                 }
                             }
                             div.navbar-item {
                                 div {
-                                    p.is-size-7 { "optimizer" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { "TODO" }
+                                    p.is-size-7 { "solver" }
+                                    p.is-size-7.is-uppercase.has-text-weight-medium { (state.solver.status()) }
                                 }
                             }
                         }

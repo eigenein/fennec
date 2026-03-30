@@ -1,7 +1,6 @@
 use std::sync::{Arc, Mutex};
 
 use bon::Builder;
-use chrono::Local;
 use tokio::try_join;
 
 use crate::{
@@ -9,14 +8,14 @@ use crate::{
     cron::CronSchedule,
     db::{Measurement, power},
     prelude::*,
-    web::state,
+    web::{state, state::SystemState},
 };
 
 #[derive(Builder)]
 pub struct Logger {
     connections: Connections,
     schedule: CronSchedule,
-    state: Arc<Mutex<state::Application>>,
+    application_state: Arc<Mutex<state::ApplicationState>>,
 }
 
 impl Logger {
@@ -38,7 +37,7 @@ impl Logger {
                 .await?;
 
             // FIXME: handle «error» state.
-            self.state.lock().unwrap().logger = Some(Ok(Local::now()));
+            self.application_state.lock().unwrap().logger = SystemState::ok(());
         }
     }
 }

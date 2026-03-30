@@ -43,7 +43,7 @@ fn main() -> Result {
     let _ = dotenvy::dotenv();
     let args = Args::parse();
     let _sentry_guard = args.sentry.init();
-    tokio::runtime::Builder::new_current_thread()
+    tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?
         .block_on(async_main(args))

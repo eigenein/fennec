@@ -162,7 +162,7 @@ impl Hunter {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = self.get_prices(now).await?;
 
-        let battery_state = self.connections.battery.read_state().await?;
+        let battery_state = self.connections.battery.lock().await.read_state().await?;
         println!("{battery_state}");
 
         let balance_profile = {

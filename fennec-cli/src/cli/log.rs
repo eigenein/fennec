@@ -31,7 +31,7 @@ impl Logger {
 
     async fn run_once(&self) -> Result {
         let (battery_state, grid_metrics) = try_join!(
-            self.connections.battery.read_state(),
+            async { self.connections.battery.lock().await.read_state().await },
             self.connections.grid_measurement.get_measurement()
         )?;
         power::Measurement::builder()

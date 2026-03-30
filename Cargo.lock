@@ -1211,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "fennec-cli"
-version = "0.81.2"
+version = "0.81.3"
 dependencies = [
  "anyhow",
  "average",

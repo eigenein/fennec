@@ -211,9 +211,9 @@ impl Hunter {
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let base_loss = solver.base_loss();
-        let (summary, steps) = solver.solve().backtrack(initial_energy_level)?;
+        let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
         println!("{}", build_steps_table(&steps));
-        println!("{}", summary.into_table(base_loss));
+        println!("{}", metrics.into_table(base_loss));
 
         let schedule = steps.iter().map(|step| (step.interval, step.working_mode)).collect_vec();
         let groups = fox_cloud::Groups::from_schedule(&schedule, self.battery_args.power_limits);
@@ -225,7 +225,12 @@ impl Hunter {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }
 
-        Ok(SolverState { steps, actual_capacity: battery_state.actual_capacity() })
+        Ok(SolverState {
+            steps,
+            actual_capacity: battery_state.actual_capacity(),
+            base_loss,
+            metrics,
+        })
     }
 
     /// Fetch energy prices for up to 2 days.

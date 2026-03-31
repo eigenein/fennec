@@ -23,8 +23,8 @@ impl Render for ResidualEnergyIconText {
         };
         html! {
             span.icon-text.is-flex-wrap-nowrap {
-                span.icon { i.fas.(class) {} }
                 span { (self.residual_energy) }
+                span.icon { i.fas.(class) {} }
             }
         }
     }

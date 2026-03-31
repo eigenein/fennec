@@ -10,7 +10,9 @@ use http::StatusCode;
 use maud::{DOCTYPE, Markup, html};
 
 use crate::{
+    battery::WorkingMode,
     prelude::*,
+    quantity::{currency::Mills, energy::WattHours},
     web::{
         residual_energy::ResidualEnergyIconText,
         state::ApplicationState,
@@ -48,7 +50,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
     let hunter = state.hunter.read().unwrap();
 
     let error_message = state.error_message();
-    let navbar_class = if error_message.is_some() { "is-danger" } else { "is_success" };
+    let navbar_class = if error_message.is_some() { "is-danger" } else { "is-success" };
 
     html! {
         (DOCTYPE)
@@ -117,6 +119,28 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                         }
                         @if let Ok(state) = &hunter.result {
                             div.box {
+                                nav.level {
+                                    div.level-item.has-text-centered {
+                                        div {
+                                            p.heading { "Profit" }
+                                            p.title { (state.profit()) }
+                                        }
+                                    }
+                                    div.level-item.has-text-centered {
+                                        div {
+                                            p.heading { "Charge" }
+                                            p.title.has-text-success { (state.metrics.internal_battery_flow.import) }
+                                        }
+                                    }
+                                    div.level-item.has-text-centered {
+                                        div {
+                                            p.heading { "Discharge" }
+                                            p.title.has-text-info { (state.metrics.internal_battery_flow.export) }
+                                        }
+                                    }
+                                }
+                            }
+                            div.box {
                                 div.table-container {
                                     table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
                                         thead { (steps_table_header()) }
@@ -128,40 +152,48 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                                     td { (step.interval.start.format("%H:%M")) }
                                                     td { (step.interval.end.format("%H:%M")) }
                                                     td { (step.duration) }
-                                                    td.has-text-right.has-text-weight-semibold { (step.energy_price) }
-                                                    td { (step.working_mode) }
-                                                    td.has-text-right {
+                                                    td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
+                                                        (step.energy_price)
+                                                    }
+                                                    td {
+                                                        (step.working_mode)
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
                                                         span.icon-text.is-flex-wrap-nowrap {
                                                             span { (step.energy_balance.grid.import) }
-                                                            span.icon { i.fas.fa-chevron-down {} }
+                                                            span.icon { i.fas.fa-angles-down {} }
                                                         }
                                                     }
-                                                    td.has-text-right {
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
                                                         span.icon-text.is-flex-wrap-nowrap {
                                                             span { (step.energy_balance.grid.export) }
-                                                            span.icon { i.fas.fa-chevron-up {} }
+                                                            span.icon { i.fas.fa-angles-up {} }
                                                         }
                                                     }
-                                                    td.has-text-right {
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
                                                         span.icon-text.is-flex-wrap-nowrap {
                                                             span { (step.energy_balance.battery.import) }
-                                                            span.icon { i.fas.fa-chevron-down {} }
+                                                            span.icon { i.fas.fa-angle-down {} }
+                                                        }
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
+                                                        span.icon-text.is-flex-wrap-nowrap {
+                                                            span { (step.energy_balance.battery.export) }
+                                                            span.icon { i.fas.fa-angle-up {} }
                                                         }
                                                     }
                                                     td.has-text-right {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.battery.export) }
-                                                            span.icon { i.fas.fa-chevron-up {} }
-                                                        }
-                                                    }
-                                                    td.has-text-right.has-text-weight-semibold {
                                                         (ResidualEnergyIconText {
                                                             residual_energy: step.residual_energy_after,
                                                             actual_capacity: state.actual_capacity,
                                                         })
                                                     }
-                                                    td.has-text-right { (step.metrics.losses.grid) }
-                                                    td.has-text-right { (step.metrics.losses.battery) }
+                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
+                                                        (step.metrics.losses.grid)
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
+                                                        (step.metrics.losses.battery)
+                                                    }
                                                 }
                                             }
                                         }

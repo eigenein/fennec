@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use chrono::{DateTime, Local};
 use chrono_humanize::HumanTime;
@@ -9,8 +9,21 @@ use crate::{prelude::*, state::SolverState};
 #[must_use]
 #[derive(Clone)]
 pub struct ApplicationState {
-    pub logger: Arc<Mutex<SystemState<()>>>,
-    pub hunter: Arc<Mutex<SystemState<SolverState>>>,
+    pub logger: Arc<RwLock<SystemState<()>>>,
+    pub hunter: Arc<RwLock<SystemState<SolverState>>>,
+}
+
+impl ApplicationState {
+    pub fn error_message(&self) -> Option<String> {
+        let mut parts = Vec::new();
+        if let Err(error) = &self.logger.read().unwrap().result {
+            parts.push(format!("Logger has failed: {error:#}."));
+        }
+        if let Err(error) = &self.hunter.read().unwrap().result {
+            parts.push(format!("Hunter has failed: {error:#}."));
+        }
+        (!parts.is_empty()).then(|| parts.join(" "))
+    }
 }
 
 #[must_use]

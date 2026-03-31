@@ -1,6 +1,6 @@
 use std::{
     net::IpAddr,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -63,8 +63,8 @@ impl HuntArgs {
             let logger = Logger::builder().connections(connections.clone()).build();
             // Run the first iteration at startup immediately in a fallible manner:
             let application_state = ApplicationState {
-                logger: Arc::new(Mutex::new(logger.run_once().await?.into())),
-                hunter: Arc::new(Mutex::new(hunter.run_once().await?.into())),
+                logger: Arc::new(RwLock::new(logger.run_once().await?.into())),
+                hunter: Arc::new(RwLock::new(hunter.run_once().await?.into())),
             };
             try_join!(
                 spawn(logger.run_forever(self.logger_cron, application_state.logger.clone())),
@@ -156,12 +156,12 @@ impl Hunter {
     async fn run_forever(
         self,
         schedule: CronSchedule,
-        system_state: Arc<Mutex<SystemState<SolverState>>>,
+        system_state: Arc<RwLock<SystemState<SolverState>>>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.lock().unwrap() = self
+            *system_state.write().unwrap() = self
                 .run_once()
                 .await
                 .inspect_err(|error| error!("hunter iteration failed: {error:#}"))

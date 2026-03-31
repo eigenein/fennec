@@ -5,8 +5,8 @@ mod working_mode;
 use std::net::IpAddr;
 
 use axum::{Router, extract::State, routing::get};
-use chrono_humanize::HumanTime;
 use clap::crate_version;
+use http::StatusCode;
 use maud::{DOCTYPE, Markup, html};
 
 use crate::{
@@ -20,22 +20,35 @@ use crate::{
 
 pub async fn serve(address: IpAddr, port: u16, state: ApplicationState) -> Result {
     info!(%address, port, "serving web UI…");
-    let app = Router::new().route("/", get(index)).with_state(state);
+    let app = Router::new()
+        .route("/", get(get_index))
+        .route("/health", get(get_health))
+        .with_state(state);
     let listener = tokio::net::TcpListener::bind((address, port)).await?;
     axum::serve(listener, app).await.context("the web application has failed")
 }
 
 #[instrument(skip_all)]
+async fn get_health(
+    State(state): State<ApplicationState>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    info!("check");
+    state.error_message().map_or(Ok(StatusCode::NO_CONTENT), |message| {
+        Err((StatusCode::INTERNAL_SERVER_ERROR, message))
+    })
+}
+
+#[instrument(skip_all)]
 #[expect(clippy::significant_drop_tightening)]
 #[expect(clippy::too_many_lines)]
-async fn index(State(state): State<ApplicationState>) -> Markup {
+async fn get_index(State(state): State<ApplicationState>) -> Markup {
     info!("access");
 
-    let logger = state.logger.lock().unwrap();
-    let hunter = state.hunter.lock().unwrap();
+    let logger = state.logger.read().unwrap();
+    let hunter = state.hunter.read().unwrap();
 
-    let navbar_class =
-        if logger.result.is_err() || hunter.result.is_err() { "is-danger" } else { "is_success" };
+    let error_message = state.error_message();
+    let navbar_class = if error_message.is_some() { "is-danger" } else { "is_success" };
 
     html! {
         (DOCTYPE)
@@ -92,23 +105,13 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                 }
                 section.section {
                     div.container {
-                        @if let Err(error) = &hunter.result {
+                        @if let Some(message) = &error_message {
                             article.message.is-danger {
                                 div.message-header {
-                                    p { "hunter has failed " (HumanTime::from(hunter.last_run_at)) }
+                                    p { "Error" }
                                 }
                                 div.message-body {
-                                    (format!("{error:#}"))
-                                }
-                            }
-                        }
-                        @if let Err(error) = &logger.result {
-                            article.message.is-danger {
-                                div.message-header {
-                                    p { "logger has failed " (HumanTime::from(logger.last_run_at)) }
-                                }
-                                div.message-body {
-                                    (format!("{error:#}"))
+                                    (message)
                                 }
                             }
                         }

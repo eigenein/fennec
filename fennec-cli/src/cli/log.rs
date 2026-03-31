@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use bon::Builder;
 use tokio::try_join;
@@ -21,12 +21,12 @@ impl Logger {
     pub async fn run_forever(
         self,
         schedule: CronSchedule,
-        system_state: Arc<Mutex<SystemState<()>>>,
+        system_state: Arc<RwLock<SystemState<()>>>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.lock().unwrap() = self
+            *system_state.write().unwrap() = self
                 .run_once()
                 .await
                 .inspect_err(|error| error!("logger iteration failed: {error:#}"))

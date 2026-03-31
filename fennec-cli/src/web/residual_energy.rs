@@ -22,10 +22,8 @@ impl Render for ResidualEnergyIconText {
             "fa-battery-empty"
         };
         html! {
-            span.icon-text {
-                span.icon {
-                    i.fas.(class) {}
-                }
+            span.icon-text.is-flex-wrap-nowrap {
+                span.icon { i.fas.(class) {} }
                 span { (self.residual_energy) }
             }
         }

@@ -29,7 +29,7 @@ impl Logger {
         }
     }
 
-    async fn run_once_stateful(&self) -> SystemState<()> {
+    pub async fn run_once_stateful(&self) -> SystemState<()> {
         match self.run_once().await {
             Ok(logger_state) => SystemState::ok(logger_state),
             Err(error) => {

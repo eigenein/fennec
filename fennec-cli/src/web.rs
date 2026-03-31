@@ -38,8 +38,6 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
     let status = if matches!(*logger, SystemState::Err(_)) || matches!(*solver, SystemState::Err(_))
     {
         Status::Error
-    } else if matches!(*logger, SystemState::Pending) || matches!(*solver, SystemState::Pending) {
-        Status::Warning
     } else {
         Status::Ok
     };
@@ -135,25 +133,25 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                                                     td.has-text-right.has-text-weight-semibold { (step.energy_price) }
                                                     td { (step.working_mode) }
                                                     td.has-text-right {
-                                                        span.icon-text {
+                                                        span.icon-text.is-flex-wrap-nowrap {
                                                             span { (step.energy_balance.grid.import) }
                                                             span.icon { i.fas.fa-chevron-down {} }
                                                         }
                                                     }
                                                     td.has-text-right {
-                                                        span.icon-text {
+                                                        span.icon-text.is-flex-wrap-nowrap {
                                                             span { (step.energy_balance.grid.export) }
                                                             span.icon { i.fas.fa-chevron-up {} }
                                                         }
                                                     }
                                                     td.has-text-right {
-                                                        span.icon-text {
+                                                        span.icon-text.is-flex-wrap-nowrap {
                                                             span { (step.energy_balance.battery.import) }
                                                             span.icon { i.fas.fa-chevron-down {} }
                                                         }
                                                     }
                                                     td.has-text-right {
-                                                        span.icon-text {
+                                                        span.icon-text.is-flex-wrap-nowrap {
                                                             span { (step.energy_balance.battery.export) }
                                                             span.icon { i.fas.fa-chevron-up {} }
                                                         }

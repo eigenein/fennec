@@ -58,8 +58,11 @@ impl HuntArgs {
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
 
         let (logger_result, hunter_result, web_result) = {
-            let application_state = ApplicationState::default();
             let logger = Logger::builder().connections(connections.clone()).build();
+            let application_state = ApplicationState {
+                logger: Arc::new(Mutex::new(logger.run_once_stateful().await)),
+                solver: Arc::new(Mutex::new(hunter.run_once_stateful().await)),
+            };
             try_join!(
                 spawn(logger.run_forever(self.logger_cron, application_state.logger.clone())),
                 spawn(hunter.run_forever(self.optimizer_cron, application_state.solver.clone())),

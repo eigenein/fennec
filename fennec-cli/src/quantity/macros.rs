@@ -116,6 +116,14 @@ macro_rules! fmt {
                 write!(formatter, "{0:.1$}{2}", self.0, $precision, $suffix)
             }
         }
+
+        impl ::maud::Render for $name {
+            fn render(&self) -> ::maud::Markup {
+                ::maud::html! { (format!("{0:.1$}", self.0, $precision))
+                (::maud::PreEscaped("&nbsp;"))
+                ($suffix) }
+            }
+        }
     };
 }
 

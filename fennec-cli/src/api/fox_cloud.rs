@@ -31,7 +31,7 @@ impl Client {
         headers.append("Token", HeaderValue::from_str(&api_key)?);
         let inner = reqwest::Client::builder()
             .user_agent("fennec")
-            .timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(30))
             .default_headers(headers)
             .build()?;
         Ok(Self { inner, api_key, serial_number })

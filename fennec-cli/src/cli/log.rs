@@ -34,6 +34,9 @@ impl Logger {
         }
     }
 
+    /// Run a single logging iteration.
+    ///
+    /// We don't care about retries here because the logger is supposed to run frequently anyway.
     pub async fn run_once(&self) -> Result {
         let (battery_state, grid_metrics) = try_join!(
             async { self.connections.battery.lock().await.read_state().await },

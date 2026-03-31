@@ -22,6 +22,7 @@ is-it-maintained-open-issues = { repository = "eigenein/fennec" }
 anyhow = "1.0.102"
 average = "0.16.0"
 axum = { version = "0.8.8", features = ["http2"] }
+backon = { version = "1.6.0", features = ["tokio-sleep"] }
 bon = "3.9.1"
 bson = { version = "3.1.0", features = ["chrono-0_4", "serde_with-3"] }
 chrono = { version = "0.4.44", default-features = false, features = ["clock", "serde"] }

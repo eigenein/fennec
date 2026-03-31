@@ -1,8 +1,10 @@
 use std::{
     net::IpAddr,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
+use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
@@ -143,6 +145,14 @@ pub struct Hunter {
 }
 
 impl Hunter {
+    /// APIs (energy provider, Fox Cloud) backoff.
+    const API_BACKOFF: ExponentialBuilder =
+        ExponentialBuilder::new().with_min_delay(Duration::from_secs(10));
+
+    /// Direct battery connection backoff.
+    const BATTERY_BACKOFF: ConstantBuilder =
+        ConstantBuilder::new().with_delay(Duration::from_secs(5));
+
     async fn run_forever(
         self,
         schedule: CronSchedule,
@@ -162,9 +172,11 @@ impl Hunter {
     #[instrument(skip_all)]
     async fn run_once(&self) -> Result<SolverState> {
         let now = Local::now().with_nanosecond(0).unwrap();
-        let energy_prices = self.get_prices(now).await?;
+        let energy_prices = (|| self.get_prices(now)).retry(Self::API_BACKOFF).await?;
 
-        let battery_state = self.connections.battery.lock().await.read_state().await?;
+        let battery_state = (async || self.connections.battery.lock().await.read_state().await)
+            .retry(Self::BATTERY_BACKOFF)
+            .await?;
         println!("{battery_state}");
 
         let balance_profile = {
@@ -208,7 +220,7 @@ impl Hunter {
         println!("{}", &groups);
 
         if let Some(fox_cloud) = &self.connections.fox_cloud {
-            fox_cloud.set_schedule(groups.as_ref()).await?;
+            (|| fox_cloud.set_schedule(groups.as_ref())).retry(Self::API_BACKOFF).await?;
         } else {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }

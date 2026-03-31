@@ -130,7 +130,7 @@ impl MQ2200 {
         // FIXME: reconnect on timeout.
         timeout(Self::TIMEOUT, read)
             .await
-            .context("timed out while reading the register")?
+            .context("timed out while reading the registers")?
             .inspect(|words| debug!(?words, "read"))
     }
 }

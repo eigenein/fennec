@@ -47,7 +47,7 @@ pub struct HuntArgs {
     #[clap(long = "power-log-ttl", env = "POWER_LOG_TTL", default_value = "14days")]
     power_log_ttl: humantime::Duration,
 
-    #[clap(long = "bind-address", env = "BIND_ADDRESS", default_value = "0.0.0.0")]
+    #[clap(long = "bind-address", env = "BIND_ADDRESS", default_value = "::")]
     bind_address: IpAddr,
 
     #[clap(long = "bind-port", env = "BIND_PORT", default_value = "80")]

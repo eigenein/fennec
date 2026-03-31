@@ -4,13 +4,16 @@ use chrono::{DateTime, Local};
 use chrono_humanize::HumanTime;
 use maud::{Markup, html};
 
-use crate::{prelude::*, state::SolverState};
+use crate::{
+    prelude::*,
+    state::{HunterState, LoggerState},
+};
 
 #[must_use]
 #[derive(Clone)]
 pub struct ApplicationState {
-    pub logger: Arc<RwLock<SystemState<()>>>,
-    pub hunter: Arc<RwLock<SystemState<SolverState>>>,
+    pub logger: Arc<RwLock<SystemState<LoggerState>>>,
+    pub hunter: Arc<RwLock<SystemState<HunterState>>>,
 }
 
 impl ApplicationState {

@@ -44,8 +44,9 @@ impl MQ2200 {
         // TODO: read these once and cache them:
         let design_capacity = self.read_design_capacity().await?;
         let health = self.read_state_of_health().await?;
-        let min_state_of_charge = self.read_min_state_of_charge().await?;
-        let max_state_of_charge = self.read_max_state_of_charge().await?;
+        let min_system_soc = self.read_min_system_soc().await?;
+        let min_soc_on_grid = self.read_min_soc_on_grid().await?;
+        let max_soc = self.read_max_soc().await?;
 
         // Fast-changing values should be read next to each other with minimum delays:
         let charge = self.read_state_of_charge().await?;
@@ -58,15 +59,20 @@ impl MQ2200 {
             health,
             battery_active_power,
             eps_active_power,
-            allowed_state_of_charge: (min_state_of_charge..=max_state_of_charge).into(),
+            min_system_charge: min_system_soc,
+            charge_range: (min_soc_on_grid..=max_soc).into(),
         })
     }
 
-    async fn read_min_state_of_charge(&mut self) -> Result<Percentage> {
+    async fn read_min_system_soc(&mut self) -> Result<Percentage> {
+        self.read_u16(46609).await.map(Percentage)
+    }
+
+    async fn read_min_soc_on_grid(&mut self) -> Result<Percentage> {
         self.read_u16(46611).await.map(Percentage)
     }
 
-    async fn read_max_state_of_charge(&mut self) -> Result<Percentage> {
+    async fn read_max_soc(&mut self) -> Result<Percentage> {
         self.read_u16(46610).await.map(Percentage)
     }
 

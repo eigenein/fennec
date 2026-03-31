@@ -117,82 +117,178 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                 }
                             }
                         }
-                        @if let Ok(state) = &hunter.result {
-                            div.box {
-                                nav.level {
-                                    div.level-item.has-text-centered {
-                                        div {
-                                            p.heading { "Profit" }
-                                            p.title { (state.profit()) }
+                        div.grid {
+                            @if let Ok(state) = &logger.result {
+                                div.cell.is-col-span-3 {
+                                    div.card {
+                                        header.card-header {
+                                            p.card-header-title {
+                                                span.icon-text {
+                                                    span.icon { i.fas.fa-charging-station {} }
+                                                    span { "Battery state" }
+                                                }
+                                            }
+                                        }
+                                        div.card-content {
+                                            nav.level {
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Charge" }
+                                                        p.title { (state.battery.charge) }
+                                                    }
+                                                }
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Health" }
+                                                        p.title { (state.battery.health) }
+                                                    }
+                                                }
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Capacity" }
+                                                        p.title { (state.battery.actual_capacity()) }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
-                                    div.level-item.has-text-centered {
-                                        div {
-                                            p.heading { "Charge" }
-                                            p.title.has-text-success { (state.metrics.internal_battery_flow.import) }
+                                }
+                                div.cell.is-col-span-3 {
+                                    div.card {
+                                        header.card-header {
+                                            p.card-header-title {
+                                                span.icon-text {
+                                                    span.icon { i.fas.fa-user-gear {} }
+                                                    span { "Battery settings" }
+                                                }
+                                            }
                                         }
-                                    }
-                                    div.level-item.has-text-centered {
-                                        div {
-                                            p.heading { "Discharge" }
-                                            p.title.has-text-info { (state.metrics.internal_battery_flow.export) }
+                                        div.card-content {
+                                            nav.level {
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Min system SoC" }
+                                                        p.title.has-text-danger { (state.battery.min_system_charge) }
+                                                    }
+                                                }
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Min SoC" }
+                                                        p.title.has-text-info { (state.battery.charge_range.min) }
+                                                    }
+                                                }
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Max SoC" }
+                                                        p.title.has-text-success { (state.battery.charge_range.max) }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
-                            div.box {
-                                div.table-container {
-                                    table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
-                                        thead { (steps_table_header()) }
-                                        tfoot { (steps_table_header()) }
-                                        tbody {
-                                            @for step in &state.steps {
-                                                tr.(WorkingModeColor(step.working_mode)) {
-                                                    td { (step.interval.start.format("%b %d")) }
-                                                    td { (step.interval.start.format("%H:%M")) }
-                                                    td { (step.interval.end.format("%H:%M")) }
-                                                    td { (step.duration) }
-                                                    td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
-                                                        (step.energy_price)
+                            @if let Ok(state) = &hunter.result {
+                                div.cell.is-col-span-3 {
+                                    div.card {
+                                        header.card-header {
+                                            p.card-header-title {
+                                                span.icon-text {
+                                                    span.icon { i.fas.fa-calculator {} }
+                                                    span { "Solution" }
+                                                }
+                                            }
+                                        }
+                                        div.card-content {
+                                            nav.level {
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Profit" }
+                                                        p.title { (state.profit()) }
                                                     }
-                                                    td {
-                                                        (step.working_mode)
+                                                }
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Charge" }
+                                                        p.title.has-text-success { (state.metrics.internal_battery_flow.import) }
                                                     }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.grid.import) }
-                                                            span.icon { i.fas.fa-angles-down {} }
+                                                }
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Discharge" }
+                                                        p.title.has-text-info { (state.metrics.internal_battery_flow.export) }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        @if let Ok(state) = &hunter.result {
+                            div.card {
+                                header.card-header {
+                                    p.card-header-title {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-calendar {} }
+                                            span { "Schedule" }
+                                        }
+                                    }
+                                }
+                                div.card-content {
+                                    div.table-container {
+                                        table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                            thead { (steps_table_header()) }
+                                            tfoot { (steps_table_header()) }
+                                            tbody {
+                                                @for step in &state.steps {
+                                                    tr.(WorkingModeColor(step.working_mode)) {
+                                                        td { (step.interval.start.format("%b %d")) }
+                                                        td { (step.interval.start.format("%H:%M")) }
+                                                        td { (step.interval.end.format("%H:%M")) }
+                                                        td { (step.duration) }
+                                                        td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
+                                                            (step.energy_price)
                                                         }
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.grid.export) }
-                                                            span.icon { i.fas.fa-angles-up {} }
+                                                        td {
+                                                            (step.working_mode)
                                                         }
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.battery.import) }
-                                                            span.icon { i.fas.fa-angle-down {} }
+                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
+                                                            span.icon-text.is-flex-wrap-nowrap {
+                                                                span { (step.energy_balance.grid.import) }
+                                                                span.icon { i.fas.fa-angles-down {} }
+                                                            }
                                                         }
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.battery.export) }
-                                                            span.icon { i.fas.fa-angle-up {} }
+                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
+                                                            span.icon-text.is-flex-wrap-nowrap {
+                                                                span { (step.energy_balance.grid.export) }
+                                                                span.icon { i.fas.fa-angles-up {} }
+                                                            }
                                                         }
-                                                    }
-                                                    td.has-text-right {
-                                                        (ResidualEnergyIconText {
-                                                            residual_energy: step.residual_energy_after,
-                                                            actual_capacity: state.actual_capacity,
-                                                        })
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
-                                                        (step.metrics.losses.grid)
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
-                                                        (step.metrics.losses.battery)
+                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
+                                                            span.icon-text.is-flex-wrap-nowrap {
+                                                                span { (step.energy_balance.battery.import) }
+                                                                span.icon { i.fas.fa-angle-down {} }
+                                                            }
+                                                        }
+                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
+                                                            span.icon-text.is-flex-wrap-nowrap {
+                                                                span { (step.energy_balance.battery.export) }
+                                                                span.icon { i.fas.fa-angle-up {} }
+                                                            }
+                                                        }
+                                                        td.has-text-right {
+                                                            (ResidualEnergyIconText {
+                                                                residual_energy: step.residual_energy_after,
+                                                                actual_capacity: state.actual_capacity,
+                                                            })
+                                                        }
+                                                        td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
+                                                            (step.metrics.losses.grid)
+                                                        }
+                                                        td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
+                                                            (step.metrics.losses.battery)
+                                                        }
                                                     }
                                                 }
                                             }

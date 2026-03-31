@@ -8,6 +8,7 @@ use crate::{
     cron::CronSchedule,
     db::{Measurement, power},
     prelude::*,
+    state::LoggerState,
     web::state::SystemState,
 };
 
@@ -21,7 +22,7 @@ impl Logger {
     pub async fn run_forever(
         self,
         schedule: CronSchedule,
-        system_state: Arc<RwLock<SystemState<()>>>,
+        system_state: Arc<RwLock<SystemState<LoggerState>>>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
@@ -37,7 +38,7 @@ impl Logger {
     /// Run a single logging iteration.
     ///
     /// We don't care about retries here because the logger is supposed to run frequently anyway.
-    pub async fn run_once(&self) -> Result {
+    pub async fn run_once(&self) -> Result<LoggerState> {
         let (battery_state, grid_metrics) = try_join!(
             async { self.connections.battery.lock().await.read_state().await },
             self.connections.grid_measurement.get_measurement()
@@ -48,6 +49,6 @@ impl Logger {
             .build()
             .insert_into(&self.connections.db)
             .await?;
-        Ok(())
+        Ok(LoggerState { battery: battery_state })
     }
 }

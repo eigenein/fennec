@@ -28,7 +28,7 @@ use crate::{
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
-    state::SolverState,
+    state::HunterState,
     web,
     web::state::{ApplicationState, SystemState},
 };
@@ -156,7 +156,7 @@ impl Hunter {
     async fn run_forever(
         self,
         schedule: CronSchedule,
-        system_state: Arc<RwLock<SystemState<SolverState>>>,
+        system_state: Arc<RwLock<SystemState<HunterState>>>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
@@ -170,14 +170,21 @@ impl Hunter {
     }
 
     #[instrument(skip_all)]
-    async fn run_once(&self) -> Result<SolverState> {
+    async fn run_once(&self) -> Result<HunterState> {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices = (|| self.get_prices(now)).retry(Self::API_BACKOFF).await?;
 
         let battery_state = (async || self.connections.battery.lock().await.read_state().await)
             .retry(Self::BATTERY_BACKOFF)
             .await?;
-        println!("{battery_state}");
+        info!(
+            charge = ?battery_state.charge,
+            health = ?battery_state.health,
+            actual_capacity = ?battery_state.actual_capacity(),
+            min_system_charge = ?battery_state.min_system_charge,
+            charge_range = ?battery_state.charge_range,
+            "battery state",
+        );
 
         let balance_profile = {
             let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
@@ -213,7 +220,15 @@ impl Hunter {
         let base_loss = solver.base_loss();
         let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
         println!("{}", build_steps_table(&steps));
-        println!("{}", metrics.into_table(base_loss));
+        info!(
+            profit = ?(base_loss - metrics.losses.total()),
+            ?base_loss,
+            grid_loss = ?metrics.losses.grid,
+            battery.loss = ?metrics.losses.battery,
+            battery.charge = ?metrics.internal_battery_flow.import,
+            battery.discharge = ?metrics.internal_battery_flow.export,
+            "solution summary",
+        );
 
         let schedule = steps.iter().map(|step| (step.interval, step.working_mode)).collect_vec();
         let groups = fox_cloud::Groups::from_schedule(&schedule, self.battery_args.power_limits);
@@ -225,7 +240,7 @@ impl Hunter {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }
 
-        Ok(SolverState {
+        Ok(HunterState {
             steps,
             actual_capacity: battery_state.actual_capacity(),
             base_loss,

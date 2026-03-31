@@ -61,7 +61,8 @@ where
 }
 
 #[must_use]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, derive_more::Debug)]
+#[debug("{min:?}..={max:?}")]
 pub struct Inclusive<T> {
     pub min: T,
     pub max: T,

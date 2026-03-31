@@ -11,6 +11,7 @@ use crate::{
     web::state::SystemState,
 };
 
+/// Battery state and power meter logger.
 #[derive(Builder)]
 pub struct Logger {
     connections: Connections,
@@ -25,21 +26,15 @@ impl Logger {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.lock().unwrap() = self.run_once_stateful().await;
+            *system_state.lock().unwrap() = self
+                .run_once()
+                .await
+                .inspect_err(|error| error!("logger iteration failed: {error:#}"))
+                .into();
         }
     }
 
-    pub async fn run_once_stateful(&self) -> SystemState<()> {
-        match self.run_once().await {
-            Ok(logger_state) => SystemState::ok(logger_state),
-            Err(error) => {
-                error!("logger iteration failed: {error:#}");
-                SystemState::Err(error)
-            }
-        }
-    }
-
-    async fn run_once(&self) -> Result {
+    pub async fn run_once(&self) -> Result {
         let (battery_state, grid_metrics) = try_join!(
             async { self.connections.battery.lock().await.read_state().await },
             self.connections.grid_measurement.get_measurement()

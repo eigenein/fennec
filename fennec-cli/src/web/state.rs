@@ -10,28 +10,38 @@ use crate::{prelude::*, state::SolverState};
 #[derive(Clone)]
 pub struct ApplicationState {
     pub logger: Arc<Mutex<SystemState<()>>>,
-    pub solver: Arc<Mutex<SystemState<SolverState>>>,
+    pub hunter: Arc<Mutex<SystemState<SolverState>>>,
 }
 
 #[must_use]
-pub enum SystemState<T> {
-    Ok { last_run_at: DateTime<Local>, inner: T },
-    Err(Error),
+pub struct SystemState<T> {
+    pub last_run_at: DateTime<Local>,
+    pub result: Result<T>,
+}
+
+impl<T> From<Result<T>> for SystemState<T> {
+    fn from(result: Result<T>) -> Self {
+        Self { last_run_at: Local::now(), result }
+    }
+}
+
+impl<T> From<T> for SystemState<T> {
+    fn from(state: T) -> Self {
+        Self { last_run_at: Local::now(), result: Ok(state) }
+    }
 }
 
 impl<T> SystemState<T> {
-    pub fn ok(inner: T) -> Self {
-        Self::Ok { last_run_at: Local::now(), inner }
-    }
-
     /// Render short status for the navigation bar.
     pub fn status(&self) -> Markup {
         html! {
-            @match self {
-                Self::Ok { last_run_at, .. } => time datetime=(last_run_at.to_rfc3339()) {
-                    (HumanTime::from(*last_run_at))
+            @match self.result {
+                Ok(_) => time datetime=(self.last_run_at.to_rfc3339()) {
+                    (HumanTime::from(self.last_run_at))
                 },
-                Self::Err(_) => "failed",
+                Err(_) => {
+                    "failed"
+                },
             }
         }
     }

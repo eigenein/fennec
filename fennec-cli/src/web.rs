@@ -1,11 +1,11 @@
 mod residual_energy;
 pub mod state;
-mod status;
 mod working_mode;
 
 use std::net::IpAddr;
 
 use axum::{Router, extract::State, routing::get};
+use chrono_humanize::HumanTime;
 use clap::crate_version;
 use maud::{DOCTYPE, Markup, html};
 
@@ -13,8 +13,7 @@ use crate::{
     prelude::*,
     web::{
         residual_energy::ResidualEnergyIconText,
-        state::{ApplicationState, SystemState},
-        status::Status,
+        state::ApplicationState,
         working_mode::WorkingModeColor,
     },
 };
@@ -33,14 +32,10 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
     info!("access");
 
     let logger = state.logger.lock().unwrap();
-    let solver = state.solver.lock().unwrap();
+    let hunter = state.hunter.lock().unwrap();
 
-    let status = if matches!(*logger, SystemState::Err(_)) || matches!(*solver, SystemState::Err(_))
-    {
-        Status::Error
-    } else {
-        Status::Ok
-    };
+    let navbar_class =
+        if logger.result.is_err() || hunter.result.is_err() { "is-danger" } else { "is_success" };
 
     html! {
         (DOCTYPE)
@@ -66,7 +61,7 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                     referrerpolicy="no-referrer";
             }
             body {
-                nav.navbar.(status) role="navigation" aria-label="main navigation" {
+                nav.navbar.(navbar_class) role="navigation" aria-label="main navigation" {
                     div.container {
                         div.navbar-brand {
                             a.navbar-item href="/" {
@@ -89,7 +84,7 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                             div.navbar-item {
                                 div {
                                     p.is-size-7 { "solver" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { (solver.status()) }
+                                    p.is-size-7.is-uppercase.has-text-weight-medium { (hunter.status()) }
                                 }
                             }
                         }
@@ -97,34 +92,34 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                 }
                 section.section {
                     div.container {
-                        @if let SystemState::Err(error) = &*solver {
+                        @if let Err(error) = &hunter.result {
                             article.message.is-danger {
                                 div.message-header {
-                                    p { "Solver has failed" }
+                                    p { "hunter has failed " (HumanTime::from(hunter.last_run_at)) }
                                 }
                                 div.message-body {
                                     (format!("{error:#}"))
                                 }
                             }
                         }
-                        @if let SystemState::Err(error) = &*logger {
+                        @if let Err(error) = &logger.result {
                             article.message.is-danger {
                                 div.message-header {
-                                    p { "Logger has failed" }
+                                    p { "logger has failed " (HumanTime::from(logger.last_run_at)) }
                                 }
                                 div.message-body {
                                     (format!("{error:#}"))
                                 }
                             }
                         }
-                        @if let SystemState::Ok { inner, .. } = &*solver {
+                        @if let Ok(state) = &hunter.result {
                             div.box {
                                 div.table-container {
                                     table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
                                         thead { (steps_table_header()) }
                                         tfoot { (steps_table_header()) }
                                         tbody {
-                                            @for step in &inner.steps {
+                                            @for step in &state.steps {
                                                 tr.(WorkingModeColor(step.working_mode)) {
                                                     td { (step.interval.start.format("%b %d")) }
                                                     td { (step.interval.start.format("%H:%M")) }
@@ -159,7 +154,7 @@ async fn index(State(state): State<ApplicationState>) -> Markup {
                                                     td.has-text-right.has-text-weight-semibold {
                                                         (ResidualEnergyIconText {
                                                             residual_energy: step.residual_energy_after,
-                                                            actual_capacity: inner.actual_capacity,
+                                                            actual_capacity: state.actual_capacity,
                                                         })
                                                     }
                                                     td.has-text-right { (step.metrics.losses.grid) }

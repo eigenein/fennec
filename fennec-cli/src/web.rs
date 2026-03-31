@@ -209,13 +209,13 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                                 }
                                                 div.level-item.has-text-centered {
                                                     div {
-                                                        p.heading { "Charge" }
+                                                        p.heading { "Planned charge" }
                                                         p.title.has-text-success { (state.metrics.internal_battery_flow.import) }
                                                     }
                                                 }
                                                 div.level-item.has-text-centered {
                                                     div {
-                                                        p.heading { "Discharge" }
+                                                        p.heading { "Planned discharge" }
                                                         p.title.has-text-info { (state.metrics.internal_battery_flow.export) }
                                                     }
                                                 }

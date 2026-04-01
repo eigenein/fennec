@@ -119,13 +119,13 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                         }
                         div.grid.mb-3 {
                             @if let Ok(state) = &logger.result {
-                                div.cell.is-col-span-3 {
+                                div.cell.is-col-span-2 {
                                     div.card {
                                         header.card-header {
                                             p.card-header-title {
                                                 span.icon-text {
                                                     span.icon { i.fas.fa-charging-station {} }
-                                                    span { "Battery state" }
+                                                    span { "Charge" }
                                                 }
                                             }
                                         }
@@ -133,13 +133,35 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             nav.level.is-mobile {
                                                 div.level-item.has-text-centered {
                                                     div {
-                                                        p.heading { "Charge" }
+                                                        p.heading { "Percentage" }
                                                         p.title { (state.battery.charge) }
                                                     }
                                                 }
                                                 div.level-item.has-text-centered {
                                                     div {
-                                                        p.heading { "Health" }
+                                                        p.heading { "Residual energy" }
+                                                        p.title { (state.battery.residual_energy()) }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                div.cell.is-col-span-2 {
+                                    div.card {
+                                        header.card-header {
+                                            p.card-header-title {
+                                                span.icon-text {
+                                                    span.icon { i.fas.fa-star-of-life {} }
+                                                    span { "Health" }
+                                                }
+                                            }
+                                        }
+                                        div.card-content {
+                                            nav.level.is-mobile {
+                                                div.level-item.has-text-centered {
+                                                    div {
+                                                        p.heading { "Percentage" }
                                                         p.title { (state.battery.health) }
                                                     }
                                                 }

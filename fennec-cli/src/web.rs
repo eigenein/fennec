@@ -117,7 +117,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                 }
                             }
                         }
-                        div.grid {
+                        div.grid.mb-3 {
                             @if let Ok(state) = &logger.result {
                                 div.cell.is-col-span-3 {
                                     div.card {
@@ -130,7 +130,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             }
                                         }
                                         div.card-content {
-                                            nav.level {
+                                            nav.level.is-mobile {
                                                 div.level-item.has-text-centered {
                                                     div {
                                                         p.heading { "Charge" }
@@ -164,7 +164,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             }
                                         }
                                         div.card-content {
-                                            nav.level {
+                                            nav.level.is-mobile {
                                                 div.level-item.has-text-centered {
                                                     div {
                                                         p.heading { "Min system SoC" }
@@ -200,7 +200,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             }
                                         }
                                         div.card-content {
-                                            nav.level {
+                                            nav.level.is-mobile {
                                                 div.level-item.has-text-centered {
                                                     div {
                                                         p.heading { "Profit" }

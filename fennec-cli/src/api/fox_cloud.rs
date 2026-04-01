@@ -75,7 +75,7 @@ impl Client {
             groups: &'a [Group],
         }
 
-        info!(n_groups = groups.len(), "setting…");
+        info!(n_groups = groups.len(), "submitting the schedule…");
         self.post::<_, IgnoredAny>(
             "op/v3/device/scheduler/enable",
             SetScheduleRequest {
@@ -86,6 +86,7 @@ impl Client {
             },
         )
         .await?;
+        info!("schedule submitted");
         Ok(())
     }
 

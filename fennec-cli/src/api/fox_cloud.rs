@@ -76,16 +76,13 @@ impl Client {
         }
 
         info!(n_groups = groups.len(), "submitting the schedule…");
-        self.post::<_, IgnoredAny>(
-            "op/v3/device/scheduler/enable",
-            SetScheduleRequest {
-                serial_number: &self.serial_number,
-                is_default_extra: true,
-                groups,
-                is_enabled: true,
-            },
-        )
-        .await?;
+        let request = SetScheduleRequest {
+            serial_number: &self.serial_number,
+            is_default_extra: true,
+            groups,
+            is_enabled: true,
+        };
+        self.post::<_, IgnoredAny>("op/v3/device/scheduler/enable", request).await?;
         info!("schedule submitted");
         Ok(())
     }

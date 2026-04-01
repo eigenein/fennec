@@ -1,5 +1,9 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
+use backon::{ConstantBuilder, Retryable};
 use bon::Builder;
 use tokio::try_join;
 
@@ -19,6 +23,8 @@ pub struct Logger {
 }
 
 impl Logger {
+    const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
+
     pub async fn run_forever(
         self,
         schedule: CronSchedule,
@@ -27,11 +33,12 @@ impl Logger {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.write().unwrap() = self
-                .run_once()
-                .await
-                .inspect_err(|error| error!("logger iteration failed: {error:#}"))
-                .into();
+            let run_once = || async {
+                self.run_once()
+                    .await
+                    .inspect_err(|error| error!("logger iteration failed: {error:#}"))
+            };
+            *system_state.write().unwrap() = run_once.retry(Self::BACKOFF).await?.into();
         }
     }
 

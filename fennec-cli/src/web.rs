@@ -12,7 +12,10 @@ use maud::{DOCTYPE, Markup, html};
 use crate::{
     battery::WorkingMode,
     prelude::*,
-    quantity::{currency::Mills, energy::WattHours},
+    quantity::{
+        currency::Mills,
+        energy::{KilowattHours, WattHours},
+    },
     web::{
         residual_energy::ResidualEnergyIconText,
         state::ApplicationState,
@@ -232,13 +235,17 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                                 div.level-item.has-text-centered {
                                                     div {
                                                         p.heading { "Planned charge" }
-                                                        p.title.has-text-success { (state.metrics.internal_battery_flow.import) }
+                                                        p.title.has-text-success {
+                                                            (KilowattHours::from(state.metrics.internal_battery_flow.import))
+                                                        }
                                                     }
                                                 }
                                                 div.level-item.has-text-centered {
                                                     div {
                                                         p.heading { "Planned discharge" }
-                                                        p.title.has-text-info { (state.metrics.internal_battery_flow.export) }
+                                                        p.title.has-text-info {
+                                                            (KilowattHours::from(state.metrics.internal_battery_flow.export))
+                                                        }
                                                     }
                                                 }
                                             }

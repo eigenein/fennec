@@ -9,7 +9,7 @@ use crate::quantity::{
 quantity!(MilliwattHours, via: i64, suffix: "mWh", precision: 0);
 quantity!(WattHours, via: f64, suffix: "Wh", precision: 0);
 quantity!(DecawattHours, via: u16, suffix: "daWh", precision: 1);
-quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 3);
+quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 1);
 
 implement_mul!(Watts, Hours, WattHours);
 
@@ -64,5 +64,11 @@ impl Div<Hours> for WattHours {
 impl From<KilowattHours> for WattHours {
     fn from(kilowatt_hours: KilowattHours) -> Self {
         Self(kilowatt_hours.0 * 1000.0)
+    }
+}
+
+impl From<WattHours> for KilowattHours {
+    fn from(watt_hours: WattHours) -> Self {
+        Self(watt_hours.0 * 0.001)
     }
 }

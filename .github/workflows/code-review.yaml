@@ -6,6 +6,7 @@ jobs:
   review:
     runs-on: "ubuntu-latest"
     permissions:
+      actions: "read"
       contents: "read"
       pull-requests: "write"
       issues: "write"
@@ -21,7 +22,7 @@ jobs:
         continue-on-error: true
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
+          use_sticky_comment: true
           prompt: "/review"
           claude_args: "--model claude-haiku-4-5"

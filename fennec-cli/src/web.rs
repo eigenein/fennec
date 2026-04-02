@@ -13,10 +13,7 @@ use maud::{DOCTYPE, Markup, PreEscaped, html};
 use crate::{
     battery::WorkingMode,
     prelude::*,
-    quantity::{
-        currency::Mills,
-        energy::{KilowattHours, WattHours},
-    },
+    quantity::{currency::Mills, energy::WattHours},
     web::{battery::StateOfCharge, state::ApplicationState, working_mode::WorkingModeColor},
 };
 

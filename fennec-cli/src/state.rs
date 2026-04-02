@@ -1,17 +1,15 @@
 use crate::{
     battery,
-    quantity::{currency::Mills, energy::WattHours},
+    quantity::{currency::Mills, power::Watts},
     solution::{Metrics, Step},
 };
 
 #[must_use]
 pub struct HunterState {
-    /// FIXME: this is also present in [`LoggerState`].
-    pub actual_capacity: WattHours,
-
     pub steps: Vec<Step>,
     pub base_loss: Mills,
     pub metrics: Metrics,
+    pub average_eps_power: Watts,
 }
 
 impl HunterState {

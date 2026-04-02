@@ -1,13 +1,14 @@
-mod residual_energy;
+mod battery;
 pub mod state;
 mod working_mode;
 
 use std::net::IpAddr;
 
 use axum::{Router, extract::State, routing::get};
+use chrono_humanize::HumanTime;
 use clap::crate_version;
 use http::StatusCode;
-use maud::{DOCTYPE, Markup, html};
+use maud::{DOCTYPE, Markup, PreEscaped, html};
 
 use crate::{
     battery::WorkingMode,
@@ -16,11 +17,7 @@ use crate::{
         currency::Mills,
         energy::{KilowattHours, WattHours},
     },
-    web::{
-        residual_energy::ResidualEnergyIconText,
-        state::ApplicationState,
-        working_mode::WorkingModeColor,
-    },
+    web::{battery::StateOfCharge, state::ApplicationState, working_mode::WorkingModeColor},
 };
 
 pub async fn serve(address: IpAddr, port: u16, state: ApplicationState) -> Result {
@@ -52,9 +49,6 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
     let logger = state.logger.read().unwrap();
     let hunter = state.hunter.read().unwrap();
 
-    let error_message = state.error_message();
-    let navbar_class = if error_message.is_some() { "is-danger" } else { "is-success" };
-
     html! {
         (DOCTYPE)
         html {
@@ -79,7 +73,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                     referrerpolicy="no-referrer";
             }
             body {
-                nav.navbar.(navbar_class) role="navigation" aria-label="main navigation" {
+                nav.navbar.has-shadow role="navigation" aria-label="main navigation" {
                     div.container {
                         div.navbar-brand {
                             a.navbar-item href="/" {
@@ -87,30 +81,178 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                     text y="1em" font-size="90" { "🦊" }
                                 }
                             }
-                            div.navbar-item {
-                                div {
-                                    p.is-size-7 { "version" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { (crate_version!()) }
-                                }
-                            }
-                            div.navbar-item {
-                                div {
-                                    p.is-size-7 { "logger" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { (logger.status()) }
-                                }
-                            }
-                            div.navbar-item {
-                                div {
-                                    p.is-size-7 { "solver" }
-                                    p.is-size-7.is-uppercase.has-text-weight-medium { (hunter.status()) }
-                                }
-                            }
                         }
                     }
                 }
-                section.section {
+                section.section.pb-5 {
                     div.container {
-                        @if let Some(message) = &error_message {
+                        div.field.is-grouped.is-grouped-multiline {
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fa-brands.fa-github {} }
+                                            span { "Version" }
+                                        }
+                                    }
+                                    span.tag {
+                                        (crate_version!())
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.(if hunter.result.is_ok() { "is-success" } else { "is-error" }) {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-timeline {} }
+                                            span { "Hunter" }
+                                        }
+                                    }
+                                    span.tag {
+                                        (HumanTime::from(hunter.last_run_at))
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.(if logger.result.is_ok() { "is-success" } else { "is-error" }) {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-heart-circle-bolt {} }
+                                            span { "Logger" }
+                                        }
+                                    }
+                                    span.tag {
+                                        (HumanTime::from(logger.last_run_at))
+                                    }
+                                }
+                            }
+                        }
+
+                        @if let Ok(logger_state) = &logger.result {
+                            div.field.is-grouped.is-grouped-multiline {
+                                @let state_of_charge = StateOfCharge {
+                                    residual_energy: logger_state.battery.residual_energy(),
+                                    actual_capacity: Some(logger_state.battery.actual_capacity()),
+                                };
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.(state_of_charge.class()) {
+                                            span.icon-text {
+                                                (state_of_charge.icon())
+                                                span { "Charge" }
+                                            }
+                                        }
+                                        span.tag { (logger_state.battery.charge) }
+                                        span.tag { (logger_state.battery.residual_energy()) }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-star-of-life {} }
+                                                span { "Health" }
+                                            }
+                                        }
+                                        span.tag { (logger_state.battery.health) }
+                                        span.tag { (logger_state.battery.actual_capacity()) }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-gear {} }
+                                                span { "Min SoC" }
+                                            }
+                                        }
+                                        span.tag { (logger_state.battery.min_system_charge) }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-user-gear {} }
+                                                span { "SoC range" }
+                                            }
+                                        }
+                                        span.tag { (logger_state.battery.charge_range.min) }
+                                        span.tag { (logger_state.battery.charge_range.max) }
+                                    }
+                                }
+                            }
+                        }
+
+                        @if let Ok(hunter_state) = &hunter.result {
+                            div.field.is-grouped.is-grouped-multiline {
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-money-bill {} }
+                                                span { "Profit" }
+                                            }
+                                        }
+                                        span.tag {
+                                            (hunter_state.profit())
+                                        }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-arrow-right-arrow-left {} }
+                                                span { "Flow" }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angle-down {} }
+                                                span { (hunter_state.metrics.internal_battery_flow.import) }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angle-up {} }
+                                                span { (hunter_state.metrics.internal_battery_flow.export) }
+                                            }
+                                        }
+                                    }
+                                }
+                                @if let Ok(logger_state) = &logger.result {
+                                    div.control {
+                                        div.tags.has-addons {
+                                            span.tag.is-info {
+                                                span.icon-text {
+                                                    span.icon { i.fas.fa-rotate {} }
+                                                    span { "Cycles" }
+                                                }
+                                            }
+                                            span.tag {
+                                                (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / logger_state.battery.actual_capacity() / 2.0))
+                                            }
+                                        }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-plug-circle-bolt {} }
+                                                span { "EPS" }
+                                            }
+                                        }
+                                        span.tag {
+                                            (hunter_state.average_eps_power)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        @if let Some(message) = state.error_message() {
                             article.message.is-danger {
                                 div.message-header {
                                     p { "Error" }
@@ -120,141 +262,12 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                 }
                             }
                         }
-                        div.grid.mb-3 {
-                            @if let Ok(state) = &logger.result {
-                                div.cell.is-col-span-2 {
-                                    div.card {
-                                        header.card-header {
-                                            p.card-header-title {
-                                                span.icon-text {
-                                                    span.icon { i.fas.fa-charging-station {} }
-                                                    span { "Charge" }
-                                                }
-                                            }
-                                        }
-                                        div.card-content {
-                                            nav.level.is-mobile {
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Percentage" }
-                                                        p.title { (state.battery.charge) }
-                                                    }
-                                                }
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Residual energy" }
-                                                        p.title { (state.battery.residual_energy()) }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                div.cell.is-col-span-2 {
-                                    div.card {
-                                        header.card-header {
-                                            p.card-header-title {
-                                                span.icon-text {
-                                                    span.icon { i.fas.fa-star-of-life {} }
-                                                    span { "Health" }
-                                                }
-                                            }
-                                        }
-                                        div.card-content {
-                                            nav.level.is-mobile {
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Percentage" }
-                                                        p.title { (state.battery.health) }
-                                                    }
-                                                }
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Capacity" }
-                                                        p.title { (state.battery.actual_capacity()) }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                div.cell.is-col-span-3 {
-                                    div.card {
-                                        header.card-header {
-                                            p.card-header-title {
-                                                span.icon-text {
-                                                    span.icon { i.fas.fa-user-gear {} }
-                                                    span { "Battery settings" }
-                                                }
-                                            }
-                                        }
-                                        div.card-content {
-                                            nav.level.is-mobile {
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Min system SoC" }
-                                                        p.title.has-text-danger { (state.battery.min_system_charge) }
-                                                    }
-                                                }
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Min SoC" }
-                                                        p.title.has-text-info { (state.battery.charge_range.min) }
-                                                    }
-                                                }
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Max SoC" }
-                                                        p.title.has-text-success { (state.battery.charge_range.max) }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            @if let Ok(state) = &hunter.result {
-                                div.cell.is-col-span-3 {
-                                    div.card {
-                                        header.card-header {
-                                            p.card-header-title {
-                                                span.icon-text {
-                                                    span.icon { i.fas.fa-calculator {} }
-                                                    span { "Solution" }
-                                                }
-                                            }
-                                        }
-                                        div.card-content {
-                                            nav.level.is-mobile {
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Profit" }
-                                                        p.title { (state.profit()) }
-                                                    }
-                                                }
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Planned charge" }
-                                                        p.title.has-text-success {
-                                                            (KilowattHours::from(state.metrics.internal_battery_flow.import))
-                                                        }
-                                                    }
-                                                }
-                                                div.level-item.has-text-centered {
-                                                    div {
-                                                        p.heading { "Planned discharge" }
-                                                        p.title.has-text-info {
-                                                            (KilowattHours::from(state.metrics.internal_battery_flow.export))
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        @if let Ok(state) = &hunter.result {
+                    }
+                }
+
+                section.section.pt-5 {
+                    div.container {
+                        @if let Ok(hunter_state) = &hunter.result {
                             div.card {
                                 header.card-header {
                                     p.card-header-title {
@@ -270,9 +283,13 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             thead { (steps_table_header()) }
                                             tfoot { (steps_table_header()) }
                                             tbody {
-                                                @for step in &state.steps {
+                                                @for step in &hunter_state.steps {
                                                     tr.(WorkingModeColor(step.working_mode)) {
-                                                        td { (step.interval.start.format("%b %d")) }
+                                                        td {
+                                                            (step.interval.start.format("%b"))
+                                                            (PreEscaped("&nbsp;"))
+                                                            (step.interval.start.format("%d"))
+                                                        }
                                                         td { (step.interval.start.format("%H:%M")) }
                                                         td { (step.interval.end.format("%H:%M")) }
                                                         td { (step.duration) }
@@ -307,10 +324,13 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                                             }
                                                         }
                                                         td.has-text-right {
-                                                            (ResidualEnergyIconText {
-                                                                residual_energy: step.residual_energy_after,
-                                                                actual_capacity: state.actual_capacity,
-                                                            })
+                                                            span.icon-text.is-flex-wrap-nowrap {
+                                                                span { (step.residual_energy_after) }
+                                                                (StateOfCharge {
+                                                                    residual_energy: step.residual_energy_after,
+                                                                    actual_capacity: logger.result.as_ref().ok().map(|state| state.battery.actual_capacity()),
+                                                                }.icon())
+                                                            }
                                                         }
                                                         td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
                                                             (step.metrics.losses.grid)

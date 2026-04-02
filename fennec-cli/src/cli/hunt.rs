@@ -242,9 +242,9 @@ impl Hunter {
 
         Ok(HunterState {
             steps,
-            actual_capacity: battery_state.actual_capacity(),
             base_loss,
             metrics,
+            average_eps_power: balance_profile.average_eps_power,
         })
     }
 

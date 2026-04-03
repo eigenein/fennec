@@ -38,21 +38,26 @@ impl Logger {
                     .await
                     .inspect_err(|error| error!("logger iteration failed: {error:#}"))
             };
-            *system_state.write().unwrap() = run_once.retry(Self::BACKOFF).await?.into();
+            *system_state.write().unwrap() = run_once.retry(Self::BACKOFF).await.into();
         }
     }
 
     /// Run a single logging iteration.
-    ///
-    /// We don't care about retries here because the logger is supposed to run frequently anyway.
     pub async fn run_once(&self) -> Result<LoggerState> {
         let (battery_state, grid_metrics) = try_join!(
             async { self.connections.battery.lock().await.read_state().await },
             self.connections.grid_measurement.get_measurement()
         )?;
+        let battery_measurement = power::BatteryMeasurement::builder()
+            .charge(battery_state.charge)
+            .internal(battery_state.internal_power)
+            .external(battery_state.external_power)
+            .eps(battery_state.eps_active_power)
+            .build();
         power::Measurement::builder()
-            .net_deficit(grid_metrics.active_power + battery_state.battery_active_power)
+            .net_deficit(grid_metrics.active_power + battery_state.external_power)
             .eps_active_power(battery_state.eps_active_power)
+            .battery(battery_measurement)
             .build()
             .insert_into(&self.connections.db)
             .await?;

@@ -6,7 +6,7 @@ use serde_with::serde_as;
 
 use crate::{
     db,
-    quantity::{Zero, power::Watts},
+    quantity::{Zero, power::Watts, ratios::Percentage},
 };
 
 /// Net power balance measurement.
@@ -31,10 +31,11 @@ pub struct Measurement {
     #[serde(rename = "netWatts")]
     pub net_deficit: Watts,
 
-    /// Active EPS power.
-    ///
-    /// We track it separately, because in all modes, the battery serves the demand on this output
-    /// and competes for the inverter maximum power.
+    /// TODO: make non-optional and rename.
+    #[serde(default, rename = "batteryV2")]
+    pub battery: Option<BatteryMeasurement>,
+
+    /// TODO: remove in favour of the `battery` attribute.
     #[serde(rename = "epsActivePower", default = "default_eps_active_power")]
     pub eps_active_power: Watts,
 }
@@ -46,7 +47,26 @@ impl db::Measurement for Measurement {
 
 /// Fallback to read the old logs when the EPS load was missing completely.
 ///
-/// It can be removed when the old measurements get deleted by the TTL.
+/// TODO: it can be removed when the old measurements get deleted by the TTL.
 const fn default_eps_active_power() -> Watts {
     Watts::ZERO
+}
+
+/// Battery power measurements.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Builder)]
+pub struct BatteryMeasurement {
+    #[serde(rename = "socPercent")]
+    pub charge: Percentage,
+
+    #[serde(rename = "externalWatts")]
+    pub external: Watts,
+
+    #[serde(rename = "internalWatts")]
+    pub internal: Watts,
+
+    /// Active EPS power.
+    ///
+    /// We track it separately, because in all modes, the battery serves the demand on this output
+    /// and competes for the inverter maximum power.
+    pub eps: Watts,
 }

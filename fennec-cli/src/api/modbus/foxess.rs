@@ -50,14 +50,16 @@ impl MQ2200 {
 
         // Fast-changing values should be read next to each other with minimum delays:
         let charge = self.read_state_of_charge().await?;
-        let battery_active_power = self.read_battery_active_power().await?;
+        let external_power = self.read_battery_active_power().await?;
+        let internal_power = self.read_battery_combined_power().await?;
         let eps_active_power = self.read_eps_active_power().await?;
 
         Ok(battery::State {
             design_capacity,
             charge,
             health,
-            battery_active_power,
+            external_power,
+            internal_power,
             eps_active_power,
             min_system_charge: min_system_soc,
             charge_range: (min_soc_on_grid..=max_soc).into(),
@@ -88,11 +90,18 @@ impl MQ2200 {
         self.read_u16(37624).await.map(Percentage)
     }
 
-    /// Read battery total active power.
+    /// Read total _external_ active power_.
     ///
     /// Positive means discharging, negative means charging.
     async fn read_battery_active_power(&mut self) -> Result<Watts> {
         self.read_i32(39134).await.map(Into::into)
+    }
+
+    /// Read combined _internal_ battery power.
+    ///
+    /// Positive means charging, negative means discharging (unlike the «active power»).
+    async fn read_battery_combined_power(&mut self) -> Result<Watts> {
+        self.read_i32(39237).await.map(Into::into)
     }
 
     /// Read current EPS output power.

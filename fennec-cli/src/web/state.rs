@@ -38,9 +38,3 @@ impl<T> From<Result<T>> for SystemState<T> {
         Self { last_run_at: Local::now(), result }
     }
 }
-
-impl<T> From<T> for SystemState<T> {
-    fn from(state: T) -> Self {
-        Self { last_run_at: Local::now(), result: Ok(state) }
-    }
-}

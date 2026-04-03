@@ -63,8 +63,8 @@ impl HuntArgs {
             let logger = Logger::builder().connections(connections.clone()).build();
             // Run the first iteration at startup immediately in a fallible manner:
             let application_state = ApplicationState {
-                logger: Arc::new(RwLock::new(logger.run_once().await?.into())),
-                hunter: Arc::new(RwLock::new(hunter.run_once().await?.into())),
+                logger: Arc::new(RwLock::new(Ok(logger.run_once().await?).into())),
+                hunter: Arc::new(RwLock::new(Ok(hunter.run_once().await?).into())),
             };
             try_join!(
                 spawn(logger.run_forever(self.logger_cron, application_state.logger.clone())),

@@ -104,9 +104,7 @@ impl Display for Profile {
                     .set_alignment(CellAlignment::Right)
                     .fg(WorkingMode::Discharge.color()),
             ]);
-        for (index, balance) in self.average_balance.buckets.iter().enumerate() {
-            let balance = balance.unwrap_or(self.average_balance.total);
-
+        for (index, balance) in self.average_balance.iter().copied().enumerate() {
             #[expect(clippy::cast_possible_truncation)]
             #[expect(clippy::cast_possible_wrap)]
             table.add_row(vec![

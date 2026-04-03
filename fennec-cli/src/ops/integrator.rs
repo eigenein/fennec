@@ -8,6 +8,7 @@ use crate::{
 };
 
 /// Value accumulator over time.
+#[must_use]
 #[derive(Copy, Clone, AddAssign)]
 pub struct Integrator<T> {
     pub time: Hours,
@@ -37,6 +38,7 @@ impl<T> Integrator<T> {
     }
 }
 
+#[must_use]
 pub struct BucketIntegrator<T> {
     pub total: Integrator<T>,
     pub buckets: Vec<Integrator<T>>,
@@ -54,11 +56,12 @@ impl<T> BucketIntegrator<T> {
     }
 }
 
+#[must_use]
 pub struct BucketAverage<T> {
     /// Global average across the samples.
-    pub total: T,
+    total: T,
 
-    pub buckets: Vec<Option<T>>,
+    buckets: Vec<Option<T>>,
 }
 
 impl<T: Div<Hours>> TryFrom<BucketIntegrator<T>> for BucketAverage<<T as Div<Hours>>::Output> {
@@ -80,5 +83,11 @@ impl<T> Index<usize> for BucketAverage<T> {
 
     fn index(&self, index: usize) -> &Self::Output {
         self.buckets[index].as_ref().unwrap_or(&self.total)
+    }
+}
+
+impl<T> BucketAverage<T> {
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.buckets.iter().map(|average| average.as_ref().unwrap_or(&self.total))
     }
 }

@@ -5,6 +5,7 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{db::Db, prelude::*};
 
+/// TODO: merge it back into the power measurement?
 pub trait Measurement: Debug + Send + Sync + Serialize + DeserializeOwned {
     const COLLECTION_NAME: &str;
     const GRANULARITY: TimeseriesGranularity;

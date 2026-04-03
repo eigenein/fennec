@@ -70,3 +70,30 @@ pub struct BatteryMeasurement {
     /// and competes for the inverter maximum power.
     pub eps: Watts,
 }
+
+impl BatteryMeasurement {
+    pub fn power_mode(self) -> Option<BatteryPowerMode> {
+        if self.external == Watts::ZERO && self.internal <= Watts::ZERO {
+            Some(BatteryPowerMode::Idle(-self.internal))
+        } else if self.internal > Watts::ZERO && self.external < Watts::ZERO {
+            Some(BatteryPowerMode::Charging(self.internal / -self.external))
+        } else if self.internal < Watts::ZERO && self.external > Watts::ZERO {
+            Some(BatteryPowerMode::Discharging(self.external / -self.internal))
+        } else {
+            None
+        }
+    }
+}
+
+/// Actual battery working mode based on the power measurements – unrelated to scheduled working mode.
+#[derive(Copy, Clone)]
+pub enum BatteryPowerMode {
+    /// Idling with non-negative parasitic load.
+    Idle(Watts),
+
+    /// Charging mode with respective efficiency, `0.0..=1.0`.
+    Charging(f64),
+
+    /// Discharging mode with respective efficiency, `0.0..=1.0`.
+    Discharging(f64),
+}

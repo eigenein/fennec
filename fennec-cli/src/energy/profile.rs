@@ -13,25 +13,19 @@ use crate::{
     battery::WorkingMode,
     cli::battery::BatteryPowerLimits,
     db::power,
-    ops::Integrator,
+    ops::{BucketAverage, BucketIntegrator, Integrator},
     prelude::*,
     quantity::{Quantum, Zero, energy::WattHours, power::Watts, time::Hours},
 };
 
 #[must_use]
-pub struct BalanceProfile {
+pub struct Profile {
     time_step: TimeDelta,
-
-    /// Fallback global average power flow for when a specific time bucket power flow is not available.
-    average_balance: Balance<Watts>,
-
-    /// Average power flow within the time bucket.
-    buckets: Vec<Option<Balance<Watts>>>,
-
+    average_balance: BucketAverage<Balance<Watts>>,
     pub average_eps_power: Watts,
 }
 
-impl BalanceProfile {
+impl Profile {
     #[instrument(skip_all)]
     pub async fn try_estimate<T>(
         battery_power_limits: BatteryPowerLimits,
@@ -47,12 +41,10 @@ impl BalanceProfile {
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
         let mut eps_power_integrator = Integrator::<WattHours>::new();
-        let mut average_balance_integrator = Integrator::<Balance<WattHours>>::new();
-        let mut buckets = {
+        let mut balance_integrator = {
             let max_naive_time =
                 NaiveTime::from_num_seconds_from_midnight_opt(86399, 999_999_999).unwrap();
-            let max_bucket_index = bucket_time_step.index(max_naive_time).unwrap();
-            vec![average_balance_integrator; max_bucket_index + 1]
+            BucketIntegrator::new(bucket_time_step.index(max_naive_time).unwrap())
         };
 
         while let Some(next) = logs.try_next().await? {
@@ -63,7 +55,7 @@ impl BalanceProfile {
                 Balance::new(battery_power_limits, previous.net_deficit),
                 Balance::new(battery_power_limits, next.net_deficit),
             );
-            average_balance_integrator += interval_balance;
+            balance_integrator.total += interval_balance;
 
             eps_power_integrator +=
                 Integrator::trapezoid(time_delta, previous.eps_active_power, next.eps_active_power);
@@ -72,7 +64,7 @@ impl BalanceProfile {
                 let previous_bucket = bucket_time_step.index(previous.timestamp.time()).unwrap();
                 let next_bucket = bucket_time_step.index(next.timestamp.time()).unwrap();
                 if next_bucket == previous_bucket {
-                    buckets[next_bucket] += interval_balance;
+                    balance_integrator.buckets[next_bucket] += interval_balance;
                 }
             }
 
@@ -83,24 +75,17 @@ impl BalanceProfile {
         info!(?average_eps_power, elapsed = ?start_time.elapsed(), "done");
         Ok(Self {
             time_step: bucket_time_step,
-            average_balance: average_balance_integrator
-                .average()
-                .context("no samples to calculate the average energy balance")?,
-            buckets: buckets.into_iter().map(Integrator::average).collect(),
+            average_balance: balance_integrator.try_into()?,
             average_eps_power,
         })
     }
 
-    pub fn on(&self, time: NaiveTime) -> Balance<Watts> {
-        self.buckets
-            .get(self.time_step.index(time).unwrap())
-            .copied()
-            .flatten()
-            .unwrap_or(self.average_balance)
+    pub fn average_balance_on(&self, time: NaiveTime) -> Balance<Watts> {
+        self.average_balance[self.time_step.index(time).unwrap()]
     }
 }
 
-impl Display for BalanceProfile {
+impl Display for Profile {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
         table
@@ -119,8 +104,8 @@ impl Display for BalanceProfile {
                     .set_alignment(CellAlignment::Right)
                     .fg(WorkingMode::Discharge.color()),
             ]);
-        for (index, balance) in self.buckets.iter().enumerate() {
-            let balance = balance.unwrap_or(self.average_balance);
+        for (index, balance) in self.average_balance.buckets.iter().enumerate() {
+            let balance = balance.unwrap_or(self.average_balance.total);
 
             #[expect(clippy::cast_possible_truncation)]
             #[expect(clippy::cast_possible_wrap)]

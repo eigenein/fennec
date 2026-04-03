@@ -24,7 +24,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver<'a> {
     energy_prices: &'a [(Interval, KilowattHourPrice)],
-    balance_profile: &'a energy::BalanceProfile,
+    balance_profile: &'a energy::Profile,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -85,7 +85,7 @@ impl Solver<'_> {
                 .optimize_step()
                 .interval_index(interval_index)
                 .interval(interval)
-                .average_balance(self.balance_profile.on(interval.start.time()))
+                .average_balance(self.balance_profile.average_balance_on(interval.start.time()))
                 .energy_price(energy_price);
 
             // Calculate partial solutions for the current hour:
@@ -112,7 +112,7 @@ impl Solver<'_> {
                     // TODO: de-dup this:
                     interval = interval.with_start(self.now);
                 }
-                let flow = self.balance_profile.on(interval.start.time());
+                let flow = self.balance_profile.average_balance_on(interval.start.time());
                 self.grid_loss(
                     energy_price,
                     (flow.grid + flow.battery.reversed()) * interval.hours(),

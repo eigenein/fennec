@@ -5,7 +5,7 @@ use crate::{
     api::fox_cloud,
     cli::{battery::BatteryPowerLimits, db::DbArgs, fox_cloud::FoxCloudApiArgs},
     db::power,
-    energy::BalanceProfile,
+    energy,
     prelude::*,
 };
 
@@ -51,7 +51,7 @@ impl BurrowEnergyBalanceProfileArgs {
         let logs = db.measurements::<power::Measurement>().await?;
         let bucket_time_step = TimeDelta::from_std(self.bucket_time_step.into())?;
         let profile =
-            BalanceProfile::try_estimate(self.power_limits, bucket_time_step, logs).await?;
+            energy::Profile::try_estimate(self.power_limits, bucket_time_step, logs).await?;
         db.shutdown().await;
         println!("{profile}");
         Ok(())

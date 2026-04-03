@@ -188,7 +188,7 @@ impl Hunter {
 
         let balance_profile = {
             let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
-            energy::BalanceProfile::try_estimate(
+            energy::Profile::try_estimate(
                 self.battery_args.power_limits,
                 self.energy_provider.time_step(),
                 power_logs,

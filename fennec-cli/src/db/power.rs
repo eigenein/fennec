@@ -6,7 +6,7 @@ use serde_with::serde_as;
 
 use crate::{
     db,
-    quantity::{Zero, power::Watts, ratios::Percentage},
+    quantity::{Zero, energy::WattHours, power::Watts},
 };
 
 /// Net power balance measurement.
@@ -32,7 +32,7 @@ pub struct Measurement {
     pub net_deficit: Watts,
 
     /// TODO: make non-optional and rename.
-    #[serde(default, rename = "batteryV2")]
+    #[serde(default, rename = "batteryV4")]
     pub battery: Option<BatteryMeasurement>,
 
     /// TODO: remove in favour of the `battery` attribute.
@@ -55,45 +55,16 @@ const fn default_eps_active_power() -> Watts {
 /// Battery power measurements.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Builder)]
 pub struct BatteryMeasurement {
-    #[serde(rename = "socPercent")]
-    pub charge: Percentage,
+    #[serde(rename = "residualEnergyWattHours")]
+    pub residual_energy: WattHours,
 
-    #[serde(rename = "externalWatts")]
-    pub external: Watts,
+    #[serde(rename = "activePowerWatts")]
+    pub active_power: Watts,
 
-    #[serde(rename = "internalWatts")]
-    pub internal: Watts,
-
-    /// Active EPS power.
+    /// EPS active power.
     ///
     /// We track it separately, because in all modes, the battery serves the demand on this output
     /// and competes for the inverter maximum power.
-    pub eps: Watts,
-}
-
-impl BatteryMeasurement {
-    pub fn power_mode(self) -> Option<BatteryPowerMode> {
-        if self.external == Watts::ZERO && self.internal <= Watts::ZERO {
-            Some(BatteryPowerMode::Idle(-self.internal))
-        } else if self.internal > Watts::ZERO && self.external < Watts::ZERO {
-            Some(BatteryPowerMode::Charging(self.internal / -self.external))
-        } else if self.internal < Watts::ZERO && self.external > Watts::ZERO {
-            Some(BatteryPowerMode::Discharging(self.external / -self.internal))
-        } else {
-            None
-        }
-    }
-}
-
-/// Actual battery working mode based on the power measurements – unrelated to scheduled working mode.
-#[derive(Copy, Clone)]
-pub enum BatteryPowerMode {
-    /// Idling with non-negative parasitic load.
-    Idle(Watts),
-
-    /// Charging mode with respective efficiency, `0.0..=1.0`.
-    Charging(f64),
-
-    /// Discharging mode with respective efficiency, `0.0..=1.0`.
-    Discharging(f64),
+    #[serde(rename = "epsActivePowerWatts")]
+    pub eps_active_power: Watts,
 }

@@ -24,15 +24,10 @@ pub struct State {
     /// Global system SoC minimum.
     pub min_system_charge: Percentage,
 
-    /// Battery _external_ active power.
+    /// Battery external active power.
     ///
     /// Positive means discharging, negative means charging.
-    pub external_power: Watts,
-
-    /// Combined _internal_ battery power.
-    ///
-    /// Positive means charging, negative means discharging (unlike the «active power»).
-    pub internal_power: Watts,
+    pub active_power: Watts,
 
     /// Active power on the EPS output.
     pub eps_active_power: Watts,

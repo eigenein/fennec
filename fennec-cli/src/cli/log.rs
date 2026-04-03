@@ -49,13 +49,12 @@ impl Logger {
             self.connections.grid_measurement.get_measurement()
         )?;
         let battery_measurement = power::BatteryMeasurement::builder()
-            .charge(battery_state.charge)
-            .internal(battery_state.internal_power)
-            .external(battery_state.external_power)
-            .eps(battery_state.eps_active_power)
+            .residual_energy(battery_state.residual_energy())
+            .active_power(battery_state.active_power)
+            .eps_active_power(battery_state.eps_active_power)
             .build();
         power::Measurement::builder()
-            .net_deficit(grid_metrics.active_power + battery_state.external_power)
+            .net_deficit(grid_metrics.active_power + battery_state.active_power)
             .eps_active_power(battery_state.eps_active_power)
             .battery(battery_measurement)
             .build()

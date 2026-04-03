@@ -58,10 +58,13 @@ pub struct BatteryMeasurement {
     #[serde(rename = "residualEnergyWattHours")]
     pub residual_energy: WattHours,
 
+    /// Battery external active power.
+    ///
+    /// Positive means discharging, negative means charging.
     #[serde(rename = "activePowerWatts")]
     pub active_power: Watts,
 
-    /// EPS active power.
+    /// EPS active power, non-negative.
     ///
     /// We track it separately, because in all modes, the battery serves the demand on this output
     /// and competes for the inverter maximum power.

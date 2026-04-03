@@ -10,12 +10,13 @@ use futures_util::TryStreamExt;
 
 use super::Balance;
 use crate::{
+    battery,
     battery::WorkingMode,
     cli::battery::BatteryPowerLimits,
     db::power,
     ops::{BucketAverage, BucketIntegrator, Integrator},
     prelude::*,
-    quantity::{Quantum, Zero, energy::WattHours, power::Watts, time::Hours},
+    quantity::{Quantum, Zero, power::Watts, time::Hours},
 };
 
 #[must_use]
@@ -23,6 +24,7 @@ pub struct Profile {
     time_step: TimeDelta,
     average_balance: BucketAverage<Balance<Watts>>,
     pub average_eps_power: Watts,
+    battery_efficiency: battery::Efficiency,
 }
 
 impl Profile {
@@ -40,31 +42,64 @@ impl Profile {
 
         let mut previous = logs.try_next().await?.context("empty consumption logs")?;
 
-        let mut eps_power_integrator = Integrator::<WattHours>::new();
         let mut balance_integrator = {
             let max_naive_time =
                 NaiveTime::from_num_seconds_from_midnight_opt(86399, 999_999_999).unwrap();
             BucketIntegrator::new(bucket_time_step.index(max_naive_time).unwrap())
         };
+        let mut eps_power_integrator = Integrator::new();
+        let mut parasitic_power_integrator = Integrator::new();
+
+        // FIXME: extract efficiency estimator / integrator:
+        let mut charged_residual_power_integrator = Integrator::new();
+        let mut consumption_power_integrator = Integrator::new();
+
+        // FIXME: extract efficiency estimator / integrator:
+        let mut discharged_residual_power_integrator = Integrator::new();
+        let mut production_power_integrator = Integrator::new();
 
         while let Some(next) = logs.try_next().await? {
-            let time_delta = Hours::from(next.timestamp - previous.timestamp);
+            let duration = Hours::from(next.timestamp - previous.timestamp);
 
-            let interval_balance = Integrator::trapezoid(
-                time_delta,
-                Balance::new(battery_power_limits, previous.net_deficit),
-                Balance::new(battery_power_limits, next.net_deficit),
-            );
-            balance_integrator.total += interval_balance;
+            {
+                let sample = Integrator::trapezoid(
+                    duration,
+                    Balance::new(battery_power_limits, previous.net_deficit),
+                    Balance::new(battery_power_limits, next.net_deficit),
+                );
+                balance_integrator.total += sample;
+
+                if previous.timestamp.date_naive() == next.timestamp.date_naive() {
+                    let previous_bucket =
+                        bucket_time_step.index(previous.timestamp.time()).unwrap();
+                    let next_bucket = bucket_time_step.index(next.timestamp.time()).unwrap();
+                    if next_bucket == previous_bucket {
+                        balance_integrator.buckets[next_bucket] += sample;
+                    }
+                }
+            }
 
             eps_power_integrator +=
-                Integrator::trapezoid(time_delta, previous.eps_active_power, next.eps_active_power);
+                Integrator::trapezoid(duration, previous.eps_active_power, next.eps_active_power);
 
-            if previous.timestamp.date_naive() == next.timestamp.date_naive() {
-                let previous_bucket = bucket_time_step.index(previous.timestamp.time()).unwrap();
-                let next_bucket = bucket_time_step.index(next.timestamp.time()).unwrap();
-                if next_bucket == previous_bucket {
-                    balance_integrator.buckets[next_bucket] += interval_balance;
+            if let Some((previous, next)) = previous.battery.zip(next.battery) {
+                let active_power_sample =
+                    Integrator::trapezoid(duration, previous.active_power, next.active_power);
+                let residual_energy_sample =
+                    // The value sign here matches the active power sign, so charging is negative:
+                    Integrator { duration, value: previous.residual_energy - next.residual_energy };
+
+                if previous.active_power == Watts::ZERO && next.active_power == Watts::ZERO {
+                    // Idling:
+                    parasitic_power_integrator += residual_energy_sample;
+                } else if previous.active_power > Watts::ZERO && next.active_power > Watts::ZERO {
+                    // Discharging:
+                    discharged_residual_power_integrator += residual_energy_sample;
+                    production_power_integrator += active_power_sample;
+                } else if previous.active_power < Watts::ZERO && next.active_power < Watts::ZERO {
+                    // Charging:
+                    charged_residual_power_integrator += residual_energy_sample;
+                    consumption_power_integrator += active_power_sample;
                 }
             }
 
@@ -72,11 +107,44 @@ impl Profile {
         }
 
         let average_eps_power = eps_power_integrator.average().unwrap_or(Watts::ZERO);
-        info!(?average_eps_power, elapsed = ?start_time.elapsed(), "done");
+        let parasitic_load = parasitic_power_integrator.average().unwrap_or(Watts::ZERO);
+
+        // FIXME: extract efficiency estimator / integrator:
+        let charging_efficiency = charged_residual_power_integrator
+            .average()
+            .zip(consumption_power_integrator.average())
+            .map(|(charge, consumption)| charge / consumption)
+            .filter(|it| it.is_finite())
+            .map_or(1.0, |efficiency| efficiency.clamp(0.0, 1.0));
+
+        // Discharging needs correction on parasitic load as it isn't reflected in the active power:
+        discharged_residual_power_integrator.value -=
+            parasitic_load * discharged_residual_power_integrator.duration;
+        let discharging_efficiency = production_power_integrator
+            .average()
+            .zip(discharged_residual_power_integrator.average())
+            .map(|(production, discharge)| production / discharge)
+            .filter(|it| it.is_finite())
+            .map_or(1.0, |efficiency| efficiency.clamp(0.0, 1.0));
+
+        info!(
+            charging_efficiency,
+            discharging_efficiency,
+            ?average_eps_power,
+            ?parasitic_load,
+            elapsed = ?start_time.elapsed(),
+            "done",
+        );
+
         Ok(Self {
             time_step: bucket_time_step,
             average_balance: balance_integrator.try_into()?,
             average_eps_power,
+            battery_efficiency: battery::Efficiency {
+                charging: charging_efficiency,
+                discharging: discharging_efficiency,
+                parasitic_load,
+            },
         })
     }
 

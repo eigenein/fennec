@@ -4,7 +4,7 @@ mod state;
 mod working_mode;
 
 pub use self::{
-    efficiency::Efficiency,
+    efficiency::{Efficiency, EfficiencyEstimator},
     simulator::Simulator,
     state::State,
     working_mode::WorkingMode,

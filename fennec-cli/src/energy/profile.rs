@@ -11,7 +11,7 @@ use futures_util::TryStreamExt;
 use super::Balance;
 use crate::{
     battery,
-    battery::WorkingMode,
+    battery::{EfficiencyEstimator, WorkingMode},
     cli::battery::BatteryPowerLimits,
     db::power,
     ops::{BucketAverage, BucketIntegrator, Integrator},
@@ -49,14 +49,8 @@ impl Profile {
         };
         let mut eps_power_integrator = Integrator::new();
         let mut parasitic_power_integrator = Integrator::new();
-
-        // FIXME: extract efficiency estimator / integrator:
-        let mut charged_residual_power_integrator = Integrator::new();
-        let mut consumption_power_integrator = Integrator::new();
-
-        // FIXME: extract efficiency estimator / integrator:
-        let mut discharged_residual_power_integrator = Integrator::new();
-        let mut production_power_integrator = Integrator::new();
+        let mut charging_efficiency_estimator = EfficiencyEstimator::new();
+        let mut discharging_efficiency_estimator = EfficiencyEstimator::new();
 
         while let Some(next) = logs.try_next().await? {
             let duration = Hours::from(next.timestamp - previous.timestamp);
@@ -90,16 +84,12 @@ impl Profile {
                     Integrator { duration, value: previous.residual_energy - next.residual_energy };
 
                 if previous.active_power == Watts::ZERO && next.active_power == Watts::ZERO {
-                    // Idling:
                     parasitic_power_integrator += residual_energy_sample;
                 } else if previous.active_power > Watts::ZERO && next.active_power > Watts::ZERO {
-                    // Discharging:
-                    discharged_residual_power_integrator += residual_energy_sample;
-                    production_power_integrator += active_power_sample;
+                    discharging_efficiency_estimator
+                        .push(active_power_sample, residual_energy_sample);
                 } else if previous.active_power < Watts::ZERO && next.active_power < Watts::ZERO {
-                    // Charging:
-                    charged_residual_power_integrator += residual_energy_sample;
-                    consumption_power_integrator += active_power_sample;
+                    charging_efficiency_estimator.push(active_power_sample, residual_energy_sample);
                 }
             }
 
@@ -107,29 +97,20 @@ impl Profile {
         }
 
         let average_eps_power = eps_power_integrator.average().unwrap_or(Watts::ZERO);
+
         let parasitic_load = parasitic_power_integrator.average().unwrap_or(Watts::ZERO);
-
-        // FIXME: extract efficiency estimator / integrator:
-        let charging_efficiency = charged_residual_power_integrator
-            .average()
-            .zip(consumption_power_integrator.average())
-            .map(|(charge, consumption)| charge / consumption)
-            .filter(|it| it.is_finite())
-            .map_or(1.0, |efficiency| efficiency.clamp(0.0, 1.0));
-
         // Discharging needs correction on parasitic load as it isn't reflected in the active power:
-        discharged_residual_power_integrator.value -=
-            parasitic_load * discharged_residual_power_integrator.duration;
-        let discharging_efficiency = production_power_integrator
-            .average()
-            .zip(discharged_residual_power_integrator.average())
-            .map(|(production, discharge)| production / discharge)
-            .filter(|it| it.is_finite())
-            .map_or(1.0, |efficiency| efficiency.clamp(0.0, 1.0));
+        discharging_efficiency_estimator.sub_residual_energy(parasitic_load);
+        let battery_efficiency = battery::Efficiency {
+            charging: charging_efficiency_estimator.estimate(),
+            discharging: 1.0 / discharging_efficiency_estimator.estimate(),
+            parasitic_load,
+        };
 
         info!(
-            charging_efficiency,
-            discharging_efficiency,
+            battery_efficiency.charging,
+            battery_efficiency.discharging,
+            battery_round_trip_efficiency = battery_efficiency.round_trip(),
             ?average_eps_power,
             ?parasitic_load,
             elapsed = ?start_time.elapsed(),
@@ -140,11 +121,7 @@ impl Profile {
             time_step: bucket_time_step,
             average_balance: balance_integrator.try_into()?,
             average_eps_power,
-            battery_efficiency: battery::Efficiency {
-                charging: charging_efficiency,
-                discharging: discharging_efficiency,
-                parasitic_load,
-            },
+            battery_efficiency,
         })
     }
 

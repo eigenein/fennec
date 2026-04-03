@@ -174,13 +174,13 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                                 span { "SoC range" }
                                             }
                                         }
-                                        span.tag.is-info {
+                                        span.tag {
                                             span.icon-text {
                                                 span.icon { i.fas.fa-greater-than-equal {} }
                                                 span { (logger_state.battery.charge_range.min) }
                                             }
                                         }
-                                        span.tag.is-info {
+                                        span.tag {
                                             span.icon-text {
                                                 span.icon { i.fas.fa-less-than-equal {} }
                                                 span { (logger_state.battery.charge_range.max) }

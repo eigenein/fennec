@@ -81,7 +81,7 @@ impl Profile {
                     Integrator::trapezoid(duration, previous.active_power, next.active_power);
                 let residual_energy_sample =
                     // The value sign here matches the active power sign, so charging is negative:
-                    Integrator { duration, value: previous.residual_energy - next.residual_energy };
+                    Integrator { weight: duration, value: previous.residual_energy - next.residual_energy };
 
                 if previous.active_power == Watts::ZERO && next.active_power == Watts::ZERO {
                     parasitic_power_integrator += residual_energy_sample;

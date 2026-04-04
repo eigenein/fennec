@@ -2,52 +2,52 @@ use std::ops::{Add, Div, Index, Mul};
 
 use derive_more::AddAssign;
 
-use crate::{
-    prelude::*,
-    quantity::{Zero, time::Hours},
-};
+use crate::{prelude::*, quantity::Zero};
 
-/// Value accumulator over time.
 #[must_use]
 #[derive(Copy, Clone, AddAssign)]
-pub struct Integrator<T> {
-    pub duration: Hours,
-    pub value: T,
+pub struct Integrator<W, V> {
+    pub weight: W,
+    pub value: V,
 }
 
-impl<T> Integrator<T> {
+impl<W, V> Integrator<W, V> {
     pub const fn new() -> Self
     where
-        T: Zero,
+        W: Zero,
+        V: Zero,
     {
-        Self { duration: Hours::ZERO, value: T::ZERO }
+        Self { weight: W::ZERO, value: V::ZERO }
     }
 
-    pub fn trapezoid<V>(duration: Hours, lhs: V, rhs: V) -> Self
+    pub fn trapezoid<D>(weight: W, lhs: D, rhs: D) -> Self
     where
-        V: Add<Output = V> + Div<f64, Output = V> + Mul<Hours, Output = T>,
+        D: Add<Output = D> + Div<f64, Output = D> + Mul<W, Output = V>,
+        W: Clone,
     {
-        Self { duration, value: (lhs + rhs) / 2.0 * duration }
+        Self { weight: weight.clone(), value: (lhs + rhs) / 2.0 * weight }
     }
 
-    pub fn average(self) -> Option<<T as Div<Hours>>::Output>
+    pub fn average(self) -> Option<<V as Div<W>>::Output>
     where
-        T: Div<Hours>,
+        V: Div<W>,
+        W: Zero + PartialEq,
     {
-        if self.duration == Hours::ZERO { None } else { Some(self.value / self.duration) }
+        if self.weight == W::ZERO { None } else { Some(self.value / self.weight) }
     }
 }
 
 #[must_use]
-pub struct BucketIntegrator<T> {
-    pub total: Integrator<T>,
-    pub buckets: Vec<Integrator<T>>,
+pub struct BucketIntegrator<W, T> {
+    pub total: Integrator<W, T>,
+    pub buckets: Vec<Integrator<W, T>>,
 }
 
-impl<T> BucketIntegrator<T> {
+impl<W, T> BucketIntegrator<W, T> {
     pub fn new(max_bucket_index: usize) -> Self
     where
         T: Zero,
+        W: Zero,
     {
         Self {
             total: Integrator::new(),
@@ -64,10 +64,14 @@ pub struct BucketAverage<T> {
     buckets: Vec<Option<T>>,
 }
 
-impl<T: Div<Hours>> TryFrom<BucketIntegrator<T>> for BucketAverage<<T as Div<Hours>>::Output> {
+impl<W, V> TryFrom<BucketIntegrator<W, V>> for BucketAverage<<V as Div<W>>::Output>
+where
+    V: Div<W>,
+    W: Zero + PartialEq,
+{
     type Error = Error;
 
-    fn try_from(integrator: BucketIntegrator<T>) -> Result<Self> {
+    fn try_from(integrator: BucketIntegrator<W, V>) -> Result<Self> {
         Ok(Self {
             total: integrator
                 .total

@@ -1,6 +1,6 @@
 use crate::{
     ops::Integrator,
-    quantity::{energy::WattHours, power::Watts},
+    quantity::{energy::WattHours, power::Watts, time::Hours},
 };
 
 #[derive(Copy, Clone)]
@@ -18,8 +18,8 @@ impl Efficiency {
 
 #[derive(Copy, Clone)]
 pub struct EfficiencyEstimator {
-    active_power_integrator: Integrator<WattHours>,
-    residual_energy_integrator: Integrator<WattHours>,
+    active_power_integrator: Integrator<Hours, WattHours>,
+    residual_energy_integrator: Integrator<Hours, WattHours>,
 }
 
 impl EfficiencyEstimator {
@@ -32,15 +32,15 @@ impl EfficiencyEstimator {
 
     pub fn push(
         &mut self,
-        active_power_sample: Integrator<WattHours>,
-        residual_energy_sample: Integrator<WattHours>,
+        active_power_sample: Integrator<Hours, WattHours>,
+        residual_energy_sample: Integrator<Hours, WattHours>,
     ) {
         self.active_power_integrator += active_power_sample;
         self.residual_energy_integrator += residual_energy_sample;
     }
 
     pub fn sub_residual_energy(&mut self, power: Watts) {
-        self.residual_energy_integrator.value -= power * self.residual_energy_integrator.duration;
+        self.residual_energy_integrator.value -= power * self.residual_energy_integrator.weight;
     }
 
     /// Estimate efficiency of residual energy change to the active power integral.
@@ -50,7 +50,7 @@ impl EfficiencyEstimator {
         self.residual_energy_integrator
             .average()
             .zip(self.active_power_integrator.average())
-            .map(|(charge, consumption)| charge / consumption)
+            .map(|(residual_energy, active_energy)| residual_energy / active_energy)
             .filter(|it| it.is_finite())
             .unwrap_or(1.0)
     }

@@ -52,48 +52,58 @@ impl Profile {
         let mut charging_efficiency_estimator = EfficiencyEstimator::new();
         let mut discharging_efficiency_estimator = EfficiencyEstimator::new();
 
-        while let Some(next) = logs.try_next().await? {
-            let duration = Hours::from(next.timestamp - previous.timestamp);
+        while let Some(current) = logs.try_next().await? {
+            let duration = Hours::from(current.timestamp - previous.timestamp);
 
             {
                 let sample = Integrator::trapezoid(
                     duration,
                     Balance::new(battery_power_limits, previous.net_deficit),
-                    Balance::new(battery_power_limits, next.net_deficit),
+                    Balance::new(battery_power_limits, current.net_deficit),
                 );
                 balance_integrator.total += sample;
 
-                if previous.timestamp.date_naive() == next.timestamp.date_naive() {
+                if previous.timestamp.date_naive() == current.timestamp.date_naive() {
                     let previous_bucket =
                         bucket_time_step.index(previous.timestamp.time()).unwrap();
-                    let next_bucket = bucket_time_step.index(next.timestamp.time()).unwrap();
+                    let next_bucket = bucket_time_step.index(current.timestamp.time()).unwrap();
                     if next_bucket == previous_bucket {
                         balance_integrator.buckets[next_bucket] += sample;
                     }
                 }
             }
 
-            eps_power_integrator +=
-                Integrator::trapezoid(duration, previous.eps_active_power, next.eps_active_power);
+            eps_power_integrator += Integrator::trapezoid(
+                duration,
+                previous.eps_active_power,
+                current.eps_active_power,
+            );
 
-            if let Some((previous, next)) = previous.battery.zip(next.battery) {
-                let active_power_sample =
-                    Integrator::trapezoid(duration, previous.active_power, next.active_power);
+            if let Some((previous, current)) = previous.battery.zip(current.battery) {
                 let residual_energy_sample =
                     // The value sign here matches the active power sign, so charging is negative:
-                    Integrator { weight: duration, value: previous.residual_energy - next.residual_energy };
+                    Integrator { weight: duration, value: previous.residual_energy - current.residual_energy };
 
-                if previous.active_power == Watts::ZERO && next.active_power == Watts::ZERO {
+                if previous.active_power == Watts::ZERO && current.active_power == Watts::ZERO {
                     parasitic_power_integrator += residual_energy_sample;
-                } else if previous.active_power > Watts::ZERO && next.active_power > Watts::ZERO {
-                    discharging_efficiency_estimator
-                        .push(active_power_sample, residual_energy_sample);
-                } else if previous.active_power < Watts::ZERO && next.active_power < Watts::ZERO {
-                    charging_efficiency_estimator.push(active_power_sample, residual_energy_sample);
+                } else if previous.active_power > Watts::ZERO && current.active_power > Watts::ZERO
+                {
+                    discharging_efficiency_estimator.push(
+                        residual_energy_sample,
+                        previous.active_power,
+                        current.active_power,
+                    );
+                } else if previous.active_power < Watts::ZERO && current.active_power < Watts::ZERO
+                {
+                    charging_efficiency_estimator.push(
+                        residual_energy_sample,
+                        previous.active_power,
+                        current.active_power,
+                    );
                 }
             }
 
-            previous = next;
+            previous = current;
         }
 
         let average_eps_power = eps_power_integrator.mean().unwrap_or(Watts::ZERO);

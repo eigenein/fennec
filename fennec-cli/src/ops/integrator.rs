@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Div, Index, Mul};
+use std::ops::{Add, Div, Index, Mul};
 
 use derive_more::AddAssign;
 

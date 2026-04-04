@@ -34,10 +34,15 @@ impl EfficiencyEstimator {
 
     pub fn push(
         &mut self,
-        active_power_sample: Integrator<Hours, WattHours>,
         residual_energy_sample: Integrator<Hours, WattHours>,
+        active_power_lhs: Watts,
+        active_power_rhs: Watts,
     ) {
-        self.active_power_integrator += active_power_sample;
+        self.active_power_integrator += Integrator::trapezoid(
+            residual_energy_sample.weight,
+            active_power_lhs,
+            active_power_rhs,
+        );
         self.residual_energy_integrator += residual_energy_sample;
     }
 

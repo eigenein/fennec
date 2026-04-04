@@ -137,7 +137,7 @@ impl Hunter {
             "battery state",
         );
 
-        let balance_profile = {
+        let energy_profile = {
             let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
             energy::Profile::try_estimate(
                 self.battery_args.power_limits,
@@ -150,21 +150,19 @@ impl Hunter {
         let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
-            .balance_profile(&balance_profile)
+            .balance_profile(&energy_profile)
             .working_modes(self.working_modes)
             .min_residual_energy(battery_state.min_residual_energy())
             .max_residual_energy(
                 // Current residual may be higher than the maximum SoC setting:
                 battery_state.max_residual_energy().max(battery_state.residual_energy()),
             )
-            .battery_efficiency(self.battery_args.efficiency)
+            .battery_efficiency(energy_profile.battery_efficiency)
             .purchase_fee(self.energy_provider.purchase_fee())
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(
-                self.battery_args
-                    .power_limits
-                    .max_effective_flow(balance_profile.average_eps_power),
+                self.battery_args.power_limits.max_effective_flow(energy_profile.average_eps_power),
             )
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
@@ -191,12 +189,7 @@ impl Hunter {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }
 
-        Ok(HunterState {
-            steps,
-            base_loss,
-            metrics,
-            average_eps_power: balance_profile.average_eps_power,
-        })
+        Ok(HunterState { steps, base_loss, metrics, energy_profile })
     }
 
     /// Fetch energy prices for up to 2 days.

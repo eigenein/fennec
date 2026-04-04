@@ -1,5 +1,5 @@
 use crate::{
-    cli::battery,
+    battery,
     energy::Flow,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };

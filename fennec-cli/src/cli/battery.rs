@@ -63,30 +63,4 @@ pub struct BatteryArgs {
         default_value = "0.01"
     )]
     pub degradation_cost: KilowattHourPrice,
-
-    #[clap(flatten)]
-    pub efficiency: Efficiency,
-}
-
-#[derive(Copy, Clone, Parser)]
-pub struct Efficiency {
-    /// Parasitic load in Watts, as measured from register 39237 (negative) when idling.
-    #[clap(long = "battery-parasitic-load-watts", default_value = "14")]
-    pub parasitic_load: Watts,
-
-    /// Charging efficiency as measured from register 39237 (positive) to 39134 (negative) when charging.
-    #[clap(
-        name = "charging_efficiency",
-        long = "battery-charging-efficiency",
-        default_value = "0.929"
-    )]
-    pub charging: f64,
-
-    /// Discharging efficiency as measured from register 39134 (positive) to 39237 (negative) when discharging.
-    #[clap(
-        name = "discharging_efficiency",
-        long = "battery-discharging-efficiency",
-        default_value = "0.84"
-    )]
-    pub discharging: f64,
 }

@@ -78,25 +78,15 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                     text y="1em" font-size="90" { "🦊" }
                                 }
                             }
+                            span.navbar-item {
+                                (crate_version!())
+                            }
                         }
                     }
                 }
                 section.section.pb-5 {
                     div.container {
                         div.field.is-grouped.is-grouped-multiline {
-                            div.control {
-                                div.tags.has-addons {
-                                    span.tag.is-info {
-                                        span.icon-text {
-                                            span.icon { i.fa-brands.fa-github {} }
-                                            span { "Version" }
-                                        }
-                                    }
-                                    span.tag {
-                                        (crate_version!())
-                                    }
-                                }
-                            }
                             div.control {
                                 div.tags.has-addons {
                                     span.tag.(if hunter.result.is_ok() { "is-success" } else { "is-error" }) {
@@ -120,72 +110,6 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                     }
                                     span.tag {
                                         (HumanTime::from(logger.last_run_at))
-                                    }
-                                }
-                            }
-                        }
-
-                        @if let Ok(logger_state) = &logger.result {
-                            div.field.is-grouped.is-grouped-multiline {
-                                @let state_of_charge = StateOfCharge {
-                                    residual_energy: logger_state.battery.residual_energy(),
-                                    actual_capacity: Some(logger_state.battery.actual_capacity()),
-                                };
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.(state_of_charge.class()) {
-                                            span.icon-text {
-                                                (state_of_charge.icon())
-                                                span { "Charge" }
-                                            }
-                                        }
-                                        span.tag { (logger_state.battery.charge) }
-                                        span.tag { (logger_state.battery.residual_energy()) }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-star-of-life {} }
-                                                span { "Health" }
-                                            }
-                                        }
-                                        span.tag { (logger_state.battery.health) }
-                                        span.tag { (logger_state.battery.actual_capacity()) }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-gear {} }
-                                                span { "Min SoC" }
-                                            }
-                                        }
-                                        span.tag { (logger_state.battery.min_system_charge) }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-user-gear {} }
-                                                span { "SoC range" }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-greater-than-equal {} }
-                                                span { (logger_state.battery.charge_range.min) }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-less-than-equal {} }
-                                                span { (logger_state.battery.charge_range.max) }
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -252,7 +176,114 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             }
                                         }
                                         span.tag {
-                                            (hunter_state.average_eps_power)
+                                            (hunter_state.energy_profile.average_eps_power)
+                                        }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-charging-station {} }
+                                                span { "Efficiency" }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-rotate {} }
+                                                span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.round_trip())) }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angle-down {} }
+                                                span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.charging)) }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angle-up {} }
+                                                span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.discharging)) }
+                                            }
+                                        }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-plug-circle-minus {} }
+                                                span { "Parasitic load" }
+                                            }
+                                        }
+                                        span.tag {
+                                            (hunter_state.energy_profile.battery_efficiency.parasitic_load)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        @if let Ok(logger_state) = &logger.result {
+                            div.field.is-grouped.is-grouped-multiline {
+                                div.control {
+                                    div.tags.has-addons {
+                                         @let state_of_charge = StateOfCharge {
+                                            residual_energy: logger_state.battery.residual_energy(),
+                                            actual_capacity: Some(logger_state.battery.actual_capacity()),
+                                        };
+                                        span.tag.(state_of_charge.class()) {
+                                            span.icon-text {
+                                                (state_of_charge.icon())
+                                                span { "Charge" }
+                                            }
+                                        }
+                                        span.tag { (logger_state.battery.charge) }
+                                        span.tag { (logger_state.battery.residual_energy()) }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-star-of-life {} }
+                                                span { "Health" }
+                                            }
+                                        }
+                                        span.tag { (logger_state.battery.health) }
+                                        span.tag { (logger_state.battery.actual_capacity()) }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-gear {} }
+                                                span { "Min SoC" }
+                                            }
+                                        }
+                                        span.tag { (logger_state.battery.min_system_charge) }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-user-gear {} }
+                                                span { "SoC range" }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-greater-than-equal {} }
+                                                span { (logger_state.battery.charge_range.min) }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-less-than-equal {} }
+                                                span { (logger_state.battery.charge_range.max) }
+                                            }
                                         }
                                     }
                                 }

@@ -1,6 +1,7 @@
 use crate::{
     battery,
-    quantity::{currency::Mills, power::Watts},
+    energy,
+    quantity::currency::Mills,
     solution::{Metrics, Step},
 };
 
@@ -9,7 +10,7 @@ pub struct HunterState {
     pub steps: Vec<Step>,
     pub base_loss: Mills,
     pub metrics: Metrics,
-    pub average_eps_power: Watts,
+    pub energy_profile: energy::Profile,
 }
 
 impl HunterState {

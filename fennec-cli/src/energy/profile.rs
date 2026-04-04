@@ -21,10 +21,11 @@ use crate::{
 
 #[must_use]
 pub struct Profile {
+    pub average_eps_power: Watts,
+    pub battery_efficiency: battery::Efficiency,
+
     time_step: TimeDelta,
     average_balance: BucketMean<Balance<Watts>>,
-    pub average_eps_power: Watts,
-    battery_efficiency: battery::Efficiency,
 }
 
 impl Profile {

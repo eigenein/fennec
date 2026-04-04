@@ -37,7 +37,7 @@ pub struct Solver<'a> {
 
     battery_degradation_cost: KilowattHourPrice,
     max_battery_flow: energy::Flow<Watts>,
-    battery_efficiency: crate::cli::battery::Efficiency,
+    battery_efficiency: battery::Efficiency,
     purchase_fee: KilowattHourPrice,
     now: DateTime<Local>,
     quantum: WattHours,

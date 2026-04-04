@@ -3,17 +3,14 @@ mod burrow;
 mod connection;
 mod db;
 mod fox_cloud;
+mod go;
 mod hunt;
 mod log;
 mod sentry;
 
 use clap::{Parser, Subcommand};
 
-use crate::cli::{
-    burrow::BurrowArgs,
-    hunt::{HuntArgs, HuntOnceArgs},
-    sentry::SentryArgs,
-};
+use crate::cli::{burrow::BurrowArgs, go::GoArgs, hunt::HuntOnceArgs, sentry::SentryArgs};
 
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
@@ -29,8 +26,8 @@ pub struct Args {
 #[derive(Subcommand)]
 pub enum Command {
     /// Main entry point. Run the full-featured real-time optimization service.
-    #[clap(name = "hunt")]
-    Hunt(Box<HuntArgs>),
+    #[clap(name = "go")]
+    Go(Box<GoArgs>),
 
     /// Immediately fetch the prices and optimize the schedule once, then exit.
     #[clap(name = "hunt-once")]

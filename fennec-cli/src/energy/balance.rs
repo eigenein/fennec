@@ -12,7 +12,10 @@ use crate::{
 #[must_use]
 #[derive(Copy, Clone, Debug, PartialEq, Add, AddAssign)]
 pub struct Balance<T> {
+    /// How much of energy we must import from and export to the grid on average.
     pub grid: Flow<T>,
+
+    /// How much of energy the battery is able to get from the PV excess and produce to power the household.
     pub battery: Flow<T>,
 }
 

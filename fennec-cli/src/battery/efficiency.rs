@@ -3,6 +3,7 @@ use crate::{
     quantity::{energy::WattHours, power::Watts, time::Hours},
 };
 
+#[must_use]
 #[derive(Copy, Clone)]
 pub struct Efficiency {
     pub charging: f64,
@@ -16,6 +17,7 @@ impl Efficiency {
     }
 }
 
+#[must_use]
 #[derive(Copy, Clone)]
 pub struct EfficiencyEstimator {
     active_power_integrator: Integrator<Hours, WattHours>,
@@ -48,8 +50,8 @@ impl EfficiencyEstimator {
     /// Note that for discharging, this will normally be greater than one.
     pub fn estimate(self) -> f64 {
         self.residual_energy_integrator
-            .average()
-            .zip(self.active_power_integrator.average())
+            .mean()
+            .zip(self.active_power_integrator.mean())
             .map(|(residual_energy, active_energy)| residual_energy / active_energy)
             .filter(|it| it.is_finite())
             .unwrap_or(1.0)

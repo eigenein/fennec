@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Index, Mul};
+use std::ops::{Add, AddAssign, Div, Index, Mul};
 
 use derive_more::AddAssign;
 
@@ -20,6 +20,9 @@ impl<W, V> Integrator<W, V> {
         Self { weight: W::ZERO, value: V::ZERO }
     }
 
+    /// Area under the [trapezoid][1] with the base `weight` and the legs `lhs` and `rhs`.
+    ///
+    /// [1]: https://en.wikipedia.org/wiki/Trapezoid
     pub fn trapezoid<D>(weight: W, lhs: D, rhs: D) -> Self
     where
         D: Add<Output = D> + Div<f64, Output = D> + Mul<W, Output = V>,
@@ -28,7 +31,10 @@ impl<W, V> Integrator<W, V> {
         Self { weight: weight.clone(), value: (lhs + rhs) / 2.0 * weight }
     }
 
-    pub fn average(self) -> Option<<V as Div<W>>::Output>
+    /// Calculate [the mean of the integrated function][1]
+    ///
+    /// [1]: https://en.wikipedia.org/wiki/Mean_of_a_function
+    pub fn mean(self) -> Option<<V as Div<W>>::Output>
     where
         V: Div<W>,
         W: Zero + PartialEq,
@@ -57,14 +63,14 @@ impl<W, T> BucketIntegrator<W, T> {
 }
 
 #[must_use]
-pub struct BucketAverage<T> {
+pub struct BucketMean<T> {
     /// Global average across the samples.
     total: T,
 
     buckets: Vec<Option<T>>,
 }
 
-impl<W, V> TryFrom<BucketIntegrator<W, V>> for BucketAverage<<V as Div<W>>::Output>
+impl<W, V> TryFrom<BucketIntegrator<W, V>> for BucketMean<<V as Div<W>>::Output>
 where
     V: Div<W>,
     W: Zero + PartialEq,
@@ -73,16 +79,13 @@ where
 
     fn try_from(integrator: BucketIntegrator<W, V>) -> Result<Self> {
         Ok(Self {
-            total: integrator
-                .total
-                .average()
-                .context("no samples to calculate the total average")?,
-            buckets: integrator.buckets.into_iter().map(Integrator::average).collect(),
+            total: integrator.total.mean().context("no samples to calculate the total average")?,
+            buckets: integrator.buckets.into_iter().map(Integrator::mean).collect(),
         })
     }
 }
 
-impl<T> Index<usize> for BucketAverage<T> {
+impl<T> Index<usize> for BucketMean<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -90,7 +93,7 @@ impl<T> Index<usize> for BucketAverage<T> {
     }
 }
 
-impl<T> BucketAverage<T> {
+impl<T> BucketMean<T> {
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.buckets.iter().map(|average| average.as_ref().unwrap_or(&self.total))
     }

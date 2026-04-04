@@ -3,6 +3,6 @@ mod interval;
 pub mod range;
 
 pub use self::{
-    integrator::{BucketAverage, BucketIntegrator, Integrator},
+    integrator::{BucketIntegrator, BucketMean, Integrator},
     interval::Interval,
 };

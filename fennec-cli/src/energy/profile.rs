@@ -14,7 +14,7 @@ use crate::{
     battery::{EfficiencyEstimator, WorkingMode},
     cli::battery::BatteryPowerLimits,
     db::power,
-    ops::{BucketAverage, BucketIntegrator, Integrator},
+    ops::{BucketIntegrator, BucketMean, Integrator},
     prelude::*,
     quantity::{Quantum, Zero, power::Watts, time::Hours},
 };
@@ -22,7 +22,7 @@ use crate::{
 #[must_use]
 pub struct Profile {
     time_step: TimeDelta,
-    average_balance: BucketAverage<Balance<Watts>>,
+    average_balance: BucketMean<Balance<Watts>>,
     pub average_eps_power: Watts,
     battery_efficiency: battery::Efficiency,
 }
@@ -96,9 +96,9 @@ impl Profile {
             previous = next;
         }
 
-        let average_eps_power = eps_power_integrator.average().unwrap_or(Watts::ZERO);
+        let average_eps_power = eps_power_integrator.mean().unwrap_or(Watts::ZERO);
 
-        let parasitic_load = parasitic_power_integrator.average().unwrap_or(Watts::ZERO);
+        let parasitic_load = parasitic_power_integrator.mean().unwrap_or(Watts::ZERO);
         // Discharging needs correction on parasitic load as it isn't reflected in the active power:
         discharging_efficiency_estimator.sub_residual_energy(parasitic_load);
         let battery_efficiency = battery::Efficiency {

@@ -75,7 +75,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                         div.navbar-brand {
                             a.navbar-item href="/" {
                                 svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100" {
-                                    text y="1em" font-size="90" { "🦊" }
+                                    text y="0.95em" font-size="90" { "🦊" }
                                 }
                             }
                             span.navbar-item {

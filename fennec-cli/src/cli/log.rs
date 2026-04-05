@@ -33,21 +33,21 @@ impl Logger {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            let run_once = || async {
-                self.run_once()
-                    .await
-                    .inspect_err(|error| error!("logger iteration failed: {error:#}"))
-            };
-            *system_state.write().unwrap() = run_once.retry(Self::BACKOFF).await.into();
+            *system_state.write().unwrap() =
+                self.run_once().await.context("the logger iteration has failed")?.into();
         }
     }
 
     /// Run a single logging iteration.
     pub async fn run_once(&self) -> Result<LoggerState> {
-        let (battery_state, grid_metrics) = try_join!(
-            async { self.connections.battery.lock().await.read_state().await },
-            self.connections.grid_measurement.get_measurement()
-        )?;
+        let read_state = || async {
+            // Retry them together to ensure the measurements are in sync.
+            try_join!(
+                async { self.connections.battery.lock().await.read_state().await },
+                self.connections.grid_measurement.get_measurement()
+            )
+        };
+        let (battery_state, grid_metrics) = read_state.retry(Self::BACKOFF).await?;
         let battery_measurement = power::BatteryMeasurement::builder()
             .residual_energy(battery_state.residual_energy())
             .active_power(battery_state.active_power)

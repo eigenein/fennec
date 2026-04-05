@@ -21,33 +21,28 @@ pub async fn serve(address: IpAddr, port: u16, state: ApplicationState) -> Resul
     info!(%address, port, "serving web UI…");
     let app = Router::new()
         .route("/", get(get_index))
-        .route("/health", get(get_health))
+        .route("/readiness", get(get_readiness))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind((address, port)).await?;
     axum::serve(listener, app).await.context("the web application has failed")
 }
 
 #[instrument(skip_all)]
-async fn get_health(State(state): State<ApplicationState>) -> impl IntoResponse {
+async fn get_readiness() -> impl IntoResponse {
     info!("check");
-
-    #[expect(clippy::option_if_let_else)]
-    let body = match state.error_message() {
-        Some(message) => Err((StatusCode::INTERNAL_SERVER_ERROR, message)),
-        None => Ok(StatusCode::NO_CONTENT),
-    };
-
-    ([(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")], body)
+    (StatusCode::NO_CONTENT, [(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")])
 }
 
 #[instrument(skip_all)]
-#[expect(clippy::significant_drop_tightening)]
 #[expect(clippy::too_many_lines)]
 async fn get_index(State(state): State<ApplicationState>) -> Markup {
     info!("access");
 
     let logger = state.logger.read().unwrap();
+    let logger_result = &logger.result;
+
     let hunter = state.hunter.read().unwrap();
+    let hunter_result = &hunter.result;
 
     html! {
         (DOCTYPE)
@@ -92,214 +87,193 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                         div.field.is-grouped.is-grouped-multiline {
                             div.control {
                                 div.tags.has-addons {
-                                    span.tag.(if hunter.result.is_ok() { "is-success" } else { "is-error" }) {
+                                    span.tag.is-info {
                                         span.icon-text {
                                             span.icon { i.fas.fa-timeline {} }
                                             span { "Hunter" }
                                         }
                                     }
-                                    span.tag {
-                                        (HumanTime::from(hunter.last_run_at))
-                                    }
+                                    span.tag { (HumanTime::from(hunter.last_run_at)) }
                                 }
                             }
                             div.control {
                                 div.tags.has-addons {
-                                    span.tag.(if logger.result.is_ok() { "is-success" } else { "is-error" }) {
+                                    span.tag.is-info {
                                         span.icon-text {
                                             span.icon { i.fas.fa-heart-circle-bolt {} }
                                             span { "Logger" }
                                         }
                                     }
+                                    span.tag { (HumanTime::from(logger.last_run_at)) }
+                                }
+                            }
+                        }
+
+                        div.field.is-grouped.is-grouped-multiline {
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-money-bill {} }
+                                            span { "Profit" }
+                                        }
+                                    }
                                     span.tag {
-                                        (HumanTime::from(logger.last_run_at))
+                                        (hunter_result.profit())
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-arrow-right-arrow-left {} }
+                                            span { "Flow" }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-angle-down {} }
+                                            span { (hunter_result.metrics.internal_battery_flow.import) }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-angle-up {} }
+                                            span { (hunter_result.metrics.internal_battery_flow.export) }
+                                        }
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-rotate {} }
+                                            span { "Cycles" }
+                                        }
+                                    }
+                                    span.tag {
+                                        (format!("{:.1}", (hunter_result.metrics.internal_battery_flow.import + hunter_result.metrics.internal_battery_flow.export) / logger_result.battery.actual_capacity() / 2.0))
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-plug-circle-bolt {} }
+                                            span { "EPS" }
+                                        }
+                                    }
+                                    span.tag {
+                                        (hunter_result.energy_profile.average_eps_power)
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-charging-station {} }
+                                            span { "Efficiency" }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-rotate {} }
+                                            span { (format!("{:.1}%", 100.0 * hunter_result.energy_profile.battery_efficiency.round_trip())) }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-angle-down {} }
+                                            span { (format!("{:.1}%", 100.0 * hunter_result.energy_profile.battery_efficiency.charging)) }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-angle-up {} }
+                                            span { (format!("{:.1}%", 100.0 * hunter_result.energy_profile.battery_efficiency.discharging)) }
+                                        }
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-plug-circle-minus {} }
+                                            span { "Parasitic load" }
+                                        }
+                                    }
+                                    span.tag {
+                                        (hunter_result.energy_profile.battery_efficiency.parasitic_load)
                                     }
                                 }
                             }
                         }
 
-                        @if let Ok(hunter_state) = &hunter.result {
-                            div.field.is-grouped.is-grouped-multiline {
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-money-bill {} }
-                                                span { "Profit" }
-                                            }
-                                        }
-                                        span.tag {
-                                            (hunter_state.profit())
-                                        }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-arrow-right-arrow-left {} }
-                                                span { "Flow" }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-angle-down {} }
-                                                span { (hunter_state.metrics.internal_battery_flow.import) }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-angle-up {} }
-                                                span { (hunter_state.metrics.internal_battery_flow.export) }
-                                            }
+                        div.field.is-grouped.is-grouped-multiline {
+                            div.control {
+                                div.tags.has-addons {
+                                     @let state_of_charge = StateOfCharge {
+                                        residual_energy: logger_result.battery.residual_energy(),
+                                        actual_capacity: logger_result.battery.actual_capacity(),
+                                    };
+                                    span.tag.(state_of_charge.class()) {
+                                        span.icon-text {
+                                            (state_of_charge.icon())
+                                            span { "Charge" }
                                         }
                                     }
-                                }
-                                @if let Ok(logger_state) = &logger.result {
-                                    div.control {
-                                        div.tags.has-addons {
-                                            span.tag.is-info {
-                                                span.icon-text {
-                                                    span.icon { i.fas.fa-rotate {} }
-                                                    span { "Cycles" }
-                                                }
-                                            }
-                                            span.tag {
-                                                (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / logger_state.battery.actual_capacity() / 2.0))
-                                            }
-                                        }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-plug-circle-bolt {} }
-                                                span { "EPS" }
-                                            }
-                                        }
-                                        span.tag {
-                                            (hunter_state.energy_profile.average_eps_power)
-                                        }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-charging-station {} }
-                                                span { "Efficiency" }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-rotate {} }
-                                                span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.round_trip())) }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-angle-down {} }
-                                                span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.charging)) }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-angle-up {} }
-                                                span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.discharging)) }
-                                            }
-                                        }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-plug-circle-minus {} }
-                                                span { "Parasitic load" }
-                                            }
-                                        }
-                                        span.tag {
-                                            (hunter_state.energy_profile.battery_efficiency.parasitic_load)
-                                        }
-                                    }
+                                    span.tag { (logger_result.battery.charge) }
+                                    span.tag { (logger_result.battery.residual_energy()) }
                                 }
                             }
-                        }
-
-                        @if let Ok(logger_state) = &logger.result {
-                            div.field.is-grouped.is-grouped-multiline {
-                                div.control {
-                                    div.tags.has-addons {
-                                         @let state_of_charge = StateOfCharge {
-                                            residual_energy: logger_state.battery.residual_energy(),
-                                            actual_capacity: Some(logger_state.battery.actual_capacity()),
-                                        };
-                                        span.tag.(state_of_charge.class()) {
-                                            span.icon-text {
-                                                (state_of_charge.icon())
-                                                span { "Charge" }
-                                            }
-                                        }
-                                        span.tag { (logger_state.battery.charge) }
-                                        span.tag { (logger_state.battery.residual_energy()) }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-star-of-life {} }
-                                                span { "Health" }
-                                            }
-                                        }
-                                        span.tag { (logger_state.battery.health) }
-                                        span.tag { (logger_state.battery.actual_capacity()) }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-gear {} }
-                                                span { "Min SoC" }
-                                            }
-                                        }
-                                        span.tag { (logger_state.battery.min_system_charge) }
-                                    }
-                                }
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-user-gear {} }
-                                                span { "SoC range" }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-greater-than-equal {} }
-                                                span { (logger_state.battery.charge_range.min) }
-                                            }
-                                        }
-                                        span.tag {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-less-than-equal {} }
-                                                span { (logger_state.battery.charge_range.max) }
-                                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-star-of-life {} }
+                                            span { "Health" }
                                         }
                                     }
+                                    span.tag { (logger_result.battery.health) }
+                                    span.tag { (logger_result.battery.actual_capacity()) }
                                 }
                             }
-                        }
-
-                        @if let Some(message) = state.error_message() {
-                            article.message.is-danger {
-                                div.message-header {
-                                    p { "Error" }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-gear {} }
+                                            span { "Min SoC" }
+                                        }
+                                    }
+                                    span.tag { (logger_result.battery.min_system_charge) }
                                 }
-                                div.message-body {
-                                    (message)
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-user-gear {} }
+                                            span { "SoC range" }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-greater-than-equal {} }
+                                            span { (logger_result.battery.charge_range.min) }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-less-than-equal {} }
+                                            span { (logger_result.battery.charge_range.max) }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -308,77 +282,75 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
 
                 section.section.pt-5 {
                     div.container {
-                        @if let Ok(hunter_state) = &hunter.result {
-                            div.card {
-                                header.card-header {
-                                    p.card-header-title {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-calendar {} }
-                                            span { "Schedule" }
-                                        }
+                        div.card {
+                            header.card-header {
+                                p.card-header-title {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-calendar {} }
+                                        span { "Schedule" }
                                     }
                                 }
-                                div.card-content {
-                                    div.table-container {
-                                        table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
-                                            thead { (steps_table_header()) }
-                                            tfoot { (steps_table_header()) }
-                                            tbody {
-                                                @for step in &hunter_state.steps {
-                                                    tr.(WorkingModeColor(step.working_mode)) {
-                                                        td {
-                                                            (step.interval.start.format("%b"))
-                                                            (PreEscaped("&nbsp;"))
-                                                            (step.interval.start.format("%d"))
+                            }
+                            div.card-content {
+                                div.table-container {
+                                    table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                        thead { (steps_table_header()) }
+                                        tfoot { (steps_table_header()) }
+                                        tbody {
+                                            @for step in &hunter_result.steps {
+                                                tr.(WorkingModeColor(step.working_mode)) {
+                                                    td {
+                                                        (step.interval.start.format("%b"))
+                                                        (PreEscaped("&nbsp;"))
+                                                        (step.interval.start.format("%d"))
+                                                    }
+                                                    td { (step.interval.start.format("%H:%M")) }
+                                                    td { (step.interval.end.format("%H:%M")) }
+                                                    td { (step.duration) }
+                                                    td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
+                                                        (step.energy_price)
+                                                    }
+                                                    td {
+                                                        (step.working_mode)
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
+                                                        span.icon-text.is-flex-wrap-nowrap {
+                                                            span { (step.energy_balance.grid.import) }
+                                                            span.icon { i.fas.fa-angles-down {} }
                                                         }
-                                                        td { (step.interval.start.format("%H:%M")) }
-                                                        td { (step.interval.end.format("%H:%M")) }
-                                                        td { (step.duration) }
-                                                        td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
-                                                            (step.energy_price)
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
+                                                        span.icon-text.is-flex-wrap-nowrap {
+                                                            span { (step.energy_balance.grid.export) }
+                                                            span.icon { i.fas.fa-angles-up {} }
                                                         }
-                                                        td {
-                                                            (step.working_mode)
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
+                                                        span.icon-text.is-flex-wrap-nowrap {
+                                                            span { (step.energy_balance.battery.import) }
+                                                            span.icon { i.fas.fa-angle-down {} }
                                                         }
-                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
-                                                            span.icon-text.is-flex-wrap-nowrap {
-                                                                span { (step.energy_balance.grid.import) }
-                                                                span.icon { i.fas.fa-angles-down {} }
-                                                            }
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
+                                                        span.icon-text.is-flex-wrap-nowrap {
+                                                            span { (step.energy_balance.battery.export) }
+                                                            span.icon { i.fas.fa-angle-up {} }
                                                         }
-                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
-                                                            span.icon-text.is-flex-wrap-nowrap {
-                                                                span { (step.energy_balance.grid.export) }
-                                                                span.icon { i.fas.fa-angles-up {} }
-                                                            }
+                                                    }
+                                                    td.has-text-right {
+                                                        span.icon-text.is-flex-wrap-nowrap {
+                                                            span { (step.residual_energy_after) }
+                                                            (StateOfCharge {
+                                                                residual_energy: step.residual_energy_after,
+                                                                actual_capacity: logger_result.battery.actual_capacity(),
+                                                            }.icon())
                                                         }
-                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
-                                                            span.icon-text.is-flex-wrap-nowrap {
-                                                                span { (step.energy_balance.battery.import) }
-                                                                span.icon { i.fas.fa-angle-down {} }
-                                                            }
-                                                        }
-                                                        td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
-                                                            span.icon-text.is-flex-wrap-nowrap {
-                                                                span { (step.energy_balance.battery.export) }
-                                                                span.icon { i.fas.fa-angle-up {} }
-                                                            }
-                                                        }
-                                                        td.has-text-right {
-                                                            span.icon-text.is-flex-wrap-nowrap {
-                                                                span { (step.residual_energy_after) }
-                                                                (StateOfCharge {
-                                                                    residual_energy: step.residual_energy_after,
-                                                                    actual_capacity: logger.result.as_ref().ok().map(|state| state.battery.actual_capacity()),
-                                                                }.icon())
-                                                            }
-                                                        }
-                                                        td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
-                                                            (step.metrics.losses.grid)
-                                                        }
-                                                        td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
-                                                            (step.metrics.losses.battery)
-                                                        }
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
+                                                        (step.metrics.losses.grid)
+                                                    }
+                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
+                                                        (step.metrics.losses.battery)
                                                     }
                                                 }
                                             }

@@ -2,10 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use chrono::{DateTime, Local};
 
-use crate::{
-    prelude::*,
-    state::{HunterState, LoggerState},
-};
+use crate::state::{HunterState, LoggerState};
 
 #[must_use]
 #[derive(Clone)]
@@ -14,27 +11,14 @@ pub struct ApplicationState {
     pub hunter: Arc<RwLock<SystemState<HunterState>>>,
 }
 
-impl ApplicationState {
-    pub fn error_message(&self) -> Option<String> {
-        let mut parts = Vec::new();
-        if let Err(error) = &self.logger.read().unwrap().result {
-            parts.push(format!("Logger has failed: {error:#}."));
-        }
-        if let Err(error) = &self.hunter.read().unwrap().result {
-            parts.push(format!("Hunter has failed: {error:#}."));
-        }
-        (!parts.is_empty()).then(|| parts.join(" "))
-    }
-}
-
 #[must_use]
 pub struct SystemState<T> {
     pub last_run_at: DateTime<Local>,
-    pub result: Result<T>,
+    pub result: T,
 }
 
-impl<T> From<Result<T>> for SystemState<T> {
-    fn from(result: Result<T>) -> Self {
+impl<T> From<T> for SystemState<T> {
+    fn from(result: T) -> Self {
         Self { last_run_at: Local::now(), result }
     }
 }

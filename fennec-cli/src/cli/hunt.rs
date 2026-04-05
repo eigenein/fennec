@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
+use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
@@ -96,13 +96,8 @@ pub struct Hunter {
 }
 
 impl Hunter {
-    /// APIs (energy provider, Fox Cloud) backoff.
-    const API_BACKOFF: ExponentialBuilder =
+    const BACKOFF: ExponentialBuilder =
         ExponentialBuilder::new().with_min_delay(Duration::from_secs(10));
-
-    /// Direct battery connection backoff.
-    const BATTERY_BACKOFF: ConstantBuilder =
-        ConstantBuilder::new().with_delay(Duration::from_secs(5));
 
     pub async fn run_forever(
         self,
@@ -112,21 +107,18 @@ impl Hunter {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.write().unwrap() = self
-                .run_once()
-                .await
-                .inspect_err(|error| error!("hunter iteration failed: {error:#}"))
-                .into();
+            *system_state.write().unwrap() =
+                self.run_once().await.context("the hunter iteration has failed")?.into();
         }
     }
 
     #[instrument(skip_all)]
     pub async fn run_once(&self) -> Result<HunterState> {
         let now = Local::now().with_nanosecond(0).unwrap();
-        let energy_prices = (|| self.get_prices(now)).retry(Self::API_BACKOFF).await?;
+        let energy_prices = (|| self.get_prices(now)).retry(Self::BACKOFF).await?;
 
         let battery_state = (async || self.connections.battery.lock().await.read_state().await)
-            .retry(Self::BATTERY_BACKOFF)
+            .retry(Self::BACKOFF)
             .await?;
         info!(
             charge = ?battery_state.charge,
@@ -184,7 +176,7 @@ impl Hunter {
         println!("{}", &groups);
 
         if let Some(fox_cloud) = &self.connections.fox_cloud {
-            (|| fox_cloud.set_schedule(groups.as_ref())).retry(Self::API_BACKOFF).await?;
+            (|| fox_cloud.set_schedule(groups.as_ref())).retry(Self::BACKOFF).await?;
         } else {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }

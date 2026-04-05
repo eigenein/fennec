@@ -4,10 +4,10 @@ mod working_mode;
 
 use std::net::IpAddr;
 
-use axum::{Router, extract::State, routing::get};
+use axum::{Router, extract::State, response::IntoResponse, routing::get};
 use chrono_humanize::HumanTime;
 use clap::crate_version;
-use http::StatusCode;
+use http::{StatusCode, header};
 use maud::{DOCTYPE, Markup, PreEscaped, html};
 
 use crate::{
@@ -28,13 +28,16 @@ pub async fn serve(address: IpAddr, port: u16, state: ApplicationState) -> Resul
 }
 
 #[instrument(skip_all)]
-async fn get_health(
-    State(state): State<ApplicationState>,
-) -> Result<StatusCode, (StatusCode, String)> {
+async fn get_health(State(state): State<ApplicationState>) -> impl IntoResponse {
     info!("check");
-    state.error_message().map_or(Ok(StatusCode::NO_CONTENT), |message| {
-        Err((StatusCode::INTERNAL_SERVER_ERROR, message))
-    })
+
+    #[expect(clippy::option_if_let_else)]
+    let body = match state.error_message() {
+        Some(message) => Err((StatusCode::INTERNAL_SERVER_ERROR, message)),
+        None => Ok(StatusCode::NO_CONTENT),
+    };
+
+    ([(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")], body)
 }
 
 #[instrument(skip_all)]

@@ -23,7 +23,7 @@ impl Cron {
         loop {
             self.pointer = self.schedule.find_next_occurrence(&self.pointer, false)?;
             if let Ok(duration) = (self.pointer - Local::now()).to_std() {
-                debug!(pattern = %self.schedule.pattern, next_timestamp = ?self.pointer, "sleeping…");
+                debug!(pattern = %self.schedule.pattern, until = ?self.pointer, "sleeping…");
                 sleep(duration).await;
                 return Ok(());
             }

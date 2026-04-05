@@ -115,10 +115,12 @@ impl Hunter {
     #[instrument(skip_all)]
     pub async fn run_once(&self) -> Result<HunterState> {
         let now = Local::now().with_nanosecond(0).unwrap();
-        let energy_prices = (|| self.get_prices(now)).retry(Self::BACKOFF).await?;
+        let energy_prices =
+            (|| self.get_prices(now)).retry(Self::BACKOFF).notify(log_error).await?;
 
         let battery_state = (async || self.connections.battery.lock().await.read_state().await)
             .retry(Self::BACKOFF)
+            .notify(log_error)
             .await?;
         info!(
             charge = ?battery_state.charge,
@@ -176,7 +178,10 @@ impl Hunter {
         println!("{}", &groups);
 
         if let Some(fox_cloud) = &self.connections.fox_cloud {
-            (|| fox_cloud.set_schedule(groups.as_ref())).retry(Self::BACKOFF).await?;
+            (|| fox_cloud.set_schedule(groups.as_ref()))
+                .retry(Self::BACKOFF)
+                .notify(log_error)
+                .await?;
         } else {
             warn!("not pushing the schedule to Fox Cloud, just scouting");
         }

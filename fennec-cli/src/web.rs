@@ -1,5 +1,5 @@
+pub mod application;
 mod battery;
-pub mod state;
 mod working_mode;
 
 use std::net::IpAddr;
@@ -14,10 +14,10 @@ use crate::{
     battery::WorkingMode,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours},
-    web::{battery::StateOfCharge, state::ApplicationState, working_mode::WorkingModeColor},
+    web::{battery::StateOfCharge, working_mode::WorkingModeColor},
 };
 
-pub async fn serve(address: IpAddr, port: u16, state: ApplicationState) -> Result {
+pub async fn serve(address: IpAddr, port: u16, state: application::State) -> Result {
     info!(%address, port, "serving web UI…");
     let app = Router::new()
         .route("/", get(get_index))
@@ -35,14 +35,14 @@ async fn get_readiness() -> impl IntoResponse {
 
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
-async fn get_index(State(state): State<ApplicationState>) -> Markup {
+async fn get_index(State(state): State<application::State>) -> Markup {
     info!("access");
 
-    let logger = state.logger.read().unwrap();
-    let logger_result = &logger.result;
+    let logger = state.logger.get();
+    let logger_state = &logger.state;
 
-    let hunter = state.hunter.read().unwrap();
-    let hunter_result = &hunter.result;
+    let hunter = state.hunter.get();
+    let hunter_state = &hunter.state;
 
     html! {
         (DOCTYPE)
@@ -119,7 +119,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (hunter_result.profit())
+                                        (hunter_state.profit())
                                     }
                                 }
                             }
@@ -134,13 +134,13 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-down {} }
-                                            span { (hunter_result.metrics.internal_battery_flow.import) }
+                                            span { (hunter_state.metrics.internal_battery_flow.import) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-up {} }
-                                            span { (hunter_result.metrics.internal_battery_flow.export) }
+                                            span { (hunter_state.metrics.internal_battery_flow.export) }
                                         }
                                     }
                                 }
@@ -154,7 +154,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (format!("{:.1}", (hunter_result.metrics.internal_battery_flow.import + hunter_result.metrics.internal_battery_flow.export) / logger_result.battery.actual_capacity() / 2.0))
+                                        (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / logger_state.battery.actual_capacity() / 2.0))
                                     }
                                 }
                             }
@@ -167,7 +167,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (hunter_result.energy_profile.average_eps_power)
+                                        (hunter_state.energy_profile.average_eps_power)
                                     }
                                 }
                             }
@@ -182,19 +182,19 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-rotate {} }
-                                            span { (format!("{:.1}%", 100.0 * hunter_result.energy_profile.battery_efficiency.round_trip())) }
+                                            span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.round_trip())) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-down {} }
-                                            span { (format!("{:.1}%", 100.0 * hunter_result.energy_profile.battery_efficiency.charging)) }
+                                            span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.charging)) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-up {} }
-                                            span { (format!("{:.1}%", 100.0 * hunter_result.energy_profile.battery_efficiency.discharging)) }
+                                            span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.discharging)) }
                                         }
                                     }
                                 }
@@ -208,7 +208,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (hunter_result.energy_profile.battery_efficiency.parasitic_load)
+                                        (hunter_state.energy_profile.battery_efficiency.parasitic_load)
                                     }
                                 }
                             }
@@ -218,8 +218,8 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                             div.control {
                                 div.tags.has-addons {
                                      @let state_of_charge = StateOfCharge {
-                                        residual_energy: logger_result.battery.residual_energy(),
-                                        actual_capacity: logger_result.battery.actual_capacity(),
+                                        residual_energy: logger_state.battery.residual_energy(),
+                                        actual_capacity: logger_state.battery.actual_capacity(),
                                     };
                                     span.tag.(state_of_charge.class()) {
                                         span.icon-text {
@@ -227,8 +227,8 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             span { "Charge" }
                                         }
                                     }
-                                    span.tag { (logger_result.battery.charge) }
-                                    span.tag { (logger_result.battery.residual_energy()) }
+                                    span.tag { (logger_state.battery.charge) }
+                                    span.tag { (logger_state.battery.residual_energy()) }
                                 }
                             }
                             div.control {
@@ -239,8 +239,8 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             span { "Health" }
                                         }
                                     }
-                                    span.tag { (logger_result.battery.health) }
-                                    span.tag { (logger_result.battery.actual_capacity()) }
+                                    span.tag { (logger_state.battery.health) }
+                                    span.tag { (logger_state.battery.actual_capacity()) }
                                 }
                             }
                             div.control {
@@ -251,7 +251,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                             span { "Min SoC" }
                                         }
                                     }
-                                    span.tag { (logger_result.battery.min_system_charge) }
+                                    span.tag { (logger_state.battery.min_system_charge) }
                                 }
                             }
                             div.control {
@@ -265,13 +265,13 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-greater-than-equal {} }
-                                            span { (logger_result.battery.charge_range.min) }
+                                            span { (logger_state.battery.charge_range.min) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-less-than-equal {} }
-                                            span { (logger_result.battery.charge_range.max) }
+                                            span { (logger_state.battery.charge_range.max) }
                                         }
                                     }
                                 }
@@ -297,7 +297,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                         thead { (steps_table_header()) }
                                         tfoot { (steps_table_header()) }
                                         tbody {
-                                            @for step in &hunter_result.steps {
+                                            @for step in &hunter_state.steps {
                                                 tr.(WorkingModeColor(step.working_mode)) {
                                                     td {
                                                         (step.interval.start.format("%b"))
@@ -342,7 +342,7 @@ async fn get_index(State(state): State<ApplicationState>) -> Markup {
                                                             span { (step.residual_energy_after) }
                                                             (StateOfCharge {
                                                                 residual_energy: step.residual_energy_after,
-                                                                actual_capacity: logger_result.battery.actual_capacity(),
+                                                                actual_capacity: logger_state.battery.actual_capacity(),
                                                             }.icon())
                                                         }
                                                     }

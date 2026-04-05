@@ -1,7 +1,4 @@
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::time::Duration;
 
 use backon::{ConstantBuilder, Retryable};
 use bon::Builder;
@@ -13,7 +10,7 @@ use crate::{
     db::{Measurement, power},
     prelude::*,
     state::LoggerState,
-    web::state::SystemState,
+    web,
 };
 
 /// Battery state and power meter logger.
@@ -28,13 +25,12 @@ impl Logger {
     pub async fn run_forever(
         self,
         schedule: CronSchedule,
-        system_state: Arc<RwLock<SystemState<LoggerState>>>,
+        component: web::application::Component<LoggerState>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.write().unwrap() =
-                self.run_once().await.context("the logger iteration has failed")?.into();
+            component.update(self.run_once().await.context("the logger iteration has failed")?);
         }
     }
 

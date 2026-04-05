@@ -1,7 +1,4 @@
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::time::Duration;
 
 use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
@@ -26,7 +23,7 @@ use crate::{
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
     state::HunterState,
-    web::state::SystemState,
+    web,
 };
 
 #[derive(Parser)]
@@ -102,13 +99,12 @@ impl Hunter {
     pub async fn run_forever(
         self,
         schedule: CronSchedule,
-        system_state: Arc<RwLock<SystemState<HunterState>>>,
+        component: web::application::Component<HunterState>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *system_state.write().unwrap() =
-                self.run_once().await.context("the hunter iteration has failed")?.into();
+            component.update(self.run_once().await.context("the hunter iteration has failed")?);
         }
     }
 

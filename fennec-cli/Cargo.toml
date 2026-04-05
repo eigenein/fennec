@@ -33,6 +33,7 @@ croner = "3.0.1"
 derive_more = { version = "2.1.1", features = ["full"] }
 dotenvy = "0.15.7"
 enumset = "1.1.10"
+# fm-rs = "0.1.5"
 futures-core = "0.3.32"
 futures-util = "0.3.32"
 http = "1.4.0"

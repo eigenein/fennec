@@ -1,0 +1,2 @@
+[build]
+# rustflags = ["-Clink-arg=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx"]

@@ -1,7 +1,10 @@
 name: "🚀 Publish"
 run-name: "Publish ${{ github.ref_name }}"
 
-on: "workflow_dispatch"
+on:
+  push:
+    tags:
+      - "*"
 
 env:
   CARGO_TERM_COLOR: "always"

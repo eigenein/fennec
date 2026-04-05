@@ -36,8 +36,8 @@ impl Db {
         Ok(this)
     }
 
-    /// Set expiration time for all the time series.
-    #[instrument(skip_all, fields(expiration_time=?expiration_time))]
+    /// Set expiration time for the time series.
+    #[instrument(skip_all, fields(expiration_time = ?expiration_time))]
     pub async fn set_expiration_time<M: Measurement>(&self, expiration_time: Duration) -> Result {
         self.inner.run_command(set_expiration_time::<M>(expiration_time)?).await?;
         Ok(())

@@ -43,8 +43,11 @@ impl Logger {
                 self.connections.grid_measurement.get_measurement()
             )
         };
-        let (battery_state, grid_metrics) =
-            read_state.retry(Self::BACKOFF).notify(log_error).await?;
+        let (battery_state, grid_metrics) = read_state
+            .retry(Self::BACKOFF)
+            .notify(log_error)
+            .await
+            .context("failed to read the energy state")?;
         let battery_measurement = power::BatteryMeasurement::builder()
             .residual_energy(battery_state.residual_energy())
             .active_power(battery_state.active_power)

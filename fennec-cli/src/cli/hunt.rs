@@ -117,7 +117,8 @@ impl Hunter {
         let battery_state = (async || self.connections.battery.lock().await.read_state().await)
             .retry(Self::BACKOFF)
             .notify(log_error)
-            .await?;
+            .await
+            .context("failed to read the battery state")?;
         info!(
             charge = ?battery_state.charge,
             health = ?battery_state.health,

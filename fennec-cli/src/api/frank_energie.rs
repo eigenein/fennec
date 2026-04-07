@@ -132,6 +132,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(clippy::too_many_lines)]
     fn parse_ok() -> Result {
         // language=json
         const RESPONSE: &str = r#"

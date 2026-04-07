@@ -2,7 +2,7 @@ use std::ops::{Div, Mul, SubAssign};
 
 use derive_more::{Add, AddAssign, Sub};
 
-use crate::quantity::Zero;
+use crate::quantity::{Zero, currency::Mills, energy::WattHours, price::KilowattHourPrice};
 
 /// Generic bidirectional energy flow.
 #[must_use]
@@ -63,5 +63,12 @@ impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for Flow<T> {
 
     fn div(self, rhs: Rhs) -> Self::Output {
         Flow { import: self.import / rhs, export: self.export / rhs }
+    }
+}
+
+impl Flow<KilowattHourPrice> {
+    /// Calculate the grid consumption loss minus production revenue.
+    pub fn loss(self, energy: Flow<WattHours>) -> Mills {
+        energy.import * self.import - energy.export * self.export
     }
 }

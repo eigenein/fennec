@@ -112,10 +112,7 @@ impl Solver<'_> {
                     interval = interval.with_start(self.now);
                 }
                 let flow = self.balance_profile.average_balance_on(interval.start.time());
-                Self::grid_loss(
-                    energy_price,
-                    (flow.grid + flow.battery.reversed()) * interval.hours(),
-                )
+                energy_price.loss((flow.grid + flow.battery.reversed()) * interval.hours())
             })
             .sum()
     }
@@ -200,21 +197,11 @@ impl Solver<'_> {
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {
-                    grid: Self::grid_loss(energy_price, grid_flow),
+                    grid: energy_price.loss(grid_flow),
                     battery: (battery_flows.internal.import + battery_flows.internal.export)
                         * self.battery_degradation_cost,
                 },
             },
         }
-    }
-
-    /// Calculate the grid consumption or production loss.
-    ///
-    /// TODO: extract into multiplication of `energy::Flow` by `energy::Flow`.
-    fn grid_loss(
-        energy_price: energy::Flow<KilowattHourPrice>,
-        flow: energy::Flow<WattHours>,
-    ) -> Mills {
-        flow.import * energy_price.import - flow.export * energy_price.export
     }
 }

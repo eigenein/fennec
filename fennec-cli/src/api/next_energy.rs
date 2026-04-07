@@ -1,5 +1,7 @@
 //! [NextEnergy](https://www.nextenergy.nl/actuele-energieprijzen) client.
 
+#![allow(dead_code)]
+
 use std::{str::FromStr, time::Duration};
 
 use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};

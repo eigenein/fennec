@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "fennec-cli",
+    "fennec-modbus",
 ]
 resolver = "3"
 

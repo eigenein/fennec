@@ -12,6 +12,7 @@
       <sourceFolder url="file://$MODULE_DIR$/fennec-energy-monitor/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fennec-modbus-proxy/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fennec-quantities/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fennec-modbus/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

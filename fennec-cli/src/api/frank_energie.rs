@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
-use crate::{ops::Interval, prelude::*, quantity::price::KilowattHourPrice};
+use crate::{energy::Flow, ops::Interval, prelude::*, quantity::price::KilowattHourPrice};
 
 pub struct Api {
     client: reqwest::Client,
@@ -17,7 +17,10 @@ impl Api {
     }
 
     #[instrument(skip_all, fields(on = ?on))]
-    pub async fn get_prices(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourPrice)>> {
+    pub async fn get_prices(
+        &self,
+        on: NaiveDate,
+    ) -> Result<Vec<(Interval, Flow<KilowattHourPrice>)>> {
         debug!(?on, "fetching…");
         let Some(data) = self
             .client
@@ -35,7 +38,15 @@ impl Api {
             .market_prices
             .electricity
             .into_iter()
-            .map(|item| (Interval::from_std(item.from..item.till), KilowattHourPrice(item.all_in)))
+            .map(|item| {
+                (
+                    Interval::from_std(item.from..item.till),
+                    Flow {
+                        import: KilowattHourPrice(item.all_in),
+                        export: KilowattHourPrice(item.all_in),
+                    },
+                )
+            })
             .collect())
     }
 }

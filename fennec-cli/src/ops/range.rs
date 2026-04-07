@@ -18,6 +18,7 @@ impl<T: Debug> Debug for Exclusive<T> {
 }
 
 impl<T> Exclusive<T> {
+    /// TODO: convert to builder.
     pub const fn from_std(range: std::ops::Range<T>) -> Self
     where
         T: Copy,

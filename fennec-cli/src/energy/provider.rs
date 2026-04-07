@@ -2,9 +2,10 @@ use chrono::{NaiveDate, TimeDelta};
 
 use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
+    energy::Flow,
     ops::Interval,
     prelude::*,
-    quantity::{Zero, price::KilowattHourPrice},
+    quantity::price::KilowattHourPrice,
 };
 
 #[derive(
@@ -25,13 +26,6 @@ pub enum Provider {
 }
 
 impl Provider {
-    pub const fn purchase_fee(self) -> KilowattHourPrice {
-        match self {
-            Self::NextEnergy => KilowattHourPrice(0.021),
-            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => KilowattHourPrice::ZERO,
-        }
-    }
-
     pub const fn time_step(self) -> TimeDelta {
         match self {
             Self::NextEnergy | Self::FrankEnergieHourly => TimeDelta::hours(1),
@@ -39,7 +33,10 @@ impl Provider {
         }
     }
 
-    pub async fn get_prices(self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourPrice)>> {
+    pub async fn get_prices(
+        self,
+        on: NaiveDate,
+    ) -> Result<Vec<(Interval, Flow<KilowattHourPrice>)>> {
         match self {
             Self::NextEnergy => next_energy::Api::new()?.get_prices(on).await,
             Self::FrankEnergieQuarterly => {

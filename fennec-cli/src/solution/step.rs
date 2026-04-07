@@ -13,7 +13,7 @@ use crate::{
 pub struct Step {
     pub interval: Interval,
     pub duration: Hours,
-    pub energy_price: KilowattHourPrice,
+    pub energy_price: energy::Flow<KilowattHourPrice>,
     pub energy_balance: energy::Balance<WattHours>,
     pub working_mode: WorkingMode,
     pub residual_energy_after: WattHours,

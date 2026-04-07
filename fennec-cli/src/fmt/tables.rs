@@ -9,7 +9,7 @@ use crate::{
 
 pub fn build_steps_table(steps: &[Step]) -> Table {
     let average_price: KilowattHourPrice = {
-        let estimate: Mean = steps.iter().map(|step| step.energy_price.0).collect();
+        let estimate: Mean = steps.iter().map(|step| step.energy_price.import.0).collect();
         if estimate.is_empty() {
             KilowattHourPrice::ZERO
         } else {
@@ -43,7 +43,7 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             Cell::new(step.interval.start.format("%H:%M")),
             Cell::new(step.interval.end.format("%H:%M")).add_attribute(Attribute::Dim),
             Cell::new(step.duration).add_attribute(Attribute::Dim),
-            Cell::new(step.energy_price).fg(if step.energy_price >= average_price {
+            Cell::new(step.energy_price.import).fg(if step.energy_price.import >= average_price {
                 Color::Red
             } else {
                 Color::Green

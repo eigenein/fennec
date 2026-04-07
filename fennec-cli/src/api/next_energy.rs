@@ -6,18 +6,26 @@ use chrono::{Local, MappedLocalTime, NaiveDate, TimeDelta};
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_with::serde_as;
 
-use crate::{ops::Interval, prelude::*, quantity::price::KilowattHourPrice};
+use crate::{energy::Flow, ops::Interval, prelude::*, quantity::price::KilowattHourPrice};
 
 pub struct Api(reqwest::Client);
 
 impl Api {
+    /// «[Inkoopvergoeding][1]» price.
+    ///
+    /// [1]: https://www.nextenergy.nl/meer-info/prijsopbouw
+    const PURCHASE_FEE: KilowattHourPrice = KilowattHourPrice(0.021);
+
     pub fn new() -> Result<Self> {
         Ok(Self(reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?))
     }
 
     /// Get all hourly rates on the specified day.
     #[instrument(skip_all, fields(on = ?on))]
-    pub async fn get_prices(&self, on: NaiveDate) -> Result<Vec<(Interval, KilowattHourPrice)>> {
+    pub async fn get_prices(
+        &self,
+        on: NaiveDate,
+    ) -> Result<Vec<(Interval, Flow<KilowattHourPrice>)>> {
         debug!("fetching…");
         let data_points = self.0.post("https://mijn.nextenergy.nl/Website_CW/screenservices/Website_CW/Blocks/WB_EnergyPrices/DataActionGetDataPoints")
             .header("X-CSRFToken", "T6C+9iB49TLra4jEsMeSckDMNhQ=")
@@ -35,8 +43,10 @@ impl Api {
             match on.and_hms_nano_opt(hour, 0, 0, 0).unwrap().and_local_timezone(Local) {
                 MappedLocalTime::Single(start_time) | MappedLocalTime::Ambiguous(start_time, _) => {
                     let end_time = start_time + TimeDelta::hours(1);
-                    let point = (Interval::from_std(start_time..end_time), point.value);
-                    Some(point)
+                    Some((
+                        Interval::from_std(start_time..end_time),
+                        Flow { import: point.value, export: point.value - Self::PURCHASE_FEE },
+                    ))
                 }
                 MappedLocalTime::None => {
                     warn!(point.label, index, "Skipped");

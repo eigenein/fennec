@@ -308,7 +308,7 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                                     td { (step.interval.end.format("%H:%M")) }
                                                     td { (step.duration) }
                                                     td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
-                                                        (step.energy_price)
+                                                        (step.energy_price.import)
                                                     }
                                                     td {
                                                         (step.working_mode)

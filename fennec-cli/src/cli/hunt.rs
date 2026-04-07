@@ -149,7 +149,6 @@ impl Hunter {
                 battery_state.max_residual_energy().max(battery_state.residual_energy()),
             )
             .battery_efficiency(energy_profile.battery_efficiency)
-            .purchase_fee(self.energy_provider.purchase_fee())
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(
@@ -188,7 +187,10 @@ impl Hunter {
 
     /// Fetch energy prices for up to 2 days.
     #[instrument(skip_all, fields(now = ?now))]
-    async fn get_prices(&self, now: DateTime<Local>) -> Result<Vec<(Interval, KilowattHourPrice)>> {
+    async fn get_prices(
+        &self,
+        now: DateTime<Local>,
+    ) -> Result<Vec<(Interval, energy::Flow<KilowattHourPrice>)>> {
         const ONE_DAY: Days = Days::new(1);
 
         let today = now.date_naive();

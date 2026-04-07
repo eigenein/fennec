@@ -23,7 +23,7 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Solver<'a> {
-    energy_prices: &'a [(Interval, KilowattHourPrice)],
+    energy_prices: &'a [(Interval, energy::Flow<KilowattHourPrice>)],
     balance_profile: &'a energy::Profile,
 
     /// Enabled working modes.
@@ -38,7 +38,6 @@ pub struct Solver<'a> {
     battery_degradation_cost: KilowattHourPrice,
     max_battery_flow: energy::Flow<Watts>,
     battery_efficiency: battery::Efficiency,
-    purchase_fee: KilowattHourPrice,
     now: DateTime<Local>,
     quantum: WattHours,
 }
@@ -113,7 +112,7 @@ impl Solver<'_> {
                     interval = interval.with_start(self.now);
                 }
                 let flow = self.balance_profile.average_balance_on(interval.start.time());
-                self.grid_loss(
+                Self::grid_loss(
                     energy_price,
                     (flow.grid + flow.battery.reversed()) * interval.hours(),
                 )
@@ -131,7 +130,7 @@ impl Solver<'_> {
         interval_index: usize,
         interval: Interval,
         average_balance: energy::Balance<Watts>,
-        energy_price: KilowattHourPrice,
+        energy_price: energy::Flow<KilowattHourPrice>,
         initial_residual_energy: WattHours,
         solutions: &Space,
     ) -> Option<Solution> {
@@ -168,7 +167,7 @@ impl Solver<'_> {
         mut battery: battery::Simulator,
         interval: Interval,
         average_balance: energy::Balance<Watts>,
-        energy_price: KilowattHourPrice,
+        energy_price: energy::Flow<KilowattHourPrice>,
         working_mode: WorkingMode,
     ) -> Step {
         // Remember that the average flow represents theoretical possibility,
@@ -201,7 +200,7 @@ impl Solver<'_> {
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {
-                    grid: self.grid_loss(energy_price, grid_flow),
+                    grid: Self::grid_loss(energy_price, grid_flow),
                     battery: (battery_flows.internal.import + battery_flows.internal.export)
                         * self.battery_degradation_cost,
                 },
@@ -210,7 +209,12 @@ impl Solver<'_> {
     }
 
     /// Calculate the grid consumption or production loss.
-    fn grid_loss(&self, energy_price: KilowattHourPrice, flow: energy::Flow<WattHours>) -> Mills {
-        flow.import * energy_price - flow.export * (energy_price - self.purchase_fee)
+    ///
+    /// TODO: extract into multiplication of `energy::Flow` by `energy::Flow`.
+    fn grid_loss(
+        energy_price: energy::Flow<KilowattHourPrice>,
+        flow: energy::Flow<WattHours>,
+    ) -> Mills {
+        flow.import * energy_price.import - flow.export * energy_price.export
     }
 }

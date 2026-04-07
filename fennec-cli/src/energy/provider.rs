@@ -4,7 +4,7 @@ use crate::{
     api::{frank_energie, frank_energie::Resolution, next_energy},
     ops::Interval,
     prelude::*,
-    quantity::price::KilowattHourPrice,
+    quantity::{Zero, price::KilowattHourPrice},
 };
 
 #[derive(
@@ -28,7 +28,7 @@ impl Provider {
     pub const fn purchase_fee(self) -> KilowattHourPrice {
         match self {
             Self::NextEnergy => KilowattHourPrice(0.021),
-            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => KilowattHourPrice(0.0182),
+            Self::FrankEnergieQuarterly | Self::FrankEnergieHourly => KilowattHourPrice::ZERO,
         }
     }
 

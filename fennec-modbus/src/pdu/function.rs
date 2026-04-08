@@ -5,7 +5,7 @@ use binrw::BinRead;
 pub mod read_holding_registers;
 
 /// Successful function response.
-#[derive(BinRead)]
+#[derive(Debug, BinRead)]
 #[br(big)]
 pub enum Response {
     ReadHoldingRegisters(read_holding_registers::Response),

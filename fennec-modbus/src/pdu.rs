@@ -1,4 +1,5 @@
 pub mod exception;
+pub mod function;
 pub mod request;
 pub mod response;
 

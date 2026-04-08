@@ -1,6 +1,6 @@
 use binrw::BinWrite;
 
-use crate::function;
+use crate::pdu::function;
 
 /// Request protocol data unit.
 #[derive(BinWrite)]

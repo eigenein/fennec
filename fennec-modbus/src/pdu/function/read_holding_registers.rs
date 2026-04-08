@@ -1,11 +1,12 @@
 //! Section 6.3 «Read Holding Registers».
 
 use alloc::vec::Vec;
+use core::fmt::{Debug, Formatter};
 
 use binrw::{BinWrite, binread};
 use bon::bon;
 
-use crate::error::BadRequest;
+use crate::error::RequestBuilderError;
 
 #[must_use]
 #[derive(Copy, Clone, BinWrite)]
@@ -21,11 +22,11 @@ pub struct Request {
 #[bon]
 impl Request {
     #[builder]
-    pub fn new(starting_address: u16, n_registers: u16) -> Result<Self, BadRequest> {
+    pub fn new(starting_address: u16, n_registers: u16) -> Result<Self, RequestBuilderError> {
         if (1..=125).contains(&n_registers) {
             Ok(Self { starting_address, n_registers })
         } else {
-            Err(BadRequest::RegisterCount(n_registers))
+            Err(RequestBuilderError::RegisterCount(n_registers))
         }
     }
 }
@@ -39,6 +40,12 @@ pub struct Response {
 
     #[br(assert(n_bytes.is_multiple_of(2)), count = n_bytes / 2)]
     pub words: Vec<u16>,
+}
+
+impl Debug for Response {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Response {{ words: {:?} }}", self.words)
+    }
 }
 
 #[cfg(test)]

@@ -2,12 +2,13 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("bad request: {0}")]
-    BadRequest(#[from] BadRequest),
+    #[error("failed to build the request: {0}")]
+    RequestBuilder(#[from] RequestBuilderError),
 }
 
+/// Request construction failed before sending it.
 #[derive(Debug, Error)]
-pub enum BadRequest {
+pub enum RequestBuilderError {
     #[error("incorrect number of registers requested ({0})")]
     RegisterCount(u16),
 }

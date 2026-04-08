@@ -1305,6 +1305,7 @@ dependencies = [
  "bitvec",
  "bon",
  "clap",
+ "derive_more",
  "thiserror 2.0.18",
 ]
 

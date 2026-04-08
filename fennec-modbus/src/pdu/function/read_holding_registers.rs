@@ -1,20 +1,24 @@
-//! Section 6.3 «Read Holding Registers».
+#![allow(dead_code)]
 
 use alloc::vec::Vec;
-use core::fmt::{Debug, Formatter};
+use core::fmt::Debug;
 
 use binrw::{BinWrite, binread};
 use bon::bon;
 
 use crate::{error::RequestBuilderError, pdu};
 
-impl pdu::Request for Request {
-    const FUNCTION_CODE: u8 = 3;
+/// Read the contents of a contiguous block of holding registers in a remote device.
+pub struct Function;
+
+impl pdu::Function for Function {
+    const CODE: u8 = 3;
+    type Request = Request;
     type Response = Response;
 }
 
 #[must_use]
-#[derive(Copy, Clone, BinWrite)]
+#[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big, magic = 3_u8)]
 pub struct Request {
     /// *Zero-based* address of the first register to read.
@@ -39,18 +43,13 @@ impl Request {
 #[must_use]
 #[binread]
 #[br(big, magic = 3_u8)]
+#[derive(derive_more::Debug)]
 pub struct Response {
     #[br(temp)]
     n_bytes: u8,
 
     #[br(assert(n_bytes.is_multiple_of(2)), count = n_bytes / 2)]
     pub words: Vec<u16>,
-}
-
-impl Debug for Response {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Response {{ words: {:?} }}", self.words)
-    }
 }
 
 #[cfg(test)]

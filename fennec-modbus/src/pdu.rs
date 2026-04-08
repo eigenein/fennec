@@ -1,9 +1,8 @@
 pub mod exception;
-pub mod function;
-mod request;
+mod function;
 mod response;
 
-pub use self::{request::Request, response::Response};
+pub use self::{function::Function, response::Response};
 
 /// Modbus data model.
 ///

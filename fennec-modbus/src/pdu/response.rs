@@ -1,13 +1,13 @@
 use binrw::BinRead;
 
-use crate::pdu::exception;
+use crate::pdu::{exception, function::Function};
 
 /// Response protocol data unit.
-#[derive(Debug, BinRead)]
+#[derive(derive_more::Debug, BinRead)]
 #[br(big)]
-pub enum Response<T: for<'a> BinRead<Args<'a> = ()>> {
-    Ok(T),
-    Exception(exception::Response),
+pub enum Response<F: Function> {
+    Ok(F::Response),
+    Exception(exception::Response<F>),
 }
 
 #[cfg(test)]
@@ -27,7 +27,7 @@ mod tests {
             0x04, // server device failure
         ];
         let response =
-            Response::<read_holding_registers::Response>::read(&mut Cursor::new(RESPONSE)).unwrap();
+            Response::<read_holding_registers::Function>::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert!(
             matches!(
                 response,

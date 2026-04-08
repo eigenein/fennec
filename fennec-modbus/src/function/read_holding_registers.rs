@@ -3,16 +3,31 @@
 use alloc::vec::Vec;
 
 use binrw::{BinWrite, binread};
+use bon::bon;
+
+use crate::error::BadRequest;
 
 #[must_use]
 #[derive(Copy, Clone, BinWrite)]
 #[bw(big, magic = 3_u8)]
 pub struct Request {
-    /// *Zero-based* register address.
-    pub starting_address: u16,
+    /// *Zero-based* address of the first register to read.
+    starting_address: u16,
 
-    /// TODO: use `bon` with validation: 1 to 125 (0x7D).
-    pub count: u16,
+    /// Number of registers to read.
+    n_registers: u16,
+}
+
+#[bon]
+impl Request {
+    #[builder]
+    pub fn new(starting_address: u16, n_registers: u16) -> Result<Self, BadRequest> {
+        if (1..=125).contains(&n_registers) {
+            Ok(Self { starting_address, n_registers })
+        } else {
+            Err(BadRequest::RegisterCount(n_registers))
+        }
+    }
 }
 
 #[must_use]
@@ -20,10 +35,9 @@ pub struct Request {
 #[br(big, magic = 3_u8)]
 pub struct Response {
     #[br(temp)]
-    byte_count: u8,
+    n_bytes: u8,
 
-    /// TODO: validate `byte_count` via `binrw` assertion.
-    #[br(count = byte_count / 2)]
+    #[br(assert(n_bytes.is_multiple_of(2)), count = n_bytes / 2)]
     pub words: Vec<u16>,
 }
 
@@ -36,20 +50,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn write_example_ok() {
-        const REQUEST: Request = Request { starting_address: 107, count: 3 };
+    fn request_example_ok() {
         const EXPECTED: &[u8] = &[
             0x03, // function code
             0x00, 0x6B, // starting address: high, low
             0x00, 0x03, // count: high, low
         ];
         let mut output = Cursor::new(vec![]);
-        REQUEST.write(&mut output).unwrap();
+        Request::builder()
+            .starting_address(107)
+            .n_registers(3)
+            .build()
+            .unwrap()
+            .write(&mut output)
+            .unwrap();
         assert_eq!(output.into_inner(), EXPECTED);
     }
 
     #[test]
-    fn read_example_ok() {
+    fn response_example_ok() {
         const RESPONSE: &[u8] = &[
             0x03, // function code
             0x06, // byte count

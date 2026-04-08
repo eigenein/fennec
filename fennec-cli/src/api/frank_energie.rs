@@ -48,6 +48,7 @@ impl Api {
                     Interval::from_std(item.from..item.till),
                     Flow {
                         import: item.all_in,
+                        // FIXME: from 2027, this becomes just `item.market + Self::PURCHASE_FEE`:
                         export: (item.market + Self::PURCHASE_FEE) * Self::VAT,
                     },
                 )

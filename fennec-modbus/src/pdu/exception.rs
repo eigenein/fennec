@@ -33,7 +33,9 @@ pub enum FunctionalError {
     Gateway(GatewayError),
 
     /// Unknown error code.
-    #[error("unknown error({0})")]
+    ///
+    /// TODO: test.
+    #[error("unknown error ({0})")]
     Unknown(u8),
 }
 
@@ -112,4 +114,22 @@ pub enum GatewayError {
     #[error("gateway target device failed to respond")]
     #[br(magic = 0x0B_u8)]
     GatewayTargetDeviceFailedToRespond,
+}
+
+#[cfg(test)]
+mod tests {
+
+    use binrw::io::Cursor;
+
+    use super::*;
+
+    #[test]
+    fn unknown_error_code_ok() {
+        const RESPONSE: &[u8] = &[
+            0x83, // exception flag and function code
+            0xFF, // unknown error code
+        ];
+        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
+        matches!(response.error, FunctionalError::Unknown(0xFF));
+    }
 }

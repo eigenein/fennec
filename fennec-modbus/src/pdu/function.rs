@@ -1,5 +1,6 @@
 use binrw::{BinRead, BinWrite};
 
+pub mod read_coils;
 pub mod read_holding_registers;
 
 pub trait Function {

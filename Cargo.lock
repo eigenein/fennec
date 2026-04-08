@@ -1302,7 +1302,6 @@ name = "fennec-modbus"
 version = "0.0.1"
 dependencies = [
  "binrw",
- "bitvec",
  "bon",
  "clap",
  "derive_more",

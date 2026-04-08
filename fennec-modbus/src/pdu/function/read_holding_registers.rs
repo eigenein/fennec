@@ -35,7 +35,7 @@ impl Request {
         if (1..=125).contains(&n_registers) {
             Ok(Self { starting_address, n_registers })
         } else {
-            Err(RequestBuilderError::RegisterCount(n_registers))
+            Err(RequestBuilderError::InvalidQuantity(n_registers))
         }
     }
 }
@@ -50,6 +50,12 @@ pub struct Response {
 
     #[br(assert(n_bytes.is_multiple_of(2)), count = n_bytes / 2)]
     pub words: Vec<u16>,
+}
+
+impl From<Response> for Vec<u16> {
+    fn from(response: Response) -> Self {
+        response.words
+    }
 }
 
 #[cfg(test)]

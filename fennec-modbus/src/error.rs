@@ -1,3 +1,5 @@
+use core::num::TryFromIntError;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -9,6 +11,9 @@ pub enum Error {
 /// Request construction failed before sending it.
 #[derive(Debug, Error)]
 pub enum RequestBuilderError {
-    #[error("incorrect number of registers requested ({0})")]
-    RegisterCount(u16),
+    #[error("incorrect quantity requested ({0})")]
+    InvalidQuantity(u16),
+
+    #[error("could not convert the quantity: {0}")]
+    QuantityConversion(#[from] TryFromIntError),
 }

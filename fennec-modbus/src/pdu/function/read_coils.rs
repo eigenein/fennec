@@ -52,12 +52,12 @@ pub struct Response {
     /// The LSB of the first data byte contains the output addressed in the query.
     /// The other coils follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
     #[br(count = n_bytes)]
-    pub outputs: Vec<u8>,
+    pub coils: Vec<u8>,
 }
 
 impl From<Response> for Vec<u8> {
     fn from(response: Response) -> Self {
-        response.outputs
+        response.coils
     }
 }
 
@@ -98,6 +98,6 @@ mod tests {
         ];
 
         let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.outputs, [0xCD, 0x6B, 0x05]);
+        assert_eq!(response.coils, [0xCD, 0x6B, 0x05]);
     }
 }

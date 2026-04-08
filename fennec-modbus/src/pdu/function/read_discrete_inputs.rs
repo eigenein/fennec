@@ -52,12 +52,12 @@ pub struct Response {
     /// The LSB of the first data byte contains the input addressed in the query.
     /// The other inputs follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
     #[br(count = n_bytes)]
-    pub outputs: Vec<u8>,
+    pub inputs: Vec<u8>,
 }
 
 impl From<Response> for Vec<u8> {
     fn from(response: Response) -> Self {
-        response.outputs
+        response.inputs
     }
 }
 
@@ -98,6 +98,6 @@ mod tests {
         ];
 
         let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.outputs, [0xAC, 0xDB, 0x35]);
+        assert_eq!(response.inputs, [0xAC, 0xDB, 0x35]);
     }
 }

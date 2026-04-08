@@ -20,7 +20,7 @@ impl pdu::Function for Function {
 #[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big, magic = 2_u8)]
 pub struct Request {
-    /// *Zero-based* address of the first coil to read.
+    /// *Zero-based* address of the first input to read.
     starting_address: u16,
 
     /// Number of inputs to read.

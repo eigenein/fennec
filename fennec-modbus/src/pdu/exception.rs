@@ -124,7 +124,6 @@ pub enum GatewayError {
 
 #[cfg(test)]
 mod tests {
-
     use binrw::io::Cursor;
 
     use super::*;

@@ -3,24 +3,26 @@ use binrw::BinRead;
 use crate::pdu::{exception, function};
 
 /// Top-level response protocol data unit.
+///
+/// This is a «peek and dispatch» glue for [`Response`].
 #[derive(Debug, BinRead)]
 #[br(big)]
-pub struct Response {
+pub struct Payload {
     /// Original request function code – optionally, summed with the exception flag.
-    ///
-    /// This is a «peek and dispatch» glue for [`Payload`].
     #[br(restore_position)]
+    #[expect(dead_code)]
     pub function_code: u8,
 
     #[br(args(function_code))]
-    pub payload: Payload,
+    pub response: Response,
 }
 
 /// Response payload: either a successful functional response or an exception.
+///
+/// This requires that the function code is already read and stashed to the arguments.
 #[derive(Debug, BinRead)]
-#[br(import(function_code: u8))]
-#[br(big)]
-pub enum Payload {
+#[br(big, import(function_code: u8))]
+pub enum Response {
     #[br(pre_assert(function_code & 0x80 == 0))]
     Ok(function::Response),
 
@@ -41,11 +43,11 @@ mod tests {
             0x83, // function code + error flag
             0x04, // server device failure
         ];
-        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let response: Response = Payload::read(&mut Cursor::new(RESPONSE)).unwrap().into();
         assert!(
             matches!(
-                response.payload,
-                Payload::Exception(exception::Response {
+                response,
+                Response::Exception(exception::Response {
                     original_function_code: 3,
                     error: FunctionalError::Server(ServerError::ServerDeviceFailure),
                 }),

@@ -47,10 +47,10 @@ pub struct Response {
     #[br(temp)]
     n_bytes: u8,
 
-    /// The coils in the response message are packed as one coil per bit of the data field.
+    /// The discrete inputs in the response message are packed as one input per bit of the data field.
     ///
-    /// The LSB of the first data byte contains the output addressed in the query.
-    /// The other coils follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
+    /// The LSB of the first data byte contains the input addressed in the query.
+    /// The other inputs follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
     #[br(count = n_bytes)]
     pub outputs: Vec<u8>,
 }

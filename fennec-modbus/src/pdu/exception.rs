@@ -33,8 +33,6 @@ pub enum FunctionalError {
     Gateway(GatewayError),
 
     /// Unknown error code.
-    ///
-    /// TODO: test.
     #[error("unknown error ({0})")]
     Unknown(u8),
 }
@@ -130,6 +128,6 @@ mod tests {
             0xFF, // unknown error code
         ];
         let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        matches!(response.error, FunctionalError::Unknown(0xFF));
+        assert!(matches!(response.error, FunctionalError::Unknown(0xFF)));
     }
 }

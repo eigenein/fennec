@@ -2,6 +2,4 @@
 extern crate alloc;
 
 pub mod function;
-mod pdu;
-
-pub use self::pdu::Pdu;
+pub mod pdu;

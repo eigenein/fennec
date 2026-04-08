@@ -8,7 +8,7 @@ publish.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Sans-IO Modbus client implementation"
+description = "Modbus client implementation"
 version = "0.0.1"
 
 [lib]

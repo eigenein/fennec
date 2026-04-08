@@ -1,7 +1,5 @@
-mod error;
-
-/// Protocol data unit.
-pub struct Pdu {}
+mod request;
+mod response;
 
 /// Modbus data model.
 ///

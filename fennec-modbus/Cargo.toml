@@ -24,6 +24,8 @@ cli = ["dep:clap"]
 workspace = true
 
 [dependencies]
-binrw = "0.15.1"
+binrw = { version = "0.15.1", default-features = false }
 bitvec = { version = "1.0.1", default-features = false }
+bon = { version = "3.9.1", default-features = false }
 clap = { version = "4.6.0", optional = true, features = ["cargo", "derive", "env", "unicode"] }
+thiserror = { version = "2.0.18", default-features = false }

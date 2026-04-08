@@ -1,14 +1,23 @@
-use binrw::BinRead;
+use core::fmt::{Debug, Formatter};
+
+use binrw::{BinRead, binread};
 use thiserror::Error;
 
 #[must_use]
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
 pub struct Response {
-    #[br(map = |it: u8| it & 0x7F)]
-    pub original_function_code: u8,
+    #[br(assert(function_code & 0x80 != 0, "not an exception"))]
+    #[br(temp)]
+    function_code: u8,
 
     pub error: FunctionalError,
+}
+
+impl Debug for Response {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        Debug::fmt(&self.error, f)
+    }
 }
 
 /// The server received the request without a communication error, but could not handle it.

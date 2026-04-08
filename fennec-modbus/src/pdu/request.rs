@@ -1,9 +1,6 @@
-use binrw::BinWrite;
+use binrw::{BinRead, BinWrite};
 
-use crate::pdu::function;
-
-/// Request protocol data unit.
-#[derive(BinWrite)]
-pub enum Request {
-    ReadHoldingRegisters(function::read_holding_registers::Request),
+pub trait Request: BinWrite {
+    const FUNCTION_CODE: u8;
+    type Response: BinRead;
 }

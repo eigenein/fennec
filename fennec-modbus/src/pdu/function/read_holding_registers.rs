@@ -6,7 +6,12 @@ use core::fmt::{Debug, Formatter};
 use binrw::{BinWrite, binread};
 use bon::bon;
 
-use crate::error::RequestBuilderError;
+use crate::{error::RequestBuilderError, pdu};
+
+impl pdu::Request for Request {
+    const FUNCTION_CODE: u8 = 3;
+    type Response = Response;
+}
 
 #[must_use]
 #[derive(Copy, Clone, BinWrite)]

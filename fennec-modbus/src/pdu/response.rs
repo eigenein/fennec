@@ -1,8 +1,6 @@
-use alloc::vec::Vec;
+use binrw::BinRead;
 
-use binrw::{BinRead, helpers::until_eof};
-
-use crate::function;
+use crate::{function, pdu::exception};
 
 /// Top-level response protocol data unit.
 #[derive(BinRead)]
@@ -12,10 +10,10 @@ pub struct Response {
     ///
     /// It's either the original function code, or
     #[br(restore_position)]
-    function_code: u8,
+    pub function_code: u8,
 
     #[br(args(function_code))]
-    payload: Payload,
+    pub payload: Payload,
 }
 
 /// Response payload dependent on the error flag.
@@ -24,43 +22,32 @@ pub struct Response {
 #[br(big)]
 pub enum Payload {
     #[br(pre_assert(function_code & 0x80 == 0))]
-    Ok(FunctionResponse),
+    Ok(function::Response),
 
     #[br(pre_assert(function_code & 0x80 != 0))]
-    Error {
-        #[br(map = |it: u8| it & 0x7F)]
-        original_function_code: u8,
-        code: ErrorCode,
-    },
+    Exception(exception::Response),
 }
 
-/// Successful function response.
-#[derive(BinRead)]
-#[br(big)]
-pub enum FunctionResponse {
-    ReadHoldingRegisters(function::read_holding_registers::Response),
+#[cfg(test)]
+mod tests {
+    use binrw::io::Cursor;
 
-    /// TODO: missing tests.
-    UserDefined {
-        code: u8,
+    use super::*;
+    use crate::pdu::exception::FunctionalError;
 
-        #[br(parse_with = until_eof)]
-        payload: Vec<u8>,
-    },
-}
-
-/// TODO: verify per the specs, section 7.
-#[repr(u8)]
-#[derive(Copy, Clone, BinRead)]
-#[br(big, repr = u8)]
-pub enum ErrorCode {
-    IllegalFunction = 0x01,
-    IllegalDataAddress = 0x02,
-    IllegalDataValue = 0x03,
-    ServerDeviceFailure = 0x04,
-    Acknowledge = 0x05,
-    ServerDeviceBusy = 0x06,
-    MemoryParityError = 0x08,
-    GatewayPathUnavailable = 0x0A,
-    GatewayTargetDeviceFailedToRespond = 0x0B,
+    #[test]
+    fn parse_exception_ok() {
+        const RESPONSE: &[u8] = &[
+            0x83, // function code + error flag
+            0x04, // server device failure
+        ];
+        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
+        assert!(matches!(
+            response.payload,
+            Payload::Exception(exception::Response {
+                original_function_code: 3,
+                error: FunctionalError::ServerDeviceFailure,
+            })
+        ));
+    }
 }

@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-mod error;
+pub mod error;
 pub mod function;
 pub mod pdu;
 

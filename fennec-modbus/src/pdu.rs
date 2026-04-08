@@ -1,5 +1,6 @@
-mod request;
-mod response;
+pub mod exception;
+pub mod request;
+pub mod response;
 
 /// Modbus data model.
 ///

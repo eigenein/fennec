@@ -11,6 +11,11 @@ pub struct Api {
 }
 
 impl Api {
+    /// See <https://www.frankenergie.nl/nl/kennisbank/zonnepanelen/terugleververgoeding#terugleververgoeding-bij-frank>.
+    const PURCHASE_FEE: KilowattHourPrice = KilowattHourPrice(0.0182);
+
+    const VAT: f64 = 1.21;
+
     pub fn new(resolution: Resolution) -> Result<Self> {
         let client = reqwest::Client::builder().timeout(Duration::from_secs(15)).build()?;
         Ok(Self { client, resolution })
@@ -41,7 +46,10 @@ impl Api {
             .map(|item| {
                 (
                     Interval::from_std(item.from..item.till),
-                    Flow { import: item.all_in, export: item.market * 1.21 },
+                    Flow {
+                        import: item.all_in,
+                        export: (item.market + Self::PURCHASE_FEE) * Self::VAT,
+                    },
                 )
             })
             .collect())

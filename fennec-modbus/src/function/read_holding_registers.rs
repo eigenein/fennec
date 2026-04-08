@@ -8,9 +8,10 @@ use binrw::{BinWrite, binread};
 #[derive(Copy, Clone, BinWrite)]
 #[bw(big, magic = 3_u8)]
 pub struct Request {
-    #[bw(map = |it: &u16| it - 1_u16)]
+    /// *Zero-based* register address.
     pub starting_address: u16,
 
+    /// TODO: use `bon` with validation: 1 to 125 (0x7D).
     pub count: u16,
 }
 
@@ -21,6 +22,7 @@ pub struct Response {
     #[br(temp)]
     byte_count: u8,
 
+    /// TODO: validate `byte_count` via `binrw` assertion.
     #[br(count = byte_count / 2)]
     pub words: Vec<u16>,
 }
@@ -35,7 +37,7 @@ mod tests {
 
     #[test]
     fn write_example_ok() {
-        const REQUEST: Request = Request { starting_address: 108, count: 3 };
+        const REQUEST: Request = Request { starting_address: 107, count: 3 };
         const EXPECTED: &[u8] = &[
             0x03, // function code
             0x00, 0x6B, // starting address: high, low

@@ -1,5 +1,3 @@
-use core::num::TryFromIntError;
-
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -13,7 +11,4 @@ pub enum Error {
 pub enum RequestBuilderError {
     #[error("incorrect quantity requested ({0})")]
     InvalidQuantity(u16),
-
-    #[error("could not convert the quantity: {0}")]
-    QuantityConversion(#[from] TryFromIntError),
 }

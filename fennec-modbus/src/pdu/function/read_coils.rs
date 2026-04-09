@@ -34,7 +34,7 @@ impl Request {
         if (1..=2000).contains(&n_coils) {
             Ok(Self { starting_address, n_coils })
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_coils))
+            Err(RequestBuilderError::InvalidQuantity(n_coils.into()))
         }
     }
 }

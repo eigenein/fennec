@@ -10,5 +10,5 @@ pub enum Error {
 #[derive(Debug, Error)]
 pub enum RequestBuilderError {
     #[error("incorrect quantity requested ({0})")]
-    InvalidQuantity(u16),
+    InvalidQuantity(usize),
 }

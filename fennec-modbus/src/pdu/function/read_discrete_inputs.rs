@@ -34,7 +34,7 @@ impl Request {
         if (1..=2000).contains(&n_inputs) {
             Ok(Self { starting_address, n_inputs })
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_inputs))
+            Err(RequestBuilderError::InvalidQuantity(n_inputs.into()))
         }
     }
 }

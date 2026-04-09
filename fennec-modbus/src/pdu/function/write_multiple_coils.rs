@@ -2,7 +2,7 @@
 
 use alloc::vec::Vec;
 
-use binrw::{BinWrite, binread, io::Cursor};
+use binrw::{BinRead, BinWrite, io::Cursor};
 use bon::bon;
 
 use crate::{error::RequestBuilderError, pdu};
@@ -61,9 +61,8 @@ impl Request {
 }
 
 #[must_use]
-#[binread]
+#[derive(derive_more::Debug, BinRead)]
 #[br(big, magic = 15_u8)]
-#[derive(derive_more::Debug)]
 pub struct Response {
     pub starting_address: u16,
     pub n_coils: u16,

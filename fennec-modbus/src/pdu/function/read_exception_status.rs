@@ -2,7 +2,7 @@
 
 use core::fmt::Debug;
 
-use binrw::{BinWrite, binread};
+use binrw::{BinRead, BinWrite};
 
 use crate::pdu;
 
@@ -21,9 +21,8 @@ impl pdu::Function for Function {
 pub struct Request;
 
 #[must_use]
-#[binread]
+#[derive(derive_more::Debug, BinRead)]
 #[br(big, magic = 7_u8)]
-#[derive(derive_more::Debug)]
 pub struct Response {
     /// Status of the eight Exception Status outputs.
     ///

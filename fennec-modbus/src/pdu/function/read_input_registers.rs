@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use binrw::{BinWrite, binread};
+use binrw::{BinRead, BinWrite};
 use bon::bon;
 
 use crate::{error::RequestBuilderError, pdu};
@@ -21,17 +21,19 @@ impl pdu::Function for Function {
 #[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big, magic = 4_u8)]
 pub struct Request {
-    /// *Zero-based* address of the first register to read.
     starting_address: u16,
-
-    /// Number of registers to read.
     n_registers: u16,
 }
 
 #[bon]
 impl Request {
     #[builder]
-    pub fn new(starting_address: u16, n_registers: u16) -> Result<Self, RequestBuilderError> {
+    pub fn new(
+        /// *Zero-based* address of the first register to read.
+        starting_address: u16,
+        /// Number of registers to read.
+        n_registers: u16,
+    ) -> Result<Self, RequestBuilderError> {
         if (1..=125).contains(&n_registers) {
             Ok(Self { starting_address, n_registers })
         } else {
@@ -41,12 +43,10 @@ impl Request {
 }
 
 #[must_use]
-#[binread]
+#[derive(derive_more::Debug, BinRead)]
 #[br(big, magic = 4_u8)]
-#[derive(derive_more::Debug)]
 pub struct Response {
-    #[br(temp)]
-    n_bytes: u8,
+    pub n_bytes: u8,
 
     #[br(assert(n_bytes.is_multiple_of(2)), count = n_bytes / 2)]
     pub words: Vec<u16>,

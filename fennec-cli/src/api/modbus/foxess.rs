@@ -16,11 +16,6 @@ use crate::{
 };
 
 /// FoxESS MQ2200 Modbus client.
-///
-/// For the register numbers, see:
-///
-/// - <https://raw.githubusercontent.com/openhab/openhab-addons/refs/heads/main/bundles/org.openhab.binding.modbus.foxinverter/src/main/java/org/openhab/binding/modbus/foxinverter/internal/MQ2200InverterRegisters.java>
-/// - <https://raw.githubusercontent.com/solakon-de/solakon-one-homeassistant/refs/heads/main/custom_components/solakon_one/const.py>
 #[must_use]
 pub struct MQ2200 {
     address: String,

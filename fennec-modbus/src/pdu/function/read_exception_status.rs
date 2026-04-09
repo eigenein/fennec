@@ -31,12 +31,6 @@ pub struct Response {
     pub output: u8,
 }
 
-impl From<Response> for u8 {
-    fn from(response: Response) -> Self {
-        response.output
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use alloc::vec;

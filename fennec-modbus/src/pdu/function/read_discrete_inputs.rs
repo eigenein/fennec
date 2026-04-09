@@ -1,20 +1,20 @@
 #![allow(dead_code)]
 
-use alloc::vec::Vec;
+use core::marker::PhantomData;
 
-use binrw::{BinWrite, binread};
-use bitvec::vec::BitVec;
+use binrw::{BinRead, BinWrite, binread};
 use bon::bon;
 
 use crate::{error::RequestBuilderError, pdu};
 
 /// Read from 1 to 2000 contiguous status of discrete inputs in a remote device.
-pub struct Function;
+#[derive(Copy, Clone)]
+pub struct Function<S>(PhantomData<S>);
 
-impl pdu::Function for Function {
+impl<S: for<'a> BinRead<Args<'a> = ()> + Send + 'static> pdu::Function for Function<S> {
     const CODE: u8 = 2;
     type Request = Request;
-    type Response = Response;
+    type Response = Response<S>;
 }
 
 #[must_use]
@@ -35,7 +35,7 @@ impl Request {
         if (1..=2000).contains(&n_inputs) {
             Ok(Self { starting_address, n_inputs })
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_inputs.into()))
+            Err(RequestBuilderError::InvalidQuantity(n_inputs))
         }
     }
 }
@@ -44,7 +44,7 @@ impl Request {
 #[binread]
 #[br(big, magic = 2_u8)]
 #[derive(derive_more::Debug)]
-pub struct Response {
+pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
     #[br(temp)]
     n_bytes: u8,
 
@@ -52,14 +52,7 @@ pub struct Response {
     ///
     /// The LSB of the first data byte contains the input addressed in the query.
     /// The other inputs follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
-    #[br(count = n_bytes)]
-    inputs: Vec<u8>,
-}
-
-impl From<Response> for BitVec<u8> {
-    fn from(response: Response) -> Self {
-        BitVec::from_vec(response.inputs)
-    }
+    pub inputs: S,
 }
 
 #[cfg(test)]
@@ -67,9 +60,21 @@ mod tests {
     use alloc::vec;
 
     use binrw::{BinRead, io::Cursor};
-    use bitvec::prelude::*;
+    use modular_bitfield::prelude::*;
 
     use super::*;
+
+    #[bitfield]
+    #[derive(BinRead)]
+    #[br(map = Self::from_bytes)]
+    struct PackedData {
+        status_1: B8,
+        status_2: B8,
+        status_3: B3,
+
+        #[skip]
+        __: B5,
+    }
 
     #[test]
     fn request_example_ok() {
@@ -99,11 +104,9 @@ mod tests {
             0x35, // outputs status 218-213
         ];
 
-        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.inputs, [0xAC, 0xDB, 0x35]);
-        assert_eq!(
-            BitVec::from(response),
-            bitvec![u8, Lsb0; 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0],
-        );
+        let response = Response::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
+        assert_eq!(response.inputs.status_1(), 0xAC);
+        assert_eq!(response.inputs.status_2(), 0xDB);
+        assert_eq!(response.inputs.status_3(), 0x35);
     }
 }

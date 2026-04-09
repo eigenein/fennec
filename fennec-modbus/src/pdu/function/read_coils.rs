@@ -1,41 +1,43 @@
 #![allow(dead_code)]
 
-use alloc::vec::Vec;
+use core::marker::PhantomData;
 
-use binrw::{BinWrite, binread};
-use bitvec::prelude::BitVec;
+use binrw::{BinRead, BinWrite, binread};
 use bon::bon;
 
 use crate::{error::RequestBuilderError, pdu};
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
-pub struct Function;
+#[derive(Copy, Clone)]
+pub struct Function<S>(PhantomData<S>);
 
-impl pdu::Function for Function {
+impl<S: for<'a> BinRead<Args<'a> = ()> + Send + 'static> pdu::Function for Function<S> {
     const CODE: u8 = 1;
     type Request = Request;
-    type Response = Response;
+    type Response = Response<S>;
 }
 
 #[must_use]
-#[derive(Copy, Clone, Debug, BinWrite)]
+#[derive(Copy, Clone, derive_more::Debug, BinWrite)]
 #[bw(big, magic = 1_u8)]
 pub struct Request {
-    /// *Zero-based* address of the first coil to read.
     starting_address: u16,
-
-    /// Number of coils to read.
     n_coils: u16,
 }
 
 #[bon]
 impl Request {
     #[builder]
-    pub fn new(starting_address: u16, n_coils: u16) -> Result<Self, RequestBuilderError> {
+    pub fn new(
+        /// *Zero-based* address of the first coil to read.
+        starting_address: u16,
+        /// Number of coils to read.
+        n_coils: u16,
+    ) -> Result<Self, RequestBuilderError> {
         if (1..=2000).contains(&n_coils) {
             Ok(Self { starting_address, n_coils })
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_coils.into()))
+            Err(RequestBuilderError::InvalidQuantity(n_coils))
         }
     }
 }
@@ -44,7 +46,7 @@ impl Request {
 #[binread]
 #[br(big, magic = 1_u8)]
 #[derive(derive_more::Debug)]
-pub struct Response {
+pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
     #[br(temp)]
     n_bytes: u8,
 
@@ -52,14 +54,7 @@ pub struct Response {
     ///
     /// The LSB of the first data byte contains the output addressed in the query.
     /// The other coils follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
-    #[br(count = n_bytes)]
-    coils: Vec<u8>,
-}
-
-impl From<Response> for BitVec<u8> {
-    fn from(response: Response) -> Self {
-        BitVec::from_vec(response.coils)
-    }
+    pub coils: S,
 }
 
 #[cfg(test)]
@@ -67,9 +62,21 @@ mod tests {
     use alloc::vec;
 
     use binrw::{BinRead, io::Cursor};
-    use bitvec::prelude::*;
+    use modular_bitfield::prelude::*;
 
     use super::*;
+
+    #[bitfield]
+    #[derive(BinRead)]
+    #[br(map = Self::from_bytes)]
+    struct PackedData {
+        status_1: B8,
+        status_2: B8,
+        status_3: B3,
+
+        #[skip]
+        __: B5,
+    }
 
     #[test]
     fn request_example_ok() {
@@ -99,10 +106,9 @@ mod tests {
             0x05, // outputs status 38-36
         ];
 
-        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(
-            BitVec::from(response),
-            bitvec![u8, Lsb0; 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0],
-        );
+        let response = Response::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
+        assert_eq!(response.coils.status_1(), 0xCD);
+        assert_eq!(response.coils.status_2(), 0x6B);
+        assert_eq!(response.coils.status_3(), 0x05);
     }
 }

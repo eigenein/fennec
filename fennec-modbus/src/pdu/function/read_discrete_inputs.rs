@@ -70,10 +70,10 @@ mod tests {
     struct PackedData {
         status_1: B8,
         status_2: B8,
-        status_3: B3,
+        status_3: B6,
 
         #[skip]
-        __: B5,
+        __: B2,
     }
 
     #[test]

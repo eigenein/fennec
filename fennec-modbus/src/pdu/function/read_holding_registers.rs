@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::RequestBuilderError;
+use crate::{Error, Result};
 
 /// Read the contents of a contiguous block of holding registers in a remote device.
 #[must_use]
@@ -25,11 +25,11 @@ impl Request {
         starting_address: u16,
         /// Number of registers to read.
         n_registers: u16,
-    ) -> Result<Self, RequestBuilderError> {
+    ) -> Result<Self> {
         if (1..=125).contains(&n_registers) {
             Ok(Self { starting_address, n_registers })
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_registers))
+            Err(Error::InvalidQuantity(n_registers))
         }
     }
 }

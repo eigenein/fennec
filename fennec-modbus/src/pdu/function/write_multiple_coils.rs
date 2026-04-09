@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use binrw::{BinRead, BinWrite, io::Cursor};
 use bon::bon;
 
-use crate::RequestBuilderError;
+use crate::{Error, Result};
 
 /// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
 #[must_use]
@@ -28,7 +28,7 @@ impl Request {
         n_coils: u16,
         /// Coil settings.
         coils: S,
-    ) -> Result<Self, RequestBuilderError> {
+    ) -> Result<Self> {
         if (1..=0x07B0).contains(&n_coils) {
             // Infallible since `n_coils` is verified:
             let n_bytes = u8::try_from(n_coils.div_ceil(8)).unwrap();
@@ -40,13 +40,13 @@ impl Request {
             if coils.len() == usize::from(n_bytes) {
                 Ok(Self { starting_address, n_coils, n_bytes, coils })
             } else {
-                Err(RequestBuilderError::PayloadSizeMismatch {
+                Err(Error::PayloadSizeMismatch {
                     n_expected_bytes: n_bytes,
                     n_actual_bytes: coils.len(),
                 })
             }
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_coils))
+            Err(Error::InvalidQuantity(n_coils))
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Sans-IO Modbus-over-TCP client.
 
-mod adu;
-mod context;
+pub mod context;
+mod header;
 mod unit_id;
 
-pub use self::{adu::MbapHeader, context::Context, unit_id::UnitId};
+pub use self::{header::Header, unit_id::UnitId};

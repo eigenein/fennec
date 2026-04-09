@@ -3,12 +3,12 @@ use bon::Builder;
 
 use crate::tcp::UnitId;
 
-/// Modbus Application Protocol (Data Unit) header.
+/// Modbus Application Protocol (Data Unit) header aka «MBAP header».
 #[must_use]
 #[binrw]
 #[derive(Clone, Builder)]
 #[brw(big)]
-pub struct MbapHeader {
+pub struct Header {
     pub transaction_id: u16,
 
     #[builder(default = 0)]
@@ -24,7 +24,7 @@ pub struct MbapHeader {
     pub unit_id: UnitId,
 }
 
-impl MbapHeader {
+impl Header {
     pub const SIZE: usize = size_of::<u16>() * 3 + size_of::<UnitId>();
 }
 
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn read_example_ok() {
         let mut cursor = Cursor::new(ADU_BYTES);
-        let adu = MbapHeader::read(&mut cursor).unwrap();
+        let adu = Header::read(&mut cursor).unwrap();
         assert_eq!(adu.transaction_id, 0x1501);
         assert_eq!(adu.protocol_id, 0);
         assert_eq!(adu.unit_id, UnitId::NonSignificant);
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn write_example_ok() {
         let mut cursor = Cursor::new(Vec::new());
-        MbapHeader::builder().transaction_id(0x1501).length(6).build().write(&mut cursor).unwrap();
+        Header::builder().transaction_id(0x1501).length(6).build().write(&mut cursor).unwrap();
         assert_eq!(cursor.into_inner(), ADU_BYTES);
     }
 }

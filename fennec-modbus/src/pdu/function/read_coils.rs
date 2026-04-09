@@ -3,7 +3,7 @@
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::RequestBuilderError;
+use crate::{Error, Result};
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
 #[must_use]
@@ -22,11 +22,11 @@ impl Request {
         starting_address: u16,
         /// Number of coils to read.
         n_coils: u16,
-    ) -> Result<Self, RequestBuilderError> {
+    ) -> Result<Self> {
         if (1..=2000).contains(&n_coils) {
             Ok(Self { starting_address, n_coils })
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_coils))
+            Err(Error::InvalidQuantity(n_coils))
         }
     }
 }

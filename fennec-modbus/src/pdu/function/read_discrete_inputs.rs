@@ -3,7 +3,7 @@
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::RequestBuilderError;
+use crate::{Error, Result};
 
 /// Read from 1 to 2000 contiguous status of discrete inputs in a remote device.
 #[must_use]
@@ -20,11 +20,11 @@ pub struct Request {
 #[bon]
 impl Request {
     #[builder]
-    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self, RequestBuilderError> {
+    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self> {
         if (1..=2000).contains(&n_inputs) {
             Ok(Self { starting_address, n_inputs })
         } else {
-            Err(RequestBuilderError::InvalidQuantity(n_inputs))
+            Err(Error::InvalidQuantity(n_inputs))
         }
     }
 }

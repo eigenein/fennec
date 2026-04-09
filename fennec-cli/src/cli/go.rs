@@ -37,21 +37,21 @@ impl GoArgs {
         let (connections, hunter) = self.shared.hunter().await?;
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
 
-        let (logger_result, hunter_result, web_result) = {
-            let logger = Logger::builder().connections(connections.clone()).build();
-            // Run the first iteration at startup immediately in a fallible manner:
-            let application_state = web::application::State {
-                logger: web::application::Component::now(logger.run_once().await?),
-                hunter: web::application::Component::now(hunter.run_once().await?),
-            };
-            try_join!(
-                spawn(logger.run_forever(self.logger_cron, application_state.logger.clone())),
-                spawn(hunter.run_forever(self.optimizer_cron, application_state.hunter.clone())),
-                spawn(web::serve(self.bind_address, self.bind_port, application_state)),
-            )?
-        };
+        let logger = Logger::builder().connections(connections.clone()).build();
+
+        // Run the first iteration at startup immediately in a fallible manner:
+        let hunter_state = web::application::Component::now(hunter.run_once().await?);
+        let logger_state = web::application::Component::now(logger.run_once().await?);
+        let state =
+            web::application::State { logger: logger_state.clone(), hunter: hunter_state.clone() };
+
+        try_join!(
+            async { spawn(logger.run_forever(self.logger_cron, logger_state)).await? },
+            async { spawn(hunter.run_forever(self.optimizer_cron, hunter_state)).await? },
+            async { spawn(web::serve(self.bind_address, self.bind_port, state)).await? },
+        )?;
 
         connections.db.shutdown().await;
-        logger_result.and(hunter_result).and(web_result)
+        Ok(())
     }
 }

@@ -4,6 +4,7 @@ use chrono::{DateTime, Local};
 
 use crate::state::{HunterState, LoggerState};
 
+/// TODO: this is actually more like "last result".
 #[must_use]
 #[derive(Clone)]
 pub struct State {
@@ -11,6 +12,7 @@ pub struct State {
     pub hunter: Component<HunterState>,
 }
 
+/// TODO: this is more like just a lock wrapper.
 #[must_use]
 pub struct Component<T>(Arc<RwLock<ComponentInner<T>>>);
 

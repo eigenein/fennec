@@ -4,18 +4,10 @@ use core::fmt::Debug;
 
 use binrw::{BinRead, BinWrite};
 
-use crate::pdu;
-
-/// Read the contents of eight Exception Status outputs in a remote device.
 #[derive(Copy, Clone)]
 pub struct Function;
 
-impl pdu::Function for Function {
-    const CODE: u8 = 7;
-    type Request = Request;
-    type Response = Response;
-}
-
+/// Read the contents of eight Exception Status outputs in a remote device.
 #[must_use]
 #[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big, magic = 7_u8)]

@@ -6,18 +6,9 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{RequestBuilderError, pdu};
+use crate::RequestBuilderError;
 
 /// Write a block of contiguous registers (1 to 123 registers) in a remote device.
-#[derive(Copy, Clone)]
-pub struct Function;
-
-impl pdu::Function for Function {
-    const CODE: u8 = 16;
-    type Request = Request;
-    type Response = Response;
-}
-
 #[must_use]
 #[derive(Clone, Debug, BinWrite)]
 #[bw(big, magic = 16_u8)]

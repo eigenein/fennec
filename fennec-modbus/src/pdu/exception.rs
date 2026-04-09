@@ -1,21 +1,16 @@
-use core::{fmt::Debug, marker::PhantomData};
+use core::fmt::Debug;
 
 use binrw::BinRead;
 use thiserror::Error;
 
-use crate::pdu::function::Function;
-
 #[must_use]
-#[derive(derive_more::Debug, BinRead)]
+#[derive(Debug, BinRead)]
 #[br(big)]
-pub struct Response<F: Function> {
-    #[br(assert(function_code == 0x80 | F::CODE, "unexpected exception function code ({function_code:#X})"))]
+pub struct Response {
+    #[br(assert(function_code & 0x80 != 0, "unexpected function code ({function_code:#X})"))]
     pub function_code: u8,
 
     pub error: FunctionalError,
-
-    #[debug(skip)]
-    phantom_data: PhantomData<F>,
 }
 
 /// The server received the request without a communication error, but could not handle it.
@@ -126,7 +121,6 @@ mod tests {
     use binrw::io::Cursor;
 
     use super::*;
-    use crate::pdu::function::read_holding_registers;
 
     #[test]
     fn unknown_error_code_ok() {
@@ -134,8 +128,7 @@ mod tests {
             0x83, // exception flag and function code
             0xFF, // unknown error code
         ];
-        let response =
-            Response::<read_holding_registers::Function>::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert!(matches!(response.error, FunctionalError::Unknown(0xFF)));
     }
 }

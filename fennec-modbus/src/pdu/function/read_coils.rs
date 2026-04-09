@@ -1,22 +1,11 @@
 #![allow(dead_code)]
 
-use core::marker::PhantomData;
-
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{RequestBuilderError, pdu};
+use crate::RequestBuilderError;
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
-#[derive(Copy, Clone)]
-pub struct Function<S>(PhantomData<S>);
-
-impl<S: for<'a> BinRead<Args<'a> = ()> + Send + 'static> pdu::Function for Function<S> {
-    const CODE: u8 = 1;
-    type Request = Request;
-    type Response = Response<S>;
-}
-
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinWrite)]
 #[bw(big, magic = 1_u8)]

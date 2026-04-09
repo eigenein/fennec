@@ -5,18 +5,9 @@ use alloc::vec::Vec;
 use binrw::{BinRead, BinWrite, io::Cursor};
 use bon::bon;
 
-use crate::{RequestBuilderError, pdu};
+use crate::RequestBuilderError;
 
 /// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
-#[derive(Copy, Clone)]
-pub struct Function;
-
-impl pdu::Function for Function {
-    const CODE: u8 = 15;
-    type Request = Request;
-    type Response = Response;
-}
-
 #[must_use]
 #[derive(Clone, Debug, BinWrite)]
 #[bw(big, magic = 15_u8)]

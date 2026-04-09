@@ -3,19 +3,9 @@
 use binrw::{BinRead, BinWrite};
 use bon::Builder;
 
-use crate::pdu;
-
 /// Write a single holding register in a remote device.
-#[derive(Copy, Clone)]
-pub struct Function;
-
-impl pdu::Function for Function {
-    const CODE: u8 = 6;
-    type Request = Request;
-    type Response = Response;
-}
-
 pub type Request = Payload;
+
 pub type Response = Payload;
 
 #[must_use]

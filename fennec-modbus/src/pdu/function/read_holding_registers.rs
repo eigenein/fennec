@@ -6,18 +6,9 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{RequestBuilderError, pdu};
+use crate::RequestBuilderError;
 
 /// Read the contents of a contiguous block of holding registers in a remote device.
-#[derive(Copy, Clone)]
-pub struct Function;
-
-impl pdu::Function for Function {
-    const CODE: u8 = 3;
-    type Request = Request;
-    type Response = Response;
-}
-
 #[must_use]
 #[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big, magic = 3_u8)]

@@ -3,6 +3,7 @@
 use alloc::vec::Vec;
 
 use binrw::{BinWrite, binread};
+use bitvec::vec::BitVec;
 use bon::bon;
 
 use crate::{error::RequestBuilderError, pdu};
@@ -52,12 +53,12 @@ pub struct Response {
     /// The LSB of the first data byte contains the input addressed in the query.
     /// The other inputs follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
     #[br(count = n_bytes)]
-    pub inputs: Vec<u8>,
+    inputs: Vec<u8>,
 }
 
-impl From<Response> for Vec<u8> {
+impl From<Response> for BitVec<u8> {
     fn from(response: Response) -> Self {
-        response.inputs
+        BitVec::from_vec(response.inputs)
     }
 }
 
@@ -66,6 +67,7 @@ mod tests {
     use alloc::vec;
 
     use binrw::{BinRead, io::Cursor};
+    use bitvec::prelude::*;
 
     use super::*;
 
@@ -99,5 +101,9 @@ mod tests {
 
         let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert_eq!(response.inputs, [0xAC, 0xDB, 0x35]);
+        assert_eq!(
+            BitVec::from(response),
+            bitvec![u8, Lsb0; 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0],
+        );
     }
 }

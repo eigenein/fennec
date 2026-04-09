@@ -6,6 +6,7 @@ use bon::Builder;
 use crate::pdu;
 
 /// Write a single output to either «on» or «off» in a remote device.
+#[derive(Copy, Clone)]
 pub struct Function;
 
 impl pdu::Function for Function {

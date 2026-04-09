@@ -41,7 +41,7 @@ impl Request {
 }
 
 #[must_use]
-#[derive(derive_more::Debug, BinRead)]
+#[derive(Copy, Clone, derive_more::Debug, BinRead)]
 #[br(big, magic = 2_u8)]
 pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
     pub n_bytes: u8,

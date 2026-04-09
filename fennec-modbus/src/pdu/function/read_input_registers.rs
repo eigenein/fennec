@@ -9,6 +9,7 @@ use bon::bon;
 use crate::{error::RequestBuilderError, pdu};
 
 /// Read from 1 to 125 contiguous input registers in a remote device.
+#[derive(Copy, Clone)]
 pub struct Function;
 
 impl pdu::Function for Function {
@@ -43,7 +44,7 @@ impl Request {
 }
 
 #[must_use]
-#[derive(derive_more::Debug, BinRead)]
+#[derive(Clone, derive_more::Debug, BinRead)]
 #[br(big, magic = 4_u8)]
 pub struct Response {
     pub n_bytes: u8,

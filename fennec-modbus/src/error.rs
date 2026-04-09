@@ -1,4 +1,5 @@
 use alloc::string::{String, ToString};
+use core::num::TryFromIntError;
 
 use thiserror::Error;
 
@@ -19,6 +20,9 @@ pub enum RequestBuilderError {
 
     #[error("failed to serialize the payload: {0}")]
     Serialization(String),
+
+    #[error("failed to convert the integer: {0}")]
+    TryFromInt(#[from] TryFromIntError),
 }
 
 impl From<binrw::Error> for RequestBuilderError {

@@ -6,6 +6,7 @@ use bon::Builder;
 use crate::pdu;
 
 /// Write a single holding register in a remote device.
+#[derive(Copy, Clone)]
 pub struct Function;
 
 impl pdu::Function for Function {

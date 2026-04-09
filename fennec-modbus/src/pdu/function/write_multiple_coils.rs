@@ -61,7 +61,7 @@ impl Request {
 }
 
 #[must_use]
-#[derive(derive_more::Debug, BinRead)]
+#[derive(Copy, Clone, derive_more::Debug, BinRead)]
 #[br(big, magic = 15_u8)]
 pub struct Response {
     pub starting_address: u16,

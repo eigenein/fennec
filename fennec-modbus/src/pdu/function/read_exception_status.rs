@@ -7,6 +7,7 @@ use binrw::{BinRead, BinWrite};
 use crate::pdu;
 
 /// Read the contents of eight Exception Status outputs in a remote device.
+#[derive(Copy, Clone)]
 pub struct Function;
 
 impl pdu::Function for Function {
@@ -21,7 +22,7 @@ impl pdu::Function for Function {
 pub struct Request;
 
 #[must_use]
-#[derive(derive_more::Debug, BinRead)]
+#[derive(Copy, Clone, derive_more::Debug, BinRead)]
 #[br(big, magic = 7_u8)]
 pub struct Response {
     /// Status of the eight Exception Status outputs.

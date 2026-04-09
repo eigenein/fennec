@@ -1,15 +1,15 @@
 [package]
 name = "fennec-modbus"
+description = "Modular Modbus client implementation"
+keywords = ["modbus", "hardware"]
 authors.workspace = true
 edition.workspace = true
-keywords.workspace = true
 license.workspace = true
 publish.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Modbus client implementation"
-version = "0.0.1"
+version.workspace = true
 
 [lib]
 

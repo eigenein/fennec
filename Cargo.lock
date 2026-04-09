@@ -1299,7 +1299,7 @@ dependencies = [
 
 [[package]]
 name = "fennec-modbus"
-version = "0.0.1"
+version = "0.86.7"
 dependencies = [
  "binrw",
  "bon",

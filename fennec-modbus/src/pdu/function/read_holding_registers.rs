@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{error::RequestBuilderError, pdu};
+use crate::{RequestBuilderError, pdu};
 
 /// Read the contents of a contiguous block of holding registers in a remote device.
 #[derive(Copy, Clone)]

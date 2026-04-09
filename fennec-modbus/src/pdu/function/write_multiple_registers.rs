@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{error::RequestBuilderError, pdu};
+use crate::{RequestBuilderError, pdu};
 
 /// Write a block of contiguous registers (1 to 123 registers) in a remote device.
 #[derive(Copy, Clone)]

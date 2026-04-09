@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use binrw::{BinRead, BinWrite, io::Cursor};
 use bon::bon;
 
-use crate::{error::RequestBuilderError, pdu};
+use crate::{RequestBuilderError, pdu};
 
 /// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
 #[derive(Copy, Clone)]

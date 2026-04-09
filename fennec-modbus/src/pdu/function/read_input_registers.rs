@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{error::RequestBuilderError, pdu};
+use crate::{RequestBuilderError, pdu};
 
 /// Read from 1 to 125 contiguous input registers in a remote device.
 #[derive(Copy, Clone)]

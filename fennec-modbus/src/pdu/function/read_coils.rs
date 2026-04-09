@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{error::RequestBuilderError, pdu};
+use crate::{RequestBuilderError, pdu};
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
 #[derive(Copy, Clone)]

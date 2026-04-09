@@ -3,6 +3,8 @@ use alloc::{boxed::Box, vec::Vec};
 use binrw::binrw;
 use bon::Builder;
 
+use crate::tcp::UnitId;
+
 /// Modbus Application Data Unit.
 #[must_use]
 #[binrw]
@@ -22,8 +24,8 @@ pub struct Adu {
     /// Unit identifier aka «slave ID».
     ///
     /// Identification of a remote slave connected on a serial line or on other buses.
-    #[builder(default = 255)]
-    pub unit_id: u8,
+    #[builder(default = UnitId::NonSignificant)]
+    pub unit_id: UnitId,
 
     #[br(count = length.saturating_sub(1))]
     pub payload: Vec<u8>,
@@ -31,8 +33,9 @@ pub struct Adu {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
+
     use binrw::{BinRead, BinWrite, io::Cursor};
-    use bon::vec;
 
     use super::*;
 
@@ -52,7 +55,7 @@ mod tests {
         let adu = Adu::read(&mut cursor).unwrap();
         assert_eq!(adu.transaction_id, 0x1501);
         assert_eq!(adu.protocol_id, 0);
-        assert_eq!(adu.unit_id, 0xFF);
+        assert_eq!(adu.unit_id, UnitId::NonSignificant);
         assert_eq!(adu.payload, vec![0x03, 0x00, 0x04, 0x00, 0x01]);
     }
 

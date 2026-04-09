@@ -1,17 +1,16 @@
 use core::{fmt::Debug, marker::PhantomData};
 
-use binrw::{BinRead, binread};
+use binrw::BinRead;
 use thiserror::Error;
 
 use crate::pdu::function::Function;
 
 #[must_use]
-#[binread]
+#[derive(derive_more::Debug, BinRead)]
 #[br(big)]
-#[derive(derive_more::Debug)]
 pub struct Response<F: Function> {
-    #[br(temp, assert(function_code == 0x80 | F::CODE, "unexpected exception function code ({function_code:#X})"))]
-    function_code: u8,
+    #[br(assert(function_code == 0x80 | F::CODE, "unexpected exception function code ({function_code:#X})"))]
+    pub function_code: u8,
 
     pub error: FunctionalError,
 

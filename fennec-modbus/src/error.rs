@@ -14,6 +14,9 @@ pub enum RequestBuilderError {
     #[error("incorrect quantity requested ({0})")]
     InvalidQuantity(u16),
 
+    #[error("payload size mismatch (expected {n_expected_bytes} bytes, got {n_actual_bytes})")]
+    PayloadSizeMismatch { n_expected_bytes: u8, n_actual_bytes: usize },
+
     #[error("failed to serialize the payload: {0}")]
     Serialization(String),
 }

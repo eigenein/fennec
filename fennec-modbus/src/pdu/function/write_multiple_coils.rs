@@ -39,6 +39,7 @@ impl Request {
         coils: S,
     ) -> Result<Self, RequestBuilderError> {
         if (1..=0x07B0).contains(&n_coils) {
+            // Infallible since `n_coils` is verified:
             let n_bytes = u8::try_from(n_coils.div_ceil(8)).unwrap();
             let coils = {
                 let mut buffer = Cursor::new(Vec::new());
@@ -48,7 +49,10 @@ impl Request {
             if coils.len() == usize::from(n_bytes) {
                 Ok(Self { starting_address, n_coils, n_bytes, coils })
             } else {
-                Err(RequestBuilderError::InvalidQuantity(n_coils))
+                Err(RequestBuilderError::PayloadSizeMismatch {
+                    n_expected_bytes: n_bytes,
+                    n_actual_bytes: coils.len(),
+                })
             }
         } else {
             Err(RequestBuilderError::InvalidQuantity(n_coils))

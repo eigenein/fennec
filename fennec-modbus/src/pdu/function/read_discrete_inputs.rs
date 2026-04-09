@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use binrw::{BinRead, BinWrite, binread};
+use binrw::{BinRead, BinWrite};
 use bon::bon;
 
 use crate::{error::RequestBuilderError, pdu};
@@ -41,12 +41,10 @@ impl Request {
 }
 
 #[must_use]
-#[binread]
+#[derive(derive_more::Debug, BinRead)]
 #[br(big, magic = 2_u8)]
-#[derive(derive_more::Debug)]
 pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
-    #[br(temp)]
-    n_bytes: u8,
+    pub n_bytes: u8,
 
     /// The discrete inputs in the response message are packed as one input per bit of the data field.
     ///

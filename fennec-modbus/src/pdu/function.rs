@@ -5,6 +5,7 @@ pub mod read_discrete_inputs;
 pub mod read_holding_registers;
 pub mod read_input_registers;
 pub mod write_single_coil;
+pub mod write_single_register;
 
 pub trait Function {
     const CODE: u8;

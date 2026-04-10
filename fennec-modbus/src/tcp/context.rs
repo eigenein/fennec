@@ -2,27 +2,39 @@
 
 use alloc::{collections::VecDeque, vec::Vec};
 
-use binrw::{BinRead, BinWrite, io::Cursor};
+use binrw::{
+    BinRead,
+    BinWrite,
+    io::{Cursor, Write},
+};
 
-use crate::{protocol, tcp, tcp::Header};
+use crate::{
+    protocol,
+    tcp,
+    tcp::{Header, UnitId},
+};
 
 /// State-unaware context.
 ///
 /// It is unsafe to use without tracking the connection state.
-/// Hence, [`HeaderExpected`] and [`PayloadExpected`].
+/// Hence, [`TransportHeaderExpected`] and [`ProtocolResponseExpected`].
 #[derive(Default)]
 #[must_use]
 pub struct Inner {
-    transaction_counter: u16,
+    next_transaction_id: u16,
 
-    /// ADU's queued for sending over the wire.
+    /// Frames queued for sending over the wire.
     ///
     /// Per the guidelines, we shouldn't try and send them concatenated. 😢
     send_queue: VecDeque<Vec<u8>>,
 }
 
 impl Inner {
-    /// Pop a byte chunk for sending over the wire, if any.
+    pub const fn with_next_transaction_id(next_transaction_id: u16) -> Self {
+        Self { next_transaction_id, send_queue: VecDeque::new() }
+    }
+
+    /// Pop a frame for sending over the wire, if any.
     pub fn pop(&mut self) -> Option<Vec<u8>> {
         self.send_queue.pop_front()
     }
@@ -32,39 +44,50 @@ impl Inner {
     /// This wraps the payload into an ADU and returns the transaction ID.
     pub fn send(
         &mut self,
+        unit_id: UnitId,
         request: &impl for<'a> BinWrite<Args<'a> = ()>,
     ) -> Result<u16, tcp::Error> {
-        self.transaction_counter = self.transaction_counter.wrapping_add(1);
-        self.send_queue.push_back({
-            let payload_bytes = {
-                let mut cursor = Cursor::new(Vec::new());
-                request.write_be(&mut cursor)?;
-                cursor.into_inner()
-            };
+        let payload_bytes = {
+            let mut cursor = Cursor::new(Vec::new());
+            request.write_be(&mut cursor)?;
+            cursor.into_inner()
+        };
+
+        let header = {
             let length = u16::try_from(payload_bytes.len() + 1)
                 .map_err(|_| tcp::Error::PayloadSizeExceeded(payload_bytes.len()))?;
-            let mut cursor = Cursor::new(payload_bytes);
             Header::builder()
-                .transaction_id(self.transaction_counter)
+                .unit_id(unit_id)
+                .transaction_id(self.next_transaction_id)
                 .length(length)
                 .build()
-                .write_be(&mut cursor)?;
-            cursor.into_inner()
+        };
+
+        self.send_queue.push_back({
+            let mut frame_cursor = Cursor::new(Vec::new());
+            header.write_be(&mut frame_cursor)?;
+            frame_cursor.write_all(&payload_bytes).map_err(binrw::Error::Io)?;
+            frame_cursor.into_inner()
         });
-        Ok(self.transaction_counter)
+
+        self.next_transaction_id = self.next_transaction_id.wrapping_add(1);
+        Ok(header.transaction_id)
     }
 }
 
 /// Context that is awaiting an MBAP header.
 #[derive(Default, derive_more::Deref)]
 #[must_use]
-pub struct HeaderExpected(Inner);
+pub struct TransportHeaderExpected(Inner);
 
-impl HeaderExpected {
+impl TransportHeaderExpected {
     /// Receive the bytes from the wire.
-    pub fn receive(self, bytes: &[u8; Header::SIZE]) -> Result<PayloadExpected, tcp::Error> {
+    pub fn receive(
+        self,
+        bytes: &[u8; Header::SIZE],
+    ) -> Result<ProtocolResponseExpected, tcp::Error> {
         let header = Header::read_be(&mut Cursor::new(bytes))?;
-        Ok(PayloadExpected {
+        Ok(ProtocolResponseExpected {
             inner: self.0,
             transaction_id: header.transaction_id,
             length: header.length - 1,
@@ -75,7 +98,7 @@ impl HeaderExpected {
 /// Context that is awaiting the transaction payload.
 #[must_use]
 #[derive(derive_more::Deref)]
-pub struct PayloadExpected {
+pub struct ProtocolResponseExpected {
     #[deref]
     inner: Inner,
 
@@ -85,13 +108,13 @@ pub struct PayloadExpected {
     pub length: u16,
 }
 
-impl PayloadExpected {
+impl ProtocolResponseExpected {
     /// Receive the bytes from the wire.
     pub fn receive<P: for<'a> BinRead<Args<'a> = ()>>(
         self,
         bytes: &[u8],
-    ) -> (HeaderExpected, Result<Transaction<P>, tcp::Error>) {
-        let context = HeaderExpected(self.inner);
+    ) -> (TransportHeaderExpected, Result<Transaction<P>, tcp::Error>) {
+        let context = TransportHeaderExpected(self.inner);
 
         let result = if bytes.len() == usize::from(self.length) {
             P::read_be(&mut Cursor::new(bytes))
@@ -113,4 +136,36 @@ impl PayloadExpected {
 pub struct Transaction<P> {
     pub id: u16,
     pub payload: P,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::function::read_holding_registers;
+
+    #[test]
+    fn send_example_ok() {
+        let mut context = Inner::with_next_transaction_id(0x1501);
+        let request = read_holding_registers::Request::builder()
+            .starting_address(4)
+            .n_registers(1)
+            .build()
+            .unwrap();
+        let transaction_id = context.send(UnitId::NonSignificant, &request).unwrap();
+
+        assert_eq!(transaction_id, 0x1501);
+        assert_eq!(context.next_transaction_id, 0x1502);
+
+        let frame = context.pop().unwrap();
+        assert_eq!(
+            frame,
+            [
+                0x15, 0x01, // transaction ID: high, low
+                0x00, 0x00, // protocol ID
+                0x00, 0x06, // length: high, low
+                0xFF, // unit ID
+                0x03, 0x00, 0x04, 0x00, 0x01, // request
+            ]
+        );
+    }
 }

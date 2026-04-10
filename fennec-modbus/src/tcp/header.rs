@@ -22,7 +22,6 @@ pub struct Header {
     /// Unit identifier aka «slave ID».
     ///
     /// Identification of a remote slave connected on a serial line or on other buses.
-    #[builder(default = UnitId::NonSignificant)]
     pub unit_id: UnitId,
 }
 
@@ -57,7 +56,13 @@ mod tests {
     #[test]
     fn write_example_ok() {
         let mut cursor = Cursor::new(Vec::new());
-        Header::builder().transaction_id(0x1501).length(6).build().write(&mut cursor).unwrap();
+        Header::builder()
+            .unit_id(UnitId::NonSignificant)
+            .transaction_id(0x1501)
+            .length(6)
+            .build()
+            .write(&mut cursor)
+            .unwrap();
         assert_eq!(cursor.into_inner(), ADU_BYTES);
     }
 }

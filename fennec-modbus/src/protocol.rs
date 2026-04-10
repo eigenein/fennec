@@ -4,7 +4,7 @@
 
 mod error;
 pub mod exception;
-mod function;
+pub mod function;
 mod response;
 
 pub use self::{error::Error, response::Response};

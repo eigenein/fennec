@@ -1,6 +1,6 @@
 use binrw::BinRead;
 
-use crate::protocol::exception;
+use crate::protocol::{Error, exception};
 
 /// Response protocol data unit.
 #[derive(Clone, derive_more::Debug, derive_more::Unwrap, derive_more::TryUnwrap, BinRead)]
@@ -8,6 +8,15 @@ use crate::protocol::exception;
 pub enum Response<T: for<'a> BinRead<Args<'a> = ()>> {
     Ok(T),
     Exception(exception::Response),
+}
+
+impl<T: for<'a> BinRead<Args<'a> = ()>> Response<T> {
+    pub fn into_result(self) -> Result<T, Error> {
+        match self {
+            Self::Ok(response) => Ok(response),
+            Self::Exception(response) => Err(Error::Exception(response.exception)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -32,7 +41,7 @@ mod tests {
             matches!(
                 response,
                 Response::Exception(exception::Response {
-                    error: Exception::Server(ServerError::ServerDeviceFailure),
+                    exception: Exception::Server(ServerError::ServerDeviceFailure),
                     ..
                 }),
             ),

@@ -4,9 +4,7 @@ mod decoder;
 mod encoder;
 mod error;
 mod header;
+pub mod tokio;
 mod unit_id;
-
-#[cfg(feature = "tokio")]
-mod tokio;
 
 pub use self::{decoder::*, encoder::Encoder, error::Error, header::Header, unit_id::UnitId};

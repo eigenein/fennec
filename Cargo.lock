@@ -1301,13 +1301,17 @@ dependencies = [
 name = "fennec-modbus"
 version = "0.86.9"
 dependencies = [
+ "anyhow",
  "binrw",
  "bon",
  "clap",
  "derive_more",
  "modular-bitfield",
+ "socket2 0.6.3",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

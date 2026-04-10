@@ -29,6 +29,12 @@ pub struct Header {
 
 impl Header {
     pub const SIZE: usize = 7;
+
+    /// Expected PDU length.
+    #[must_use]
+    pub const fn payload_length(&self) -> u16 {
+        self.length - 1
+    }
 }
 
 #[cfg(test)]

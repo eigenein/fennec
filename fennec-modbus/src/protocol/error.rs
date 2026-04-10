@@ -2,7 +2,8 @@ use alloc::string::{String, ToString};
 
 use thiserror::Error;
 
-/// Low-level protocol representation error.
+use crate::protocol::Exception;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("invalid count requested ({0})")]
@@ -13,6 +14,9 @@ pub enum Error {
 
     #[error("coil number mismatch (expected {n_expected_bytes} bytes, got {n_actual_bytes})")]
     CoilNumberMismatch { n_expected_bytes: usize, n_actual_bytes: usize },
+
+    #[error("exception")]
+    Exception(#[from] Exception),
 }
 
 impl From<binrw::Error> for Error {

@@ -10,7 +10,7 @@ pub struct Response {
     #[br(assert(function_code & 0x80 != 0, "unexpected function code ({function_code:#X})"))]
     pub function_code: u8,
 
-    pub error: Exception,
+    pub exception: Exception,
 }
 
 /// High-level protocol error.
@@ -131,6 +131,6 @@ mod tests {
             0xFF, // unknown error code
         ];
         let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert!(matches!(response.error, Exception::Unknown(0xFF)));
+        assert!(matches!(response.exception, Exception::Unknown(0xFF)));
     }
 }

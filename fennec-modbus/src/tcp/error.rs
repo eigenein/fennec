@@ -2,12 +2,12 @@ use alloc::string::{String, ToString};
 
 use thiserror::Error;
 
-use crate::pdu;
+use crate::protocol;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("protocol error")]
-    Protocol(#[source] pdu::Error),
+    Protocol(#[source] protocol::Error),
 
     #[error("payload size exceeded ({0} bytes)")]
     PayloadSizeExceeded(usize),

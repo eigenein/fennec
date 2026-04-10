@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use binrw::{BinRead, BinWrite, io::Cursor};
 use bon::bon;
 
-use crate::pdu;
+use crate::protocol;
 
 /// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
 #[must_use]
@@ -28,7 +28,7 @@ impl Request {
         n_coils: u16,
         /// Coil settings.
         coils: S,
-    ) -> Result<Self, pdu::Error> {
+    ) -> Result<Self, protocol::Error> {
         if (1..=0x07B0).contains(&n_coils) {
             // Infallible since `n_coils` is verified:
             let n_bytes = u8::try_from(n_coils.div_ceil(8)).unwrap();
@@ -40,13 +40,13 @@ impl Request {
             if coil_bytes.len() == n_bytes.into() {
                 Ok(Self { starting_address, n_coils, n_bytes, coil_bytes })
             } else {
-                Err(pdu::Error::CoilNumberMismatch {
+                Err(protocol::Error::CoilNumberMismatch {
                     n_expected_bytes: n_bytes.into(),
                     n_actual_bytes: coil_bytes.len(),
                 })
             }
         } else {
-            Err(pdu::Error::InvalidCount(n_coils.into()))
+            Err(protocol::Error::InvalidCount(n_coils.into()))
         }
     }
 }

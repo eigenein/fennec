@@ -1,6 +1,6 @@
 use binrw::BinRead;
 
-use crate::pdu::exception;
+use crate::protocol::exception;
 
 /// Response protocol data unit.
 #[derive(derive_more::Debug, BinRead)]
@@ -15,7 +15,7 @@ mod tests {
     use binrw::io::Cursor;
 
     use super::*;
-    use crate::pdu::{
+    use crate::protocol::{
         exception::{FunctionalError, ServerError},
         function::read_holding_registers,
     };

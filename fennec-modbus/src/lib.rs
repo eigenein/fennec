@@ -2,5 +2,5 @@
 
 extern crate alloc;
 
-pub mod pdu;
+pub mod protocol;
 pub mod tcp;

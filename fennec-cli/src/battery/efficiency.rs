@@ -46,7 +46,7 @@ impl EfficiencyEstimator {
         self.residual_energy_integrator += residual_energy_sample;
     }
 
-    pub fn sub_residual_energy(&mut self, power: Watts) {
+    pub fn sub_assign_residual_energy(&mut self, power: Watts) {
         self.residual_energy_integrator.value -= power * self.residual_energy_integrator.weight;
     }
 

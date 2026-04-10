@@ -110,8 +110,8 @@ impl Profile {
         let average_eps_power = eps_power_integrator.mean().unwrap_or(Watts::ZERO);
 
         let parasitic_load = parasitic_power_integrator.mean().unwrap_or(Watts::ZERO);
-        // Discharging needs correction on parasitic load as it isn't reflected in the active power:
-        discharging_efficiency_estimator.sub_residual_energy(parasitic_load);
+        charging_efficiency_estimator.sub_assign_residual_energy(parasitic_load);
+        discharging_efficiency_estimator.sub_assign_residual_energy(parasitic_load);
         let battery_efficiency = battery::Efficiency {
             charging: charging_efficiency_estimator.estimate(),
             discharging: 1.0 / discharging_efficiency_estimator.estimate(),

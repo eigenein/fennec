@@ -4,12 +4,12 @@ use alloc::{collections::VecDeque, vec::Vec};
 
 use binrw::{BinRead, BinWrite, io::Cursor};
 
-use crate::{tcp, tcp::Header};
+use crate::{protocol, tcp, tcp::Header};
 
 /// State-unaware context.
 ///
 /// It is unsafe to use without tracking the connection state.
-/// Hence, [`HeaderExpected`] and [`PduExpected`].
+/// Hence, [`HeaderExpected`] and [`PayloadExpected`].
 #[derive(Default)]
 #[must_use]
 pub struct Inner {
@@ -62,9 +62,9 @@ pub struct HeaderExpected(Inner);
 
 impl HeaderExpected {
     /// Receive the bytes from the wire.
-    pub fn receive(self, bytes: &[u8; Header::SIZE]) -> Result<PduExpected, tcp::Error> {
+    pub fn receive(self, bytes: &[u8; Header::SIZE]) -> Result<PayloadExpected, tcp::Error> {
         let header = Header::read_be(&mut Cursor::new(bytes))?;
-        Ok(PduExpected {
+        Ok(PayloadExpected {
             inner: self.0,
             transaction_id: header.transaction_id,
             length: header.length - 1,
@@ -75,7 +75,7 @@ impl HeaderExpected {
 /// Context that is awaiting the transaction payload.
 #[must_use]
 #[derive(derive_more::Deref)]
-pub struct PduExpected {
+pub struct PayloadExpected {
     #[deref]
     inner: Inner,
 
@@ -85,20 +85,32 @@ pub struct PduExpected {
     pub length: u16,
 }
 
-impl PduExpected {
+impl PayloadExpected {
     /// Receive the bytes from the wire.
     pub fn receive<P: for<'a> BinRead<Args<'a> = ()>>(
         self,
         bytes: &[u8],
-    ) -> Result<(HeaderExpected, u16, P), tcp::Error> {
-        if bytes.len() != usize::from(self.length) {
-            return Err(tcp::Error::PayloadSizeMismatch {
+    ) -> (HeaderExpected, Result<Transaction<P>, tcp::Error>) {
+        let context = HeaderExpected(self.inner);
+
+        let result = if bytes.len() == usize::from(self.length) {
+            P::read_be(&mut Cursor::new(bytes))
+                .map(|payload| Transaction { id: self.transaction_id, payload })
+                .map_err(protocol::Error::from)
+                .map_err(tcp::Error::from)
+        } else {
+            Err(tcp::Error::PayloadSizeMismatch {
                 n_expected_bytes: self.length.into(),
                 n_actual_bytes: bytes.len(),
-            });
-        }
-        Ok((HeaderExpected(self.inner), self.transaction_id, P::read_be(&mut Cursor::new(bytes))?))
+            })
+        };
+
+        (context, result)
     }
 }
 
-pub struct Error {}
+#[derive(Clone)]
+pub struct Transaction<P> {
+    pub id: u16,
+    pub payload: P,
+}

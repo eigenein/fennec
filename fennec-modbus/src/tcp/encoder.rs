@@ -11,12 +11,12 @@ use crate::{
     tcp::{Header, UnitId},
 };
 
-/// Sans-IO Modbus-over-TCP transaction codec.
+/// Sans-IO Modbus-over-TCP transaction encoder used to prepare requests.
 #[must_use]
 #[derive(Default)]
-pub struct Codec(AtomicU16);
+pub struct Encoder(AtomicU16);
 
-impl Codec {
+impl Encoder {
     pub const fn with_next_transaction_id(transaction_id: u16) -> Self {
         Self(AtomicU16::new(transaction_id))
     }
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn send_example_ok() {
-        let mut codec = Codec::with_next_transaction_id(0x1501);
+        let mut codec = Encoder::with_next_transaction_id(0x1501);
         let request = read_holding_registers::Request::builder()
             .starting_address(4)
             .n_registers(1)

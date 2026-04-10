@@ -1,5 +1,6 @@
 use binrw::{BinRead, BinWrite};
 
+#[must_use]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, BinRead, BinWrite)]
 pub enum UnitId {
     /// Broadcast on a subnetwork. Also accepted for a direct connection.

@@ -14,29 +14,24 @@ use crate::{
     tcp::{Header, UnitId},
 };
 
-/// State-unaware context.
-///
-/// It is unsafe to use without tracking the connection state.
-/// Hence, [`TransportHeaderExpectedContext`] and [`ProtocolResponseExpectedContext`].
+/// Frames queued for sending over the wire.
 #[derive(Default)]
 #[must_use]
-pub struct StatelessContext {
+pub struct Outbox {
     next_transaction_id: u16,
 
-    /// Frames queued for sending over the wire.
-    ///
-    /// Per the guidelines, we shouldn't try and send them concatenated. 😢
-    send_queue: VecDeque<Vec<u8>>,
+    /// Raw outgoing frames.
+    inner: VecDeque<Vec<u8>>,
 }
 
-impl StatelessContext {
+impl Outbox {
     pub const fn with_next_transaction_id(next_transaction_id: u16) -> Self {
-        Self { next_transaction_id, send_queue: VecDeque::new() }
+        Self { next_transaction_id, inner: VecDeque::new() }
     }
 
     /// Pop a frame for sending over the wire, if any.
     pub fn pop(&mut self) -> Option<Vec<u8>> {
-        self.send_queue.pop_front()
+        self.inner.pop_front()
     }
 
     /// Push the request to the send queue.
@@ -63,7 +58,7 @@ impl StatelessContext {
                 .build()
         };
 
-        self.send_queue.push_back({
+        self.inner.push_back({
             let mut frame_cursor = Cursor::new(Vec::new());
             header.write_be(&mut frame_cursor)?;
             frame_cursor.write_all(&payload_bytes).map_err(binrw::Error::Io)?;
@@ -78,7 +73,7 @@ impl StatelessContext {
 /// Context that is awaiting an MBAP header.
 #[derive(Default)]
 #[must_use]
-pub struct TransportHeaderExpectedContext(StatelessContext);
+pub struct TransportHeaderExpectedContext(Outbox);
 
 impl TransportHeaderExpectedContext {
     /// Receive the bytes from the wire.
@@ -98,7 +93,7 @@ impl TransportHeaderExpectedContext {
 /// Context that is awaiting the transaction payload.
 #[must_use]
 pub struct ProtocolResponseExpectedContext {
-    inner: StatelessContext,
+    inner: Outbox,
 
     transaction_id: u16,
 
@@ -144,7 +139,7 @@ mod tests {
 
     #[test]
     fn send_example_ok() {
-        let mut context = StatelessContext::with_next_transaction_id(0x1501);
+        let mut context = Outbox::with_next_transaction_id(0x1501);
         let request = read_holding_registers::Request::builder()
             .starting_address(4)
             .n_registers(1)

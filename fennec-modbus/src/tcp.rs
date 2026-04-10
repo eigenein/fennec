@@ -5,4 +5,7 @@ mod error;
 mod header;
 mod unit_id;
 
+#[cfg(feature = "tokio")]
+mod tokio;
+
 pub use self::{error::Error, header::Header, unit_id::UnitId};

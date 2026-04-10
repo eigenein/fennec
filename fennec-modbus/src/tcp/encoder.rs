@@ -25,7 +25,7 @@ impl Encoder {
     ///
     /// This wraps the payload into an ADU and returns the respective transaction ID.
     pub fn prepare(
-        &mut self,
+        &self,
         unit_id: UnitId,
         request: &impl for<'a> BinWrite<Args<'a> = ()>,
     ) -> Result<(Vec<u8>, u16), tcp::Error> {
@@ -63,16 +63,16 @@ mod tests {
 
     #[test]
     fn send_example_ok() {
-        let mut codec = Encoder::with_next_transaction_id(0x1501);
+        let encoder = Encoder::with_next_transaction_id(0x1501);
         let request = read_holding_registers::Request::builder()
             .starting_address(4)
             .n_registers(1)
             .build()
             .unwrap();
-        let (frame, transaction_id) = codec.prepare(UnitId::NonSignificant, &request).unwrap();
+        let (frame, transaction_id) = encoder.prepare(UnitId::NonSignificant, &request).unwrap();
 
         assert_eq!(transaction_id, 0x1501);
-        assert_eq!(codec.0.into_inner(), 0x1502);
+        assert_eq!(encoder.0.into_inner(), 0x1502);
         assert_eq!(
             frame,
             [

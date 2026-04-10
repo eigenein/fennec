@@ -9,21 +9,21 @@ use crate::{
 };
 
 #[must_use]
-pub struct TransportHeaderDecoder;
+pub struct HeaderDecoder;
 
-impl TransportHeaderDecoder {
+impl HeaderDecoder {
     /// Receive the bytes from the wire.
-    pub fn receive(self, bytes: &[u8; Header::SIZE]) -> Result<ResponsePayloadDecoder, tcp::Error> {
+    pub fn decode(self, bytes: &[u8; Header::SIZE]) -> Result<PayloadDecoder, tcp::Error> {
         let header = Header::read_be(&mut Cursor::new(bytes))?;
-        Ok(ResponsePayloadDecoder(header))
+        Ok(PayloadDecoder(header))
     }
 }
 
 /// Awaiting the transaction payload state.
 #[must_use]
-pub struct ResponsePayloadDecoder(Header);
+pub struct PayloadDecoder(Header);
 
-impl ResponsePayloadDecoder {
+impl PayloadDecoder {
     /// Transaction ID of the upcoming response.
     #[must_use]
     pub const fn transaction_id(&self) -> u16 {
@@ -37,21 +37,19 @@ impl ResponsePayloadDecoder {
 
     /// Expected response length.
     ///
-    /// Transport implementors must read exactly this number of bytes and feed into [`Self::receive`].
+    /// Transport implementors must read exactly this number of bytes and feed into [`Self::decode`].
     #[must_use]
     pub const fn n_expected_bytes(&self) -> u16 {
         self.0.length - 1
     }
 
     /// Receive the bytes from the wire and decode the response.
-    pub fn receive<T: for<'a> BinRead<Args<'a> = ()>>(
+    pub fn decode<T: for<'a> BinRead<Args<'a> = ()>>(
         self,
         bytes: &[u8],
-    ) -> (TransportHeaderDecoder, Result<Transaction<T>, tcp::Error>) {
+    ) -> Result<Transaction<T>, tcp::Error> {
         let n_expected_bytes = self.n_expected_bytes();
-        let context = TransportHeaderDecoder;
-
-        let result = if bytes.len() == usize::from(n_expected_bytes) {
+        if bytes.len() == usize::from(n_expected_bytes) {
             protocol::Response::<T>::read_be(&mut Cursor::new(bytes))
                 .map(|response| Transaction { id: self.0.transaction_id, response })
                 .map_err(protocol::Error::from)
@@ -61,9 +59,7 @@ impl ResponsePayloadDecoder {
                 n_expected_bytes: n_expected_bytes.into(),
                 n_actual_bytes: bytes.len(),
             })
-        };
-
-        (context, result)
+        }
     }
 }
 
@@ -81,15 +77,15 @@ mod tests {
 
     #[test]
     fn receive_example_ok() {
-        let context =
-            TransportHeaderDecoder.receive(&[0x15, 0x01, 0x00, 0x00, 0x00, 0x09, 0xFF]).unwrap();
+        let context = HeaderDecoder.decode(&[0x15, 0x01, 0x00, 0x00, 0x00, 0x09, 0xFF]).unwrap();
         assert_eq!(context.n_expected_bytes(), 8);
         assert_eq!(context.0.transaction_id, 0x1501);
 
-        let (_, result) = context.receive::<read_holding_registers::Response>(&[
-            0x03, 0x06, 0x02, 0x2B, 0x00, 0x00, 0x00, 0x64,
-        ]);
-        let transaction = result.unwrap();
+        let transaction = context
+            .decode::<read_holding_registers::Response>(&[
+                0x03, 0x06, 0x02, 0x2B, 0x00, 0x00, 0x00, 0x64,
+            ])
+            .unwrap();
         assert_eq!(transaction.id, 0x1501);
 
         let response = transaction.response.unwrap_ok();

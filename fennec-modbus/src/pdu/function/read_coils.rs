@@ -3,7 +3,7 @@
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{ProtocolError, Result};
+use crate::pdu;
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
 #[must_use]
@@ -22,11 +22,11 @@ impl Request {
         starting_address: u16,
         /// Number of coils to read.
         n_coils: u16,
-    ) -> Result<Self, ProtocolError> {
+    ) -> Result<Self, pdu::Error> {
         if (1..=2000).contains(&n_coils) {
             Ok(Self { starting_address, n_coils })
         } else {
-            Err(ProtocolError::InvalidCount(n_coils.into()))
+            Err(pdu::Error::InvalidCount(n_coils.into()))
         }
     }
 }

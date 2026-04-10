@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{ProtocolError, Result};
+use crate::pdu;
 
 /// Write a block of contiguous registers (1 to 123 registers) in a remote device.
 #[must_use]
@@ -27,14 +27,14 @@ impl Request {
         starting_address: u16,
         /// Register values.
         words: Vec<u16>,
-    ) -> Result<Self, ProtocolError> {
+    ) -> Result<Self, pdu::Error> {
         let n_registers = words.len();
         if (1..=123).contains(&n_registers) {
             let n_registers = u16::try_from(n_registers).unwrap();
             let n_bytes = u8::try_from(n_registers * 2).unwrap();
             Ok(Self { starting_address, n_registers, n_bytes, words })
         } else {
-            Err(ProtocolError::InvalidCount(n_registers))
+            Err(pdu::Error::InvalidCount(n_registers))
         }
     }
 }

@@ -11,7 +11,7 @@ type Result<T = (), E = Error> = core::result::Result<T, E>;
 #[tokio::main]
 async fn main() -> Result {
     let env_filter =
-        EnvFilter::builder().with_default_directive(LevelFilter::DEBUG.into()).from_env()?;
+        EnvFilter::builder().with_default_directive(LevelFilter::TRACE.into()).from_env()?;
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().without_time().compact().with_filter(env_filter))
         .init();

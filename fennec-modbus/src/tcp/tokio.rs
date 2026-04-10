@@ -1,6 +1,7 @@
 #![cfg(feature = "tokio")]
 
 use alloc::{sync::Arc, vec, vec::Vec};
+use core::fmt::Debug;
 
 use binrw::{BinRead, BinWrite};
 use thiserror::Error;
@@ -9,7 +10,6 @@ use tokio::{
     net::{TcpStream, ToSocketAddrs},
     sync::Mutex,
 };
-use tracing::debug;
 
 use crate::{protocol::function::read_holding_registers, tcp};
 
@@ -25,13 +25,25 @@ struct Inner {
 pub struct Client(Arc<Inner>);
 
 impl Client {
-    pub async fn connect(endpoint: impl ToSocketAddrs) -> Result<Self, Error> {
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace"))]
+    pub async fn connect(endpoint: impl Debug + ToSocketAddrs) -> Result<Self, Error> {
+        #[cfg(feature = "tracing")]
+        tracing::trace!("connecting…");
+
         let stream = TcpStream::connect(endpoint).await?;
         stream.set_nodelay(true)?;
         socket2::SockRef::from(&stream).set_keepalive(true)?;
         Ok(Self(Arc::new(Inner { stream: Mutex::new(stream), encoder: tcp::Encoder::default() })))
     }
 
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(
+            skip_all,
+            level = "trace",
+            fields(starting_address = starting_address, n_registers = n_registers)
+        ),
+    )]
     pub async fn read_holding_registers(
         &self,
         unit_id: tcp::UnitId,
@@ -54,6 +66,14 @@ impl Client {
     /// Low-level interface to call a Modbus function.
     ///
     /// The caller is responsible for matching the request and response.
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(
+            skip_all,
+            level = "trace",
+            fields(unit_id = ?unit_id)
+        ),
+    )]
     pub async fn call<S, R>(&self, unit_id: tcp::UnitId, request: &S) -> Result<R, Error>
     where
         S: for<'a> BinWrite<Args<'a> = ()>,
@@ -63,12 +83,12 @@ impl Client {
         let mut stream = self.0.stream.lock().await;
 
         #[cfg(feature = "tracing")]
-        debug!(transaction_id, len = frame.len(), "writing frame");
+        tracing::trace!(transaction_id, len = frame.len(), "writing frame");
         stream.write_all(&frame).await?;
 
         let header = loop {
             #[cfg(feature = "tracing")]
-            debug!(transaction_id, "awaiting header…");
+            tracing::trace!(transaction_id, "awaiting header…");
 
             let header = tcp::decode_header(&{
                 let mut header_bytes = [0; tcp::Header::SIZE];
@@ -77,7 +97,7 @@ impl Client {
             })?;
 
             #[cfg(feature = "tracing")]
-            debug!(transaction_id = header.transaction_id, "received header");
+            tracing::trace!(transaction_id = header.transaction_id, "received header");
 
             if header.transaction_id == transaction_id {
                 break header;
@@ -85,6 +105,10 @@ impl Client {
         };
 
         let mut payload_bytes = vec![0; header.payload_length().into()];
+
+        #[cfg(feature = "tracing")]
+        tracing::trace!(len = header.payload_length(), "reading payload…");
+
         stream.read_exact(&mut payload_bytes).await?;
         drop(stream);
         Ok(tcp::decode_payload::<R>(&payload_bytes)?)

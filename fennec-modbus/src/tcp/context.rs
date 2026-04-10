@@ -113,12 +113,12 @@ impl ProtocolResponseExpected {
     pub fn receive<T: for<'a> BinRead<Args<'a> = ()>>(
         self,
         bytes: &[u8],
-    ) -> (TransportHeaderExpected, Result<Transaction<protocol::Response<T>>, tcp::Error>) {
+    ) -> (TransportHeaderExpected, Result<Transaction<T>, tcp::Error>) {
         let context = TransportHeaderExpected(self.inner);
 
         let result = if bytes.len() == usize::from(self.length) {
             protocol::Response::<T>::read_be(&mut Cursor::new(bytes))
-                .map(|payload| Transaction { id: self.transaction_id, payload })
+                .map(|response| Transaction { id: self.transaction_id, response })
                 .map_err(protocol::WireError::from)
                 .map_err(tcp::Error::from)
         } else {
@@ -132,10 +132,11 @@ impl ProtocolResponseExpected {
     }
 }
 
+#[must_use]
 #[derive(Clone)]
-pub struct Transaction<P> {
+pub struct Transaction<T: for<'a> BinRead<Args<'a> = ()>> {
     pub id: u16,
-    pub payload: P,
+    pub response: protocol::Response<T>,
 }
 
 #[cfg(test)]
@@ -167,5 +168,24 @@ mod tests {
                 0x03, 0x00, 0x04, 0x00, 0x01, // request
             ]
         );
+    }
+
+    #[test]
+    fn receive_example_ok() {
+        let context = TransportHeaderExpected::default()
+            .receive(&[0x15, 0x01, 0x00, 0x00, 0x00, 0x09, 0xFF])
+            .unwrap();
+        assert_eq!(context.length, 8);
+        assert_eq!(context.transaction_id, 0x1501);
+
+        let (_, result) = context.receive::<read_holding_registers::Response>(&[
+            0x03, 0x06, 0x02, 0x2B, 0x00, 0x00, 0x00, 0x64,
+        ]);
+        let transaction = result.unwrap();
+        assert_eq!(transaction.id, 0x1501);
+
+        let response = transaction.response.unwrap_ok();
+        assert_eq!(response.n_bytes, 6);
+        assert_eq!(response.words, [555, 0, 100]);
     }
 }

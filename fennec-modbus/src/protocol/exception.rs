@@ -4,7 +4,7 @@ use binrw::BinRead;
 use thiserror::Error;
 
 #[must_use]
-#[derive(Debug, BinRead)]
+#[derive(Copy, Clone, Debug, BinRead)]
 #[br(big)]
 pub struct Response {
     #[br(assert(function_code & 0x80 != 0, "unexpected function code ({function_code:#X})"))]

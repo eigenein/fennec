@@ -26,7 +26,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub const SIZE: usize = size_of::<u16>() * 3 + size_of::<UnitId>();
+    pub const SIZE: usize = 7;
 }
 
 #[cfg(test)]

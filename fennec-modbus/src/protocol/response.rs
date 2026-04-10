@@ -3,7 +3,7 @@ use binrw::BinRead;
 use crate::protocol::exception;
 
 /// Response protocol data unit.
-#[derive(derive_more::Debug, BinRead)]
+#[derive(Clone, derive_more::Debug, derive_more::Unwrap, derive_more::TryUnwrap, BinRead)]
 #[br(big)]
 pub enum Response<T: for<'a> BinRead<Args<'a> = ()>> {
     Ok(T),

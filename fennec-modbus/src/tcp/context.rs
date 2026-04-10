@@ -17,10 +17,10 @@ use crate::{
 /// State-unaware context.
 ///
 /// It is unsafe to use without tracking the connection state.
-/// Hence, [`TransportHeaderExpected`] and [`ProtocolResponseExpected`].
+/// Hence, [`TransportHeaderExpectedContext`] and [`ProtocolResponseExpectedContext`].
 #[derive(Default)]
 #[must_use]
-pub struct Inner {
+pub struct StatelessContext {
     next_transaction_id: u16,
 
     /// Frames queued for sending over the wire.
@@ -29,7 +29,7 @@ pub struct Inner {
     send_queue: VecDeque<Vec<u8>>,
 }
 
-impl Inner {
+impl StatelessContext {
     pub const fn with_next_transaction_id(next_transaction_id: u16) -> Self {
         Self { next_transaction_id, send_queue: VecDeque::new() }
     }
@@ -76,18 +76,18 @@ impl Inner {
 }
 
 /// Context that is awaiting an MBAP header.
-#[derive(Default, derive_more::Deref)]
+#[derive(Default)]
 #[must_use]
-pub struct TransportHeaderExpected(Inner);
+pub struct TransportHeaderExpectedContext(StatelessContext);
 
-impl TransportHeaderExpected {
+impl TransportHeaderExpectedContext {
     /// Receive the bytes from the wire.
     pub fn receive(
         self,
         bytes: &[u8; Header::SIZE],
-    ) -> Result<ProtocolResponseExpected, tcp::Error> {
+    ) -> Result<ProtocolResponseExpectedContext, tcp::Error> {
         let header = Header::read_be(&mut Cursor::new(bytes))?;
-        Ok(ProtocolResponseExpected {
+        Ok(ProtocolResponseExpectedContext {
             inner: self.0,
             transaction_id: header.transaction_id,
             length: header.length - 1,
@@ -97,10 +97,8 @@ impl TransportHeaderExpected {
 
 /// Context that is awaiting the transaction payload.
 #[must_use]
-#[derive(derive_more::Deref)]
-pub struct ProtocolResponseExpected {
-    #[deref]
-    inner: Inner,
+pub struct ProtocolResponseExpectedContext {
+    inner: StatelessContext,
 
     transaction_id: u16,
 
@@ -108,13 +106,13 @@ pub struct ProtocolResponseExpected {
     pub length: u16,
 }
 
-impl ProtocolResponseExpected {
+impl ProtocolResponseExpectedContext {
     /// Receive the bytes from the wire.
     pub fn receive<T: for<'a> BinRead<Args<'a> = ()>>(
         self,
         bytes: &[u8],
-    ) -> (TransportHeaderExpected, Result<Transaction<T>, tcp::Error>) {
-        let context = TransportHeaderExpected(self.inner);
+    ) -> (TransportHeaderExpectedContext, Result<Transaction<T>, tcp::Error>) {
+        let context = TransportHeaderExpectedContext(self.inner);
 
         let result = if bytes.len() == usize::from(self.length) {
             protocol::Response::<T>::read_be(&mut Cursor::new(bytes))
@@ -146,7 +144,7 @@ mod tests {
 
     #[test]
     fn send_example_ok() {
-        let mut context = Inner::with_next_transaction_id(0x1501);
+        let mut context = StatelessContext::with_next_transaction_id(0x1501);
         let request = read_holding_registers::Request::builder()
             .starting_address(4)
             .n_registers(1)
@@ -172,7 +170,7 @@ mod tests {
 
     #[test]
     fn receive_example_ok() {
-        let context = TransportHeaderExpected::default()
+        let context = TransportHeaderExpectedContext::default()
             .receive(&[0x15, 0x01, 0x00, 0x00, 0x00, 0x09, 0xFF])
             .unwrap();
         assert_eq!(context.length, 8);

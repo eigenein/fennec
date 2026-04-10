@@ -12,6 +12,8 @@ pub struct Header {
     pub transaction_id: u16,
 
     #[builder(default = 0)]
+    #[br(assert(protocol_id == 0))]
+    #[bw(assert(*protocol_id == 0))]
     pub protocol_id: u16,
 
     /// Number of following bytes, *including the Unit Identifier and data fields*.

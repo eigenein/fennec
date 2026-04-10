@@ -94,7 +94,7 @@ impl MQ2200 {
     }
 
     async fn read_state_of_health(&mut self) -> Result<Percentage> {
-        self.read_u16(37624).await.context("failed to read teh SoH").map(Percentage)
+        self.read_u16(37624).await.context("failed to read the SoH").map(Percentage)
     }
 
     /// Read total external active power.

@@ -28,12 +28,13 @@ impl Request {
         /// Register values.
         words: Vec<u16>,
     ) -> Result<Self> {
-        let n_registers = u16::try_from(words.len())?;
+        let n_registers = words.len();
         if (1..=123).contains(&n_registers) {
+            let n_registers = u16::try_from(n_registers).unwrap();
             let n_bytes = u8::try_from(n_registers * 2).unwrap();
             Ok(Self { starting_address, n_registers, n_bytes, words })
         } else {
-            Err(Error::InvalidQuantity(n_registers))
+            Err(Error::InvalidCount(n_registers))
         }
     }
 }

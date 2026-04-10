@@ -15,6 +15,8 @@ pub struct Header {
     pub protocol_id: u16,
 
     /// Number of following bytes, *including the Unit Identifier and data fields*.
+    #[br(assert(length != 0))]
+    #[bw(assert(*length != 0))]
     pub length: u16,
 
     /// Unit identifier aka «slave ID».

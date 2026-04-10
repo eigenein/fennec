@@ -5,10 +5,10 @@ use alloc::{collections::VecDeque, vec::Vec};
 use binrw::{
     BinRead,
     BinWrite,
-    io::{Cursor, Read, Seek, Write},
+    io::{Cursor, Write},
 };
 
-use crate::{Result, tcp::Header};
+use crate::{Error, Result, tcp::Header};
 
 /// State-unaware context.
 ///
@@ -19,35 +19,39 @@ use crate::{Result, tcp::Header};
 pub struct Inner {
     transaction_counter: u16,
 
-    /// Frames to get sent.
+    /// ADU's queued for sending over the wire.
     ///
     /// Per the guidelines, we shouldn't try and send them concatenated. 😢
-    ///
-    /// TODO: expose `pop`.
     send_queue: VecDeque<Vec<u8>>,
 }
 
 impl Inner {
+    /// Pop a byte chunk for sending over the wire, if any.
+    pub fn pop(&mut self) -> Option<Vec<u8>> {
+        self.send_queue.pop_front()
+    }
+
     /// Push the request to the send queue.
     ///
-    /// Returns the transaction ID.
+    /// This wraps the payload into an ADU and returns the transaction ID.
     pub fn send(&mut self, request: &impl for<'a> BinWrite<Args<'a> = ()>) -> Result<u16> {
+        self.transaction_counter = self.transaction_counter.wrapping_add(1);
+
         self.send_queue.push_back({
-            let pdu_bytes = {
+            let request_bytes = {
                 let mut cursor = Cursor::new(Vec::new());
                 request.write_be(&mut cursor)?;
                 cursor.into_inner()
             };
 
-            self.transaction_counter = self.transaction_counter.wrapping_add(1);
-
             let mut cursor = Cursor::new(Vec::new());
+            let length = request_bytes.len() + 1;
             Header::builder()
                 .transaction_id(self.transaction_counter)
-                .length(u16::try_from(pdu_bytes.len() + 1)?)
+                .length(u16::try_from(length).map_err(|_| Error::InvalidLength(length))?)
                 .build()
                 .write_be(&mut cursor)?;
-            cursor.write_all(&pdu_bytes)?;
+            cursor.write_all(&request_bytes)?;
             cursor.into_inner()
         });
 
@@ -61,14 +65,14 @@ impl Inner {
 pub struct HeaderExpected(Inner);
 
 impl HeaderExpected {
-    pub fn on_header(self, header: &Header) -> PduExpected {
-        PduExpected {
+    /// Receive the bytes from the wire.
+    pub fn receive(self, bytes: &[u8; Header::SIZE]) -> Result<PduExpected> {
+        let header = Header::read_be(&mut Cursor::new(bytes))?;
+        Ok(PduExpected {
             inner: self.0,
             transaction_id: header.transaction_id,
-
-            // FIXME: zero length is invalid.
-            length: header.length.saturating_sub(1),
-        }
+            length: header.length - 1,
+        })
     }
 }
 
@@ -86,12 +90,17 @@ pub struct PduExpected {
 }
 
 impl PduExpected {
-    pub fn on_pdu<R: Read + Seek, P: for<'a> BinRead<Args<'a> = ()>>(
+    /// Receive the bytes from the wire.
+    pub fn receive<P: for<'a> BinRead<Args<'a> = ()>>(
         self,
-        reader: &mut R,
+        bytes: &[u8],
     ) -> Result<(HeaderExpected, u16, P)> {
-        // FIXME: what if `read_be` fails?
-        // FIXME: validate that exactly `length` is consumed.
-        Ok((HeaderExpected(self.inner), self.transaction_id, P::read_be(reader)?))
+        if bytes.len() != usize::from(self.length) {
+            return Err(Error::PayloadSizeMismatch {
+                n_expected_bytes: self.length.into(),
+                n_actual_bytes: bytes.len(),
+            });
+        }
+        Ok((HeaderExpected(self.inner), self.transaction_id, P::read_be(&mut Cursor::new(bytes))?))
     }
 }

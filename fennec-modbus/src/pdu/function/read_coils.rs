@@ -26,7 +26,7 @@ impl Request {
         if (1..=2000).contains(&n_coils) {
             Ok(Self { starting_address, n_coils })
         } else {
-            Err(Error::InvalidQuantity(n_coils))
+            Err(Error::InvalidCount(n_coils.into()))
         }
     }
 }

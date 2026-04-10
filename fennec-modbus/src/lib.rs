@@ -6,7 +6,6 @@ pub mod pdu;
 pub mod tcp;
 
 use alloc::string::{String, ToString};
-use core::num::TryFromIntError;
 
 use thiserror::Error;
 
@@ -14,17 +13,17 @@ pub type Result<T = (), E = Error> = core::result::Result<T, E>;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("incorrect quantity requested ({0})")]
-    InvalidQuantity(u16),
+    #[error("invalid count requested ({0})")]
+    InvalidCount(usize),
+
+    #[error("invalid length requested ({0})")]
+    InvalidLength(usize),
 
     #[error("payload size mismatch (expected {n_expected_bytes} bytes, got {n_actual_bytes})")]
-    PayloadSizeMismatch { n_expected_bytes: u8, n_actual_bytes: usize },
+    PayloadSizeMismatch { n_expected_bytes: usize, n_actual_bytes: usize },
 
     #[error("I/O error: {0}")]
     IoError(String),
-
-    #[error("failed to convert the integer: {0}")]
-    TryFromInt(#[from] TryFromIntError),
 }
 
 impl From<binrw::Error> for Error {

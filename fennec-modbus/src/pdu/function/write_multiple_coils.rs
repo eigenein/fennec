@@ -41,12 +41,12 @@ impl Request {
                 Ok(Self { starting_address, n_coils, n_bytes, coils })
             } else {
                 Err(Error::PayloadSizeMismatch {
-                    n_expected_bytes: n_bytes,
+                    n_expected_bytes: n_bytes.into(),
                     n_actual_bytes: coils.len(),
                 })
             }
         } else {
-            Err(Error::InvalidQuantity(n_coils))
+            Err(Error::InvalidCount(n_coils.into()))
         }
     }
 }

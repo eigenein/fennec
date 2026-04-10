@@ -29,7 +29,7 @@ impl Request {
         if (1..=125).contains(&n_registers) {
             Ok(Self { starting_address, n_registers })
         } else {
-            Err(Error::InvalidQuantity(n_registers))
+            Err(Error::InvalidCount(n_registers.into()))
         }
     }
 }

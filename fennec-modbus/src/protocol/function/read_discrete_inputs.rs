@@ -20,11 +20,11 @@ pub struct Request {
 #[bon]
 impl Request {
     #[builder]
-    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self, protocol::WireError> {
+    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self, protocol::Error> {
         if (1..=2000).contains(&n_inputs) {
             Ok(Self { starting_address, n_inputs })
         } else {
-            Err(protocol::WireError::InvalidCount(n_inputs.into()))
+            Err(protocol::Error::InvalidCount(n_inputs.into()))
         }
     }
 }

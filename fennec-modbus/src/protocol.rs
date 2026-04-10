@@ -7,4 +7,4 @@ mod exception;
 pub mod function;
 mod response;
 
-pub use self::{error::WireError, exception::*, response::Response};
+pub use self::{error::Error, exception::*, response::Response};

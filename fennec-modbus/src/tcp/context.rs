@@ -1,79 +1,12 @@
 //! Sans-IO Modbus-over-TCP client context.
 
-use alloc::{collections::VecDeque, vec::Vec};
+use binrw::{BinRead, io::Cursor};
 
-use binrw::{
-    BinRead,
-    BinWrite,
-    io::{Cursor, Write},
-};
-
-use crate::{
-    protocol,
-    tcp,
-    tcp::{Header, UnitId},
-};
-
-/// Frames queued for sending over the wire.
-#[derive(Default)]
-#[must_use]
-pub struct Outbox {
-    next_transaction_id: u16,
-
-    /// Raw outgoing frames.
-    inner: VecDeque<Vec<u8>>,
-}
-
-impl Outbox {
-    pub const fn with_next_transaction_id(next_transaction_id: u16) -> Self {
-        Self { next_transaction_id, inner: VecDeque::new() }
-    }
-
-    /// Pop a frame for sending over the wire, if any.
-    pub fn pop(&mut self) -> Option<Vec<u8>> {
-        self.inner.pop_front()
-    }
-
-    /// Push the request to the send queue.
-    ///
-    /// This wraps the payload into an ADU and returns the transaction ID.
-    pub fn send(
-        &mut self,
-        unit_id: UnitId,
-        request: &impl for<'a> BinWrite<Args<'a> = ()>,
-    ) -> Result<u16, tcp::Error> {
-        let payload_bytes = {
-            let mut cursor = Cursor::new(Vec::new());
-            request.write_be(&mut cursor)?;
-            cursor.into_inner()
-        };
-
-        let header = {
-            let length = u16::try_from(payload_bytes.len() + 1)
-                .map_err(|_| tcp::Error::PayloadSizeExceeded(payload_bytes.len()))?;
-            Header::builder()
-                .unit_id(unit_id)
-                .transaction_id(self.next_transaction_id)
-                .length(length)
-                .build()
-        };
-
-        self.inner.push_back({
-            let mut frame_cursor = Cursor::new(Vec::new());
-            header.write_be(&mut frame_cursor)?;
-            frame_cursor.write_all(&payload_bytes).map_err(binrw::Error::Io)?;
-            frame_cursor.into_inner()
-        });
-
-        self.next_transaction_id = self.next_transaction_id.wrapping_add(1);
-        Ok(header.transaction_id)
-    }
-}
+use crate::{protocol, tcp, tcp::Header};
 
 /// Context that is awaiting an MBAP header.
-#[derive(Default)]
 #[must_use]
-pub struct TransportHeaderExpectedContext(Outbox);
+pub struct TransportHeaderExpectedContext;
 
 impl TransportHeaderExpectedContext {
     /// Receive the bytes from the wire.
@@ -82,15 +15,13 @@ impl TransportHeaderExpectedContext {
         bytes: &[u8; Header::SIZE],
     ) -> Result<ProtocolResponseExpectedContext, tcp::Error> {
         let header = Header::read_be(&mut Cursor::new(bytes))?;
-        Ok(ProtocolResponseExpectedContext { outbox: self.0, header })
+        Ok(ProtocolResponseExpectedContext { header })
     }
 }
 
 /// Context that is awaiting the transaction payload.
 #[must_use]
 pub struct ProtocolResponseExpectedContext {
-    outbox: Outbox,
-
     pub header: Header,
 }
 
@@ -107,12 +38,12 @@ impl ProtocolResponseExpectedContext {
         bytes: &[u8],
     ) -> (TransportHeaderExpectedContext, Result<Transaction<T>, tcp::Error>) {
         let n_expected_bytes = self.n_expected_bytes();
-        let context = TransportHeaderExpectedContext(self.outbox);
+        let context = TransportHeaderExpectedContext;
 
         let result = if bytes.len() == usize::from(n_expected_bytes) {
             protocol::Response::<T>::read_be(&mut Cursor::new(bytes))
                 .map(|response| Transaction { id: self.header.transaction_id, response })
-                .map_err(protocol::WireError::from)
+                .map_err(protocol::Error::from)
                 .map_err(tcp::Error::from)
         } else {
             Err(tcp::Error::PayloadSizeMismatch {
@@ -138,34 +69,8 @@ mod tests {
     use crate::protocol::function::read_holding_registers;
 
     #[test]
-    fn send_example_ok() {
-        let mut context = Outbox::with_next_transaction_id(0x1501);
-        let request = read_holding_registers::Request::builder()
-            .starting_address(4)
-            .n_registers(1)
-            .build()
-            .unwrap();
-        let transaction_id = context.send(UnitId::NonSignificant, &request).unwrap();
-
-        assert_eq!(transaction_id, 0x1501);
-        assert_eq!(context.next_transaction_id, 0x1502);
-
-        let frame = context.pop().unwrap();
-        assert_eq!(
-            frame,
-            [
-                0x15, 0x01, // transaction ID: high, low
-                0x00, 0x00, // protocol ID
-                0x00, 0x06, // length: high, low
-                0xFF, // unit ID
-                0x03, 0x00, 0x04, 0x00, 0x01, // request
-            ]
-        );
-    }
-
-    #[test]
     fn receive_example_ok() {
-        let context = TransportHeaderExpectedContext::default()
+        let context = TransportHeaderExpectedContext
             .receive(&[0x15, 0x01, 0x00, 0x00, 0x00, 0x09, 0xFF])
             .unwrap();
         assert_eq!(context.n_expected_bytes(), 8);

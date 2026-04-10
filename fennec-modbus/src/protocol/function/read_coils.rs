@@ -22,11 +22,11 @@ impl Request {
         starting_address: u16,
         /// Number of coils to read.
         n_coils: u16,
-    ) -> Result<Self, protocol::WireError> {
+    ) -> Result<Self, protocol::Error> {
         if (1..=2000).contains(&n_coils) {
             Ok(Self { starting_address, n_coils })
         } else {
-            Err(protocol::WireError::InvalidCount(n_coils.into()))
+            Err(protocol::Error::InvalidCount(n_coils.into()))
         }
     }
 }

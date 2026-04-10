@@ -4,19 +4,19 @@ use thiserror::Error;
 
 /// Low-level protocol representation error.
 #[derive(Debug, Error)]
-pub enum WireError {
+pub enum Error {
     #[error("invalid count requested ({0})")]
     InvalidCount(usize),
 
-    #[error("bad binary format: {0}")]
-    BadFormat(String),
+    #[error("wire format error: {0}")]
+    WireFormat(String),
 
     #[error("coil number mismatch (expected {n_expected_bytes} bytes, got {n_actual_bytes})")]
     CoilNumberMismatch { n_expected_bytes: usize, n_actual_bytes: usize },
 }
 
-impl From<binrw::Error> for WireError {
+impl From<binrw::Error> for Error {
     fn from(error: binrw::Error) -> Self {
-        Self::BadFormat(error.to_string())
+        Self::WireFormat(error.to_string())
     }
 }

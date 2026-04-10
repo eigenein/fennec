@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{Error, Result};
+use crate::{ProtocolError, Result};
 
 /// Read from 1 to 125 contiguous input registers in a remote device.
 #[must_use]
@@ -25,11 +25,11 @@ impl Request {
         starting_address: u16,
         /// Number of registers to read.
         n_registers: u16,
-    ) -> Result<Self> {
+    ) -> Result<Self, ProtocolError> {
         if (1..=125).contains(&n_registers) {
             Ok(Self { starting_address, n_registers })
         } else {
-            Err(Error::InvalidCount(n_registers.into()))
+            Err(ProtocolError::InvalidCount(n_registers.into()))
         }
     }
 }

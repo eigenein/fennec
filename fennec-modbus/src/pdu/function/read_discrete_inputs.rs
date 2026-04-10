@@ -3,7 +3,7 @@
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::{Error, Result};
+use crate::{ProtocolError, Result};
 
 /// Read from 1 to 2000 contiguous status of discrete inputs in a remote device.
 #[must_use]
@@ -20,11 +20,11 @@ pub struct Request {
 #[bon]
 impl Request {
     #[builder]
-    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self> {
+    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self, ProtocolError> {
         if (1..=2000).contains(&n_inputs) {
             Ok(Self { starting_address, n_inputs })
         } else {
-            Err(Error::InvalidCount(n_inputs.into()))
+            Err(ProtocolError::InvalidCount(n_inputs.into()))
         }
     }
 }
@@ -39,7 +39,7 @@ pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
     ///
     /// The LSB of the first data byte contains the input addressed in the query.
     /// The other inputs follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
-    pub inputs: S,
+    pub input: S,
 }
 
 #[cfg(test)]
@@ -92,8 +92,8 @@ mod tests {
         ];
 
         let response = Response::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.inputs.status_1(), 0xAC);
-        assert_eq!(response.inputs.status_2(), 0xDB);
-        assert_eq!(response.inputs.status_3(), 0x35);
+        assert_eq!(response.input.status_1(), 0xAC);
+        assert_eq!(response.input.status_2(), 0xDB);
+        assert_eq!(response.input.status_3(), 0x35);
     }
 }

@@ -2,13 +2,9 @@
 
 use alloc::{collections::VecDeque, vec::Vec};
 
-use binrw::{
-    BinRead,
-    BinWrite,
-    io::{Cursor, Write},
-};
+use binrw::{BinRead, BinWrite, io::Cursor};
 
-use crate::{Error, Result, tcp::Header};
+use crate::{ProtocolError, Result, TransportError, tcp::Header};
 
 /// State-unaware context.
 ///
@@ -34,27 +30,27 @@ impl Inner {
     /// Push the request to the send queue.
     ///
     /// This wraps the payload into an ADU and returns the transaction ID.
-    pub fn send(&mut self, request: &impl for<'a> BinWrite<Args<'a> = ()>) -> Result<u16> {
+    pub fn send(
+        &mut self,
+        request: &impl for<'a> BinWrite<Args<'a> = ()>,
+    ) -> Result<u16, TransportError> {
         self.transaction_counter = self.transaction_counter.wrapping_add(1);
-
         self.send_queue.push_back({
-            let request_bytes = {
+            let payload_bytes = {
                 let mut cursor = Cursor::new(Vec::new());
                 request.write_be(&mut cursor)?;
                 cursor.into_inner()
             };
-
-            let mut cursor = Cursor::new(Vec::new());
-            let length = request_bytes.len() + 1;
+            let length = u16::try_from(payload_bytes.len() + 1)
+                .map_err(|_| TransportError::PayloadSizeExceeded(payload_bytes.len()))?;
+            let mut cursor = Cursor::new(payload_bytes);
             Header::builder()
                 .transaction_id(self.transaction_counter)
-                .length(u16::try_from(length).map_err(|_| Error::InvalidLength(length))?)
+                .length(length)
                 .build()
                 .write_be(&mut cursor)?;
-            cursor.write_all(&request_bytes)?;
             cursor.into_inner()
         });
-
         Ok(self.transaction_counter)
     }
 }
@@ -66,7 +62,7 @@ pub struct HeaderExpected(Inner);
 
 impl HeaderExpected {
     /// Receive the bytes from the wire.
-    pub fn receive(self, bytes: &[u8; Header::SIZE]) -> Result<PduExpected> {
+    pub fn receive(self, bytes: &[u8; Header::SIZE]) -> Result<PduExpected, ProtocolError> {
         let header = Header::read_be(&mut Cursor::new(bytes))?;
         Ok(PduExpected {
             inner: self.0,
@@ -94,9 +90,9 @@ impl PduExpected {
     pub fn receive<P: for<'a> BinRead<Args<'a> = ()>>(
         self,
         bytes: &[u8],
-    ) -> Result<(HeaderExpected, u16, P)> {
+    ) -> Result<(HeaderExpected, u16, P), TransportError> {
         if bytes.len() != usize::from(self.length) {
-            return Err(Error::PayloadSizeMismatch {
+            return Err(TransportError::PayloadSizeMismatch {
                 n_expected_bytes: self.length.into(),
                 n_actual_bytes: bytes.len(),
             });
@@ -104,3 +100,5 @@ impl PduExpected {
         Ok((HeaderExpected(self.inner), self.transaction_id, P::read_be(&mut Cursor::new(bytes))?))
     }
 }
+
+pub struct Error {}

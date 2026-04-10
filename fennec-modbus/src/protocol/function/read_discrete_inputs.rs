@@ -20,11 +20,11 @@ pub struct Request {
 #[bon]
 impl Request {
     #[builder]
-    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self, protocol::Error> {
+    pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self, protocol::WireError> {
         if (1..=2000).contains(&n_inputs) {
             Ok(Self { starting_address, n_inputs })
         } else {
-            Err(protocol::Error::InvalidCount(n_inputs.into()))
+            Err(protocol::WireError::InvalidCount(n_inputs.into()))
         }
     }
 }
@@ -39,6 +39,8 @@ pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
     ///
     /// The LSB of the first data byte contains the input addressed in the query.
     /// The other inputs follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
+    ///
+    /// *Extra data at the end is ignored.*
     pub input: S,
 }
 

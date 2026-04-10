@@ -22,11 +22,11 @@ impl Request {
         starting_address: u16,
         /// Number of coils to read.
         n_coils: u16,
-    ) -> Result<Self, protocol::Error> {
+    ) -> Result<Self, protocol::WireError> {
         if (1..=2000).contains(&n_coils) {
             Ok(Self { starting_address, n_coils })
         } else {
-            Err(protocol::Error::InvalidCount(n_coils.into()))
+            Err(protocol::WireError::InvalidCount(n_coils.into()))
         }
     }
 }
@@ -41,6 +41,8 @@ pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
     ///
     /// The LSB of the first data byte contains the output addressed in the query.
     /// The other coils follow toward the high order end of this byte, and from low order to high order in subsequent bytes.
+    ///
+    /// *Extra data at the end is ignored.*
     pub coils: S,
 }
 

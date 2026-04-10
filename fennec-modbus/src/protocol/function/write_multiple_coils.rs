@@ -28,7 +28,7 @@ impl Request {
         n_coils: u16,
         /// Coil settings.
         coils: S,
-    ) -> Result<Self, protocol::Error> {
+    ) -> Result<Self, protocol::WireError> {
         if (1..=0x07B0).contains(&n_coils) {
             // Infallible since `n_coils` is verified:
             let n_bytes = u8::try_from(n_coils.div_ceil(8)).unwrap();
@@ -40,13 +40,13 @@ impl Request {
             if coil_bytes.len() == n_bytes.into() {
                 Ok(Self { starting_address, n_coils, n_bytes, coil_bytes })
             } else {
-                Err(protocol::Error::CoilNumberMismatch {
+                Err(protocol::WireError::CoilNumberMismatch {
                     n_expected_bytes: n_bytes.into(),
                     n_actual_bytes: coil_bytes.len(),
                 })
             }
         } else {
-            Err(protocol::Error::InvalidCount(n_coils.into()))
+            Err(protocol::WireError::InvalidCount(n_coils.into()))
         }
     }
 }

@@ -10,14 +10,16 @@ pub struct Response {
     #[br(assert(function_code & 0x80 != 0, "unexpected function code ({function_code:#X})"))]
     pub function_code: u8,
 
-    pub error: FunctionalError,
+    pub error: Exception,
 }
 
+/// High-level protocol error.
+///
 /// The server received the request without a communication error, but could not handle it.
 #[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
-pub enum FunctionalError {
+pub enum Exception {
     /// Client request was malformed.
     #[error("client error: {0}")]
     Client(ClientError),
@@ -129,6 +131,6 @@ mod tests {
             0xFF, // unknown error code
         ];
         let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert!(matches!(response.error, FunctionalError::Unknown(0xFF)));
+        assert!(matches!(response.error, Exception::Unknown(0xFF)));
     }
 }

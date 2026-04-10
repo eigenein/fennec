@@ -7,7 +7,7 @@ use crate::protocol;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("protocol error")]
-    Protocol(#[from] protocol::Error),
+    Protocol(#[from] protocol::WireError),
 
     #[error("payload size exceeded ({0} bytes)")]
     PayloadSizeExceeded(usize),

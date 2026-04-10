@@ -110,16 +110,16 @@ pub struct ProtocolResponseExpected {
 
 impl ProtocolResponseExpected {
     /// Receive the bytes from the wire.
-    pub fn receive<P: for<'a> BinRead<Args<'a> = ()>>(
+    pub fn receive<T: for<'a> BinRead<Args<'a> = ()>>(
         self,
         bytes: &[u8],
-    ) -> (TransportHeaderExpected, Result<Transaction<P>, tcp::Error>) {
+    ) -> (TransportHeaderExpected, Result<Transaction<protocol::Response<T>>, tcp::Error>) {
         let context = TransportHeaderExpected(self.inner);
 
         let result = if bytes.len() == usize::from(self.length) {
-            P::read_be(&mut Cursor::new(bytes))
+            protocol::Response::<T>::read_be(&mut Cursor::new(bytes))
                 .map(|payload| Transaction { id: self.transaction_id, payload })
-                .map_err(protocol::Error::from)
+                .map_err(protocol::WireError::from)
                 .map_err(tcp::Error::from)
         } else {
             Err(tcp::Error::PayloadSizeMismatch {

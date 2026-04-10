@@ -16,7 +16,7 @@ mod tests {
 
     use super::*;
     use crate::protocol::{
-        exception::{FunctionalError, ServerError},
+        exception::{Exception, ServerError},
         function::read_holding_registers,
     };
 
@@ -32,7 +32,7 @@ mod tests {
             matches!(
                 response,
                 Response::Exception(exception::Response {
-                    error: FunctionalError::Server(ServerError::ServerDeviceFailure),
+                    error: Exception::Server(ServerError::ServerDeviceFailure),
                     ..
                 }),
             ),

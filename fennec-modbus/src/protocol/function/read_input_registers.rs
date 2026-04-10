@@ -25,11 +25,11 @@ impl Request {
         starting_address: u16,
         /// Number of registers to read.
         n_registers: u16,
-    ) -> Result<Self, protocol::Error> {
+    ) -> Result<Self, protocol::WireError> {
         if (1..=125).contains(&n_registers) {
             Ok(Self { starting_address, n_registers })
         } else {
-            Err(protocol::Error::InvalidCount(n_registers.into()))
+            Err(protocol::WireError::InvalidCount(n_registers.into()))
         }
     }
 }

@@ -14,8 +14,7 @@ pub struct HeaderDecoder;
 impl HeaderDecoder {
     /// Receive the bytes from the wire.
     pub fn decode(self, bytes: &[u8; Header::SIZE]) -> Result<PayloadDecoder, tcp::Error> {
-        let header = Header::read_be(&mut Cursor::new(bytes))?;
-        Ok(PayloadDecoder(header))
+        Ok(PayloadDecoder(Header::read_be(&mut Cursor::new(bytes))?))
     }
 }
 

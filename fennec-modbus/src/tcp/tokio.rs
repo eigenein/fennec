@@ -7,8 +7,7 @@ use crate::tcp::decoder::HeaderDecoder;
 /// Modbus TCP client for [`tokio`].
 #[derive(Clone)]
 pub struct Client {
-    socket: Arc<tokio::net::TcpStream>,
-    context: Arc<Mutex<HeaderDecoder>>,
+    stream: Arc<tokio::net::TcpStream>,
 }
 
 impl Client {

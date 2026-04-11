@@ -1,29 +1,28 @@
 #![cfg(feature = "tokio")]
 
 use alloc::{vec, vec::Vec};
-use core::fmt::Debug;
+use core::{fmt::Debug, time::Duration};
 
 use binrw::{BinRead, BinWrite};
+use bon::bon;
 use thiserror::Error;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs},
     sync::{MappedMutexGuard, Mutex, MutexGuard},
+    time::timeout,
 };
 
-use crate::{protocol::function::read_holding_registers, tcp};
+use crate::{protocol, protocol::function::read_holding_registers, tcp};
 
 #[must_use]
 struct Connection<E> {
     endpoint: E,
+    connect_timeout: Duration,
     stream: Mutex<Option<TcpStream>>,
 }
 
 impl<E> Connection<E> {
-    fn new(endpoint: E) -> Self {
-        Self { endpoint, stream: Mutex::new(None) }
-    }
-
     /// Lazily establish a connection when needed and return the TCP stream.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     async fn get(&self) -> Result<MappedMutexGuard<'_, TcpStream>, Error>
@@ -36,7 +35,9 @@ impl<E> Connection<E> {
             #[cfg(feature = "tracing")]
             tracing::debug!("connecting…");
 
-            let stream = TcpStream::connect(Clone::clone(&self.endpoint)).await?;
+            let stream =
+                timeout(self.connect_timeout, TcpStream::connect(Clone::clone(&self.endpoint)))
+                    .await??;
             stream.set_nodelay(true)?;
             socket2::SockRef::from(&stream).set_keepalive(true)?;
             *guard = Some(stream);
@@ -51,11 +52,27 @@ impl<E> Connection<E> {
 pub struct Client<E> {
     encoder: tcp::Encoder,
     connection: Connection<E>,
+    round_trip_timeout: Duration,
 }
 
+#[bon]
 impl<E> Client<E> {
-    pub fn new(endpoint: E) -> Self {
-        Self { encoder: tcp::Encoder::default(), connection: Connection::new(endpoint) }
+    #[builder]
+    pub fn new(
+        /// Connection endpoint, anything that supports [`tokio::net::ToSocketAddrs`].
+        endpoint: E,
+        /// Timeout for establishing a connection.
+        #[builder(default = Duration::from_secs(5))]
+        connect_timeout: Duration,
+        /// Round-trip timeout for entire function call.
+        #[builder(default = Duration::from_secs(1))]
+        round_trip_timeout: Duration,
+    ) -> Self {
+        Self {
+            encoder: tcp::Encoder::default(),
+            connection: Connection { endpoint, connect_timeout, stream: Mutex::new(None) },
+            round_trip_timeout,
+        }
     }
 }
 
@@ -71,13 +88,12 @@ where
         n_registers: u16,
     ) -> Result<Vec<u16>, Error> {
         #[cfg(feature = "tracing")]
-        tracing::debug!("reading holding registers…");
+        tracing::debug!(?unit_id, starting_address, n_registers, "reading holding registers…");
 
         let request = read_holding_registers::Request::builder()
             .starting_address(starting_address)
             .n_registers(n_registers)
-            .build()
-            .map_err(tcp::Error::from)?;
+            .build()?;
         let response = self.call::<_, read_holding_registers::Response>(unit_id, &request).await?;
         Ok(response.words)
     }
@@ -94,44 +110,59 @@ where
         let (frame, transaction_id) = self.encoder.prepare(unit_id, request)?;
         let mut stream = self.connection.get().await?;
 
-        #[cfg(feature = "tracing")]
-        tracing::trace!(transaction_id, len = frame.len(), "writing frame");
-        stream.write_all(&frame).await?;
-
-        let header = loop {
+        let future = async {
             #[cfg(feature = "tracing")]
-            tracing::trace!(transaction_id, "awaiting header…");
+            tracing::trace!(transaction_id, len = frame.len(), "writing frame");
+            stream.write_all(&frame).await?;
 
-            let header = tcp::decode_header(&{
-                let mut header_bytes = [0; tcp::Header::SIZE];
-                stream.read_exact(&mut header_bytes).await?;
-                header_bytes
-            })?;
+            let header = loop {
+                #[cfg(feature = "tracing")]
+                tracing::trace!(transaction_id, "awaiting header…");
+
+                let header = tcp::decode_header(&{
+                    let mut header_bytes = [0; tcp::Header::SIZE];
+                    stream.read_exact(&mut header_bytes).await?;
+                    header_bytes
+                })?;
+
+                #[cfg(feature = "tracing")]
+                tracing::trace!(transaction_id = header.transaction_id, "received header");
+
+                if header.transaction_id == transaction_id {
+                    break header;
+                }
+            };
+
+            let mut payload_bytes = vec![0; header.payload_length().into()];
 
             #[cfg(feature = "tracing")]
-            tracing::trace!(transaction_id = header.transaction_id, "received header");
+            tracing::trace!(len = header.payload_length(), "reading payload…");
 
-            if header.transaction_id == transaction_id {
-                break header;
-            }
+            stream.read_exact(&mut payload_bytes).await?;
+            drop(stream);
+
+            Ok::<_, Error>(payload_bytes)
         };
 
-        let mut payload_bytes = vec![0; header.payload_length().into()];
-
-        #[cfg(feature = "tracing")]
-        tracing::trace!(len = header.payload_length(), "reading payload…");
-
-        stream.read_exact(&mut payload_bytes).await?;
-        drop(stream);
+        let payload_bytes = timeout(self.round_trip_timeout, future).await??;
         Ok(tcp::decode_payload::<R>(&payload_bytes)?)
     }
 }
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("transport error")]
+    #[error("TCP transport error")]
     Tcp(#[from] tcp::Error),
 
     #[error("I/O error")]
     Io(#[from] tokio::io::Error),
+
+    #[error("timeout")]
+    Timeout(#[from] tokio::time::error::Elapsed),
+}
+
+impl From<protocol::Error> for Error {
+    fn from(error: protocol::Error) -> Self {
+        Self::Tcp(tcp::Error::Protocol(error))
+    }
 }

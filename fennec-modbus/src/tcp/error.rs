@@ -7,7 +7,7 @@ use crate::protocol;
 #[must_use]
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("protocol error")]
+    #[error("Modbus protocol error")]
     Protocol(#[from] protocol::Error),
 
     #[error("invalid unit ID ({0})")]

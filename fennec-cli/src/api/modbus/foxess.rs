@@ -1,13 +1,6 @@
 //! FoxESS Modbus clients.
 
-use std::time::Duration;
-
-use tokio::{net::TcpStream, time::timeout};
-use tokio_modbus::{
-    Address,
-    Slave,
-    client::{Reader, tcp::attach_slave},
-};
+use fennec_modbus::tcp::UnitId;
 
 use crate::{
     battery,
@@ -17,39 +10,15 @@ use crate::{
 
 /// FoxESS MQ2200 Modbus client.
 #[must_use]
-pub struct MQ2200 {
-    address: String,
-    context: Option<tokio_modbus::client::Context>,
-}
+pub struct MQ2200(fennec_modbus::tcp::tokio::Client<String>);
 
 impl MQ2200 {
-    const TIMEOUT: Duration = Duration::from_secs(5);
-
-    pub async fn connect(address: String) -> Result<Self> {
-        let mut this = Self { address, context: None };
-        this.get_context().await?;
-        Ok(this)
-    }
-
-    #[instrument(skip_all, fields(address = self.address))]
-    async fn get_context(&mut self) -> Result<&mut tokio_modbus::client::Context> {
-        #[expect(clippy::unnecessary_unwrap)]
-        if self.context.is_some() {
-            return Ok(self.context.as_mut().unwrap());
-        }
-
-        info!("connecting…");
-        let tcp_stream = timeout(Self::TIMEOUT, TcpStream::connect(&self.address))
-            .await
-            .context("timed out while connecting to the battery")?
-            .context("failed to connect to the battery")?;
-        tcp_stream.set_nodelay(true)?;
-        info!("connected");
-        Ok(self.context.insert(attach_slave(tcp_stream, Slave(1))))
+    pub fn new(address: String) -> Self {
+        Self(fennec_modbus::tcp::tokio::Client::builder().endpoint(address).build())
     }
 
     #[instrument(skip_all)]
-    pub async fn read_state(&mut self) -> Result<battery::State> {
+    pub async fn read_state(&self) -> Result<battery::State> {
         // TODO: read these once and cache them:
         let design_capacity = self.read_design_capacity().await?;
         let health = self.read_state_of_health().await?;
@@ -73,43 +42,43 @@ impl MQ2200 {
         })
     }
 
-    async fn read_min_system_soc(&mut self) -> Result<Percentage> {
+    async fn read_min_system_soc(&self) -> Result<Percentage> {
         self.read_u16(46609).await.context("failed to read the minimum system SoC").map(Percentage)
     }
 
-    async fn read_min_soc_on_grid(&mut self) -> Result<Percentage> {
+    async fn read_min_soc_on_grid(&self) -> Result<Percentage> {
         self.read_u16(46611).await.context("failed to read the minimum SoC on grid").map(Percentage)
     }
 
-    async fn read_max_soc(&mut self) -> Result<Percentage> {
+    async fn read_max_soc(&self) -> Result<Percentage> {
         self.read_u16(46610).await.context("failed to read the maximum SoC").map(Percentage)
     }
 
-    async fn read_design_capacity(&mut self) -> Result<DecawattHours> {
+    async fn read_design_capacity(&self) -> Result<DecawattHours> {
         self.read_u16(37635).await.context("failed to read the design capacity").map(DecawattHours)
     }
 
-    async fn read_state_of_charge(&mut self) -> Result<Percentage> {
+    async fn read_state_of_charge(&self) -> Result<Percentage> {
         self.read_u16(39424).await.context("failed to read the SoC").map(Percentage)
     }
 
-    async fn read_state_of_health(&mut self) -> Result<Percentage> {
+    async fn read_state_of_health(&self) -> Result<Percentage> {
         self.read_u16(37624).await.context("failed to read the SoH").map(Percentage)
     }
 
     /// Read total external active power.
     ///
     /// Positive means discharging, negative means charging.
-    async fn read_active_power(&mut self) -> Result<Watts> {
+    async fn read_active_power(&self) -> Result<Watts> {
         self.read_i32(39134).await.context("failed to read the active power").map(Into::into)
     }
 
     /// Read current EPS output power.
-    async fn read_eps_active_power(&mut self) -> Result<Watts> {
+    async fn read_eps_active_power(&self) -> Result<Watts> {
         self.read_i32(39216).await.context("failed to read the EPS active power").map(Into::into)
     }
 
-    async fn read_u16(&mut self, address: Address) -> Result<u16> {
+    async fn read_u16(&self, address: u16) -> Result<u16> {
         self.read_holding_registers(address, 1)
             .await
             .context("failed to read `u16`")?
@@ -118,7 +87,7 @@ impl MQ2200 {
             .with_context(|| format!("register #{address} returned no data"))
     }
 
-    async fn read_i32(&mut self, address: Address) -> Result<i32> {
+    async fn read_i32(&self, address: u16) -> Result<i32> {
         let words =
             self.read_holding_registers(address, 2).await.context("failed to read `u32`")?;
         let [high, low] = words[..] else {
@@ -130,22 +99,10 @@ impl MQ2200 {
     }
 
     #[instrument(skip_all, fields(address = address))]
-    async fn read_holding_registers(&mut self, address: Address, count: u16) -> Result<Vec<u16>> {
-        let read = async {
-            self.get_context()
-                .await?
-                .read_holding_registers(address, count)
-                .await
-                .context("Modbus protocol or network error")?
-                .context("Modbus server error")
-        };
-        timeout(Self::TIMEOUT, read)
+    async fn read_holding_registers(&self, address: u16, count: u16) -> Result<Vec<u16>> {
+        self.0
+            .read_holding_registers(UnitId::Significant(1), address, count)
             .await
-            .map_err(Error::from)
-            .flatten()
-            .inspect(|words| debug!(?words, "read"))
-            .inspect_err(|_| {
-                self.context = None;
-            })
+            .context("Modbus error")
     }
 }

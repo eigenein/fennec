@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use clap::Parser;
 use reqwest::Url;
-use tokio::sync::Mutex;
 
 use crate::{
     api::{fox_cloud, homewizard, modbus::foxess::MQ2200},
@@ -33,7 +32,7 @@ impl ConnectionArgs {
         Ok(Connections {
             grid_measurement: self.grid_measurement_url.client()?,
             db: Db::with_uri(self.db_uri).await?,
-            battery: Arc::new(Mutex::new(MQ2200::connect(self.battery_address).await?)),
+            battery: Arc::new(MQ2200::new(self.battery_address)),
             fox_cloud: self.fox_cloud.client()?,
         })
     }
@@ -43,6 +42,6 @@ impl ConnectionArgs {
 pub struct Connections {
     pub grid_measurement: homewizard::Client,
     pub db: Db,
-    pub battery: Arc<Mutex<MQ2200>>,
+    pub battery: Arc<MQ2200>,
     pub fox_cloud: Option<fox_cloud::Client>,
 }

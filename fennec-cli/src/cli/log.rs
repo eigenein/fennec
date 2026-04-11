@@ -39,7 +39,7 @@ impl Logger {
         let read_state = || async {
             // Retry them together to ensure the measurements are in sync.
             try_join!(
-                async { self.connections.battery.lock().await.read_state().await },
+                async { self.connections.battery.read_state().await },
                 self.connections.grid_measurement.get_measurement()
             )
         };

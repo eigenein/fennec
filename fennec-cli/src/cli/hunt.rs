@@ -114,7 +114,7 @@ impl Hunter {
         let energy_prices =
             (|| self.get_prices(now)).retry(Self::BACKOFF).notify(log_retried_error).await?;
 
-        let battery_state = (async || self.connections.battery.lock().await.read_state().await)
+        let battery_state = (async || self.connections.battery.read_state().await)
             .retry(Self::BACKOFF)
             .notify(log_retried_error)
             .await

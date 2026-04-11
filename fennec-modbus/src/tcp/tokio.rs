@@ -9,7 +9,7 @@ use thiserror::Error;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs},
-    sync::{MappedMutexGuard, Mutex, MutexGuard},
+    sync::{Mutex, MutexGuard},
     time::timeout,
 };
 
@@ -25,7 +25,7 @@ struct Connection<E> {
 impl<E> Connection<E> {
     /// Lazily establish a connection when needed and return the TCP stream.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    async fn get(&self) -> Result<MappedMutexGuard<'_, TcpStream>, Error>
+    async fn get(&self) -> Result<ConnectionGuard<'_>, Error>
     where
         E: Clone + ToSocketAddrs,
     {
@@ -43,7 +43,19 @@ impl<E> Connection<E> {
             *guard = Some(stream);
         }
 
-        Ok(MutexGuard::map(guard, |inner| inner.as_mut().unwrap()))
+        Ok(ConnectionGuard(guard))
+    }
+}
+
+struct ConnectionGuard<'a>(MutexGuard<'a, Option<TcpStream>>);
+
+impl ConnectionGuard<'_> {
+    fn get_mut(&mut self) -> &mut TcpStream {
+        self.0.as_mut().unwrap()
+    }
+
+    fn invalidate(mut self) {
+        *self.0 = None;
     }
 }
 
@@ -80,6 +92,16 @@ impl<E> Client<E>
 where
     E: Clone + ToSocketAddrs,
 {
+    /// Disconnect the client.
+    ///
+    /// Subsequent call will re-establish a connection.
+    /// Note that the client normally disconnects automatically on error.
+    ///
+    /// This operation is idempotent, closing a closed connection is a no-op.
+    pub async fn disconnect(&self) {
+        *self.connection.stream.lock().await = None;
+    }
+
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
     pub async fn read_holding_registers(
         &self,
@@ -108,12 +130,12 @@ where
         R: for<'a> BinRead<Args<'a> = ()>,
     {
         let (frame, transaction_id) = self.encoder.prepare(unit_id, request)?;
-        let mut stream = self.connection.get().await?;
+        let mut connection = self.connection.get().await?;
 
         let future = async {
             #[cfg(feature = "tracing")]
             tracing::trace!(transaction_id, len = frame.len(), "writing frame");
-            stream.write_all(&frame).await?;
+            connection.get_mut().write_all(&frame).await?;
 
             let header = loop {
                 #[cfg(feature = "tracing")]
@@ -121,7 +143,7 @@ where
 
                 let header = tcp::decode_header(&{
                     let mut header_bytes = [0; tcp::Header::SIZE];
-                    stream.read_exact(&mut header_bytes).await?;
+                    connection.get_mut().read_exact(&mut header_bytes).await?;
                     header_bytes
                 })?;
 
@@ -138,13 +160,21 @@ where
             #[cfg(feature = "tracing")]
             tracing::trace!(len = header.payload_length(), "reading payload…");
 
-            stream.read_exact(&mut payload_bytes).await?;
-            drop(stream);
+            connection.get_mut().read_exact(&mut payload_bytes).await?;
 
             Ok::<_, Error>(payload_bytes)
         };
 
-        let payload_bytes = timeout(self.round_trip_timeout, future).await??;
+        let payload_bytes = timeout(self.round_trip_timeout, future)
+            .await
+            .map_err(Error::from)
+            .flatten()
+            .inspect_err(|error| {
+                #[cfg(feature = "tracing")]
+                tracing::debug!("invalidating connection because of error: {error:#}");
+
+                connection.invalidate();
+            })?;
         Ok(tcp::decode_payload::<R>(&payload_bytes)?)
     }
 }

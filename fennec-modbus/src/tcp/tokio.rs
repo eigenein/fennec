@@ -1,6 +1,6 @@
 #![cfg(feature = "tokio")]
 
-use alloc::{sync::Arc, vec, vec::Vec};
+use alloc::{vec, vec::Vec};
 use core::fmt::Debug;
 
 use binrw::{BinRead, BinWrite};
@@ -8,79 +8,91 @@ use thiserror::Error;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs},
-    sync::Mutex,
+    sync::{MappedMutexGuard, Mutex, MutexGuard},
 };
 
 use crate::{protocol::function::read_holding_registers, tcp};
 
 #[must_use]
-struct Inner {
-    stream: Mutex<TcpStream>,
-    encoder: tcp::Encoder,
+struct Connection<E> {
+    endpoint: E,
+    stream: Mutex<Option<TcpStream>>,
+}
+
+impl<E> Connection<E> {
+    fn new(endpoint: E) -> Self {
+        Self { endpoint, stream: Mutex::new(None) }
+    }
+
+    /// Lazily establish a connection when needed and return the TCP stream.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
+    async fn get(&self) -> Result<MappedMutexGuard<'_, TcpStream>, Error>
+    where
+        E: Clone + ToSocketAddrs,
+    {
+        let mut guard = self.stream.lock().await;
+
+        if guard.is_none() {
+            #[cfg(feature = "tracing")]
+            tracing::debug!("connecting…");
+
+            let stream = TcpStream::connect(Clone::clone(&self.endpoint)).await?;
+            stream.set_nodelay(true)?;
+            socket2::SockRef::from(&stream).set_keepalive(true)?;
+            *guard = Some(stream);
+        }
+
+        Ok(MutexGuard::map(guard, |inner| inner.as_mut().unwrap()))
+    }
 }
 
 /// Modbus TCP client for [`tokio`].
-#[derive(Clone)]
 #[must_use]
-pub struct Client(Arc<Inner>);
+pub struct Client<E> {
+    encoder: tcp::Encoder,
+    connection: Connection<E>,
+}
 
-impl Client {
-    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace"))]
-    pub async fn connect(endpoint: impl Debug + ToSocketAddrs) -> Result<Self, Error> {
-        #[cfg(feature = "tracing")]
-        tracing::trace!("connecting…");
-
-        let stream = TcpStream::connect(endpoint).await?;
-        stream.set_nodelay(true)?;
-        socket2::SockRef::from(&stream).set_keepalive(true)?;
-        Ok(Self(Arc::new(Inner { stream: Mutex::new(stream), encoder: tcp::Encoder::default() })))
+impl<E> Client<E> {
+    pub fn new(endpoint: E) -> Self {
+        Self { encoder: tcp::Encoder::default(), connection: Connection::new(endpoint) }
     }
+}
 
-    #[cfg_attr(
-        feature = "tracing",
-        tracing::instrument(
-            skip_all,
-            level = "trace",
-            fields(starting_address = starting_address, n_registers = n_registers)
-        ),
-    )]
+impl<E> Client<E>
+where
+    E: Clone + ToSocketAddrs,
+{
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
     pub async fn read_holding_registers(
         &self,
         unit_id: tcp::UnitId,
         starting_address: u16,
         n_registers: u16,
     ) -> Result<Vec<u16>, Error> {
-        let response = self
-            .call::<_, read_holding_registers::Response>(
-                unit_id,
-                &read_holding_registers::Request::builder()
-                    .starting_address(starting_address)
-                    .n_registers(n_registers)
-                    .build()
-                    .map_err(tcp::Error::from)?,
-            )
-            .await?;
+        #[cfg(feature = "tracing")]
+        tracing::debug!("reading holding registers…");
+
+        let request = read_holding_registers::Request::builder()
+            .starting_address(starting_address)
+            .n_registers(n_registers)
+            .build()
+            .map_err(tcp::Error::from)?;
+        let response = self.call::<_, read_holding_registers::Response>(unit_id, &request).await?;
         Ok(response.words)
     }
 
     /// Low-level interface to call a Modbus function.
     ///
     /// The caller is responsible for matching the request and response.
-    #[cfg_attr(
-        feature = "tracing",
-        tracing::instrument(
-            skip_all,
-            level = "trace",
-            fields(unit_id = ?unit_id)
-        ),
-    )]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
     pub async fn call<S, R>(&self, unit_id: tcp::UnitId, request: &S) -> Result<R, Error>
     where
         S: for<'a> BinWrite<Args<'a> = ()>,
         R: for<'a> BinRead<Args<'a> = ()>,
     {
-        let (frame, transaction_id) = self.0.encoder.prepare(unit_id, request)?;
-        let mut stream = self.0.stream.lock().await;
+        let (frame, transaction_id) = self.encoder.prepare(unit_id, request)?;
+        let mut stream = self.connection.get().await?;
 
         #[cfg(feature = "tracing")]
         tracing::trace!(transaction_id, len = frame.len(), "writing frame");

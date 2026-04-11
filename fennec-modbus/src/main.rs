@@ -17,7 +17,7 @@ async fn main() -> Result {
         .init();
 
     let args = Args::parse();
-    let client = Client::connect(args.endpoint).await?;
+    let client = Client::new(args.endpoint);
     let words = client.read_holding_registers(args.unit_id.try_into()?, args.address, 1).await?;
     println!("{}", words[0]);
     Ok(())

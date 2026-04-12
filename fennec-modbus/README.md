@@ -1,4 +1,40 @@
-# Specifications
+# `fennec-modbus`
+
+🦊 Modular [Modbus](https://www.modbus.org) client.
+
+- **The TCP layer is sans-IO.** Default implementation for Tokio is provided, and may be used with any TCP client.
+- **The Modbus layer is sans-IO.** The TCP layer is provided, and the underlying protocol can be used over any transport.
+- **Extensible functions.** Most used standard Modbus functions are provided, and the client can use any user-implemented function with `binrw` arguments and output. 
+
+## Sneak peak
+
+```rust,no_run
+use anyhow::Result;
+
+use fennec_modbus::tcp::UnitId;
+use fennec_modbus::tcp::tokio::Client;
+
+# #[tokio::main]
+# async fn main() -> Result<()> {
+let unit_id = UnitId::try_from(1)?;
+let client = Client::builder()
+    .endpoint("battery.iot.home.arpa:502")
+    .build();
+let voltage = client
+    .read_holding_registers(unit_id, 39201, 1)
+    .await?
+    .into_iter()
+    .next()
+    .unwrap();
+# Ok(())
+# }
+```
+
+## Disclaimer
+
+The package is used in a live application, but at this point, the public interface may change wildly.
+
+## Specifications
 
 - [Application protocol specification v1.1b3](https://www.modbus.org/file/secure/modbusprotocolspecification.pdf)
 - [Messaging on TCP/IP Implementation Guide](https://www.modbus.org/file/secure/messagingimplementationguide.pdf)

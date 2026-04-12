@@ -14,7 +14,12 @@ use tokio::{
 
 use crate::{
     protocol,
-    protocol::{Function, data_unit, function::read_holding_registers, r#struct::Readable},
+    protocol::{
+        Function,
+        data_unit,
+        function::{ReadHoldingRegisters, read_registers},
+        r#struct::Readable,
+    },
     tcp,
 };
 
@@ -115,11 +120,11 @@ where
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, starting_address, n_registers, "reading holding registers…");
 
-        let request = read_holding_registers::Args::builder()
+        let request = read_registers::Args::builder()
             .starting_address(starting_address)
             .n_registers(n_registers)
             .build()?;
-        let response = self.call::<read_holding_registers::Function>(unit_id, request).await?;
+        let response = self.call::<ReadHoldingRegisters>(unit_id, request).await?;
         Ok(response.words)
     }
 
@@ -130,12 +135,13 @@ where
     pub async fn call<F: Function>(
         &self,
         unit_id: tcp::UnitId,
-        request: F::Args,
+        args: F::Args,
     ) -> Result<F::Output, Error> {
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, code = F::CODE, "calling function…");
 
-        let (frame, transaction_id) = self.encoder.prepare(unit_id, &F::wrap_args(request))?;
+        let (frame, transaction_id) =
+            self.encoder.prepare(unit_id, &data_unit::Request::from_args::<F>(args))?;
         let mut connection = self.connection.get().await?;
 
         let future = async {

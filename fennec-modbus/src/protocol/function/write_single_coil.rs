@@ -3,18 +3,6 @@ use alloc::{boxed::Box, format};
 use binrw::{BinRead, BinWrite};
 use bon::Builder;
 
-use crate::protocol;
-
-/// Write a single output to either «on» or «off» in a remote device.
-#[must_use]
-pub struct Function;
-
-impl protocol::Function for Function {
-    const CODE: u8 = 5;
-    type Args = Payload;
-    type Output = Payload;
-}
-
 #[must_use]
 #[derive(Builder, Copy, Clone, Debug, BinRead, BinWrite)]
 #[brw(big)]

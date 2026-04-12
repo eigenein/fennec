@@ -57,6 +57,11 @@ jobs:
         env:
           TZ: "Europe/Amsterdam"
 
+      - name: "📝 Docs"
+        run: "cargo doc --no-deps --lib"
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
       - name: 📤 Upload coverage
         uses: codecov/codecov-action@v6
         with:

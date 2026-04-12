@@ -1,6 +1,11 @@
 //! The lowest protocol level.
 //!
 //! It operates with PDU's and independent of any transport.
+//! If you're implementing transport like PDU, you're going to need this module:
+//!
+//! - **Data units** are the PDU's that you're going to wrap into your transport.
+//! - **Functions** are the actual Modbus functions expressed in terms of function code,
+//!   request arguments and output.
 
 pub mod data_unit;
 mod error;
@@ -29,9 +34,4 @@ pub trait Function {
     ///
     /// Note that this readable type *must not* include the function code.
     type Output: Readable;
-
-    /// Convert the payload into PDU.
-    fn wrap_args(args: Self::Args) -> data_unit::Request<Self::Args> {
-        data_unit::Request { function_code: Self::CODE, args }
-    }
 }

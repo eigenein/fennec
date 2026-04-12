@@ -5,16 +5,6 @@ use bon::bon;
 
 use crate::{protocol, protocol::r#struct::Writable};
 
-/// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
-#[must_use]
-pub struct Function;
-
-impl protocol::Function for Function {
-    const CODE: u8 = 15;
-    type Args = Args;
-    type Output = Output;
-}
-
 #[must_use]
 #[derive(Clone, Debug, BinWrite)]
 #[bw(big)]

@@ -1,3 +1,5 @@
+//! Shared structures for reading multiple registers.
+
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
@@ -5,16 +7,6 @@ use binrw::{BinRead, BinWrite};
 use bon::bon;
 
 use crate::protocol;
-
-/// Read from 1 to 125 contiguous input registers in a remote device.
-#[must_use]
-pub struct Function;
-
-impl protocol::Function for Function {
-    const CODE: u8 = 4;
-    type Args = Args;
-    type Output = Output;
-}
 
 #[must_use]
 #[derive(Copy, Clone, Debug, BinWrite)]
@@ -62,13 +54,13 @@ mod tests {
     #[test]
     fn request_example_ok() {
         const EXPECTED: &[u8] = &[
-            0x00, 0x08, // starting address: high, low
-            0x00, 0x01, // count: high, low
+            0x00, 0x6B, // starting address: high, low
+            0x00, 0x03, // count: high, low
         ];
         let mut output = Cursor::new(vec![]);
         Args::builder()
-            .starting_address(8)
-            .n_registers(1)
+            .starting_address(107)
+            .n_registers(3)
             .build()
             .unwrap()
             .write(&mut output)
@@ -79,10 +71,12 @@ mod tests {
     #[test]
     fn response_example_ok() {
         const RESPONSE: &[u8] = &[
-            0x02, // byte count
-            0x00, 0x0A, // value: high, low
+            0x06, // byte count
+            0x02, 0x2B, // value: high, low
+            0x00, 0x00, // value: high, low
+            0x00, 0x64, // value: high, low
         ];
         let response = Output::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.words, [10]);
+        assert_eq!(response.words, [555, 0, 100]);
     }
 }

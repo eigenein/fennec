@@ -1,20 +1,7 @@
-use core::marker::PhantomData;
-
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
 use crate::{protocol, protocol::r#struct::Readable};
-
-/// Read from 1 to 2000 contiguous status of coils in a remote device.
-#[derive(Copy, Clone)]
-#[must_use]
-pub struct Function<S: Readable>(PhantomData<S>);
-
-impl<S: Readable> protocol::Function for Function<S> {
-    const CODE: u8 = 1;
-    type Args = Args;
-    type Output = Output<S>;
-}
 
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinWrite)]

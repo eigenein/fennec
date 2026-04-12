@@ -2,19 +2,6 @@ use core::fmt::Debug;
 
 use binrw::{BinRead, BinWrite};
 
-use crate::protocol;
-
-/// Read the contents of eight Exception Status outputs in a remote device.
-#[must_use]
-#[derive(Copy, Clone)]
-pub struct Function;
-
-impl protocol::Function for Function {
-    const CODE: u8 = 7;
-    type Args = Args;
-    type Output = Output;
-}
-
 #[must_use]
 #[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big)]

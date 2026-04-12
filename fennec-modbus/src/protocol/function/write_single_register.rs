@@ -1,18 +1,6 @@
 use binrw::{BinRead, BinWrite};
 use bon::Builder;
 
-use crate::protocol;
-
-/// Write a single holding register in a remote device.
-#[must_use]
-pub struct Function;
-
-impl protocol::Function for Function {
-    const CODE: u8 = 6;
-    type Args = Payload;
-    type Output = Payload;
-}
-
 #[must_use]
 #[derive(Builder, Copy, Clone, Debug, BinRead, BinWrite)]
 #[brw(big)]

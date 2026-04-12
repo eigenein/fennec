@@ -6,16 +6,6 @@ use bon::bon;
 
 use crate::protocol;
 
-/// Write a block of contiguous registers (1 to 123 registers) in a remote device.
-#[must_use]
-pub struct Function;
-
-impl protocol::Function for Function {
-    const CODE: u8 = 16;
-    type Args = Args;
-    type Output = Output;
-}
-
 #[must_use]
 #[derive(Clone, Debug, BinWrite)]
 #[bw(big)]

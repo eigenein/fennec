@@ -1,5 +1,6 @@
 .env
 .zig-cache
+codecov.json
 flamegraph.svg
 node_modules
 

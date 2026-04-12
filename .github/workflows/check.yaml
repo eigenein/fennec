@@ -28,8 +28,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⬆️ Update Rust
-        run: rustup update --no-self-update
+      - name: ⬆️ Set up stable Rust
+        uses: "dtolnay/rust-toolchain@stable"
+        with:
+          components: "clippy"
+
+      - name: ⬆️ Set up nightly Rust
+        uses: "dtolnay/rust-toolchain@nightly"
+        with:
+          components: "llvm-tools-preview"
 
       - name: 📥 Checkout
         uses: actions/checkout@v6
@@ -45,10 +52,10 @@ jobs:
       - name: 🧪 Install coverage tools
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: 🧪 Test
-        run: cargo llvm-cov --codecov --output-path=codecov.json --workspace -- --include-ignored
+      - name: "🧪 Test"
+        run: "cargo +nightly llvm-cov --codecov --doctests --output-path=codecov.json --workspace -- --include-ignored"
         env:
-          TZ: Europe/Amsterdam
+          TZ: "Europe/Amsterdam"
 
       - name: 📤 Upload coverage
         uses: codecov/codecov-action@v6

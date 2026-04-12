@@ -2,10 +2,10 @@
 name = "fennec-modbus"
 description = "Modular Modbus client implementation"
 keywords = ["modbus", "modbus-client", "hardware"]
+publish = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-publish.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true

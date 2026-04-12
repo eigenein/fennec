@@ -11,11 +11,10 @@ description = "FoxESS home battery steering based on Next Energy or Frank Energi
 edition = "2024"
 keywords = ["foxess", "nextenergy", "frank-energie", "home-battery"]
 license = "MIT"
-publish = false
 readme = "README.md"
 repository = "https://github.com/eigenein/fennec"
 rust-version = "1.93"
-version = "0.86.9"
+version = "0.87.0"
 
 [workspace.lints.clippy]
 future_not_send = "allow"

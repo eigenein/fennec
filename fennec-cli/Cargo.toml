@@ -1,12 +1,12 @@
 [package]
 name = "fennec-cli"
 default-run = "fennec-cli"
+publish = false
 description.workspace = true
 authors.workspace = true
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
-publish.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true

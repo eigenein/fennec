@@ -1,16 +1,16 @@
 use binrw::BinRead;
 
-use crate::protocol::{Error, exception};
+use crate::protocol::{Error, exception, r#struct::Readable};
 
 /// Response protocol data unit.
 #[derive(Clone, derive_more::Debug, derive_more::Unwrap, derive_more::TryUnwrap, BinRead)]
 #[br(big)]
-pub enum Response<T: for<'a> BinRead<Args<'a> = ()>> {
+pub enum Response<T: Readable> {
     Ok(T),
     Exception(exception::Response),
 }
 
-impl<T: for<'a> BinRead<Args<'a> = ()>> Response<T> {
+impl<T: Readable> Response<T> {
     pub fn into_result(self) -> Result<T, Error> {
         match self {
             Self::Ok(response) => Ok(response),

@@ -6,5 +6,6 @@ mod error;
 mod exception;
 pub mod function;
 mod response;
+pub mod r#struct;
 
 pub use self::{error::Error, exception::*, response::Response};

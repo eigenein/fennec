@@ -1,12 +1,8 @@
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicU16, Ordering};
 
-use binrw::{
-    BinWrite,
-    io::{Cursor, Write},
-};
-
 use crate::{
+    protocol::r#struct::Writable,
     tcp,
     tcp::{Header, UnitId},
 };
@@ -27,32 +23,25 @@ impl Encoder {
     pub fn prepare(
         &self,
         unit_id: UnitId,
-        request: &impl for<'a> BinWrite<Args<'a> = ()>,
+        request: &impl Writable,
     ) -> Result<(Vec<u8>, u16), tcp::Error> {
-        let payload_bytes = {
-            let mut cursor = Cursor::new(Vec::new());
-            request.write_be(&mut cursor)?;
-            cursor.into_inner()
-        };
-
-        let header = {
-            let length = u16::try_from(payload_bytes.len() + 1)
-                .map_err(|_| tcp::Error::PayloadSizeExceeded(payload_bytes.len()))?;
-            Header::builder()
-                .unit_id(unit_id)
-                .transaction_id(self.0.fetch_add(1, Ordering::Relaxed))
-                .length(length)
-                .build()
-        };
-
+        let transaction_id = self.0.fetch_add(1, Ordering::Relaxed);
         let frame_bytes = {
-            let mut frame_cursor = Cursor::new(Vec::new());
-            header.write_be(&mut frame_cursor)?;
-            frame_cursor.write_all(&payload_bytes).map_err(binrw::Error::Io)?;
-            frame_cursor.into_inner()
+            let payload_bytes = request.to_bytes()?;
+            let mut frame_bytes = {
+                let length = u16::try_from(payload_bytes.len() + 1)
+                    .map_err(|_| tcp::Error::PayloadSizeExceeded(payload_bytes.len()))?;
+                Header::builder()
+                    .unit_id(unit_id)
+                    .transaction_id(transaction_id)
+                    .length(length)
+                    .build()
+                    .to_bytes()?
+            };
+            frame_bytes.extend(payload_bytes);
+            frame_bytes
         };
-
-        Ok((frame_bytes, header.transaction_id))
+        Ok((frame_bytes, transaction_id))
     }
 }
 

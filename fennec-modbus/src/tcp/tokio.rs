@@ -3,7 +3,6 @@
 use alloc::{vec, vec::Vec};
 use core::{fmt::Debug, time::Duration};
 
-use binrw::{BinRead, BinWrite};
 use bon::bon;
 use thiserror::Error;
 use tokio::{
@@ -13,7 +12,14 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{protocol, protocol::function::read_holding_registers, tcp};
+use crate::{
+    protocol,
+    protocol::{
+        function::read_holding_registers,
+        r#struct::{Readable, Writable},
+    },
+    tcp,
+};
 
 #[must_use]
 struct Connection<E> {
@@ -126,8 +132,8 @@ where
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
     pub async fn call<S, R>(&self, unit_id: tcp::UnitId, request: &S) -> Result<R, Error>
     where
-        S: for<'a> BinWrite<Args<'a> = ()>,
-        R: for<'a> BinRead<Args<'a> = ()>,
+        S: Writable,
+        R: Readable,
     {
         let (frame, transaction_id) = self.encoder.prepare(unit_id, request)?;
         let mut connection = self.connection.get().await?;
@@ -175,7 +181,7 @@ where
 
                 connection.invalidate();
             })?;
-        Ok(tcp::decode_payload::<R>(&payload_bytes)?)
+        Ok(protocol::Response::<R>::from_bytes(&payload_bytes)?.into_result()?)
     }
 }
 

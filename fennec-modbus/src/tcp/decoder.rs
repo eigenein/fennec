@@ -1,18 +1,12 @@
 //! Sans-IO Modbus-over-TCP client decoders.
 
-use binrw::{BinRead, io::Cursor};
-
 use crate::{
-    protocol,
+    protocol::r#struct::Readable,
     tcp::{Error, Header},
 };
 
 pub fn decode_header(bytes: &[u8; Header::SIZE]) -> Result<Header, Error> {
-    Ok(Header::read_be(&mut Cursor::new(bytes))?)
-}
-
-pub fn decode_payload<T: for<'a> BinRead<Args<'a> = ()>>(bytes: &[u8]) -> Result<T, Error> {
-    Ok(protocol::Response::<T>::read_be(&mut Cursor::new(bytes))?.into_result()?)
+    Ok(Header::from_bytes(bytes)?)
 }
 
 #[cfg(test)]

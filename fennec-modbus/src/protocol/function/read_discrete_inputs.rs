@@ -3,7 +3,7 @@
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
-use crate::protocol;
+use crate::{protocol, protocol::r#struct::Readable};
 
 /// Read from 1 to 2000 contiguous status of discrete inputs in a remote device.
 #[must_use]
@@ -32,7 +32,7 @@ impl Request {
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinRead)]
 #[br(big, magic = 2_u8)]
-pub struct Response<S: for<'a> BinRead<Args<'a> = ()>> {
+pub struct Response<S: Readable> {
     pub n_bytes: u8,
 
     /// The discrete inputs in the response message are packed as one input per bit of the data field.

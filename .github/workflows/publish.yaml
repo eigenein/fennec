@@ -23,6 +23,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: "⚡️ Rust Cache"
+        uses: "Swatinem/rust-cache@v2"
+        with:
+          cache-on-failure: true
+
       - name: "📋 Get version"
         id: "version"
         run: |

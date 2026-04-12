@@ -1,6 +1,7 @@
 [package]
 name = "fennec-cli"
 default-run = "fennec-cli"
+readme = "../README.md"
 publish = false
 description.workspace = true
 authors.workspace = true

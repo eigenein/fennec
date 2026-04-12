@@ -1,3 +1,5 @@
+use alloc::{boxed::Box, format};
+
 use binrw::{BinRead, BinWrite};
 use bon::Builder;
 
@@ -20,7 +22,11 @@ pub struct Payload {
     /// *Zero-based* address of the coil to write.
     address: u16,
 
-    #[br(map = |it: u16| it == 0xFF00)]
+    #[br(try_map = |it: u16| match it {
+        0xFF00 => Ok(true),
+        0x0000 => Ok(false),
+        other => Err(format!("invalid coil value: 0x{other:04X}")),
+    })]
     #[bw(map = |it: &bool| if *it { 0xFF00u16 } else { 0x0000u16 })]
     state: bool,
 }

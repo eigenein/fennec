@@ -32,7 +32,7 @@ pub enum Response<F: Function> {
 impl<F: Function> Response<F> {
     pub fn into_result(self) -> Result<F::Output, Error> {
         match self {
-            Self::Ok { output: data, .. } => Ok(data),
+            Self::Ok { output, .. } => Ok(output),
             Self::Exception { exception, .. } => Err(Error::Exception(exception)),
         }
     }

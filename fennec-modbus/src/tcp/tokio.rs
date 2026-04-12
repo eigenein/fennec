@@ -147,7 +147,7 @@ where
                 #[cfg(feature = "tracing")]
                 tracing::trace!(transaction_id, "awaiting header…");
 
-                let header = tcp::decode_header(&{
+                let header = tcp::Header::from_bytes(&{
                     let mut header_bytes = [0; tcp::Header::SIZE];
                     connection.get_mut().read_exact(&mut header_bytes).await?;
                     header_bytes
@@ -159,6 +159,8 @@ where
                 if header.transaction_id == transaction_id {
                     break header;
                 }
+                let mut discarded_bytes = vec![0; header.payload_length().into()];
+                connection.get_mut().read_exact(&mut discarded_bytes).await?;
             };
 
             let mut payload_bytes = vec![0; header.payload_length().into()];

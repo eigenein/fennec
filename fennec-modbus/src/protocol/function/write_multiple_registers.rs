@@ -8,9 +8,18 @@ use crate::protocol;
 
 /// Write a block of contiguous registers (1 to 123 registers) in a remote device.
 #[must_use]
+pub struct Function;
+
+impl protocol::Function for Function {
+    const CODE: u8 = 16;
+    type Args = Args;
+    type Output = Output;
+}
+
+#[must_use]
 #[derive(Clone, Debug, BinWrite)]
-#[bw(big, magic = 16_u8)]
-pub struct Request {
+#[bw(big)]
+pub struct Args {
     starting_address: u16,
     n_registers: u16,
     n_bytes: u8,
@@ -18,7 +27,7 @@ pub struct Request {
 }
 
 #[bon]
-impl Request {
+impl Args {
     #[builder]
     pub fn new(
         /// *Zero-based* address of the first register to read.
@@ -39,8 +48,8 @@ impl Request {
 
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big, magic = 16_u8)]
-pub struct Response {
+#[br(big)]
+pub struct Output {
     pub starting_address: u16,
     pub n_registers: u16,
 }
@@ -56,7 +65,6 @@ mod tests {
     #[test]
     fn request_example_ok() {
         const EXPECTED: &[u8] = &[
-            0x10, // function code
             0x00, 0x01, // starting address: high, low
             0x00, 0x02, // register count: high, low
             0x04, // byte count
@@ -64,7 +72,7 @@ mod tests {
             0x01, 0x02, // second word
         ];
         let mut output = Cursor::new(vec![]);
-        Request::builder()
+        Args::builder()
             .starting_address(1)
             .words(vec![0x000A, 0x0102])
             .build()
@@ -77,11 +85,10 @@ mod tests {
     #[test]
     fn response_example_ok() {
         const RESPONSE: &[u8] = &[
-            0x10, // function code
             0x00, 0x01, // starting address: high, low
             0x00, 0x02, // register count: high, low
         ];
-        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let response = Output::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert_eq!(response.starting_address, 1);
         assert_eq!(response.n_registers, 2);
     }

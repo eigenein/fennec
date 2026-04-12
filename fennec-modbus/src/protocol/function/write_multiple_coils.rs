@@ -3,13 +3,22 @@ use alloc::vec::Vec;
 use binrw::{BinRead, BinWrite, io::Cursor};
 use bon::bon;
 
-use crate::protocol;
+use crate::{protocol, protocol::r#struct::Writable};
 
 /// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
 #[must_use]
+pub struct Function;
+
+impl protocol::Function for Function {
+    const CODE: u8 = 15;
+    type Args = Args;
+    type Output = Output;
+}
+
+#[must_use]
 #[derive(Clone, Debug, BinWrite)]
-#[bw(big, magic = 15_u8)]
-pub struct Request {
+#[bw(big)]
+pub struct Args {
     starting_address: u16,
     n_coils: u16,
     n_bytes: u8,
@@ -17,9 +26,9 @@ pub struct Request {
 }
 
 #[bon]
-impl Request {
+impl Args {
     #[builder]
-    pub fn new<S: for<'a> BinWrite<Args<'a> = ()>>(
+    pub fn new<S: Writable>(
         /// *Zero-based* address of the first coil to write.
         starting_address: u16,
         /// Number of coils to write.
@@ -51,8 +60,8 @@ impl Request {
 
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big, magic = 15_u8)]
-pub struct Response {
+#[br(big)]
+pub struct Output {
     pub starting_address: u16,
     pub n_coils: u16,
 }
@@ -83,14 +92,13 @@ mod tests {
     #[test]
     fn request_example_ok() {
         const EXPECTED: &[u8] = &[
-            0x0F, // function code
             0x00, 0x13, // starting address
             0x00, 0x0A, // number of coils
             0x02, // number of bytes
             0xCD, 0x01, // packed bits
         ];
         let mut output = Cursor::new(vec![]);
-        Request::builder()
+        Args::builder()
             .starting_address(19)
             .n_coils(10)
             .coils(PackedData::new().with_status_1(0xCD).with_status_2(1))
@@ -104,12 +112,11 @@ mod tests {
     #[test]
     fn response_example_ok() {
         const RESPONSE: &[u8] = &[
-            0x0F, // function code
             0x00, 0x13, // starting address: low, high
             0x00, 0x0A, // number of coils: low, high
         ];
 
-        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let response = Output::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert_eq!(response.starting_address, 19);
         assert_eq!(response.n_coils, 10);
     }

@@ -17,9 +17,9 @@ impl Encoder {
         Self(AtomicU16::new(transaction_id))
     }
 
-    /// Prepare the request.
+    /// Prepare the payload for sending.
     ///
-    /// This wraps the payload into an ADU and returns the respective transaction ID.
+    /// This wraps the payload, normally a PDU, into an ADU and returns the respective transaction ID along.
     pub fn prepare(
         &self,
         unit_id: UnitId,
@@ -47,18 +47,14 @@ impl Encoder {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
-    use crate::protocol::function::read_holding_registers;
 
     #[test]
     fn send_example_ok() {
         let encoder = Encoder::with_next_transaction_id(0x1501);
-        let request = read_holding_registers::Request::builder()
-            .starting_address(4)
-            .n_registers(1)
-            .build()
-            .unwrap();
-        let (frame, transaction_id) = encoder.prepare(UnitId::NonSignificant, &request).unwrap();
+        let (frame, transaction_id) =
+            encoder.prepare(UnitId::NonSignificant, &[0x03_u8, 0x00, 0x04, 0x00, 0x01]).unwrap();
 
         assert_eq!(transaction_id, 0x1501);
         assert_eq!(encoder.0.into_inner(), 0x1502);

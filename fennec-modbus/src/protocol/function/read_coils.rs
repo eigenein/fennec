@@ -1,19 +1,31 @@
+use core::marker::PhantomData;
+
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
 use crate::{protocol, protocol::r#struct::Readable};
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
+#[derive(Copy, Clone)]
+#[must_use]
+pub struct Function<S: Readable>(PhantomData<S>);
+
+impl<S: Readable> protocol::Function for Function<S> {
+    const CODE: u8 = 1;
+    type Args = Args;
+    type Output = Output<S>;
+}
+
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinWrite)]
-#[bw(big, magic = 1_u8)]
-pub struct Request {
+#[bw(big)]
+pub struct Args {
     starting_address: u16,
     n_coils: u16,
 }
 
 #[bon]
-impl Request {
+impl Args {
     #[builder]
     pub fn new(
         /// *Zero-based* address of the first coil to read.
@@ -31,8 +43,8 @@ impl Request {
 
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big, magic = 1_u8)]
-pub struct Response<S: Readable> {
+#[br(big)]
+pub struct Output<S: Readable> {
     pub n_bytes: u8,
 
     /// The coils in the response message are packed as one coil per bit of the data field.
@@ -70,12 +82,11 @@ mod tests {
     #[test]
     fn request_example_ok() {
         const EXPECTED: &[u8] = &[
-            0x01, // function code
             0x00, 0x13, // starting address: high, low
             0x00, 0x13, // count: high, low
         ];
         let mut output = Cursor::new(vec![]);
-        Request::builder()
+        Args::builder()
             .starting_address(19)
             .n_coils(19)
             .build()
@@ -88,14 +99,13 @@ mod tests {
     #[test]
     fn response_example_ok() {
         const RESPONSE: &[u8] = &[
-            0x01, // function code
             0x03, // byte count
             0xCD, // outputs status 27-20
             0x6B, // outputs status 35-28
             0x05, // outputs status 38-36
         ];
 
-        let response = Response::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let response = Output::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert_eq!(response.coils.status_1(), 0xCD);
         assert_eq!(response.coils.status_2(), 0x6B);
         assert_eq!(response.coils.status_3(), 0x05);

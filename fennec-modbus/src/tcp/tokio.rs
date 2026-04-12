@@ -14,10 +14,7 @@ use tokio::{
 
 use crate::{
     protocol,
-    protocol::{
-        function::read_holding_registers,
-        r#struct::{Readable, Writable},
-    },
+    protocol::{Function, data_unit, function::read_holding_registers, r#struct::Readable},
     tcp,
 };
 
@@ -118,24 +115,27 @@ where
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, starting_address, n_registers, "reading holding registers…");
 
-        let request = read_holding_registers::Request::builder()
+        let request = read_holding_registers::Args::builder()
             .starting_address(starting_address)
             .n_registers(n_registers)
             .build()?;
-        let response = self.call::<_, read_holding_registers::Response>(unit_id, &request).await?;
+        let response = self.call::<read_holding_registers::Function>(unit_id, request).await?;
         Ok(response.words)
     }
 
-    /// Low-level interface to call a Modbus function.
+    /// Call the Modbus function.
     ///
-    /// The caller is responsible for matching the request and response.
+    /// This is a lower-level interface that allows calling any [`Function`], including user ones.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    pub async fn call<S, R>(&self, unit_id: tcp::UnitId, request: &S) -> Result<R, Error>
-    where
-        S: Writable,
-        R: Readable,
-    {
-        let (frame, transaction_id) = self.encoder.prepare(unit_id, request)?;
+    pub async fn call<F: Function>(
+        &self,
+        unit_id: tcp::UnitId,
+        request: F::Args,
+    ) -> Result<F::Output, Error> {
+        #[cfg(feature = "tracing")]
+        tracing::debug!(?unit_id, code = F::CODE, "calling function…");
+
+        let (frame, transaction_id) = self.encoder.prepare(unit_id, &F::wrap_args(request))?;
         let mut connection = self.connection.get().await?;
 
         let future = async {
@@ -181,7 +181,7 @@ where
 
                 connection.invalidate();
             })?;
-        Ok(protocol::Response::<R>::from_bytes(&payload_bytes)?.into_result()?)
+        Ok(data_unit::Response::<F>::from_bytes(&payload_bytes)?.into_result()?)
     }
 }
 

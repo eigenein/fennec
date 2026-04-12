@@ -8,15 +8,24 @@ use crate::protocol;
 
 /// Read the contents of a contiguous block of holding registers in a remote device.
 #[must_use]
+pub struct Function;
+
+impl protocol::Function for Function {
+    const CODE: u8 = 3;
+    type Args = Args;
+    type Output = Output;
+}
+
+#[must_use]
 #[derive(Copy, Clone, Debug, BinWrite)]
-#[bw(big, magic = 3_u8)]
-pub struct Request {
+#[bw(big)]
+pub struct Args {
     starting_address: u16,
     n_registers: u16,
 }
 
 #[bon]
-impl Request {
+impl Args {
     #[builder]
     pub fn new(
         /// *Zero-based* address of the first register to read.
@@ -34,8 +43,8 @@ impl Request {
 
 #[must_use]
 #[derive(Clone, derive_more::Debug, BinRead)]
-#[br(big, magic = 3_u8)]
-pub struct Response {
+#[br(big)]
+pub struct Output {
     pub n_bytes: u8,
 
     #[br(assert(n_bytes.is_multiple_of(2)), count = n_bytes / 2)]
@@ -53,12 +62,11 @@ mod tests {
     #[test]
     fn request_example_ok() {
         const EXPECTED: &[u8] = &[
-            0x03, // function code
             0x00, 0x6B, // starting address: high, low
             0x00, 0x03, // count: high, low
         ];
         let mut output = Cursor::new(vec![]);
-        Request::builder()
+        Args::builder()
             .starting_address(107)
             .n_registers(3)
             .build()
@@ -71,13 +79,12 @@ mod tests {
     #[test]
     fn response_example_ok() {
         const RESPONSE: &[u8] = &[
-            0x03, // function code
             0x06, // byte count
             0x02, 0x2B, // value: high, low
             0x00, 0x00, // value: high, low
             0x00, 0x64, // value: high, low
         ];
-        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let response = Output::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert_eq!(response.words, [555, 0, 100]);
     }
 }

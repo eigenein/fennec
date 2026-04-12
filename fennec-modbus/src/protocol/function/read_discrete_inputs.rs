@@ -1,13 +1,25 @@
+use core::marker::PhantomData;
+
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
 use crate::{protocol, protocol::r#struct::Readable};
 
 /// Read from 1 to 2000 contiguous status of discrete inputs in a remote device.
+#[derive(Copy, Clone)]
+#[must_use]
+pub struct Function<S>(PhantomData<S>);
+
+impl<S: Readable> protocol::Function for Function<S> {
+    const CODE: u8 = 2;
+    type Args = Args;
+    type Output = Output<S>;
+}
+
 #[must_use]
 #[derive(Copy, Clone, Debug, BinWrite)]
-#[bw(big, magic = 2_u8)]
-pub struct Request {
+#[bw(big)]
+pub struct Args {
     /// *Zero-based* address of the first input to read.
     starting_address: u16,
 
@@ -16,7 +28,7 @@ pub struct Request {
 }
 
 #[bon]
-impl Request {
+impl Args {
     #[builder]
     pub fn new(starting_address: u16, n_inputs: u16) -> Result<Self, protocol::Error> {
         if (1..=2000).contains(&n_inputs) {
@@ -29,8 +41,8 @@ impl Request {
 
 #[must_use]
 #[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big, magic = 2_u8)]
-pub struct Response<S: Readable> {
+#[br(big)]
+pub struct Output<S: Readable> {
     pub n_bytes: u8,
 
     /// The discrete inputs in the response message are packed as one input per bit of the data field.
@@ -68,12 +80,11 @@ mod tests {
     #[test]
     fn request_example_ok() {
         const EXPECTED: &[u8] = &[
-            0x02, // function code
             0x00, 0xC4, // starting address: high, low
             0x00, 0x16, // count: high, low
         ];
         let mut output = Cursor::new(vec![]);
-        Request::builder()
+        Args::builder()
             .starting_address(196)
             .n_inputs(22)
             .build()
@@ -86,14 +97,13 @@ mod tests {
     #[test]
     fn response_example_ok() {
         const RESPONSE: &[u8] = &[
-            0x02, // function code
             0x03, // byte count
             0xAC, // outputs status 204-197
             0xDB, // outputs status 212-205
             0x35, // outputs status 218-213
         ];
 
-        let response = Response::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let response = Output::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
         assert_eq!(response.input.status_1(), 0xAC);
         assert_eq!(response.input.status_2(), 0xDB);
         assert_eq!(response.input.status_3(), 0x35);

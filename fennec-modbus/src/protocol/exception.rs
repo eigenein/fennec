@@ -3,16 +3,6 @@ use core::fmt::Debug;
 use binrw::BinRead;
 use thiserror::Error;
 
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead)]
-#[br(big)]
-pub struct Response {
-    #[br(assert(function_code & 0x80 != 0, "unexpected function code ({function_code:#X})"))]
-    pub function_code: u8,
-
-    pub exception: Exception,
-}
-
 /// High-level protocol error.
 ///
 /// The server received the request without a communication error, but could not handle it.
@@ -120,21 +110,4 @@ pub enum GatewayError {
     #[error("gateway target device failed to respond")]
     #[br(magic = 0x0B_u8)]
     GatewayTargetDeviceFailedToRespond,
-}
-
-#[cfg(test)]
-mod tests {
-    use binrw::io::Cursor;
-
-    use super::*;
-
-    #[test]
-    fn unknown_error_code_ok() {
-        const RESPONSE: &[u8] = &[
-            0x83, // exception flag and function code
-            0xFF, // unknown error code
-        ];
-        let response = Response::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert!(matches!(response.exception, Exception::Unknown(0xFF)));
-    }
 }

@@ -41,6 +41,7 @@ pub enum Exception {
     Unknown(u8),
 }
 
+#[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
 pub enum ClientError {
@@ -65,6 +66,7 @@ pub enum ClientError {
     IllegalDataValue,
 }
 
+#[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
 pub enum ServerError {
@@ -81,6 +83,7 @@ pub enum ServerError {
     MemoryParityError,
 }
 
+#[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
 pub enum RetryException {
@@ -101,6 +104,7 @@ pub enum RetryException {
     ServerDeviceBusy,
 }
 
+#[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
 pub enum GatewayError {

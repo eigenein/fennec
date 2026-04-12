@@ -159,6 +159,10 @@ where
                 if header.transaction_id == transaction_id {
                     break header;
                 }
+
+                #[cfg(feature = "tracing")]
+                tracing::warn!(header.transaction_id, "discarding response");
+
                 let mut discarded_bytes = vec![0; header.payload_length().into()];
                 connection.get_mut().read_exact(&mut discarded_bytes).await?;
             };

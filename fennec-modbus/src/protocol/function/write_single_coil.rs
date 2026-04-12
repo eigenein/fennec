@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use binrw::{BinRead, BinWrite};
 use bon::Builder;
 

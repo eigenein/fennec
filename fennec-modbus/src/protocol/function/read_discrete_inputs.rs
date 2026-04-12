@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use binrw::{BinRead, BinWrite};
 use bon::bon;
 
@@ -46,6 +44,8 @@ pub struct Response<S: Readable> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(dead_code)]
+
     use alloc::vec;
 
     use binrw::{BinRead, io::Cursor};

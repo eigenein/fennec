@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use alloc::vec::Vec;
 use core::fmt::Debug;
 

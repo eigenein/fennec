@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use alloc::vec::Vec;
 
 use binrw::{BinRead, BinWrite, io::Cursor};
@@ -72,7 +70,10 @@ mod tests {
     #[derive(Copy, Clone, BinWrite)]
     #[bw(map = |&it| Self::into_bytes(it))]
     struct PackedData {
+        #[allow(dead_code)]
         status_1: B8,
+
+        #[allow(dead_code)]
         status_2: B2,
 
         #[skip]

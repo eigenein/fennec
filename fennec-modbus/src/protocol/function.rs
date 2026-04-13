@@ -35,17 +35,6 @@ impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
     type Output = read_discrete_inputs::Output<S>;
 }
 
-/// Read the contents of eight Exception Status outputs in a remote device.
-#[must_use]
-#[derive(Copy, Clone)]
-pub struct ReadExceptionStatus;
-
-impl protocol::Function for ReadExceptionStatus {
-    const CODE: u8 = 7;
-    type Args = read_exception_status::Args;
-    type Output = read_exception_status::Output;
-}
-
 /// Read the contents of a contiguous block of holding registers in a remote device.
 #[must_use]
 pub struct ReadHoldingRegisters;
@@ -66,26 +55,6 @@ impl protocol::Function for ReadInputRegisters {
     type Output = read_registers::Output;
 }
 
-/// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
-#[must_use]
-pub struct WriteMultipleCoils;
-
-impl protocol::Function for WriteMultipleCoils {
-    const CODE: u8 = 15;
-    type Args = write_multiple_coils::Args;
-    type Output = write_multiple_coils::Output;
-}
-
-/// Write a block of contiguous registers (1 to 123 registers) in a remote device.
-#[must_use]
-pub struct WriteMultipleRegisters;
-
-impl protocol::Function for WriteMultipleRegisters {
-    const CODE: u8 = 16;
-    type Args = write_multiple_registers::Args;
-    type Output = write_multiple_registers::Output;
-}
-
 /// Write a single output to either «on» or «off» in a remote device.
 #[must_use]
 pub struct WriteSingleCoil;
@@ -104,4 +73,35 @@ impl protocol::Function for WriteSingleRegister {
     const CODE: u8 = 6;
     type Args = write_single_register::Payload;
     type Output = write_single_register::Payload;
+}
+
+/// Read the contents of eight Exception Status outputs in a remote device.
+#[must_use]
+#[derive(Copy, Clone)]
+pub struct ReadExceptionStatus;
+
+impl protocol::Function for ReadExceptionStatus {
+    const CODE: u8 = 7;
+    type Args = read_exception_status::Args;
+    type Output = read_exception_status::Output;
+}
+
+/// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
+#[must_use]
+pub struct WriteMultipleCoils;
+
+impl protocol::Function for WriteMultipleCoils {
+    const CODE: u8 = 15;
+    type Args = write_multiple_coils::Args;
+    type Output = write_multiple_coils::Output;
+}
+
+/// Write a block of contiguous registers (1 to 123 registers) in a remote device.
+#[must_use]
+pub struct WriteMultipleRegisters;
+
+impl protocol::Function for WriteMultipleRegisters {
+    const CODE: u8 = 16;
+    type Args = write_multiple_registers::Args;
+    type Output = write_multiple_registers::Output;
 }

@@ -114,7 +114,9 @@ impl Profile {
         discharging_efficiency_estimator.sub_assign_residual_energy(parasitic_load);
         let battery_efficiency = battery::Efficiency {
             charging: charging_efficiency_estimator.estimate(),
-            discharging: 1.0 / discharging_efficiency_estimator.estimate(),
+            discharging: Some(1.0 / discharging_efficiency_estimator.estimate())
+                .filter(|it| it.is_finite())
+                .unwrap_or(1.0),
             parasitic_load,
         };
 

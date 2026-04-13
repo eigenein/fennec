@@ -79,29 +79,21 @@ impl MQ2200 {
     }
 
     async fn read_u16(&self, address: u16) -> Result<u16> {
-        self.read_holding_registers(address, 1)
-            .await
-            .context("failed to read `u16`")?
-            .into_iter()
-            .next()
-            .with_context(|| format!("register #{address} returned no data"))
+        Ok(self.read_holding_registers::<1>(address).await.context("failed to read `u16`")?[0])
     }
 
     async fn read_i32(&self, address: u16) -> Result<i32> {
-        let words =
-            self.read_holding_registers(address, 2).await.context("failed to read `u32`")?;
-        let [high, low] = words[..] else {
-            bail!("register #{address} returned {} words, expected 2", words.len());
-        };
+        let [high, low] =
+            self.read_holding_registers::<2>(address).await.context("failed to read `u32`")?;
         let [high_1, high_0] = high.to_be_bytes();
         let [low_1, low_0] = low.to_be_bytes();
         Ok(i32::from_be_bytes([high_1, high_0, low_1, low_0]))
     }
 
     #[instrument(skip_all, fields(address = address))]
-    async fn read_holding_registers(&self, address: u16, count: u16) -> Result<Vec<u16>> {
+    async fn read_holding_registers<const N: usize>(&self, address: u16) -> Result<[u16; N]> {
         self.0
-            .read_holding_registers(UnitId::Significant(1), address, count)
+            .read_holding_registers_exact::<N>(UnitId::Significant(1), address)
             .await
             .context("Modbus error")
     }

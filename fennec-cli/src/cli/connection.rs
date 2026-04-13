@@ -4,7 +4,7 @@ use clap::Parser;
 use reqwest::Url;
 
 use crate::{
-    api::{fox_cloud, homewizard, modbus::foxess::MQ2200},
+    api::{fox_cloud, homewizard, modbus::mq2200::MQ2200},
     cli::fox_cloud::FoxCloudConnectionArgs,
     db::Db,
     prelude::*,

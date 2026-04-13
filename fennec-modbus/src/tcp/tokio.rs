@@ -19,7 +19,7 @@ use crate::{
     protocol::{
         Function,
         data_unit,
-        function::{ReadHoldingRegisters, read_registers},
+        function::{ReadHoldingRegisters, ReadHoldingRegistersExact, read_registers},
         r#struct::Readable,
     },
     tcp,
@@ -113,6 +113,7 @@ where
         *self.connection.stream.lock().await = None;
     }
 
+    /// Read the contents of a contiguous block of holding registers in a remote device.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
     pub async fn read_holding_registers(
         &self,
@@ -121,14 +122,29 @@ where
         n_registers: u16,
     ) -> Result<Vec<u16>, Error> {
         #[cfg(feature = "tracing")]
-        tracing::debug!(?unit_id, starting_address, n_registers, "reading holding registers…");
+        tracing::trace!(?unit_id, starting_address, n_registers, "reading holding registers…");
 
-        let request = read_registers::Args::builder()
+        let args = read_registers::Args::builder()
             .starting_address(starting_address)
             .n_registers(n_registers)
             .build()?;
-        let response = self.call::<ReadHoldingRegisters>(unit_id, request).await?;
-        Ok(response.words)
+        Ok(self.call::<ReadHoldingRegisters>(unit_id, args).await?.words)
+    }
+
+    /// Read the contents of a contiguous block of holding registers in a remote device.
+    ///
+    /// This is the same function as [`Self::read_holding_registers`] – but with the register count known at compile time.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
+    pub async fn read_holding_registers_exact<const N: usize>(
+        &self,
+        unit_id: tcp::UnitId,
+        starting_address: u16,
+    ) -> Result<[u16; N], Error> {
+        #[cfg(feature = "tracing")]
+        tracing::trace!(?unit_id, starting_address, N, "reading holding registers…");
+
+        let args = read_registers::ArgsExact::<N>::new(starting_address);
+        Ok(self.call::<ReadHoldingRegistersExact<N>>(unit_id, args).await?.words)
     }
 
     /// Call the Modbus function.

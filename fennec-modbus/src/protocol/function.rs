@@ -81,6 +81,18 @@ impl protocol::Function for ReadHoldingRegisters {
     type Output = read_registers::Output;
 }
 
+/// Read the contents of a contiguous block of holding registers in a remote device.
+///
+/// This is the same function as [`ReadHoldingRegisters`] – but with the register count known at compile time.
+#[must_use]
+pub struct ReadHoldingRegistersExact<const N: usize>;
+
+impl<const N: usize> protocol::Function for ReadHoldingRegistersExact<N> {
+    const CODE: Code = Code::ReadHoldingRegisters;
+    type Args = read_registers::ArgsExact<N>;
+    type Output = read_registers::OutputExact<N>;
+}
+
 /// Read from 1 to 125 contiguous input registers in a remote device.
 #[must_use]
 pub struct ReadInputRegisters;
@@ -89,6 +101,18 @@ impl protocol::Function for ReadInputRegisters {
     const CODE: Code = Code::ReadInputRegisters;
     type Args = read_registers::Args;
     type Output = read_registers::Output;
+}
+
+/// Read from 1 to 125 contiguous input registers in a remote device.
+///
+/// This is the same function as [`ReadInputRegisters`] – but with the register count known at compile time.
+#[must_use]
+pub struct ReadInputRegistersExact<const N: usize>;
+
+impl<const N: usize> protocol::Function for ReadInputRegistersExact<N> {
+    const CODE: Code = Code::ReadInputRegisters;
+    type Args = read_registers::ArgsExact<N>;
+    type Output = read_registers::OutputExact<N>;
 }
 
 /// Write a single output to either «on» or «off» in a remote device.

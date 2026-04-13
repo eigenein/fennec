@@ -141,7 +141,7 @@ where
         args: F::Args,
     ) -> Result<F::Output, Error> {
         #[cfg(feature = "tracing")]
-        tracing::debug!(?unit_id, code = F::CODE, "calling function…");
+        tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 
         let (frame, transaction_id) =
             self.encoder.prepare(unit_id, &data_unit::Request::from_args::<F>(args))?;

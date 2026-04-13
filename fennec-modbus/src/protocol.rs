@@ -23,7 +23,7 @@ use crate::protocol::r#struct::{Readable, Writable};
 /// [making a pull request](https://github.com/eigenein/fennec/pulls).
 pub trait Function {
     /// Modbus function code.
-    const CODE: u8;
+    const CODE: function::Code;
 
     /// Function arguments type.
     ///

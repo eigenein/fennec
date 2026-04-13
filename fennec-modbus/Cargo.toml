@@ -3,6 +3,7 @@ name = "fennec-modbus"
 description = "Modular Modbus client implementation"
 keywords = ["modbus", "modbus-client", "hardware"]
 readme = "README.md"
+documentation = "https://docs.rs/fennec-modbus"
 publish = true
 authors.workspace = true
 edition.workspace = true

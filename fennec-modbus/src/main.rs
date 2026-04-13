@@ -2,7 +2,7 @@
 
 use anyhow::Error;
 use clap::Parser;
-use fennec_modbus::tcp::tokio::Client;
+use fennec_modbus::{client::AsyncClient, tcp::tokio::Client};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 

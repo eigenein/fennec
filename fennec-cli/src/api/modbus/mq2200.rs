@@ -1,6 +1,6 @@
 //! FoxESS Modbus clients.
 
-use fennec_modbus::tcp::UnitId;
+use fennec_modbus::{client::AsyncClient, tcp::UnitId};
 
 use crate::{
     battery,

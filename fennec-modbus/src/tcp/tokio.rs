@@ -2,7 +2,7 @@
 
 #![cfg(feature = "tokio")]
 
-use alloc::{vec, vec::Vec};
+use alloc::vec;
 use core::{fmt::Debug, time::Duration};
 
 use bon::bon;
@@ -16,12 +16,7 @@ use tokio::{
 
 use crate::{
     protocol,
-    protocol::{
-        Function,
-        data_unit,
-        function::{ReadHoldingRegisters, ReadHoldingRegistersExact, read_registers},
-        r#struct::Readable,
-    },
+    protocol::{Function, data_unit, r#struct::Readable},
     tcp,
 };
 
@@ -93,11 +88,13 @@ impl ConnectionGuard<'_> {
 ///
 /// - An initial connection is established on first use.
 /// - The connection is dropped on any error, except for response decoding errors – in that case, the connection itself stays healthy.
+/// - Connection is re-established upon next use, so it is safe to retry operations via, for example, `backon`.
+/// - It is safe to wrap the client in [`alloc::sync::Arc`] and clone it.
 ///
 /// # Pipelining
 ///
-/// - The pipelining is currently *not supported*.
-/// - Mismatching transactions are *dropped*.
+/// - The pipelining is currently *not supported*. The underlying connection stays locked for the entire transaction.
+/// - Mismatching transaction responses are *dropped*.
 #[must_use]
 pub struct Client<E> {
     encoder: tcp::Encoder,
@@ -126,59 +123,12 @@ impl<E> Client<E> {
     }
 }
 
-impl<E> Client<E>
-where
-    E: Clone + ToSocketAddrs,
-{
-    /// Disconnect the client.
-    ///
-    /// Subsequent call will re-establish a connection.
-    /// Note that the client normally disconnects automatically on error.
-    ///
-    /// This operation is idempotent, closing a closed connection is a no-op.
-    pub async fn disconnect(&self) {
-        *self.connection.stream.lock().await = None;
-    }
+impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
+    type UnitId = tcp::UnitId;
+    type Error = Error;
 
-    /// Read the contents of a contiguous block of holding registers in a remote device.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    pub async fn read_holding_registers(
-        &self,
-        unit_id: tcp::UnitId,
-        starting_address: u16,
-        n_registers: u16,
-    ) -> Result<Vec<u16>, Error> {
-        #[cfg(feature = "tracing")]
-        tracing::trace!(?unit_id, starting_address, n_registers, "reading holding registers…");
-
-        let args = read_registers::Args::builder()
-            .starting_address(starting_address)
-            .n_registers(n_registers)
-            .build()?;
-        Ok(self.call::<ReadHoldingRegisters>(unit_id, args).await?.words)
-    }
-
-    /// Read the contents of a contiguous block of holding registers in a remote device.
-    ///
-    /// This is the same function as [`Self::read_holding_registers`] – but with the register count known at compile time.
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    pub async fn read_holding_registers_exact<const N: usize>(
-        &self,
-        unit_id: tcp::UnitId,
-        starting_address: u16,
-    ) -> Result<[u16; N], Error> {
-        #[cfg(feature = "tracing")]
-        tracing::trace!(?unit_id, starting_address, N, "reading holding registers…");
-
-        let args = read_registers::ArgsExact::<N>::new(starting_address);
-        Ok(self.call::<ReadHoldingRegistersExact<N>>(unit_id, args).await?.words)
-    }
-
-    /// Call the Modbus function.
-    ///
-    /// This is a lower-level interface that allows calling any [`Function`], including user ones.
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    pub async fn call<F: Function>(
+    async fn call<F: Function>(
         &self,
         unit_id: tcp::UnitId,
         args: F::Args,
@@ -240,6 +190,21 @@ where
                 connection.invalidate();
             })?;
         Ok(data_unit::Response::<F>::from_bytes(&payload_bytes)?.into_result()?)
+    }
+}
+
+impl<E> Client<E>
+where
+    E: Clone + ToSocketAddrs,
+{
+    /// Disconnect the client.
+    ///
+    /// Subsequent call will re-establish a connection.
+    /// Note that the client normally disconnects automatically on error.
+    ///
+    /// This operation is idempotent, closing a closed connection is a no-op.
+    pub async fn disconnect(&self) {
+        *self.connection.stream.lock().await = None;
     }
 }
 

@@ -71,7 +71,10 @@ impl ConnectionGuard<'_> {
 ///
 /// ```rust,no_run
 /// use anyhow::Result;
-/// use fennec_modbus::tcp::{UnitId, tokio::Client};
+/// use fennec_modbus::{
+///     client::AsyncClient,
+///     tcp::{UnitId, tokio::Client},
+/// };
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<()> {

@@ -15,6 +15,7 @@
 ```rust,no_run
 use anyhow::Result;
 
+use fennec_modbus::client::AsyncClient;
 use fennec_modbus::tcp::UnitId;
 use fennec_modbus::tcp::tokio::Client;
 

@@ -71,6 +71,33 @@ impl ConnectionGuard<'_> {
 }
 
 /// Modbus TCP client for [`tokio`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use anyhow::Result;
+/// use fennec_modbus::tcp::{UnitId, tokio::Client};
+///
+/// # #[tokio::main]
+/// # async fn main() -> Result<()> {
+/// let unit_id = UnitId::try_from(1)?;
+/// let client = Client::builder().endpoint("battery.iot.home.arpa:502").build();
+/// let voltage = client.read_holding_registers_exact::<1>(unit_id, 39201).await?[0];
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Connection management
+///
+/// The underlying connection is managed automatically:
+///
+/// - An initial connection is established on first use.
+/// - The connection is dropped on any error, except for response decoding errors – in that case, the connection itself stays healthy.
+///
+/// # Pipelining
+///
+/// - The pipelining is currently *not supported*.
+/// - Mismatching transactions are *dropped*.
 #[must_use]
 pub struct Client<E> {
     encoder: tcp::Encoder,

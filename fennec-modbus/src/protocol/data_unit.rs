@@ -32,7 +32,7 @@ impl<T: Writable> Request<T> {
     ///     r#struct::Writable,
     /// };
     ///
-    /// let data_unit = Request::wrap::<ReadHoldingRegisters<u16>>(Args::new::<u16>(107, 3)?);
+    /// let data_unit = Request::wrap::<ReadHoldingRegisters<u16>>(Args::new(107, 3)?);
     ///
     /// assert_eq!(
     ///     data_unit.to_bytes()?,

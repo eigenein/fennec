@@ -3,7 +3,7 @@
 mod value;
 
 use alloc::vec::Vec;
-use core::fmt::Debug;
+use core::{fmt::Debug, marker::PhantomData};
 
 use binrw::{BinRead, BinWrite};
 
@@ -17,7 +17,7 @@ use crate::{protocol, protocol::r#struct::Readable};
 /// ```rust
 /// use fennec_modbus::protocol::{function::read_registers::Args, r#struct::Writable};
 ///
-/// let args = Args::new::<u16>(107, 3)?;
+/// let args = Args::<u16>::new(107, 3)?;
 /// assert_eq!(args.n_registers(), 3);
 ///
 /// let bytes = args.to_bytes()?;
@@ -33,25 +33,36 @@ use crate::{protocol, protocol::r#struct::Readable};
 #[must_use]
 #[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big)]
-pub struct Args {
+pub struct Args<V: Value> {
     /// *Zero-based* address of the first register to read.
     starting_address: u16,
 
     /// Number of registers to read.
     n_registers: u16,
+
+    /// Binding to the value type.
+    ///
+    /// It is not used directly here, but it is useful to ensure correct calculation
+    /// for the number of requested registers in the function.
+    phantom_data: PhantomData<V>,
 }
 
-impl Args {
+impl<V: Value> Args<V> {
+    /// Number of registers to read.
+    #[must_use]
     pub const fn n_registers(&self) -> u16 {
         self.n_registers
     }
-}
 
-impl Args {
-    pub fn new<V: Value>(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error> {
+    #[expect(clippy::missing_panics_doc)]
+    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error> {
         let n_registers = n_values * V::N_BYTES / 2;
         if (1..=125).contains(&n_registers) {
-            Ok(Self { starting_address, n_registers: u16::try_from(n_registers).unwrap() })
+            Ok(Self {
+                starting_address,
+                n_registers: u16::try_from(n_registers).unwrap(),
+                phantom_data: PhantomData,
+            })
         } else {
             Err(protocol::Error::InvalidCount(n_registers))
         }

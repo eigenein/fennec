@@ -78,7 +78,7 @@ pub struct ReadHoldingRegisters<V>(PhantomData<V>);
 
 impl<V: read_registers::Value> protocol::Function for ReadHoldingRegisters<V> {
     const CODE: Code = Code::ReadHoldingRegisters;
-    type Args = read_registers::Args;
+    type Args = read_registers::Args<V>;
     type Output = read_registers::Output<V>;
 }
 
@@ -93,7 +93,7 @@ impl<const N: usize, V: read_registers::Value> protocol::Function
     for ReadHoldingRegistersExact<N, V>
 {
     const CODE: Code = Code::ReadHoldingRegisters;
-    type Args = read_registers::Args;
+    type Args = read_registers::Args<V>;
     type Output = read_registers::OutputExact<N, V>;
 }
 
@@ -104,7 +104,7 @@ pub struct ReadInputRegisters<V>(PhantomData<V>);
 
 impl<V: read_registers::Value> protocol::Function for ReadInputRegisters<V> {
     const CODE: Code = Code::ReadInputRegisters;
-    type Args = read_registers::Args;
+    type Args = read_registers::Args<V>;
     type Output = read_registers::Output<V>;
 }
 
@@ -119,7 +119,7 @@ impl<const N: usize, V: read_registers::Value> protocol::Function
     for ReadInputRegistersExact<N, V>
 {
     const CODE: Code = Code::ReadInputRegisters;
-    type Args = read_registers::Args;
+    type Args = read_registers::Args<V>;
     type Output = read_registers::OutputExact<N, V>;
 }
 

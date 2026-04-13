@@ -38,7 +38,7 @@ pub trait AsyncClient {
         #[cfg(feature = "tracing")]
         tracing::trace!(?unit_id, starting_address, n_values, "reading holding registers…");
 
-        let args = read_registers::Args::new::<V>(starting_address, n_values)?;
+        let args = read_registers::Args::new(starting_address, n_values)?;
         Ok(self.call::<ReadHoldingRegisters<V>>(unit_id, args).await?.values)
     }
 
@@ -56,7 +56,7 @@ pub trait AsyncClient {
         #[cfg(feature = "tracing")]
         tracing::trace!(?unit_id, starting_address, N, "reading holding registers…");
 
-        let args = read_registers::Args::new::<V>(starting_address, N)?;
+        let args = read_registers::Args::new(starting_address, N)?;
         Ok(self.call::<ReadHoldingRegistersExact<N, V>>(unit_id, args).await?.values)
     }
 

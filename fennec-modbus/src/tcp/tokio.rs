@@ -78,9 +78,9 @@ impl ConnectionGuard<'_> {
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<()> {
-/// let unit_id = UnitId::try_from(1)?;
+/// let unit_id = UnitId::Significant(1);
 /// let client = Client::builder().endpoint("battery.iot.home.arpa:502").build();
-/// let voltage = client.read_holding_registers_exact::<1>(unit_id, 39201).await?[0];
+/// let voltage = client.read_holding_registers_exact::<1, u16>(unit_id, 39201).await?[0];
 /// # Ok(())
 /// # }
 /// ```

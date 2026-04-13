@@ -1,12 +1,14 @@
 //! Shared structures for reading multiple registers.
 
-use alloc::{boxed::Box, vec::Vec};
+mod value;
+
+use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use binrw::{BinRead, BinWrite, binwrite};
-use bon::bon;
+use binrw::{BinRead, BinWrite};
 
-use crate::protocol;
+pub use self::value::*;
+use crate::{protocol, protocol::r#struct::Readable};
 
 /// Arguments to read a contiguous block of registers.
 ///
@@ -15,7 +17,10 @@ use crate::protocol;
 /// ```rust
 /// use fennec_modbus::protocol::{function::read_registers::Args, r#struct::Writable};
 ///
-/// let bytes = Args::builder().starting_address(107).n_registers(3).build()?.to_bytes()?;
+/// let args = Args::new::<u16>(107, 3)?;
+/// assert_eq!(args.n_registers(), 3);
+///
+/// let bytes = args.to_bytes()?;
 /// assert_eq!(
 ///     bytes,
 ///     [
@@ -29,78 +34,98 @@ use crate::protocol;
 #[derive(Copy, Clone, Debug, BinWrite)]
 #[bw(big)]
 pub struct Args {
+    /// *Zero-based* address of the first register to read.
     starting_address: u16,
+
+    /// Number of registers to read.
     n_registers: u16,
 }
 
-#[bon]
 impl Args {
-    #[builder]
-    pub fn new(
-        /// *Zero-based* address of the first register to read.
-        starting_address: u16,
-        /// Number of registers to read.
-        n_registers: u16,
-    ) -> Result<Self, protocol::Error> {
+    pub const fn n_registers(&self) -> u16 {
+        self.n_registers
+    }
+}
+
+impl Args {
+    pub fn new<V: Value>(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error> {
+        let n_registers = n_values * V::N_BYTES / 2;
         if (1..=125).contains(&n_registers) {
-            Ok(Self { starting_address, n_registers })
+            Ok(Self { starting_address, n_registers: u16::try_from(n_registers).unwrap() })
         } else {
-            Err(protocol::Error::InvalidCount(n_registers.into()))
+            Err(protocol::Error::InvalidCount(n_registers))
         }
     }
 }
 
-/// Arguments to read the number of registers known at compile time.
-#[must_use]
-#[binwrite]
-#[derive(Copy, Clone, Debug)]
-#[bw(big)]
-pub struct ArgsExact<const N: usize> {
-    starting_address: u16,
-
-    #[bw(try_calc = u16::try_from(N))]
-    n_registers: u16,
-}
-
-impl<const N: usize> ArgsExact<N> {
-    pub const fn new(starting_address: u16) -> Self {
-        Self { starting_address }
-    }
-}
-
 /// Output of a contiguous block of registers.
+///
+/// # Type parameters
+///
+/// - `V`: value type, one value may span multiple registers
 ///
 /// # Example
 ///
 /// ```rust
 /// use fennec_modbus::protocol::{function::read_registers::Output, r#struct::Readable};
 ///
-/// let output = Output::from_bytes(&[
+/// let output = Output::<u16>::from_bytes(&[
 ///     0x06, // byte count
 ///     0x02, 0x2B, // value: high, low
 ///     0x00, 0x00, // value: high, low
 ///     0x00, 0x64, // value: high, low
 /// ])?;
-/// assert_eq!(output.words, [555, 0, 100]);
+/// assert_eq!(output.values, [555, 0, 100]);
 /// # Ok::<_, anyhow::Error>(())
 /// ```
 #[must_use]
 #[derive(Clone, derive_more::Debug, BinRead)]
 #[br(big)]
-pub struct Output {
+pub struct Output<V: Value> {
     pub n_bytes: u8,
 
-    #[br(assert(n_bytes.is_multiple_of(2)), count = n_bytes / 2)]
-    pub words: Vec<u16>,
+    #[br(
+        assert(usize::from(n_bytes).is_multiple_of(V::N_BYTES)),
+        count = usize::from(n_bytes) / V::N_BYTES,
+    )]
+    pub values: Vec<V>,
 }
 
-/// Output of a contiguous block of registers of a compile-time known size.
+/// Output of contiguous block of registers with size known at compilation time.
+///
+/// # Type parameters
+///
+/// - `N`: number of *values*, one value may span multiple registers
+/// - `V`: value type
+///
+/// # Example
+///
+/// ```rust
+/// use fennec_modbus::protocol::{
+///     function::read_registers::{BigEndianI32, OutputExact},
+///     r#struct::Readable,
+/// };
+///
+/// let output = OutputExact::<1, BigEndianI32>::from_bytes(&[
+///     0x04, // byte count
+///     0x00, 0x00, // high word: high byte, low byte
+///     0x00, 0x01, // low word: high byte, low byte
+/// ])?;
+/// assert_eq!(i32::from(output.values[0]), 1);
+/// # Ok::<_, anyhow::Error>(())
+/// ```
 #[must_use]
 #[derive(Clone, derive_more::Debug, BinRead)]
 #[br(big)]
-pub struct OutputExact<const N: usize> {
-    #[br(assert(usize::from(n_bytes) == 2 * N))]
+pub struct OutputExact<const N: usize, V: Value> {
+    #[br(assert(usize::from(n_bytes) == V::N_BYTES * N))]
     pub n_bytes: u8,
 
-    pub words: [u16; N],
+    pub values: [V; N],
+}
+
+/// Value that can be read from contiguous block of registers.
+pub trait Value: Readable + 'static {
+    /// Number of bytes occupied by a single value.
+    const N_BYTES: usize;
 }

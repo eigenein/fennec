@@ -25,39 +25,49 @@ pub trait AsyncClient {
         args: F::Args,
     ) -> Result<F::Output, Self::Error>;
 
-    /// Read the contents of a contiguous block of holding registers in a remote device.
+    /// Read the contents of a contiguous block of holding registers in a remote device
+    /// and parse them as values of type `V`.
     #[expect(async_fn_in_trait)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    async fn read_holding_registers(
+    async fn read_holding_registers<V: read_registers::Value>(
         &self,
         unit_id: Self::UnitId,
         starting_address: u16,
-        n_registers: u16,
-    ) -> Result<Vec<u16>, Self::Error> {
+        n_values: usize,
+    ) -> Result<Vec<V>, Self::Error> {
         #[cfg(feature = "tracing")]
-        tracing::trace!(?unit_id, starting_address, n_registers, "reading holding registers…");
+        tracing::trace!(?unit_id, starting_address, n_values, "reading holding registers…");
 
-        let args = read_registers::Args::builder()
-            .starting_address(starting_address)
-            .n_registers(n_registers)
-            .build()?;
-        Ok(self.call::<ReadHoldingRegisters>(unit_id, args).await?.words)
+        let args = read_registers::Args::new::<V>(starting_address, n_values)?;
+        Ok(self.call::<ReadHoldingRegisters<V>>(unit_id, args).await?.values)
     }
 
-    /// Read the contents of a contiguous block of holding registers in a remote device.
+    /// Read the contents of a contiguous block of holding registers in a remote device
+    /// and parse them as `N` values of type `V`.
     ///
     /// This is the same function as [`Self::read_holding_registers`] – but with the register count known at compile time.
     #[expect(async_fn_in_trait)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    async fn read_holding_registers_exact<const N: usize>(
+    async fn read_holding_registers_exact<const N: usize, V: read_registers::Value>(
         &self,
         unit_id: Self::UnitId,
         starting_address: u16,
-    ) -> Result<[u16; N], Self::Error> {
+    ) -> Result<[V; N], Self::Error> {
         #[cfg(feature = "tracing")]
         tracing::trace!(?unit_id, starting_address, N, "reading holding registers…");
 
-        let args = read_registers::ArgsExact::<N>::new(starting_address);
-        Ok(self.call::<ReadHoldingRegistersExact<N>>(unit_id, args).await?.words)
+        let args = read_registers::Args::new::<V>(starting_address, N)?;
+        Ok(self.call::<ReadHoldingRegistersExact<N, V>>(unit_id, args).await?.values)
+    }
+
+    /// Convenience method to read a single value from one or more registers and unpack it.
+    #[expect(async_fn_in_trait)]
+    async fn read_holding_registers_value<V: read_registers::Value>(
+        &self,
+        unit_id: Self::UnitId,
+        address: u16,
+    ) -> Result<V, Self::Error> {
+        let [value] = self.read_holding_registers_exact::<1, V>(unit_id, address).await?;
+        Ok(value)
     }
 }

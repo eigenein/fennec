@@ -32,8 +32,7 @@ impl<T: Writable> Request<T> {
     ///     r#struct::Writable,
     /// };
     ///
-    /// let args = Args::builder().starting_address(107).n_registers(3).build()?;
-    /// let data_unit = Request::wrap::<ReadHoldingRegisters>(args);
+    /// let data_unit = Request::wrap::<ReadHoldingRegisters<u16>>(Args::new::<u16>(107, 3)?);
     ///
     /// assert_eq!(
     ///     data_unit.to_bytes()?,
@@ -78,7 +77,7 @@ pub enum Response<F: Function> {
     ///     r#struct::Readable,
     /// };
     ///
-    /// let response = Response::<ReadHoldingRegisters>::from_bytes(&[
+    /// let response = Response::<ReadHoldingRegisters<u16>>::from_bytes(&[
     ///     0x83, // function code + error flag
     ///     0x04, // server device failure
     /// ])?;
@@ -100,7 +99,7 @@ pub enum Response<F: Function> {
     ///     r#struct::Readable,
     /// };
     ///
-    /// let response = Response::<ReadHoldingRegisters>::from_bytes(&[
+    /// let response = Response::<ReadHoldingRegisters<u16>>::from_bytes(&[
     ///     0x83, // function code + error flag
     ///     0xFF, // unknown error code
     /// ])?;

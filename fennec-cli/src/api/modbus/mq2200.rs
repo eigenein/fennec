@@ -1,6 +1,10 @@
 //! FoxESS Modbus clients.
 
-use fennec_modbus::{client::AsyncClient, tcp::UnitId};
+use fennec_modbus::{
+    client::AsyncClient,
+    protocol::function::read_registers::BigEndianI32,
+    tcp::UnitId,
+};
 
 use crate::{
     battery,
@@ -13,6 +17,8 @@ use crate::{
 pub struct MQ2200(fennec_modbus::tcp::tokio::Client<String>);
 
 impl MQ2200 {
+    const UNIT_ID: UnitId = UnitId::Significant(1);
+
     pub fn new(address: String) -> Self {
         Self(fennec_modbus::tcp::tokio::Client::builder().endpoint(address).build())
     }
@@ -43,58 +49,72 @@ impl MQ2200 {
     }
 
     async fn read_min_system_soc(&self) -> Result<Percentage> {
-        self.read_u16(46609).await.context("failed to read the minimum system SoC").map(Percentage)
+        self.0
+            .read_holding_registers_value::<u16>(Self::UNIT_ID, 46609)
+            .await
+            .context("failed to read the minimum system SoC")
+            .map(Percentage)
     }
 
     async fn read_min_soc_on_grid(&self) -> Result<Percentage> {
-        self.read_u16(46611).await.context("failed to read the minimum SoC on grid").map(Percentage)
+        self.0
+            .read_holding_registers_value::<u16>(Self::UNIT_ID, 46611)
+            .await
+            .context("failed to read the minimum SoC on grid")
+            .map(Percentage)
     }
 
     async fn read_max_soc(&self) -> Result<Percentage> {
-        self.read_u16(46610).await.context("failed to read the maximum SoC").map(Percentage)
+        self.0
+            .read_holding_registers_value::<u16>(Self::UNIT_ID, 46610)
+            .await
+            .context("failed to read the maximum SoC")
+            .map(Percentage)
     }
 
     async fn read_design_capacity(&self) -> Result<DecawattHours> {
-        self.read_u16(37635).await.context("failed to read the design capacity").map(DecawattHours)
+        self.0
+            .read_holding_registers_value::<u16>(Self::UNIT_ID, 37635)
+            .await
+            .context("failed to read the design capacity")
+            .map(DecawattHours)
     }
 
     async fn read_state_of_charge(&self) -> Result<Percentage> {
-        self.read_u16(39424).await.context("failed to read the SoC").map(Percentage)
+        self.0
+            .read_holding_registers_value::<u16>(Self::UNIT_ID, 39424)
+            .await
+            .context("failed to read the SoC")
+            .map(Percentage)
     }
 
     async fn read_state_of_health(&self) -> Result<Percentage> {
-        self.read_u16(37624).await.context("failed to read the SoH").map(Percentage)
+        self.0
+            .read_holding_registers_value::<u16>(Self::UNIT_ID, 37624)
+            .await
+            .context("failed to read the SoH")
+            .map(Percentage)
     }
 
     /// Read total external active power.
     ///
     /// Positive means discharging, negative means charging.
     async fn read_active_power(&self) -> Result<Watts> {
-        self.read_i32(39134).await.context("failed to read the active power").map(Into::into)
+        self.0
+            .read_holding_registers_value::<BigEndianI32>(Self::UNIT_ID, 39134)
+            .await
+            .context("failed to read the active power")
+            .map(i32::from)
+            .map(Watts::from)
     }
 
     /// Read current EPS output power.
     async fn read_eps_active_power(&self) -> Result<Watts> {
-        self.read_i32(39216).await.context("failed to read the EPS active power").map(Into::into)
-    }
-
-    async fn read_u16(&self, address: u16) -> Result<u16> {
-        Ok(self.read_holding_registers::<1>(address).await.context("failed to read `u16`")?[0])
-    }
-
-    async fn read_i32(&self, address: u16) -> Result<i32> {
-        let [high, low] =
-            self.read_holding_registers::<2>(address).await.context("failed to read `u32`")?;
-        let [high_1, high_0] = high.to_be_bytes();
-        let [low_1, low_0] = low.to_be_bytes();
-        Ok(i32::from_be_bytes([high_1, high_0, low_1, low_0]))
-    }
-
-    #[instrument(skip_all, fields(address = address))]
-    async fn read_holding_registers<const N: usize>(&self, address: u16) -> Result<[u16; N]> {
         self.0
-            .read_holding_registers_exact::<N>(UnitId::Significant(1), address)
+            .read_holding_registers_value::<BigEndianI32>(Self::UNIT_ID, 39216)
             .await
-            .context("Modbus error")
+            .context("failed to read the EPS active power")
+            .map(i32::from)
+            .map(Watts::from)
     }
 }

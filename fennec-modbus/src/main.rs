@@ -18,8 +18,9 @@ async fn main() -> Result {
 
     let args = Args::parse();
     let client = Client::builder().endpoint(args.endpoint).build();
-    let words = client.read_holding_registers(args.unit_id.try_into()?, args.address, 1).await?;
-    println!("{}", words[0]);
+    let values =
+        client.read_holding_registers::<u16>(args.unit_id.try_into()?, args.address, 1).await?;
+    println!("{}", values[0]);
     Ok(())
 }
 

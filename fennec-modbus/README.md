@@ -26,7 +26,7 @@ let client = Client::builder()
     .endpoint("battery.iot.home.arpa:502")
     .build();
 let voltage = client
-    .read_holding_registers_exact::<1>(unit_id, 39201)
+    .read_holding_registers_exact::<1, u16>(unit_id, 39201)
     .await?[0];
 # Ok(())
 # }

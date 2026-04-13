@@ -47,7 +47,8 @@ impl<E> Connection<E> {
 
             let stream =
                 timeout(self.connect_timeout, TcpStream::connect(Clone::clone(&self.endpoint)))
-                    .await??;
+                    .await
+                    .map_err(Error::ConnectionTimeout)??;
             stream.set_nodelay(true)?;
             socket2::SockRef::from(&stream).set_keepalive(true)?;
             *guard = Some(stream);
@@ -187,7 +188,7 @@ where
 
         let payload_bytes = timeout(self.round_trip_timeout, future)
             .await
-            .map_err(Error::from)
+            .map_err(Error::TransactionTimeout)
             .flatten()
             .inspect_err(|error| {
                 #[cfg(feature = "tracing")]
@@ -207,8 +208,11 @@ pub enum Error {
     #[error("I/O error")]
     Io(#[from] tokio::io::Error),
 
-    #[error("timeout")]
-    Timeout(#[from] tokio::time::error::Elapsed),
+    #[error("timed out connecting")]
+    ConnectionTimeout(tokio::time::error::Elapsed),
+
+    #[error("transaction timeout")]
+    TransactionTimeout(tokio::time::error::Elapsed),
 }
 
 impl From<protocol::Error> for Error {

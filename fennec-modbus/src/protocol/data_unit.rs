@@ -56,16 +56,62 @@ impl<T: Writable> Request<T> {
 #[br(big)]
 #[derive(Copy, Clone)]
 pub enum Response<F: Function> {
+    /// Successful response.
     Ok {
         #[br(temp, assert(function_code == F::CODE))]
         function_code: u8,
 
+        /// Function call result.
         output: F::Output,
     },
+
+    /// The connection is healthy, but the response is a Modbus exception.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fennec_modbus::protocol::{
+    ///     Exception,
+    ///     ServerError,
+    ///     data_unit::Response,
+    ///     function::ReadHoldingRegisters,
+    ///     r#struct::Readable,
+    /// };
+    ///
+    /// let response = Response::<ReadHoldingRegisters>::from_bytes(&[
+    ///     0x83, // function code + error flag
+    ///     0x04, // server device failure
+    /// ])?;
+    /// assert!(matches!(
+    ///     response,
+    ///     Response::Exception { exception: Exception::Server(ServerError::ServerDeviceFailure) }
+    /// ));
+    /// # Ok::<_, anyhow::Error>(())
+    /// ```
+    ///
+    /// # Handling unknown error code
+    ///
+    /// ```rust
+    /// use fennec_modbus::protocol::{
+    ///     Exception,
+    ///     ServerError,
+    ///     data_unit::Response,
+    ///     function::ReadHoldingRegisters,
+    ///     r#struct::Readable,
+    /// };
+    ///
+    /// let response = Response::<ReadHoldingRegisters>::from_bytes(&[
+    ///     0x83, // function code + error flag
+    ///     0xFF, // unknown error code
+    /// ])?;
+    /// assert!(matches!(response, Response::Exception { exception: Exception::Unknown(0xFF) }));
+    /// # Ok::<_, anyhow::Error>(())
+    /// ```
     Exception {
         #[br(temp, assert(function_code == F::CODE | 0x80))]
         function_code: u8,
 
+        /// The error returned by the server.
         exception: Exception,
     },
 }
@@ -76,36 +122,5 @@ impl<F: Function> Response<F> {
             Self::Ok { output, .. } => Ok(output),
             Self::Exception { exception, .. } => Err(Error::Exception(exception)),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::protocol::{ServerError, function::ReadHoldingRegisters, r#struct::Readable};
-
-    /// TODO: move to the doctests.
-    #[test]
-    fn parse_exception_ok() {
-        const RESPONSE: &[u8] = &[
-            0x83, // function code + error flag
-            0x04, // server device failure
-        ];
-        let response = Response::<ReadHoldingRegisters>::from_bytes(RESPONSE).unwrap();
-        assert!(matches!(
-            response,
-            Response::Exception { exception: Exception::Server(ServerError::ServerDeviceFailure) }
-        ));
-    }
-
-    /// TODO: move to the doctests.
-    #[test]
-    fn unknown_error_code_ok() {
-        const RESPONSE: &[u8] = &[
-            0x83, // exception flag and function code
-            0xFF, // unknown error code
-        ];
-        let response = Response::<ReadHoldingRegisters>::from_bytes(RESPONSE).unwrap();
-        assert!(matches!(response, Response::Exception { exception: Exception::Unknown(0xFF) }));
     }
 }

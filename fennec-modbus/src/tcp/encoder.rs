@@ -8,18 +8,24 @@ use crate::{
 };
 
 /// Sans-IO Modbus-over-TCP transaction encoder used to prepare requests.
+///
+/// Under the hood, it uses simple incremental counter for transaction IDs.
 #[must_use]
 #[derive(Default)]
 pub struct Encoder(AtomicU16);
 
 impl Encoder {
+    /// Instantiate the encoder starting with the specified transaction ID.
     pub const fn with_next_transaction_id(transaction_id: u16) -> Self {
         Self(AtomicU16::new(transaction_id))
     }
 
     /// Prepare the payload for sending.
     ///
-    /// This wraps the payload, normally a PDU, into an ADU and returns the respective transaction ID along.
+    /// This wraps the payload, normally a [`crate::protocol::data_unit::Request`],
+    /// into an ADU and returns the respective transaction ID along.
+    ///
+    /// TCP transport implementors should send the resulting bytes to the server.
     pub fn prepare(
         &self,
         unit_id: UnitId,

@@ -2,6 +2,7 @@ use binrw::{BinRead, BinWrite};
 
 use crate::tcp;
 
+/// Modbus unit ID aka «slave ID».
 #[must_use]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, BinRead, BinWrite)]
 pub enum UnitId {
@@ -10,9 +11,13 @@ pub enum UnitId {
     Broadcast,
 
     /// Direct connection.
+    ///
+    /// Note that some devices do not respond to it even with direct direction over local network.
+    /// In that case, specify a [`Self::Significant`] unit ID explicitly.
     #[brw(magic(255_u8))]
     NonSignificant,
 
+    /// Addressed unit ID. `248..=254` are reserved and not valid.
     #[bw(assert(matches!(self_0, 1..=247), "unit ID {self_0} is reserved"))]
     Significant(u8),
 }

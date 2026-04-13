@@ -4,9 +4,9 @@
 
 - **The TCP layer is sans-IO.** Default implementation for Tokio is provided, and may be used with any TCP client.
 - **The Modbus layer is sans-IO.** The TCP layer is provided, and the underlying protocol can be used over any transport.
-- **Extensible functions.** Most used standard Modbus functions are provided, and the client can use any user-implemented function with `binrw` arguments and output. 
+- **Extensible functions.** Most used standard Modbus functions are provided, and the client can use any user-implemented function with arbitrary `BinWrite` arguments and `BinRead` output. 
 
-## Sneak peak
+## Sneak peek
 
 ```rust,no_run
 use anyhow::Result;

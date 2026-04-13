@@ -26,11 +26,12 @@ pub enum Exception {
     #[error("gateway error: {0}")]
     Gateway(GatewayError),
 
-    /// Unknown error code.
-    #[error("unknown error ({0})")]
+    /// Non-standard error code.
+    #[error("non-standard error ({0})")]
     Unknown(u8),
 }
 
+/// Client request errors.
 #[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
@@ -56,6 +57,7 @@ pub enum ClientError {
     IllegalDataValue,
 }
 
+/// Server failures.
 #[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
@@ -73,6 +75,7 @@ pub enum ServerError {
     MemoryParityError,
 }
 
+/// Errors that usually mean the client should retry the operation.
 #[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
@@ -94,6 +97,7 @@ pub enum RetryException {
     ServerDeviceBusy,
 }
 
+/// Errors from Modbus gateways.
 #[must_use]
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]

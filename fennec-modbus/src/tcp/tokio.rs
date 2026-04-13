@@ -1,3 +1,5 @@
+//! Modbus-over-TCP implementation for [`tokio`].
+
 #![cfg(feature = "tokio")]
 
 use alloc::{vec, vec::Vec};

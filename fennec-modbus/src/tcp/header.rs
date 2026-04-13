@@ -9,8 +9,10 @@ use crate::tcp::UnitId;
 #[derive(Clone, Builder)]
 #[brw(big)]
 pub struct Header {
+    /// Transaction ID used to match responses with requests.
     pub transaction_id: u16,
 
+    /// Protocol ID. Always `0` for Modbus.
     #[builder(default = 0)]
     #[br(assert(protocol_id == 0))]
     #[bw(assert(*protocol_id == 0))]
@@ -31,6 +33,9 @@ impl Header {
     pub const SIZE: usize = 7;
 
     /// Expected PDU length.
+    ///
+    /// TCP transport implementation should read exactly this number of bytes
+    /// and parse as [`crate::protocol::data_unit::Response`].
     #[must_use]
     pub const fn payload_length(&self) -> u16 {
         self.length - 1

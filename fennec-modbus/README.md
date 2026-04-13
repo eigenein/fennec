@@ -26,15 +26,17 @@ let client = Client::builder()
     .endpoint("battery.iot.home.arpa:502")
     .build();
 let voltage = client
-    .read_holding_registers_exact::<1, u16>(unit_id, 39201)
-    .await?[0];
+    .read_holding_registers_value::<u16>(unit_id, 39201)
+    .await?;
 # Ok(())
 # }
 ```
 
+## Command-line Interface
+
 ## Disclaimer
 
-The package is used in a live application, but at this point, the public interface may change wildly.
+The package is used in a live application, but at this point, the public interface is not stabilized and may change wildly.
 
 ## Specifications
 

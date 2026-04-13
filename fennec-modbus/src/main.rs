@@ -24,6 +24,8 @@ async fn main() -> Result {
     Ok(())
 }
 
+/// TODO: data type.
+/// TODO: number.
 #[derive(Parser)]
 struct Args {
     /// Connection endpoint.

@@ -26,7 +26,7 @@ impl Encoder {
     /// into an ADU and returns the respective transaction ID along.
     ///
     /// TCP transport implementors should send the resulting bytes to the server.
-    pub fn prepare(
+    pub fn wrap(
         &self,
         unit_id: UnitId,
         request: &impl Writable,
@@ -60,7 +60,7 @@ mod tests {
     fn send_example_ok() {
         let encoder = Encoder::with_next_transaction_id(0x1501);
         let (frame, transaction_id) =
-            encoder.prepare(UnitId::NonSignificant, &[0x03_u8, 0x00, 0x04, 0x00, 0x01]).unwrap();
+            encoder.wrap(UnitId::NonSignificant, &[0x03_u8, 0x00, 0x04, 0x00, 0x01]).unwrap();
 
         assert_eq!(transaction_id, 0x1501);
         assert_eq!(encoder.0.into_inner(), 0x1502);

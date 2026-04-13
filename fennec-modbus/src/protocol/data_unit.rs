@@ -10,30 +10,6 @@ use binrw::{BinWrite, binread};
 use crate::protocol::{Error, Exception, Function, function, r#struct::Writable};
 
 /// Request Protocol Data Unit.
-///
-/// # Example
-///
-/// ```rust
-/// use fennec_modbus::protocol::{
-///     data_unit::Request,
-///     function::{ReadHoldingRegisters, read_registers::Args},
-///     r#struct::Writable,
-/// };
-///
-/// let args = Args::builder().starting_address(107).n_registers(3).build()?;
-/// let data_unit = Request::from_args::<ReadHoldingRegisters>(args);
-///
-/// assert_eq!(
-///     data_unit.to_bytes()?,
-///     [
-///         0x03, // function code
-///         0x00, 0x6B, // starting address: high, low
-///         0x00, 0x03, // count: high, low
-///     ]
-/// );
-///
-/// # Ok::<_, anyhow::Error>(())
-/// ```
 #[derive(Copy, Clone, BinWrite)]
 #[bw(big)]
 pub struct Request<T: Writable> {
@@ -45,8 +21,32 @@ pub struct Request<T: Writable> {
 }
 
 impl<T: Writable> Request<T> {
-    /// Convert the function arguments into PDU.
-    pub const fn from_args<F: Function<Args = T>>(args: T) -> Self {
+    /// Wrap the function arguments into PDU.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fennec_modbus::protocol::{
+    ///     data_unit::Request,
+    ///     function::{ReadHoldingRegisters, read_registers::Args},
+    ///     r#struct::Writable,
+    /// };
+    ///
+    /// let args = Args::builder().starting_address(107).n_registers(3).build()?;
+    /// let data_unit = Request::wrap::<ReadHoldingRegisters>(args);
+    ///
+    /// assert_eq!(
+    ///     data_unit.to_bytes()?,
+    ///     [
+    ///         0x03, // function code
+    ///         0x00, 0x6B, // starting address: high, low
+    ///         0x00, 0x03, // count: high, low
+    ///     ]
+    /// );
+    ///
+    /// # Ok::<_, anyhow::Error>(())
+    /// ```
+    pub const fn wrap<F: Function<Args = T>>(args: T) -> Self {
         Self { function_code: F::CODE, args }
     }
 }

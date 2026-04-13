@@ -160,7 +160,7 @@ where
         tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 
         let (frame, transaction_id) =
-            self.encoder.prepare(unit_id, &data_unit::Request::from_args::<F>(args))?;
+            self.encoder.wrap(unit_id, &data_unit::Request::wrap::<F>(args))?;
         let mut connection = self.connection.get().await?;
 
         let future = async {

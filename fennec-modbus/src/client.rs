@@ -46,7 +46,7 @@ pub trait AsyncClient {
     /// Read the contents of a contiguous block of holding registers in a remote device
     /// and parse them as `N` values of type `V`.
     ///
-    /// This is the same function as [`Self::read_holding_registers`] – but with the register count known at compile time.
+    /// This is the same function as [`Self::read_registers`] – but with the register count known at compile time.
     #[expect(async_fn_in_trait)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
     async fn read_registers_exact<C: function::Code, V: read_registers::Value, const N: usize>(

@@ -13,7 +13,7 @@ keywords = ["foxess", "nextenergy", "frank-energie", "home-battery"]
 license = "MIT"
 repository = "https://github.com/eigenein/fennec"
 rust-version = "1.93"
-version = "0.90.0"
+version = "0.90.1"
 
 [workspace.lints.clippy]
 future_not_send = "allow"

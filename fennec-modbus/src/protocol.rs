@@ -16,21 +16,12 @@ pub mod r#struct;
 pub use self::{error::Error, exception::*};
 use crate::protocol::r#struct::{Readable, Writable};
 
-/// Associates function code with function type.
-pub trait FunctionCode {
-    /// Modbus function code.
-    const CODE: u8;
-
-    /// Modbus function code with the error flag
-    const ERROR_CODE: u8 = Self::CODE | 0x80;
-}
-
 /// Trait that ties function code, arguments and output together.
 ///
 /// Users are free to implement their own functions – be that custom Modbus functions
 /// or alternate standard function implementations. In the latter case, consider
 /// [making a pull request](https://github.com/eigenein/fennec/pulls).
-pub trait Function: FunctionCode {
+pub trait Function: function::Code {
     /// Function arguments type.
     ///
     /// Note that this writable type *must not* include the function code.

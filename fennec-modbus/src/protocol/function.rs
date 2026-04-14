@@ -13,12 +13,21 @@ pub mod write_multiple_registers;
 pub mod write_single_coil;
 pub mod write_single_register;
 
+/// Associates function code with function type.
+pub trait Code {
+    /// Modbus function code.
+    const CODE: u8;
+
+    /// Modbus function code with the error flag
+    const ERROR_CODE: u8 = Self::CODE | 0x80;
+}
+
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
 #[derive(Copy, Clone)]
 #[must_use]
 pub struct ReadCoils<S: Readable>(PhantomData<S>);
 
-impl<S: Readable> protocol::FunctionCode for ReadCoils<S> {
+impl<S: Readable> Code for ReadCoils<S> {
     const CODE: u8 = 1;
 }
 
@@ -32,7 +41,7 @@ impl<S: Readable> protocol::Function for ReadCoils<S> {
 #[must_use]
 pub struct ReadDiscreteInputs<S>(PhantomData<S>);
 
-impl<S: Readable> protocol::FunctionCode for ReadDiscreteInputs<S> {
+impl<S: Readable> Code for ReadDiscreteInputs<S> {
     const CODE: u8 = 2;
 }
 
@@ -46,7 +55,7 @@ impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
 #[derive(Copy, Clone)]
 pub struct ReadHoldingRegisters<V>(PhantomData<V>);
 
-impl<V: read_registers::Value> protocol::FunctionCode for ReadHoldingRegisters<V> {
+impl<V: read_registers::Value> Code for ReadHoldingRegisters<V> {
     const CODE: u8 = 3;
 }
 
@@ -62,9 +71,7 @@ impl<V: read_registers::Value> protocol::Function for ReadHoldingRegisters<V> {
 #[derive(Copy, Clone)]
 pub struct ReadHoldingRegistersExact<const N: usize, V>(PhantomData<V>);
 
-impl<const N: usize, V: read_registers::Value> protocol::FunctionCode
-    for ReadHoldingRegistersExact<N, V>
-{
+impl<const N: usize, V: read_registers::Value> Code for ReadHoldingRegistersExact<N, V> {
     const CODE: u8 = 3;
 }
 
@@ -80,7 +87,7 @@ impl<const N: usize, V: read_registers::Value> protocol::Function
 #[derive(Copy, Clone)]
 pub struct ReadInputRegisters<V>(PhantomData<V>);
 
-impl<V: read_registers::Value> protocol::FunctionCode for ReadInputRegisters<V> {
+impl<V: read_registers::Value> Code for ReadInputRegisters<V> {
     const CODE: u8 = 4;
 }
 
@@ -96,9 +103,7 @@ impl<V: read_registers::Value> protocol::Function for ReadInputRegisters<V> {
 #[derive(Copy, Clone)]
 pub struct ReadInputRegistersExact<const N: usize, V>(PhantomData<V>);
 
-impl<const N: usize, V: read_registers::Value> protocol::FunctionCode
-    for ReadInputRegistersExact<N, V>
-{
+impl<const N: usize, V: read_registers::Value> Code for ReadInputRegistersExact<N, V> {
     const CODE: u8 = 4;
 }
 
@@ -113,7 +118,7 @@ impl<const N: usize, V: read_registers::Value> protocol::Function
 #[must_use]
 pub struct WriteSingleCoil;
 
-impl protocol::FunctionCode for WriteSingleCoil {
+impl Code for WriteSingleCoil {
     const CODE: u8 = 5;
 }
 
@@ -126,7 +131,7 @@ impl protocol::Function for WriteSingleCoil {
 #[must_use]
 pub struct WriteSingleRegister;
 
-impl protocol::FunctionCode for WriteSingleRegister {
+impl Code for WriteSingleRegister {
     const CODE: u8 = 6;
 }
 
@@ -140,7 +145,7 @@ impl protocol::Function for WriteSingleRegister {
 #[derive(Copy, Clone)]
 pub struct ReadExceptionStatus;
 
-impl protocol::FunctionCode for ReadExceptionStatus {
+impl Code for ReadExceptionStatus {
     const CODE: u8 = 7;
 }
 
@@ -153,7 +158,7 @@ impl protocol::Function for ReadExceptionStatus {
 #[must_use]
 pub struct WriteMultipleCoils;
 
-impl protocol::FunctionCode for WriteMultipleCoils {
+impl Code for WriteMultipleCoils {
     const CODE: u8 = 15;
 }
 
@@ -166,7 +171,7 @@ impl protocol::Function for WriteMultipleCoils {
 #[must_use]
 pub struct WriteMultipleRegisters;
 
-impl protocol::FunctionCode for WriteMultipleRegisters {
+impl Code for WriteMultipleRegisters {
     const CODE: u8 = 16;
 }
 

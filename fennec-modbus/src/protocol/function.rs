@@ -2,8 +2,6 @@
 
 use core::marker::PhantomData;
 
-use binrw::{BinRead, BinWrite};
-
 use crate::{protocol, protocol::r#struct::Readable};
 
 pub mod read_coils;
@@ -15,47 +13,13 @@ pub mod write_multiple_registers;
 pub mod write_single_coil;
 pub mod write_single_register;
 
-/// Modbus function codes.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, BinRead, BinWrite)]
-#[repr(u8)]
-#[brw(repr = u8)]
-#[must_use]
-pub enum Code {
-    ReadCoils = 1,
-    ReadDiscreteInputs = 2,
-    ReadHoldingRegisters = 3,
-    ReadInputRegisters = 4,
-    WriteSingleCoil = 5,
-    WriteSingleRegister = 6,
-    ReadExceptionStatus = 7,
-    Diagnostics = 8,
-    GetCommunicationEventCounter = 11,
-    GetCommunicationEventLog = 12,
-    WriteMultipleCoils = 15,
-    WriteMultipleRegisters = 16,
-    ReportServerId = 17,
-    ReadFileRecord = 20,
-    WriteFileRecord = 21,
-    MaskWriteRegister = 22,
-    ReadWriteMultipleRegisters = 23,
-    ReadFifoQueue = 24,
-    EncapsulatedInterfaceTransport = 43,
-}
-
-impl Code {
-    #[must_use]
-    pub const fn with_error_flag(self) -> u8 {
-        self as u8 | 0x80
-    }
-}
-
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
 #[derive(Copy, Clone)]
 #[must_use]
 pub struct ReadCoils<S: Readable>(PhantomData<S>);
 
 impl<S: Readable> protocol::FunctionCode for ReadCoils<S> {
-    const CODE: Code = Code::ReadCoils;
+    const CODE: u8 = 1;
 }
 
 impl<S: Readable> protocol::Function for ReadCoils<S> {
@@ -69,7 +33,7 @@ impl<S: Readable> protocol::Function for ReadCoils<S> {
 pub struct ReadDiscreteInputs<S>(PhantomData<S>);
 
 impl<S: Readable> protocol::FunctionCode for ReadDiscreteInputs<S> {
-    const CODE: Code = Code::ReadDiscreteInputs;
+    const CODE: u8 = 2;
 }
 
 impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
@@ -83,7 +47,7 @@ impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
 pub struct ReadHoldingRegisters<V>(PhantomData<V>);
 
 impl<V: read_registers::Value> protocol::FunctionCode for ReadHoldingRegisters<V> {
-    const CODE: Code = Code::ReadHoldingRegisters;
+    const CODE: u8 = 3;
 }
 
 impl<V: read_registers::Value> protocol::Function for ReadHoldingRegisters<V> {
@@ -101,7 +65,7 @@ pub struct ReadHoldingRegistersExact<const N: usize, V>(PhantomData<V>);
 impl<const N: usize, V: read_registers::Value> protocol::FunctionCode
     for ReadHoldingRegistersExact<N, V>
 {
-    const CODE: Code = Code::ReadHoldingRegisters;
+    const CODE: u8 = 3;
 }
 
 impl<const N: usize, V: read_registers::Value> protocol::Function
@@ -117,7 +81,7 @@ impl<const N: usize, V: read_registers::Value> protocol::Function
 pub struct ReadInputRegisters<V>(PhantomData<V>);
 
 impl<V: read_registers::Value> protocol::FunctionCode for ReadInputRegisters<V> {
-    const CODE: Code = Code::ReadInputRegisters;
+    const CODE: u8 = 4;
 }
 
 impl<V: read_registers::Value> protocol::Function for ReadInputRegisters<V> {
@@ -135,7 +99,7 @@ pub struct ReadInputRegistersExact<const N: usize, V>(PhantomData<V>);
 impl<const N: usize, V: read_registers::Value> protocol::FunctionCode
     for ReadInputRegistersExact<N, V>
 {
-    const CODE: Code = Code::ReadInputRegisters;
+    const CODE: u8 = 4;
 }
 
 impl<const N: usize, V: read_registers::Value> protocol::Function
@@ -150,7 +114,7 @@ impl<const N: usize, V: read_registers::Value> protocol::Function
 pub struct WriteSingleCoil;
 
 impl protocol::FunctionCode for WriteSingleCoil {
-    const CODE: Code = Code::WriteSingleCoil;
+    const CODE: u8 = 5;
 }
 
 impl protocol::Function for WriteSingleCoil {
@@ -163,7 +127,7 @@ impl protocol::Function for WriteSingleCoil {
 pub struct WriteSingleRegister;
 
 impl protocol::FunctionCode for WriteSingleRegister {
-    const CODE: Code = Code::WriteSingleRegister;
+    const CODE: u8 = 6;
 }
 
 impl protocol::Function for WriteSingleRegister {
@@ -177,7 +141,7 @@ impl protocol::Function for WriteSingleRegister {
 pub struct ReadExceptionStatus;
 
 impl protocol::FunctionCode for ReadExceptionStatus {
-    const CODE: Code = Code::ReadExceptionStatus;
+    const CODE: u8 = 7;
 }
 
 impl protocol::Function for ReadExceptionStatus {
@@ -190,7 +154,7 @@ impl protocol::Function for ReadExceptionStatus {
 pub struct WriteMultipleCoils;
 
 impl protocol::FunctionCode for WriteMultipleCoils {
-    const CODE: Code = Code::WriteMultipleCoils;
+    const CODE: u8 = 15;
 }
 
 impl protocol::Function for WriteMultipleCoils {
@@ -203,7 +167,7 @@ impl protocol::Function for WriteMultipleCoils {
 pub struct WriteMultipleRegisters;
 
 impl protocol::FunctionCode for WriteMultipleRegisters {
-    const CODE: Code = Code::WriteMultipleRegisters;
+    const CODE: u8 = 16;
 }
 
 impl protocol::Function for WriteMultipleRegisters {

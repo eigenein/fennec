@@ -19,7 +19,10 @@ use crate::protocol::r#struct::{Readable, Writable};
 /// Associates function code with function type.
 pub trait FunctionCode {
     /// Modbus function code.
-    const CODE: function::Code;
+    const CODE: u8;
+
+    /// Modbus function code with the error flag
+    const ERROR_CODE: u8 = Self::CODE | 0x80;
 }
 
 /// Trait that ties function code, arguments and output together.

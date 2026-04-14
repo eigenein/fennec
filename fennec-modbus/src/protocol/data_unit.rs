@@ -7,14 +7,14 @@
 
 use binrw::{BinWrite, binread};
 
-use crate::protocol::{Error, Exception, Function, function, r#struct::Writable};
+use crate::protocol::{Error, Exception, Function, r#struct::Writable};
 
 /// Request Protocol Data Unit.
 #[derive(Copy, Clone, BinWrite)]
 #[bw(big)]
 pub struct Request<T: Writable> {
     /// Modbus function code.
-    pub function_code: function::Code,
+    pub function_code: u8,
 
     /// Function-dependent arguments that follow the function code.
     pub args: T,
@@ -58,7 +58,7 @@ pub enum Response<F: Function> {
     /// Successful response.
     Ok {
         #[br(temp, assert(function_code == F::CODE))]
-        function_code: function::Code,
+        function_code: u8,
 
         /// Function call result.
         output: F::Output,
@@ -107,7 +107,7 @@ pub enum Response<F: Function> {
     /// # Ok::<_, anyhow::Error>(())
     /// ```
     Exception {
-        #[br(temp, assert(function_code == F::CODE.with_error_flag()))]
+        #[br(temp, assert(function_code == F::ERROR_CODE))]
         function_code: u8,
 
         /// The error returned by the server.

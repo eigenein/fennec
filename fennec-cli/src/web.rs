@@ -46,7 +46,7 @@ async fn get_index(State(state): State<application::State>) -> Markup {
 
     html! {
         (DOCTYPE)
-        html {
+        html lang="en-GB" {
             head {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1";

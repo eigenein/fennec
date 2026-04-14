@@ -32,8 +32,6 @@ let voltage = client
 # }
 ```
 
-## Command-line Interface
-
 ## Disclaimer
 
 The package is used in a live application, but at this point, the public interface is not stabilized and may change wildly.

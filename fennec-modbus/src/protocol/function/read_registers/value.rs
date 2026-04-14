@@ -25,7 +25,7 @@ impl Value for i16 {
 /// assert_eq!(i32::from(BigEndianI32::from_bytes(&[0xFF, 0xFF, 0xFF, 0xFE])?), -2);
 /// # Ok::<_, anyhow::Error>(())
 /// ```
-#[derive(Copy, Clone, BinRead, derive_more::Into)]
+#[derive(Copy, Clone, BinRead, derive_more::Display, derive_more::Into)]
 #[br(big)]
 pub struct BigEndianI32(i32);
 
@@ -36,7 +36,7 @@ impl Value for BigEndianI32 {
 /// [`u32`] composed of two words in big-endian ordering.
 ///
 /// It's a trivial implementation since two big-endian words in big-endian is just [`u32`] in big-endian.
-#[derive(Copy, Clone, BinRead, derive_more::Into)]
+#[derive(Copy, Clone, BinRead, derive_more::Display, derive_more::Into)]
 #[br(big)]
 pub struct BigEndianU32(u32);
 

@@ -70,9 +70,11 @@ impl ConnectionGuard<'_> {
 /// # Example
 ///
 /// ```rust,no_run
-/// use anyhow::Result;
+/// # use anyhow::Result;
+///
 /// use fennec_modbus::{
 ///     client::AsyncClient,
+///     protocol::function::read_registers::Holding,
 ///     tcp::{UnitId, tokio::Client},
 /// };
 ///
@@ -80,7 +82,7 @@ impl ConnectionGuard<'_> {
 /// # async fn main() -> Result<()> {
 /// let unit_id = UnitId::Significant(1);
 /// let client = Client::builder().endpoint("battery.iot.home.arpa:502").build();
-/// let voltage = client.read_holding_registers_exact::<1, u16>(unit_id, 39201).await?[0];
+/// let voltage = client.read_registers_value::<Holding, u16>(unit_id, 39201).await?;
 /// # Ok(())
 /// # }
 /// ```

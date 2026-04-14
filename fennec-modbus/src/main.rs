@@ -2,7 +2,11 @@
 
 use anyhow::Error;
 use clap::{Parser, Subcommand};
-use fennec_modbus::{client::AsyncClient, tcp::tokio::Client};
+use fennec_modbus::{
+    client::AsyncClient,
+    protocol::function::read_registers::Holding,
+    tcp::tokio::Client,
+};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -23,7 +27,7 @@ async fn main() -> Result {
             let unit_id = args.unit_id.try_into()?;
             let n_values = usize::from(n_values);
             let values: Vec<u16> =
-                client.read_holding_registers::<u16>(unit_id, args.address, n_values).await?;
+                client.read_registers::<Holding, u16>(unit_id, args.address, n_values).await?;
             for value in values {
                 println!("{value}");
             }

@@ -16,6 +16,7 @@
 use anyhow::Result;
 
 use fennec_modbus::client::AsyncClient;
+use fennec_modbus::protocol::function::read_registers::Holding;
 use fennec_modbus::tcp::UnitId;
 use fennec_modbus::tcp::tokio::Client;
 
@@ -26,7 +27,7 @@ let client = Client::builder()
     .endpoint("battery.iot.home.arpa:502")
     .build();
 let voltage = client
-    .read_holding_registers_value::<u16>(unit_id, 39201)
+    .read_registers_value::<Holding, u16>(unit_id, 39201)
     .await?;
 # Ok(())
 # }

@@ -2,7 +2,7 @@
 
 use fennec_modbus::{
     client::AsyncClient,
-    protocol::function::read_registers::BigEndianI32,
+    protocol::function::read_registers::{BigEndianI32, Holding},
     tcp::UnitId,
 };
 
@@ -50,7 +50,7 @@ impl MQ2200 {
 
     async fn read_min_system_soc(&self) -> Result<Percentage> {
         self.0
-            .read_holding_registers_value::<u16>(Self::UNIT_ID, 46609)
+            .read_registers_value::<Holding, u16>(Self::UNIT_ID, 46609)
             .await
             .context("failed to read the minimum system SoC")
             .map(Percentage)
@@ -58,7 +58,7 @@ impl MQ2200 {
 
     async fn read_min_soc_on_grid(&self) -> Result<Percentage> {
         self.0
-            .read_holding_registers_value::<u16>(Self::UNIT_ID, 46611)
+            .read_registers_value::<Holding, u16>(Self::UNIT_ID, 46611)
             .await
             .context("failed to read the minimum SoC on grid")
             .map(Percentage)
@@ -66,7 +66,7 @@ impl MQ2200 {
 
     async fn read_max_soc(&self) -> Result<Percentage> {
         self.0
-            .read_holding_registers_value::<u16>(Self::UNIT_ID, 46610)
+            .read_registers_value::<Holding, u16>(Self::UNIT_ID, 46610)
             .await
             .context("failed to read the maximum SoC")
             .map(Percentage)
@@ -74,7 +74,7 @@ impl MQ2200 {
 
     async fn read_design_capacity(&self) -> Result<DecawattHours> {
         self.0
-            .read_holding_registers_value::<u16>(Self::UNIT_ID, 37635)
+            .read_registers_value::<Holding, u16>(Self::UNIT_ID, 37635)
             .await
             .context("failed to read the design capacity")
             .map(DecawattHours)
@@ -82,7 +82,7 @@ impl MQ2200 {
 
     async fn read_state_of_charge(&self) -> Result<Percentage> {
         self.0
-            .read_holding_registers_value::<u16>(Self::UNIT_ID, 39424)
+            .read_registers_value::<Holding, u16>(Self::UNIT_ID, 39424)
             .await
             .context("failed to read the SoC")
             .map(Percentage)
@@ -90,7 +90,7 @@ impl MQ2200 {
 
     async fn read_state_of_health(&self) -> Result<Percentage> {
         self.0
-            .read_holding_registers_value::<u16>(Self::UNIT_ID, 37624)
+            .read_registers_value::<Holding, u16>(Self::UNIT_ID, 37624)
             .await
             .context("failed to read the SoH")
             .map(Percentage)
@@ -101,7 +101,7 @@ impl MQ2200 {
     /// Positive means discharging, negative means charging.
     async fn read_active_power(&self) -> Result<Watts> {
         self.0
-            .read_holding_registers_value::<BigEndianI32>(Self::UNIT_ID, 39134)
+            .read_registers_value::<Holding, BigEndianI32>(Self::UNIT_ID, 39134)
             .await
             .context("failed to read the active power")
             .map(i32::from)
@@ -111,7 +111,7 @@ impl MQ2200 {
     /// Read current EPS output power.
     async fn read_eps_active_power(&self) -> Result<Watts> {
         self.0
-            .read_holding_registers_value::<BigEndianI32>(Self::UNIT_ID, 39216)
+            .read_registers_value::<Holding, BigEndianI32>(Self::UNIT_ID, 39216)
             .await
             .context("failed to read the EPS active power")
             .map(i32::from)

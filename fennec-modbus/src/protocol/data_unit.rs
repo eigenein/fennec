@@ -28,11 +28,14 @@ impl<T: Writable> Request<T> {
     /// ```rust
     /// use fennec_modbus::protocol::{
     ///     data_unit::Request,
-    ///     function::{ReadHoldingRegisters, read_registers::Args},
+    ///     function::{
+    ///         ReadRegisters,
+    ///         read_registers::{Args, Holding},
+    ///     },
     ///     r#struct::Writable,
     /// };
     ///
-    /// let data_unit = Request::wrap::<ReadHoldingRegisters<u16>>(Args::new(107, 3)?);
+    /// let data_unit = Request::wrap::<ReadRegisters<Holding, u16>>(Args::new(107, 3)?);
     ///
     /// assert_eq!(
     ///     data_unit.to_bytes()?,
@@ -73,11 +76,11 @@ pub enum Response<F: Function> {
     ///     Exception,
     ///     ServerError,
     ///     data_unit::Response,
-    ///     function::ReadHoldingRegisters,
+    ///     function::{ReadRegisters, read_registers::Holding},
     ///     r#struct::Readable,
     /// };
     ///
-    /// let response = Response::<ReadHoldingRegisters<u16>>::from_bytes(&[
+    /// let response = Response::<ReadRegisters<Holding, u16>>::from_bytes(&[
     ///     0x83, // function code + error flag
     ///     0x04, // server device failure
     /// ])?;
@@ -95,11 +98,11 @@ pub enum Response<F: Function> {
     ///     Exception,
     ///     ServerError,
     ///     data_unit::Response,
-    ///     function::ReadHoldingRegisters,
+    ///     function::{ReadRegisters, read_registers::Holding},
     ///     r#struct::Readable,
     /// };
     ///
-    /// let response = Response::<ReadHoldingRegisters<u16>>::from_bytes(&[
+    /// let response = Response::<ReadRegisters<Holding, u16>>::from_bytes(&[
     ///     0x83, // function code + error flag
     ///     0xFF, // unknown error code
     /// ])?;

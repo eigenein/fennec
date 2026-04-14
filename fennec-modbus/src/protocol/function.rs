@@ -50,65 +50,33 @@ impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
     type Output = read_discrete_inputs::Output<S>;
 }
 
-/// Read the contents of a contiguous block of holding registers in a remote device.
+/// Read the contents of a contiguous block of registers in a remote device.
 #[must_use]
 #[derive(Copy, Clone)]
-pub struct ReadHoldingRegisters<V>(PhantomData<V>);
+pub struct ReadRegisters<C, V>(PhantomData<(C, V)>);
 
-impl<V: read_registers::Value> Code for ReadHoldingRegisters<V> {
-    const CODE: u8 = 3;
+impl<C: Code, V: read_registers::Value> Code for ReadRegisters<C, V> {
+    const CODE: u8 = C::CODE;
 }
 
-impl<V: read_registers::Value> protocol::Function for ReadHoldingRegisters<V> {
+impl<C: Code, V: read_registers::Value> protocol::Function for ReadRegisters<C, V> {
     type Args = read_registers::Args<V>;
     type Output = read_registers::Output<V>;
 }
 
-/// Read the contents of a contiguous block of holding registers in a remote device.
+/// Read the contents of a contiguous block of registers in a remote device.
 ///
-/// This is the same function as [`ReadHoldingRegisters`] – but with the register count known at compile time.
+/// This is the same function as [`ReadRegisters`] – but with the register count known at compile time.
 #[must_use]
 #[derive(Copy, Clone)]
-pub struct ReadHoldingRegistersExact<const N: usize, V>(PhantomData<V>);
+pub struct ReadRegistersExact<C, V, const N: usize>(PhantomData<(C, V)>);
 
-impl<const N: usize, V: read_registers::Value> Code for ReadHoldingRegistersExact<N, V> {
-    const CODE: u8 = 3;
+impl<C: Code, V: read_registers::Value, const N: usize> Code for ReadRegistersExact<C, V, N> {
+    const CODE: u8 = C::CODE;
 }
 
-impl<const N: usize, V: read_registers::Value> protocol::Function
-    for ReadHoldingRegistersExact<N, V>
-{
-    type Args = read_registers::Args<V>;
-    type Output = read_registers::OutputExact<N, V>;
-}
-
-/// Read from 1 to 125 contiguous input registers in a remote device.
-#[must_use]
-#[derive(Copy, Clone)]
-pub struct ReadInputRegisters<V>(PhantomData<V>);
-
-impl<V: read_registers::Value> Code for ReadInputRegisters<V> {
-    const CODE: u8 = 4;
-}
-
-impl<V: read_registers::Value> protocol::Function for ReadInputRegisters<V> {
-    type Args = read_registers::Args<V>;
-    type Output = read_registers::Output<V>;
-}
-
-/// Read from 1 to 125 contiguous input registers in a remote device.
-///
-/// This is the same function as [`ReadInputRegisters`] – but with the register count known at compile time.
-#[must_use]
-#[derive(Copy, Clone)]
-pub struct ReadInputRegistersExact<const N: usize, V>(PhantomData<V>);
-
-impl<const N: usize, V: read_registers::Value> Code for ReadInputRegistersExact<N, V> {
-    const CODE: u8 = 4;
-}
-
-impl<const N: usize, V: read_registers::Value> protocol::Function
-    for ReadInputRegistersExact<N, V>
+impl<C: Code, V: read_registers::Value, const N: usize> protocol::Function
+    for ReadRegistersExact<C, V, N>
 {
     type Args = read_registers::Args<V>;
     type Output = read_registers::OutputExact<N, V>;

@@ -8,7 +8,24 @@ use core::{fmt::Debug, marker::PhantomData};
 use binrw::{BinRead, BinWrite};
 
 pub use self::value::*;
-use crate::{protocol, protocol::r#struct::Readable};
+use crate::{
+    protocol,
+    protocol::{function, r#struct::Readable},
+};
+
+/// Read holding registers.
+pub struct Holding;
+
+impl function::Code for Holding {
+    const CODE: u8 = 3;
+}
+
+/// Read input registers.
+pub struct Input;
+
+impl function::Code for Input {
+    const CODE: u8 = 4;
+}
 
 /// Arguments to read a contiguous block of registers.
 ///

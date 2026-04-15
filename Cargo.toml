@@ -7,9 +7,9 @@ resolver = "3"
 
 [workspace.package]
 authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
-description = "FoxESS home battery steering based on Next Energy or Frank Energie real-time prices"
+description = "FoxESS home battery steering based on Frank Energie real-time prices"
 edition = "2024"
-keywords = ["foxess", "nextenergy", "frank-energie", "home-battery"]
+keywords = ["foxess", "frank-energie", "home-battery"]
 license = "MIT"
 repository = "https://github.com/eigenein/fennec"
 rust-version = "1.93"

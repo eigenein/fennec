@@ -1,7 +1,7 @@
 use chrono::{NaiveDate, TimeDelta};
 
 use crate::{
-    api::{frank_energie, next_energy},
+    api::frank_energie,
     energy::Flow,
     ops::Interval,
     prelude::*,
@@ -12,10 +12,6 @@ use crate::{
     Copy, Clone, Hash, Eq, PartialEq, clap::ValueEnum, serde::Serialize, serde::Deserialize,
 )]
 pub enum Provider {
-    /// [NextEnergy](https://www.nextenergy.nl).
-    #[serde(rename = "next_energy")]
-    NextEnergy,
-
     /// Quarterly [Frank Energie](https://www.frankenergie.nl).
     #[serde(rename = "frank_energie_quarterly")]
     FrankEnergieQuarterly,
@@ -28,7 +24,7 @@ pub enum Provider {
 impl Provider {
     pub const fn time_step(self) -> TimeDelta {
         match self {
-            Self::NextEnergy | Self::FrankEnergieHourly => TimeDelta::hours(1),
+            Self::FrankEnergieHourly => TimeDelta::hours(1),
             Self::FrankEnergieQuarterly => TimeDelta::minutes(15),
         }
     }
@@ -44,7 +40,6 @@ impl Provider {
             Self::FrankEnergieHourly => {
                 frank_energie::Api::new(frank_energie::Resolution::Hourly)?.get_prices(on).await
             }
-            Self::NextEnergy => next_energy::Api::new()?.get_prices(on).await,
         }
     }
 }

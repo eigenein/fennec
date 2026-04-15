@@ -117,6 +117,24 @@ pub enum Response<F: Function> {
     },
 }
 
+impl<F> Decode for Response<F>
+where
+    F: Function,
+    F::Output: Decode,
+{
+    fn decode_from(buf: &mut (impl Buf + ?Sized)) -> Result<Self, Error> {
+        match buf.try_get_u8()? {
+            function_code if function_code == F::CODE => {
+                Ok(Self::Ok { function_code, output: F::Output::decode_from(buf)? })
+            }
+            function_code if function_code == (F::CODE | 0x80) => {
+                Ok(Self::Exception { function_code, exception: Exception::decode_from(buf)? })
+            }
+            function_code => Err(Error::UnexpectedFunctionCode(function_code)),
+        }
+    }
+}
+
 impl<F: Function> Response<F> {
     pub fn into_result(self) -> Result<F::Output, Error> {
         match self {

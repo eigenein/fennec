@@ -22,7 +22,7 @@ use fennec_modbus::tcp::tokio::Client;
 
 # #[tokio::main]
 # async fn main() -> Result<()> {
-let unit_id = UnitId::try_from(1)?;
+let unit_id = UnitId::Significant(1);
 let client = Client::builder()
     .endpoint("battery.iot.home.arpa:502")
     .build();

@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 use fennec_modbus::{
     client::AsyncClient,
     protocol::function::read_registers::Holding,
-    tcp::tokio::Client,
+    tcp::{UnitId, tokio::Client},
 };
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
@@ -23,11 +23,10 @@ async fn main() -> Result {
 
     match args.command {
         Command::ReadHolding { n_values } => {
-            let client = Client::builder().endpoint(args.endpoint).build();
-            let unit_id = args.unit_id.try_into()?;
+            let client = args.endpoint.client();
             let n_values = usize::from(n_values);
             let values: Vec<u16> =
-                client.read_registers::<Holding, u16>(unit_id, args.address, n_values).await?;
+                client.read_registers::<Holding, u16>(args.unit_id, args.address, n_values).await?;
             for value in values {
                 println!("{value}");
             }
@@ -39,13 +38,12 @@ async fn main() -> Result {
 
 #[derive(Parser)]
 struct Args {
-    /// Connection endpoint.
-    #[clap(long = "endpoint", env = "ENDPOINT")]
-    endpoint: String,
+    #[clap(flatten)]
+    endpoint: Endpoint,
 
     /// Unit ID aka «slave ID».
     #[clap(long = "unit-id", alias = "slave-id", env = "UNIT_ID")]
-    unit_id: u8,
+    unit_id: UnitId,
 
     /// Starting register address.
     #[clap(long = "address", env = "ADDRESS")]
@@ -68,4 +66,17 @@ enum Command {
     )]
         n_values: u8,
     },
+}
+
+#[derive(Parser)]
+struct Endpoint {
+    /// Connection endpoint.
+    #[clap(long = "endpoint", env = "ENDPOINT")]
+    inner: String,
+}
+
+impl Endpoint {
+    pub fn client(self) -> Client<String> {
+        Client::builder().endpoint(self.inner).build()
+    }
 }

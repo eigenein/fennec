@@ -1,6 +1,6 @@
-use binrw::{BinRead, BinWrite};
+use core::str::FromStr;
 
-use crate::tcp;
+use binrw::{BinRead, BinWrite};
 
 /// Modbus unit ID aka «slave ID».
 #[must_use]
@@ -22,15 +22,20 @@ pub enum UnitId {
     Significant(u8),
 }
 
-impl TryFrom<u8> for UnitId {
-    type Error = tcp::Error;
-
-    fn try_from(unit_id: u8) -> Result<Self, Self::Error> {
+impl From<u8> for UnitId {
+    fn from(unit_id: u8) -> Self {
         match unit_id {
-            0 => Ok(Self::Broadcast),
-            255 => Ok(Self::NonSignificant),
-            248..255 => Err(tcp::Error::InvalidUnitId(unit_id)),
-            _ => Ok(Self::Significant(unit_id)),
+            0 => Self::Broadcast,
+            255 => Self::NonSignificant,
+            _ => Self::Significant(unit_id),
         }
+    }
+}
+
+impl FromStr for UnitId {
+    type Err = core::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from(u8::from_str(s)?))
     }
 }

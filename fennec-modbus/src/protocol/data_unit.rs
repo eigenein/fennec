@@ -105,7 +105,7 @@ pub enum Response<F: Function> {
     ///     0x83, // function code + error flag
     ///     0xFF, // unknown error code
     /// ])?;
-    /// assert!(matches!(response, Response::Exception { exception: Exception::Unknown(0xFF), .. }));
+    /// assert!(matches!(response, Response::Exception { exception: Exception::Custom(0xFF), .. }));
     /// # Ok::<_, anyhow::Error>(())
     /// ```
     Exception {

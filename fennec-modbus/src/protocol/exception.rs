@@ -1,7 +1,10 @@
 use core::fmt::Debug;
 
 use binrw::BinRead;
+use bytes::Buf;
 use thiserror::Error;
+
+use crate::{protocol, protocol::bytes::Decode};
 
 /// High-level protocol error.
 ///
@@ -72,6 +75,23 @@ pub enum Exception {
     GatewayTargetDeviceFailedToRespond,
 
     /// Non-standard error code.
-    #[error("non-standard error ({0})")]
-    Unknown(u8),
+    #[error("custom error ({0})")]
+    Custom(u8),
+}
+
+impl Decode for Exception {
+    fn decode_from(buf: &mut (impl Buf + ?Sized)) -> Result<Self, protocol::Error> {
+        match buf.try_get_u8()? {
+            0x01 => Ok(Self::IllegalFunction),
+            0x02 => Ok(Self::IllegalDataAddress),
+            0x03 => Ok(Self::IllegalDataValue),
+            0x04 => Ok(Self::ServerDeviceFailure),
+            0x05 => Ok(Self::Acknowledge),
+            0x06 => Ok(Self::ServerDeviceBusy),
+            0x08 => Ok(Self::MemoryParityError),
+            0x0A => Ok(Self::GatewayPathUnavailable),
+            0x0B => Ok(Self::GatewayTargetDeviceFailedToRespond),
+            function_code => Ok(Self::Custom(function_code)),
+        }
+    }
 }

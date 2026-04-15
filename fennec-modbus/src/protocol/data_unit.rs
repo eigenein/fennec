@@ -6,8 +6,9 @@
 //! - [`Response`] deserializes PDU into the structure.
 
 use binrw::{BinWrite, binread};
+use bytes::Buf;
 
-use crate::protocol::{Error, Exception, Function, r#struct::Writable};
+use crate::protocol::{Error, Exception, Function, bytes::Decode, r#struct::Writable};
 
 /// Request Protocol Data Unit.
 #[derive(Copy, Clone, BinWrite)]
@@ -60,7 +61,7 @@ impl<T: Writable> Request<T> {
 pub enum Response<F: Function> {
     /// Successful response.
     Ok {
-        #[br(temp, assert(function_code == F::CODE))]
+        #[br(assert(function_code == F::CODE))]
         function_code: u8,
 
         /// Function call result.
@@ -74,7 +75,6 @@ pub enum Response<F: Function> {
     /// ```rust
     /// use fennec_modbus::protocol::{
     ///     Exception,
-    ///     ServerError,
     ///     data_unit::Response,
     ///     function::{ReadRegisters, read_registers::Holding},
     ///     r#struct::Readable,
@@ -86,7 +86,7 @@ pub enum Response<F: Function> {
     /// ])?;
     /// assert!(matches!(
     ///     response,
-    ///     Response::Exception { exception: Exception::Server(ServerError::ServerDeviceFailure) }
+    ///     Response::Exception { exception: Exception::ServerDeviceFailure, .. }
     /// ));
     /// # Ok::<_, anyhow::Error>(())
     /// ```
@@ -96,7 +96,6 @@ pub enum Response<F: Function> {
     /// ```rust
     /// use fennec_modbus::protocol::{
     ///     Exception,
-    ///     ServerError,
     ///     data_unit::Response,
     ///     function::{ReadRegisters, read_registers::Holding},
     ///     r#struct::Readable,
@@ -106,11 +105,11 @@ pub enum Response<F: Function> {
     ///     0x83, // function code + error flag
     ///     0xFF, // unknown error code
     /// ])?;
-    /// assert!(matches!(response, Response::Exception { exception: Exception::Unknown(0xFF) }));
+    /// assert!(matches!(response, Response::Exception { exception: Exception::Unknown(0xFF), .. }));
     /// # Ok::<_, anyhow::Error>(())
     /// ```
     Exception {
-        #[br(temp, assert(function_code == F::ERROR_CODE))]
+        #[br(assert(function_code == (F::CODE | 0x80)))]
         function_code: u8,
 
         /// The error returned by the server.

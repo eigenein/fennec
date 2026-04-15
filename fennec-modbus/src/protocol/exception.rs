@@ -10,32 +10,6 @@ use thiserror::Error;
 #[derive(Copy, Clone, Debug, BinRead, Error)]
 #[br(big)]
 pub enum Exception {
-    /// Client request was malformed.
-    #[error("client error: {0}")]
-    Client(ClientError),
-
-    /// The server has failed.
-    #[error("server error: {0}")]
-    Server(ServerError),
-
-    /// The client should retry.
-    #[error("retry: {0}")]
-    Retry(RetryException),
-
-    /// The gateway could not delegate the request.
-    #[error("gateway error: {0}")]
-    Gateway(GatewayError),
-
-    /// Non-standard error code.
-    #[error("non-standard error ({0})")]
-    Unknown(u8),
-}
-
-/// Client request errors.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum ClientError {
     /// The function code received in the query is not an allowable action for the server:
     ///
     /// - the function was not implemented in the unit selected;
@@ -55,31 +29,12 @@ pub enum ClientError {
     #[error("illegal data value")]
     #[br(magic = 0x03_u8)]
     IllegalDataValue,
-}
 
-/// Server failures.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum ServerError {
     /// An unrecoverable error occurred while the server was attempting to perform the requested action.
     #[error("server device failure")]
     #[br(magic = 0x04_u8)]
     ServerDeviceFailure,
 
-    /// The server attempted to read record file, but  detected a parity error in the memory.
-    ///
-    /// The client can retry the request, but service may be required on the server device.
-    #[error("memory parity error")]
-    #[br(magic = 0x08_u8)]
-    MemoryParityError,
-}
-
-/// Errors that usually mean the client should retry the operation.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum RetryException {
     /// The server has accepted the request and is processing it, but a long duration of time will be
     /// required to do so.
     ///
@@ -95,13 +50,14 @@ pub enum RetryException {
     #[error("server device busy")]
     #[br(magic = 0x06_u8)]
     ServerDeviceBusy,
-}
 
-/// Errors from Modbus gateways.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum GatewayError {
+    /// The server attempted to read record file, but  detected a parity error in the memory.
+    ///
+    /// The client can retry the request, but service may be required on the server device.
+    #[error("memory parity error")]
+    #[br(magic = 0x08_u8)]
+    MemoryParityError,
+
     /// The gateway was unable to allocate an internal communication path from the input port
     /// to the output port for processing the request.
     #[error("gateway path unavailable")]
@@ -114,4 +70,8 @@ pub enum GatewayError {
     #[error("gateway target device failed to respond")]
     #[br(magic = 0x0B_u8)]
     GatewayTargetDeviceFailedToRespond,
+
+    /// Non-standard error code.
+    #[error("non-standard error ({0})")]
+    Unknown(u8),
 }

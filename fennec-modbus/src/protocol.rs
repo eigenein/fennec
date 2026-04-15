@@ -7,6 +7,7 @@
 //! - **Functions** are the actual Modbus functions expressed in terms of function code,
 //!   request arguments and output.
 
+mod bytes;
 pub mod data_unit;
 mod error;
 mod exception;

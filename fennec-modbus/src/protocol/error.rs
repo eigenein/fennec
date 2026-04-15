@@ -1,5 +1,6 @@
 use alloc::string::{String, ToString};
 
+use bytes::TryGetError;
 use thiserror::Error;
 
 use crate::protocol::Exception;
@@ -18,6 +19,12 @@ pub enum Error {
 
     #[error("exception")]
     Exception(#[from] Exception),
+
+    #[error("not enough bytes to read")]
+    TryGetError(#[from] TryGetError),
+
+    #[error("unexpected function code ({0})")]
+    UnexpectedFunctionCode(u8),
 }
 
 impl From<binrw::Error> for Error {

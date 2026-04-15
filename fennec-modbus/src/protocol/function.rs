@@ -17,9 +17,6 @@ pub mod write_single_register;
 pub trait Code {
     /// Modbus function code.
     const CODE: u8;
-
-    /// Modbus function code with the error flag
-    const ERROR_CODE: u8 = Self::CODE | 0x80;
 }
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.

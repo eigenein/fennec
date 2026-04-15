@@ -1283,6 +1283,7 @@ dependencies = [
  "anyhow",
  "binrw",
  "bon",
+ "bytes",
  "clap",
  "derive_more",
  "modular-bitfield",

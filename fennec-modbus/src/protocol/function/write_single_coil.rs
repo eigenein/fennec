@@ -1,29 +1,29 @@
-use alloc::{boxed::Box, format};
-
-use binrw::{BinRead, BinWrite};
 use bon::Builder;
+use deku::{DekuRead, DekuWrite};
 
 #[must_use]
-#[derive(Builder, Copy, Clone, Debug, BinRead, BinWrite)]
-#[brw(big)]
+#[derive(Builder, Copy, Clone, Debug, DekuRead, DekuWrite)]
 pub struct Payload {
     /// *Zero-based* address of the coil to write.
+    #[deku(endian = "big")]
     address: u16,
 
-    #[br(try_map = |it: u16| match it {
-        0xFF00 => Ok(true),
-        0x0000 => Ok(false),
-        other => Err(format!("invalid coil value: 0x{other:04X}")),
-    })]
-    #[bw(map = |it: &bool| if *it { 0xFF00u16 } else { 0x0000u16 })]
-    state: bool,
+    state: State,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, DekuRead, DekuWrite)]
+#[deku(endian = "big", id_type = "u16")]
+pub enum State {
+    #[deku(id = 0x0000)]
+    Off,
+
+    #[deku(id = 0xFF00)]
+    On,
 }
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec;
-
-    use binrw::{BinRead, io::Cursor};
+    use deku::{DekuContainerRead, DekuContainerWrite};
 
     use super::*;
 
@@ -34,14 +34,13 @@ mod tests {
 
     #[test]
     fn request_example_ok() {
-        let mut output = Cursor::new(vec![]);
-        Payload::builder().address(172).state(true).build().write(&mut output).unwrap();
-        assert_eq!(output.into_inner(), PAYLOAD);
+        let bytes = Payload::builder().address(172).state(State::On).build().to_bytes().unwrap();
+        assert_eq!(bytes, PAYLOAD);
     }
 
     #[test]
     fn response_example_ok() {
-        let response = Payload::read(&mut Cursor::new(PAYLOAD)).unwrap();
-        assert!(response.state);
+        let (_, response) = Payload::from_bytes((PAYLOAD, 0)).unwrap();
+        assert_eq!(response.state, State::On);
     }
 }

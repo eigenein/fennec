@@ -1,17 +1,11 @@
 //! Shared structures for reading multiple registers.
 
-mod value;
-
 use alloc::vec::Vec;
 use core::{fmt::Debug, marker::PhantomData};
 
-use binrw::{BinRead, BinWrite};
+use deku::{DekuContainerRead, DekuRead, DekuSize, DekuWrite};
 
-pub use self::value::*;
-use crate::{
-    protocol,
-    protocol::{function, r#struct::Readable},
-};
+use crate::{protocol, protocol::function};
 
 /// Read holding registers.
 pub struct Holding;
@@ -48,9 +42,9 @@ impl function::Code for Input {
 /// # Ok::<_, anyhow::Error>(())
 /// ```
 #[must_use]
-#[derive(Copy, Clone, Debug, BinWrite)]
-#[bw(big)]
-pub struct Args<V: Value> {
+#[derive(Copy, Clone, Debug, DekuWrite)]
+#[deku(endian = "big")]
+pub struct Args<V> {
     /// *Zero-based* address of the first register to read.
     starting_address: u16,
 
@@ -61,10 +55,11 @@ pub struct Args<V: Value> {
     ///
     /// It is not used directly here, but it is useful to ensure correct calculation
     /// for the number of requested registers in the function.
+    #[deku(skip)]
     phantom_data: PhantomData<V>,
 }
 
-impl<V: Value> Args<V> {
+impl<V> Args<V> {
     /// Number of registers to read.
     #[must_use]
     pub const fn n_registers(&self) -> u16 {
@@ -72,8 +67,11 @@ impl<V: Value> Args<V> {
     }
 
     #[expect(clippy::missing_panics_doc)]
-    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error> {
-        let n_registers = n_values * V::N_BYTES / 2;
+    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error>
+    where
+        V: DekuSize,
+    {
+        let n_registers = n_values * V::SIZE_BYTES.unwrap() / 2;
         if (1..=125).contains(&n_registers) {
             Ok(Self {
                 starting_address,
@@ -107,53 +105,11 @@ impl<V: Value> Args<V> {
 /// # Ok::<_, anyhow::Error>(())
 /// ```
 #[must_use]
-#[derive(Clone, derive_more::Debug, BinRead)]
-#[br(big)]
-pub struct Output<V: Value> {
+#[derive(Clone, derive_more::Debug, DekuRead)]
+pub struct Output<V: for<'a> DekuContainerRead<'a>> {
+    /// FIXME: assert number of bytes?
     pub n_bytes: u8,
 
-    #[br(
-        assert(usize::from(n_bytes).is_multiple_of(V::N_BYTES)),
-        count = usize::from(n_bytes) / V::N_BYTES,
-    )]
+    #[deku(bytes_read = "n_bytes")]
     pub values: Vec<V>,
-}
-
-/// Output of contiguous block of registers with size known at compilation time.
-///
-/// # Type parameters
-///
-/// - `N`: number of *values*, one value may span multiple registers
-/// - `V`: value type
-///
-/// # Example
-///
-/// ```rust
-/// use fennec_modbus::protocol::{
-///     function::read_registers::{BigEndianI32, OutputExact},
-///     r#struct::Readable,
-/// };
-///
-/// let output = OutputExact::<1, BigEndianI32>::from_bytes(&[
-///     0x04, // byte count
-///     0x00, 0x00, // high word: high byte, low byte
-///     0x00, 0x01, // low word: high byte, low byte
-/// ])?;
-/// assert_eq!(i32::from(output.values[0]), 1);
-/// # Ok::<_, anyhow::Error>(())
-/// ```
-#[must_use]
-#[derive(Clone, derive_more::Debug, BinRead)]
-#[br(big)]
-pub struct OutputExact<const N: usize, V: Value> {
-    #[br(assert(usize::from(n_bytes) == V::N_BYTES * N))]
-    pub n_bytes: u8,
-
-    pub values: [V; N],
-}
-
-/// Value that can be read from contiguous block of registers.
-pub trait Value: Readable + 'static {
-    /// Number of bytes occupied by a single value.
-    const N_BYTES: usize;
 }

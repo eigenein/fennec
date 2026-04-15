@@ -1,11 +1,11 @@
-use binrw::{BinRead, BinWrite};
 use bon::bon;
+use deku::{DekuContainerRead, DekuRead, DekuWrite};
 
-use crate::{protocol, protocol::r#struct::Readable};
+use crate::protocol;
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Debug, BinWrite)]
-#[bw(big)]
+#[derive(Copy, Clone, derive_more::Debug, DekuWrite)]
+#[deku(endian = "big")]
 pub struct Args {
     starting_address: u16,
     n_coils: u16,
@@ -29,9 +29,8 @@ impl Args {
 }
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big)]
-pub struct Output<S: Readable> {
+#[derive(Copy, Clone, derive_more::Debug, DekuRead)]
+pub struct Output<S: for<'a> DekuContainerRead<'a>> {
     pub n_bytes: u8,
 
     /// The coils in the response message are packed as one coil per bit of the data field.
@@ -47,23 +46,21 @@ pub struct Output<S: Readable> {
 mod tests {
     #![allow(dead_code)]
 
-    use alloc::vec;
-
-    use binrw::{BinRead, io::Cursor};
-    use modular_bitfield::prelude::*;
+    use deku::{DekuContainerRead, DekuContainerWrite};
 
     use super::*;
 
-    #[bitfield]
-    #[derive(BinRead)]
-    #[br(map = Self::from_bytes)]
+    #[derive(DekuRead)]
+    #[deku(endian = "big")]
     struct PackedData {
-        status_1: B8,
-        status_2: B8,
-        status_3: B3,
+        #[deku(bits = 8)]
+        status_1: u8,
 
-        #[skip]
-        __: B5,
+        #[deku(bits = 8)]
+        status_2: u8,
+
+        #[deku(bits = 3)]
+        status_3: u8,
     }
 
     #[test]
@@ -72,15 +69,9 @@ mod tests {
             0x00, 0x13, // starting address: high, low
             0x00, 0x13, // count: high, low
         ];
-        let mut output = Cursor::new(vec![]);
-        Args::builder()
-            .starting_address(19)
-            .n_coils(19)
-            .build()
-            .unwrap()
-            .write(&mut output)
-            .unwrap();
-        assert_eq!(output.into_inner(), EXPECTED);
+        let bytes =
+            Args::builder().starting_address(19).n_coils(19).build().unwrap().to_bytes().unwrap();
+        assert_eq!(bytes, EXPECTED);
     }
 
     #[test]
@@ -92,9 +83,9 @@ mod tests {
             0x05, // outputs status 38-36
         ];
 
-        let response = Output::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.coils.status_1(), 0xCD);
-        assert_eq!(response.coils.status_2(), 0x6B);
-        assert_eq!(response.coils.status_3(), 0x05);
+        let (_, response) = Output::<PackedData>::from_bytes((RESPONSE, 0)).unwrap();
+        assert_eq!(response.coils.status_1, 0xCD);
+        assert_eq!(response.coils.status_2, 0x6B);
+        assert_eq!(response.coils.status_3, 0x05);
     }
 }

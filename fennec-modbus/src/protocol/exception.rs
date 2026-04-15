@@ -1,117 +1,78 @@
 use core::fmt::Debug;
 
-use binrw::BinRead;
+use deku::DekuRead;
 use thiserror::Error;
 
 /// High-level protocol error.
 ///
 /// The server received the request without a communication error, but could not handle it.
 #[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
+#[derive(Copy, Clone, Debug, DekuRead, Error)]
+#[deku(id_type = "u8")]
 pub enum Exception {
-    /// Client request was malformed.
-    #[error("client error: {0}")]
-    Client(ClientError),
-
-    /// The server has failed.
-    #[error("server error: {0}")]
-    Server(ServerError),
-
-    /// The client should retry.
-    #[error("retry: {0}")]
-    Retry(RetryException),
-
-    /// The gateway could not delegate the request.
-    #[error("gateway error: {0}")]
-    Gateway(GatewayError),
-
-    /// Non-standard error code.
-    #[error("non-standard error ({0})")]
-    Unknown(u8),
-}
-
-/// Client request errors.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum ClientError {
     /// The function code received in the query is not an allowable action for the server:
     ///
     /// - the function was not implemented in the unit selected;
     /// - the server is in the wrong state to process a request of this type.
     #[error("illegal function")]
-    #[br(magic = 0x01_u8)]
+    #[deku(id = 0x01)]
     IllegalFunction,
 
     /// The data address received in the query is not an allowable address for the server.
     ///
     /// The combination of reference number and transfer length is invalid.
     #[error("illegal data address")]
-    #[br(magic = 0x02_u8)]
+    #[deku(id = 0x02)]
     IllegalDataAddress,
 
     /// A value contained in the query data field is not an allowable value for server.
     #[error("illegal data value")]
-    #[br(magic = 0x03_u8)]
+    #[deku(id = 0x03)]
     IllegalDataValue,
-}
 
-/// Server failures.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum ServerError {
     /// An unrecoverable error occurred while the server was attempting to perform the requested action.
     #[error("server device failure")]
-    #[br(magic = 0x04_u8)]
+    #[deku(id = 0x04)]
     ServerDeviceFailure,
 
-    /// The server attempted to read record file, but  detected a parity error in the memory.
-    ///
-    /// The client can retry the request, but service may be required on the server device.
-    #[error("memory parity error")]
-    #[br(magic = 0x08_u8)]
-    MemoryParityError,
-}
-
-/// Errors that usually mean the client should retry the operation.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum RetryException {
     /// The server has accepted the request and is processing it, but a long duration of time will be
     /// required to do so.
     ///
     /// This response is returned to prevent a timeout error from occurring in the client.
     /// The client can next issue a «Poll Program Complete» message to determine if processing is completed.
     #[error("acknowledge")]
-    #[br(magic = 0x05_u8)]
+    #[deku(id = 0x05)]
     Acknowledge,
 
     /// The server is engaged in processing a long–duration program command.
     ///
     /// The client should retransmit the message later when the server is free.
     #[error("server device busy")]
-    #[br(magic = 0x06_u8)]
+    #[deku(id = 0x06)]
     ServerDeviceBusy,
-}
 
-/// Errors from Modbus gateways.
-#[must_use]
-#[derive(Copy, Clone, Debug, BinRead, Error)]
-#[br(big)]
-pub enum GatewayError {
+    /// The server attempted to read record file, but  detected a parity error in the memory.
+    ///
+    /// The client can retry the request, but service may be required on the server device.
+    #[error("memory parity error")]
+    #[deku(id = 0x08)]
+    MemoryParityError,
+
     /// The gateway was unable to allocate an internal communication path from the input port
     /// to the output port for processing the request.
     #[error("gateway path unavailable")]
-    #[br(magic = 0x0A_u8)]
+    #[deku(id = 0x0A)]
     GatewayPathUnavailable,
 
     /// No response was obtained from the target device.
     ///
     /// Usually means that the device is not present on the network.
     #[error("gateway target device failed to respond")]
-    #[br(magic = 0x0B_u8)]
+    #[deku(id = 0x0B)]
     GatewayTargetDeviceFailedToRespond,
+
+    /// Non-standard error code.
+    #[error("non-standard error ({0})")]
+    #[deku(id_pat = "_")]
+    Unknown(u8),
 }

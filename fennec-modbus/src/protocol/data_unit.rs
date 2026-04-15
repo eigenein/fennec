@@ -5,14 +5,20 @@
 //! - [`Request`] serializes the request into a proper PDU.
 //! - [`Response`] deserializes PDU into the structure.
 
-use binrw::{BinWrite, binread};
+use deku::{
+    DekuContainerWrite,
+    DekuError,
+    DekuReader,
+    DekuWrite,
+    no_std_io::{Read, Seek},
+    reader::Reader,
+};
 
-use crate::protocol::{Error, Exception, Function, r#struct::Writable};
+use crate::protocol::{Error, Exception, Function};
 
 /// Request Protocol Data Unit.
-#[derive(Copy, Clone, BinWrite)]
-#[bw(big)]
-pub struct Request<T: Writable> {
+#[derive(Copy, Clone, DekuWrite)]
+pub struct Request<T: DekuContainerWrite> {
     /// Modbus function code.
     pub function_code: u8,
 
@@ -20,7 +26,7 @@ pub struct Request<T: Writable> {
     pub args: T,
 }
 
-impl<T: Writable> Request<T> {
+impl<T: DekuContainerWrite> Request<T> {
     /// Wrap the function arguments into PDU.
     ///
     /// # Example
@@ -54,18 +60,10 @@ impl<T: Writable> Request<T> {
 }
 
 /// Response Protocol Data Unit.
-#[binread]
-#[br(big)]
 #[derive(Copy, Clone)]
 pub enum Response<F: Function> {
     /// Successful response.
-    Ok {
-        #[br(temp, assert(function_code == F::CODE))]
-        function_code: u8,
-
-        /// Function call result.
-        output: F::Output,
-    },
+    Ok(F::Output),
 
     /// The connection is healthy, but the response is a Modbus exception.
     ///
@@ -109,20 +107,34 @@ pub enum Response<F: Function> {
     /// assert!(matches!(response, Response::Exception { exception: Exception::Unknown(0xFF) }));
     /// # Ok::<_, anyhow::Error>(())
     /// ```
-    Exception {
-        #[br(temp, assert(function_code == F::ERROR_CODE))]
-        function_code: u8,
-
-        /// The error returned by the server.
-        exception: Exception,
-    },
+    Exception(Exception),
 }
 
 impl<F: Function> Response<F> {
     pub fn into_result(self) -> Result<F::Output, Error> {
         match self {
-            Self::Ok { output, .. } => Ok(output),
-            Self::Exception { exception, .. } => Err(Error::Exception(exception)),
+            Self::Ok(output) => Ok(output),
+            Self::Exception(exception) => Err(Error::Exception(exception)),
+        }
+    }
+}
+
+impl<F: Function> DekuReader<'_> for Response<F> {
+    fn from_reader_with_ctx<R: Read + Seek>(
+        reader: &mut Reader<R>,
+        ctx: (),
+    ) -> Result<Self, DekuError>
+    where
+        Self: Sized,
+    {
+        match u8::from_reader_with_ctx(reader, ctx)? {
+            function_code if function_code == F::CODE => {
+                Ok(Self::Ok(F::Output::from_reader_with_ctx(reader, ctx)?))
+            }
+            function_code if function_code == (F::CODE | 0x80) => {
+                Ok(Self::Exception(Exception::from_reader_with_ctx(reader, ctx)?))
+            }
+            _ => Err(DekuError::IdVariantNotFound),
         }
     }
 }

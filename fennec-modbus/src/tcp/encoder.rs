@@ -1,8 +1,10 @@
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicU16, Ordering};
 
+use deku::{DekuContainerWrite, DekuWriter, no_std_io::Cursor};
+
 use crate::{
-    protocol::r#struct::Writable,
+    protocol,
     tcp,
     tcp::{Header, UnitId},
 };
@@ -29,11 +31,15 @@ impl Encoder {
     pub fn wrap(
         &self,
         unit_id: UnitId,
-        request: &impl Writable,
+        request: impl DekuWriter,
     ) -> Result<(Vec<u8>, u16), tcp::Error> {
         let transaction_id = self.0.fetch_add(1, Ordering::Relaxed);
         let frame_bytes = {
-            let payload_bytes = request.to_bytes()?;
+            let payload_bytes = {
+                let mut cursor = Cursor::new(Vec::new());
+                request.to_writer(&mut cursor, ()).map_err(protocol::Error::from)?;
+                cursor.into_inner()
+            };
             let mut frame_bytes = {
                 let length = u16::try_from(payload_bytes.len() + 1)
                     .map_err(|_| tcp::Error::PayloadSizeExceeded(payload_bytes.len()))?;
@@ -42,7 +48,8 @@ impl Encoder {
                     .transaction_id(transaction_id)
                     .length(length)
                     .build()
-                    .to_bytes()?
+                    .to_bytes()
+                    .map_err(protocol::Error::from)?
             };
             frame_bytes.extend(payload_bytes);
             frame_bytes

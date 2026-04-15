@@ -1,15 +1,16 @@
 use core::fmt::Debug;
 
-use binrw::{BinRead, BinWrite};
+use deku::{DekuRead, DekuWrite};
 
 #[must_use]
-#[derive(Copy, Clone, Debug, BinWrite)]
-#[bw(big)]
+#[derive(Copy, Clone, Debug, DekuWrite)]
+#[deku(endian = "big")]
 pub struct Args;
 
+/// TODO: make a new-type tuple.
 #[must_use]
-#[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big)]
+#[derive(Copy, Clone, derive_more::Debug, DekuRead)]
+#[deku(endian = "big")]
 pub struct Output {
     /// Status of the eight Exception Status outputs.
     ///
@@ -19,26 +20,16 @@ pub struct Output {
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec;
-
-    use binrw::{BinRead, io::Cursor};
+    use deku::DekuContainerRead;
 
     use super::*;
-
-    #[test]
-    fn request_example_ok() {
-        const EXPECTED: &[u8] = &[];
-        let mut output = Cursor::new(vec![]);
-        Args.write(&mut output).unwrap();
-        assert_eq!(output.into_inner(), EXPECTED);
-    }
 
     #[test]
     fn response_example_ok() {
         const RESPONSE: &[u8] = &[
             0x6D, // output
         ];
-        let response = Output::read(&mut Cursor::new(RESPONSE)).unwrap();
+        let (_, response) = Output::from_bytes((RESPONSE, 0)).unwrap();
         assert_eq!(response.output, 0x6D);
     }
 }

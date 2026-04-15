@@ -11,10 +11,10 @@ pub mod data_unit;
 mod error;
 mod exception;
 pub mod function;
-pub mod r#struct;
+
+use deku::{DekuContainerRead, DekuContainerWrite};
 
 pub use self::{error::Error, exception::*};
-use crate::protocol::r#struct::{Readable, Writable};
 
 /// Trait that ties function code, arguments and output together.
 ///
@@ -25,10 +25,10 @@ pub trait Function: function::Code {
     /// Function arguments type.
     ///
     /// Note that this writable type *must not* include the function code.
-    type Args: Writable;
+    type Args: DekuContainerWrite;
 
     /// Function result type.
     ///
     /// Note that this readable type *must not* include the function code.
-    type Output: Readable;
+    type Output: for<'a> DekuContainerRead<'a>;
 }

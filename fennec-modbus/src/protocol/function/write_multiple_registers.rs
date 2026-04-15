@@ -1,14 +1,14 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use binrw::{BinRead, BinWrite};
 use bon::bon;
+use deku::{DekuRead, DekuWrite};
 
 use crate::protocol;
 
 #[must_use]
-#[derive(Clone, Debug, BinWrite)]
-#[bw(big)]
+#[derive(Clone, Debug, DekuWrite)]
+#[deku(endian = "big")]
 pub struct Args {
     starting_address: u16,
     n_registers: u16,
@@ -37,8 +37,8 @@ impl Args {
 }
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big)]
+#[derive(Copy, Clone, derive_more::Debug, DekuRead)]
+#[deku(endian = "big")]
 pub struct Output {
     pub starting_address: u16,
     pub n_registers: u16,
@@ -48,7 +48,7 @@ pub struct Output {
 mod tests {
     use alloc::vec;
 
-    use binrw::{BinRead, io::Cursor};
+    use deku::{DekuContainerRead, DekuContainerWrite};
 
     use super::*;
 
@@ -61,15 +61,14 @@ mod tests {
             0x00, 0x0A, // first word
             0x01, 0x02, // second word
         ];
-        let mut output = Cursor::new(vec![]);
-        Args::builder()
+        let bytes = Args::builder()
             .starting_address(1)
             .words(vec![0x000A, 0x0102])
             .build()
             .unwrap()
-            .write(&mut output)
+            .to_bytes()
             .unwrap();
-        assert_eq!(output.into_inner(), EXPECTED);
+        assert_eq!(bytes, EXPECTED);
     }
 
     #[test]
@@ -78,8 +77,8 @@ mod tests {
             0x00, 0x01, // starting address: high, low
             0x00, 0x02, // register count: high, low
         ];
-        let response = Output::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.starting_address, 1);
-        assert_eq!(response.n_registers, 2);
+        let (_, output) = Output::from_bytes((RESPONSE, 0)).unwrap();
+        assert_eq!(output.starting_address, 1);
+        assert_eq!(output.n_registers, 2);
     }
 }

@@ -1,11 +1,11 @@
-use binrw::{BinRead, BinWrite};
 use bon::bon;
+use deku::{DekuContainerRead, DekuRead, DekuWrite};
 
-use crate::{protocol, protocol::r#struct::Readable};
+use crate::protocol;
 
 #[must_use]
-#[derive(Copy, Clone, Debug, BinWrite)]
-#[bw(big)]
+#[derive(Copy, Clone, Debug, DekuWrite)]
+#[deku(endian = "big")]
 pub struct Args {
     /// *Zero-based* address of the first input to read.
     starting_address: u16,
@@ -27,9 +27,8 @@ impl Args {
 }
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big)]
-pub struct Output<S: Readable> {
+#[derive(Copy, Clone, derive_more::Debug, DekuRead)]
+pub struct Output<S: for<'a> DekuContainerRead<'a>> {
     pub n_bytes: u8,
 
     /// The discrete inputs in the response message are packed as one input per bit of the data field.
@@ -45,23 +44,21 @@ pub struct Output<S: Readable> {
 mod tests {
     #![allow(dead_code)]
 
-    use alloc::vec;
-
-    use binrw::{BinRead, io::Cursor};
-    use modular_bitfield::prelude::*;
+    use deku::{DekuContainerRead, DekuContainerWrite};
 
     use super::*;
 
-    #[bitfield]
-    #[derive(BinRead)]
-    #[br(map = Self::from_bytes)]
+    #[derive(DekuRead)]
+    #[deku(endian = "big")]
     struct PackedData {
-        status_1: B8,
-        status_2: B8,
-        status_3: B6,
+        #[deku(bits = 8)]
+        status_1: u8,
 
-        #[skip]
-        __: B2,
+        #[deku(bits = 8)]
+        status_2: u8,
+
+        #[deku(bits = 6)]
+        status_3: u8,
     }
 
     #[test]
@@ -70,15 +67,9 @@ mod tests {
             0x00, 0xC4, // starting address: high, low
             0x00, 0x16, // count: high, low
         ];
-        let mut output = Cursor::new(vec![]);
-        Args::builder()
-            .starting_address(196)
-            .n_inputs(22)
-            .build()
-            .unwrap()
-            .write(&mut output)
-            .unwrap();
-        assert_eq!(output.into_inner(), EXPECTED);
+        let bytes =
+            Args::builder().starting_address(196).n_inputs(22).build().unwrap().to_bytes().unwrap();
+        assert_eq!(bytes, EXPECTED);
     }
 
     #[test]
@@ -90,9 +81,9 @@ mod tests {
             0x35, // outputs status 218-213
         ];
 
-        let response = Output::<PackedData>::read(&mut Cursor::new(RESPONSE)).unwrap();
-        assert_eq!(response.input.status_1(), 0xAC);
-        assert_eq!(response.input.status_2(), 0xDB);
-        assert_eq!(response.input.status_3(), 0x35);
+        let (_, response) = Output::<PackedData>::from_bytes((RESPONSE, 0)).unwrap();
+        assert_eq!(response.input.status_1, 0xAC);
+        assert_eq!(response.input.status_2, 0xDB);
+        assert_eq!(response.input.status_3, 0x35);
     }
 }

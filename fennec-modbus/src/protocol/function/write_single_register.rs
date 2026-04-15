@@ -1,9 +1,9 @@
-use binrw::{BinRead, BinWrite};
 use bon::Builder;
+use deku::{DekuRead, DekuWrite};
 
 #[must_use]
-#[derive(Builder, Copy, Clone, Debug, BinRead, BinWrite)]
-#[brw(big)]
+#[derive(Builder, Copy, Clone, Debug, DekuRead, DekuWrite)]
+#[deku(endian = "big")]
 pub struct Payload {
     /// *Zero-based* address of the register to write.
     address: u16,
@@ -13,9 +13,7 @@ pub struct Payload {
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec;
-
-    use binrw::{BinRead, io::Cursor};
+    use deku::{DekuContainerRead, DekuContainerWrite};
 
     use super::*;
 
@@ -26,15 +24,14 @@ mod tests {
 
     #[test]
     fn request_example_ok() {
-        let mut output = Cursor::new(vec![]);
-        Payload::builder().address(1).value(3).build().write(&mut output).unwrap();
-        assert_eq!(output.into_inner(), PAYLOAD);
+        let bytes = Payload::builder().address(1).value(3).build().to_bytes().unwrap();
+        assert_eq!(bytes, PAYLOAD);
     }
 
     #[test]
     fn response_example_ok() {
-        let response = Payload::read(&mut Cursor::new(PAYLOAD)).unwrap();
-        assert_eq!(response.address, 1);
-        assert_eq!(response.value, 3);
+        let (_, payload) = Payload::from_bytes((PAYLOAD, 0)).unwrap();
+        assert_eq!(payload.address, 1);
+        assert_eq!(payload.value, 3);
     }
 }

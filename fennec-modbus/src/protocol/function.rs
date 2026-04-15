@@ -2,7 +2,9 @@
 
 use core::marker::PhantomData;
 
-use crate::{protocol, protocol::r#struct::Readable};
+use deku::DekuContainerRead;
+
+use crate::protocol;
 
 pub mod read_coils;
 pub mod read_discrete_inputs;
@@ -17,21 +19,18 @@ pub mod write_single_register;
 pub trait Code {
     /// Modbus function code.
     const CODE: u8;
-
-    /// Modbus function code with the error flag
-    const ERROR_CODE: u8 = Self::CODE | 0x80;
 }
 
 /// Read from 1 to 2000 contiguous status of coils in a remote device.
 #[derive(Copy, Clone)]
 #[must_use]
-pub struct ReadCoils<S: Readable>(PhantomData<S>);
+pub struct ReadCoils<S>(PhantomData<S>);
 
-impl<S: Readable> Code for ReadCoils<S> {
+impl<S> Code for ReadCoils<S> {
     const CODE: u8 = 1;
 }
 
-impl<S: Readable> protocol::Function for ReadCoils<S> {
+impl<S: for<'a> DekuContainerRead<'a>> protocol::Function for ReadCoils<S> {
     type Args = read_coils::Args;
     type Output = read_coils::Output<S>;
 }
@@ -41,11 +40,11 @@ impl<S: Readable> protocol::Function for ReadCoils<S> {
 #[must_use]
 pub struct ReadDiscreteInputs<S>(PhantomData<S>);
 
-impl<S: Readable> Code for ReadDiscreteInputs<S> {
+impl<S> Code for ReadDiscreteInputs<S> {
     const CODE: u8 = 2;
 }
 
-impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
+impl<S: for<'a> DekuContainerRead<'a>> protocol::Function for ReadDiscreteInputs<S> {
     type Args = read_discrete_inputs::Args;
     type Output = read_discrete_inputs::Output<S>;
 }
@@ -55,31 +54,13 @@ impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
 #[derive(Copy, Clone)]
 pub struct ReadRegisters<C, V>(PhantomData<(C, V)>);
 
-impl<C: Code, V: read_registers::Value> Code for ReadRegisters<C, V> {
+impl<C: Code, V> Code for ReadRegisters<C, V> {
     const CODE: u8 = C::CODE;
 }
 
-impl<C: Code, V: read_registers::Value> protocol::Function for ReadRegisters<C, V> {
+impl<C: Code, V: for<'a> DekuContainerRead<'a>> protocol::Function for ReadRegisters<C, V> {
     type Args = read_registers::Args<V>;
     type Output = read_registers::Output<V>;
-}
-
-/// Read the contents of a contiguous block of registers in a remote device.
-///
-/// This is the same function as [`ReadRegisters`] – but with the register count known at compile time.
-#[must_use]
-#[derive(Copy, Clone)]
-pub struct ReadRegistersExact<C, V, const N: usize>(PhantomData<(C, V)>);
-
-impl<C: Code, V: read_registers::Value, const N: usize> Code for ReadRegistersExact<C, V, N> {
-    const CODE: u8 = C::CODE;
-}
-
-impl<C: Code, V: read_registers::Value, const N: usize> protocol::Function
-    for ReadRegistersExact<C, V, N>
-{
-    type Args = read_registers::Args<V>;
-    type Output = read_registers::OutputExact<N, V>;
 }
 
 /// Write a single output to either «on» or «off» in a remote device.

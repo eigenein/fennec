@@ -1,26 +1,23 @@
-use binrw::binrw;
 use bon::Builder;
+use deku::{DekuRead, DekuSize, DekuWrite};
 
 use crate::tcp::UnitId;
 
 /// Modbus Application Protocol (Data Unit) header aka «MBAP header».
 #[must_use]
-#[binrw]
-#[derive(Clone, Builder)]
-#[brw(big)]
+#[derive(Clone, Builder, DekuRead, DekuWrite, DekuSize)]
+#[deku(endian = "big")]
 pub struct Header {
     /// Transaction ID used to match responses with requests.
     pub transaction_id: u16,
 
     /// Protocol ID. Always `0` for Modbus.
     #[builder(default = 0)]
-    #[br(assert(protocol_id == 0))]
-    #[bw(assert(*protocol_id == 0))]
+    #[deku(assert_eq = "0")]
     pub protocol_id: u16,
 
     /// Number of following bytes, *including the Unit Identifier and data fields*.
-    #[br(assert(length != 0))]
-    #[bw(assert(*length != 0))]
+    #[deku(assert = "*length != 0")]
     pub length: u16,
 
     /// Unit identifier aka «slave ID».
@@ -30,7 +27,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub const SIZE: usize = 7;
+    pub const N_BYTES: usize = Self::SIZE_BYTES.unwrap();
 
     /// Expected PDU length.
     ///
@@ -44,9 +41,7 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec::Vec;
-
-    use binrw::{BinRead, BinWrite, io::Cursor};
+    use deku::{DekuContainerRead, DekuContainerWrite};
 
     use super::*;
 
@@ -59,8 +54,7 @@ mod tests {
 
     #[test]
     fn read_example_ok() {
-        let mut cursor = Cursor::new(ADU_BYTES);
-        let adu = Header::read(&mut cursor).unwrap();
+        let (_, adu) = Header::from_bytes((ADU_BYTES, 0)).unwrap();
         assert_eq!(adu.transaction_id, 0x1501);
         assert_eq!(adu.protocol_id, 0);
         assert_eq!(adu.unit_id, UnitId::NonSignificant);
@@ -68,14 +62,13 @@ mod tests {
 
     #[test]
     fn write_example_ok() {
-        let mut cursor = Cursor::new(Vec::new());
-        Header::builder()
+        let bytes = Header::builder()
             .unit_id(UnitId::NonSignificant)
             .transaction_id(0x1501)
             .length(6)
             .build()
-            .write(&mut cursor)
+            .to_bytes()
             .unwrap();
-        assert_eq!(cursor.into_inner(), ADU_BYTES);
+        assert_eq!(bytes, ADU_BYTES);
     }
 }

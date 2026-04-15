@@ -1,24 +1,25 @@
 use core::str::FromStr;
 
-use binrw::{BinRead, BinWrite};
+use deku::{DekuRead, DekuSize, DekuWrite};
 
 /// Modbus unit ID aka «slave ID».
 #[must_use]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, BinRead, BinWrite)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, DekuSize, DekuRead, DekuWrite)]
+#[deku(id_type = "u8", endian = "big")]
 pub enum UnitId {
     /// Broadcast on a subnetwork. Also accepted for a direct connection.
-    #[brw(magic(0_u8))]
+    #[deku(id = 0)]
     Broadcast,
 
     /// Direct connection.
     ///
     /// Note that some devices do not respond to it even with direct direction over local network.
     /// In that case, specify a [`Self::Significant`] unit ID explicitly.
-    #[brw(magic(255_u8))]
+    #[deku(id = 255)]
     NonSignificant,
 
     /// Addressed unit ID. `248..=254` are reserved and not valid.
-    #[bw(assert(matches!(self_0, 1..=247), "unit ID {self_0} is reserved"))]
+    #[deku(id_pat = "1..=247")]
     Significant(u8),
 }
 

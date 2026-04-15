@@ -6,6 +6,7 @@ use alloc::vec;
 use core::{fmt::Debug, time::Duration};
 
 use bon::bon;
+use deku::{DekuContainerRead, DekuContainerWrite, DekuReader, no_std_io::Cursor, reader::Reader};
 use thiserror::Error;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -14,11 +15,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{
-    protocol,
-    protocol::{Function, data_unit, r#struct::Readable},
-    tcp,
-};
+use crate::{protocol, protocol::data_unit, tcp};
 
 #[must_use]
 struct Connection<E> {
@@ -133,16 +130,16 @@ impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
     type Error = Error;
 
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    async fn call<F: Function>(
-        &self,
-        unit_id: tcp::UnitId,
-        args: F::Args,
-    ) -> Result<F::Output, Error> {
+    async fn call<F>(&self, unit_id: tcp::UnitId, args: F::Args) -> Result<F::Output, Error>
+    where
+        F: protocol::Function,
+        F::Args: DekuContainerWrite,
+    {
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 
         let (frame, transaction_id) =
-            self.encoder.wrap(unit_id, &data_unit::Request::wrap::<F>(args))?;
+            self.encoder.wrap(unit_id, data_unit::Request::wrap::<F>(args))?;
         let mut connection = self.connection.get().await?;
 
         let future = async {
@@ -154,11 +151,13 @@ impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
                 #[cfg(feature = "tracing")]
                 tracing::trace!(transaction_id, "awaiting header…");
 
-                let header = tcp::Header::from_bytes(&{
-                    let mut header_bytes = [0; tcp::Header::SIZE];
-                    connection.get_mut().read_exact(&mut header_bytes).await?;
-                    header_bytes
-                })?;
+                let mut header_bytes = [0; tcp::Header::N_BYTES];
+                connection.get_mut().read_exact(&mut header_bytes).await?;
+
+                let (_, header) = tcp::Header::from_bytes((&header_bytes, 0))
+                    // TODO: extract method on `Header`:
+                    .map_err(protocol::Error::from)
+                    .map_err(tcp::Error::from)?;
 
                 #[cfg(feature = "tracing")]
                 tracing::trace!(transaction_id = header.transaction_id, "received header");
@@ -194,7 +193,14 @@ impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
 
                 connection.invalidate();
             })?;
-        Ok(data_unit::Response::<F>::from_bytes(&payload_bytes)?.into_result()?)
+
+        data_unit::Response::<F>::from_reader_with_ctx(&mut Reader::new(payload_bytes), ())
+            // TODO: extract method on `Response`:
+            .map(data_unit::Response::into_result)
+            .map_err(protocol::Error::from)
+            .flatten()
+            .map_err(tcp::Error::from)
+            .map_err(Error::from)
     }
 }
 

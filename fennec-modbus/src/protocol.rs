@@ -12,10 +12,9 @@ pub mod data_unit;
 mod error;
 mod exception;
 pub mod function;
-pub mod r#struct;
 
 pub use self::{error::Error, exception::*};
-use crate::protocol::r#struct::{Readable, Writable};
+pub use crate::protocol::bytes::*;
 
 /// Trait that ties function code, arguments and output together.
 ///
@@ -25,11 +24,11 @@ use crate::protocol::r#struct::{Readable, Writable};
 pub trait Function: function::Code {
     /// Function arguments type.
     ///
-    /// Note that this writable type *must not* include the function code.
-    type Args: Writable;
+    /// Note that this encodable type *must not* include the function code.
+    type Args: Encode;
 
     /// Function result type.
     ///
-    /// Note that this readable type *must not* include the function code.
-    type Output: Readable;
+    /// Note that this decodable type *must not* include the function code.
+    type Output: Decode;
 }

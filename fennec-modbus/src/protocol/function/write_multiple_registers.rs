@@ -1,14 +1,16 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use binrw::{BinRead, BinWrite};
 use bon::bon;
+use bytes::{Buf, BufMut};
 
-use crate::protocol;
+use crate::{
+    protocol,
+    protocol::{Decode, Encode, Error},
+};
 
 #[must_use]
-#[derive(Clone, Debug, BinWrite)]
-#[bw(big)]
+#[derive(Clone, Debug)]
 pub struct Args {
     starting_address: u16,
     n_registers: u16,
@@ -36,19 +38,33 @@ impl Args {
     }
 }
 
+impl Encode for Args {
+    fn encode_into(&self, buf: &mut impl BufMut) {
+        buf.put_u16(self.starting_address);
+        buf.put_u16(self.n_registers);
+        buf.put_u8(self.n_bytes);
+        for word in &self.words {
+            buf.put_u16(*word);
+        }
+    }
+}
+
 #[must_use]
-#[derive(Copy, Clone, derive_more::Debug, BinRead)]
-#[br(big)]
+#[derive(Copy, Clone, derive_more::Debug)]
 pub struct Output {
     pub starting_address: u16,
     pub n_registers: u16,
 }
 
+impl Decode for Output {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        Ok(Self { starting_address: buf.try_get_u16()?, n_registers: buf.try_get_u16()? })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::vec;
-
-    use binrw::{BinRead, io::Cursor};
 
     use super::*;
 
@@ -61,15 +77,13 @@ mod tests {
             0x00, 0x0A, // first word
             0x01, 0x02, // second word
         ];
-        let mut output = Cursor::new(vec![]);
-        Args::builder()
+        let bytes = Args::builder()
             .starting_address(1)
             .words(vec![0x000A, 0x0102])
             .build()
             .unwrap()
-            .write(&mut output)
-            .unwrap();
-        assert_eq!(output.into_inner(), EXPECTED);
+            .encode_into_bytes();
+        assert_eq!(bytes, EXPECTED);
     }
 
     #[test]
@@ -78,7 +92,10 @@ mod tests {
             0x00, 0x01, // starting address: high, low
             0x00, 0x02, // register count: high, low
         ];
-        let response = Output::read(&mut Cursor::new(RESPONSE)).unwrap();
+
+        #[expect(const_item_mutation)]
+        let response = Output::decode_from(&mut RESPONSE).unwrap();
+
         assert_eq!(response.starting_address, 1);
         assert_eq!(response.n_registers, 2);
     }

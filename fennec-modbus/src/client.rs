@@ -2,9 +2,11 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use crate::protocol::{
+    BitSize,
+    Decode,
     Function,
     function,
-    function::{ReadRegisters, ReadRegistersExact, read_registers},
+    function::{ReadRegisters, read_registers},
 };
 
 /// Abstraction over async Modbus clients.
@@ -30,7 +32,7 @@ pub trait AsyncClient {
     /// and parse them as values of type `V`.
     #[expect(async_fn_in_trait)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    async fn read_registers<C: function::Code, V: read_registers::Value>(
+    async fn read_registers<C: function::Code, V: Decode + BitSize>(
         &self,
         unit_id: Self::UnitId,
         starting_address: u16,
@@ -40,35 +42,6 @@ pub trait AsyncClient {
         tracing::trace!(?unit_id, starting_address, n_values, "reading holding registers…");
 
         let args = read_registers::Args::new(starting_address, n_values)?;
-        Ok(self.call::<ReadRegisters<C, V>>(unit_id, args).await?.values)
-    }
-
-    /// Read the contents of a contiguous block of holding registers in a remote device
-    /// and parse them as `N` values of type `V`.
-    ///
-    /// This is the same function as [`Self::read_registers`] – but with the register count known at compile time.
-    #[expect(async_fn_in_trait)]
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    async fn read_registers_exact<C: function::Code, V: read_registers::Value, const N: usize>(
-        &self,
-        unit_id: Self::UnitId,
-        starting_address: u16,
-    ) -> Result<[V; N], Self::Error> {
-        #[cfg(feature = "tracing")]
-        tracing::trace!(?unit_id, starting_address, N, "reading registers…");
-
-        let args = read_registers::Args::new(starting_address, N)?;
-        Ok(self.call::<ReadRegistersExact<C, V, N>>(unit_id, args).await?.values)
-    }
-
-    /// Convenience method to read a single value from one or more registers and unpack it.
-    #[expect(async_fn_in_trait)]
-    async fn read_registers_value<C: function::Code, V: read_registers::Value>(
-        &self,
-        unit_id: Self::UnitId,
-        address: u16,
-    ) -> Result<V, Self::Error> {
-        let [value] = self.read_registers_exact::<C, V, 1>(unit_id, address).await?;
-        Ok(value)
+        Ok(self.call::<ReadRegisters<C, V>>(unit_id, args).await?.0)
     }
 }

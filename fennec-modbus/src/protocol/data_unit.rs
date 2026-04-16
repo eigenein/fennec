@@ -5,15 +5,13 @@
 //! - [`Request`] serializes the request into a proper PDU.
 //! - [`Response`] deserializes PDU into the structure.
 
-use binrw::{BinWrite, binread};
-use bytes::Buf;
+use bytes::{Buf, BufMut};
 
-use crate::protocol::{Error, Exception, Function, bytes::Decode, r#struct::Writable};
+use crate::protocol::{Encode, Error, Exception, Function, bytes::Decode};
 
 /// Request Protocol Data Unit.
-#[derive(Copy, Clone, BinWrite)]
-#[bw(big)]
-pub struct Request<T: Writable> {
+#[derive(Copy, Clone)]
+pub struct Request<T> {
     /// Modbus function code.
     pub function_code: u8,
 
@@ -21,25 +19,25 @@ pub struct Request<T: Writable> {
     pub args: T,
 }
 
-impl<T: Writable> Request<T> {
+impl<T> Request<T> {
     /// Wrap the function arguments into PDU.
     ///
     /// # Example
     ///
     /// ```rust
     /// use fennec_modbus::protocol::{
+    ///     Encode,
     ///     data_unit::Request,
     ///     function::{
     ///         ReadRegisters,
     ///         read_registers::{Args, Holding},
     ///     },
-    ///     r#struct::Writable,
     /// };
     ///
     /// let data_unit = Request::wrap::<ReadRegisters<Holding, u16>>(Args::new(107, 3)?);
     ///
     /// assert_eq!(
-    ///     data_unit.to_bytes()?,
+    ///     data_unit.encode_into_bytes(),
     ///     [
     ///         0x03, // function code
     ///         0x00, 0x6B, // starting address: high, low
@@ -54,19 +52,18 @@ impl<T: Writable> Request<T> {
     }
 }
 
+impl<T: Encode> Encode for Request<T> {
+    fn encode_into(&self, buf: &mut impl BufMut) {
+        buf.put_u8(self.function_code);
+        self.args.encode_into(buf);
+    }
+}
+
 /// Response Protocol Data Unit.
-#[binread]
-#[br(big)]
 #[derive(Copy, Clone)]
 pub enum Response<F: Function> {
     /// Successful response.
-    Ok {
-        #[br(assert(function_code == F::CODE))]
-        function_code: u8,
-
-        /// Function call result.
-        output: F::Output,
-    },
+    Ok(F::Output),
 
     /// The connection is healthy, but the response is a Modbus exception.
     ///
@@ -74,20 +71,18 @@ pub enum Response<F: Function> {
     ///
     /// ```rust
     /// use fennec_modbus::protocol::{
+    ///     Decode,
     ///     Exception,
     ///     data_unit::Response,
     ///     function::{ReadRegisters, read_registers::Holding},
-    ///     r#struct::Readable,
     /// };
     ///
-    /// let response = Response::<ReadRegisters<Holding, u16>>::from_bytes(&[
+    /// let mut buf: &[u8] = &[
     ///     0x83, // function code + error flag
     ///     0x04, // server device failure
-    /// ])?;
-    /// assert!(matches!(
-    ///     response,
-    ///     Response::Exception { exception: Exception::ServerDeviceFailure, .. }
-    /// ));
+    /// ];
+    /// let response = Response::<ReadRegisters<Holding, u16>>::decode_from(&mut buf)?;
+    /// assert!(matches!(response, Response::Exception(Exception::ServerDeviceFailure)));
     /// # Ok::<_, anyhow::Error>(())
     /// ```
     ///
@@ -95,26 +90,21 @@ pub enum Response<F: Function> {
     ///
     /// ```rust
     /// use fennec_modbus::protocol::{
+    ///     Decode,
     ///     Exception,
     ///     data_unit::Response,
     ///     function::{ReadRegisters, read_registers::Holding},
-    ///     r#struct::Readable,
     /// };
     ///
-    /// let response = Response::<ReadRegisters<Holding, u16>>::from_bytes(&[
+    /// let mut buf: &[u8] = &[
     ///     0x83, // function code + error flag
     ///     0xFF, // unknown error code
-    /// ])?;
-    /// assert!(matches!(response, Response::Exception { exception: Exception::Custom(0xFF), .. }));
+    /// ];
+    /// let response = Response::<ReadRegisters<Holding, u16>>::decode_from(&mut buf)?;
+    /// assert!(matches!(response, Response::Exception(Exception::Custom(0xFF))));
     /// # Ok::<_, anyhow::Error>(())
     /// ```
-    Exception {
-        #[br(assert(function_code == (F::CODE | 0x80)))]
-        function_code: u8,
-
-        /// The error returned by the server.
-        exception: Exception,
-    },
+    Exception(Exception),
 }
 
 impl<F> Decode for Response<F>
@@ -122,13 +112,11 @@ where
     F: Function,
     F::Output: Decode,
 {
-    fn decode_from(buf: &mut (impl Buf + ?Sized)) -> Result<Self, Error> {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
         match buf.try_get_u8()? {
-            function_code if function_code == F::CODE => {
-                Ok(Self::Ok { function_code, output: F::Output::decode_from(buf)? })
-            }
+            function_code if function_code == F::CODE => Ok(Self::Ok(F::Output::decode_from(buf)?)),
             function_code if function_code == (F::CODE | 0x80) => {
-                Ok(Self::Exception { function_code, exception: Exception::decode_from(buf)? })
+                Ok(Self::Exception(Exception::decode_from(buf)?))
             }
             function_code => Err(Error::UnexpectedFunctionCode(function_code)),
         }
@@ -138,8 +126,8 @@ where
 impl<F: Function> Response<F> {
     pub fn into_result(self) -> Result<F::Output, Error> {
         match self {
-            Self::Ok { output, .. } => Ok(output),
-            Self::Exception { exception, .. } => Err(Error::Exception(exception)),
+            Self::Ok(output) => Ok(output),
+            Self::Exception(exception) => Err(Error::Exception(exception)),
         }
     }
 }

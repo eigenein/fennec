@@ -1,9 +1,9 @@
-use bytes::{Buf, buf::Take};
+use bytes::Buf;
 
 /// A [`Buf`] adapter which limits the bytes read and drops any remaining bytes.
 ///
 /// Useful for forward-compat with devices that pack extra bytes you don't care about.
-pub struct DropRemaining<T: Buf>(pub Take<T>);
+pub struct DropRemaining<T: Buf>(pub T);
 
 impl<T: Buf> Buf for DropRemaining<T> {
     fn remaining(&self) -> usize {

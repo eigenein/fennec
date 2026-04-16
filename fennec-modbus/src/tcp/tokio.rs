@@ -16,7 +16,7 @@ use tokio::{
 
 use crate::{
     protocol,
-    protocol::{Function, data_unit, r#struct::Readable},
+    protocol::{BitSize, Decode, Function, data_unit},
     tcp,
 };
 
@@ -82,7 +82,7 @@ impl ConnectionGuard<'_> {
 /// # async fn main() -> Result<()> {
 /// let unit_id = UnitId::Significant(1);
 /// let client = Client::builder().endpoint("battery.iot.home.arpa:502").build();
-/// let voltage = client.read_registers_value::<Holding, u16>(unit_id, 39201).await?;
+/// let decivolts = client.read_registers::<Holding, u16>(unit_id, 39201, 1).await?[0];
 /// # Ok(())
 /// # }
 /// ```
@@ -154,11 +154,11 @@ impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
                 #[cfg(feature = "tracing")]
                 tracing::trace!(transaction_id, "awaiting header…");
 
-                let header = tcp::Header::from_bytes(&{
-                    let mut header_bytes = [0; tcp::Header::SIZE];
+                let header = {
+                    let mut header_bytes = [0; tcp::Header::N_BYTES];
                     connection.get_mut().read_exact(&mut header_bytes).await?;
-                    header_bytes
-                })?;
+                    tcp::Header::decode_from(&mut header_bytes.as_slice())?
+                };
 
                 #[cfg(feature = "tracing")]
                 tracing::trace!(transaction_id = header.transaction_id, "received header");
@@ -194,7 +194,7 @@ impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
 
                 connection.invalidate();
             })?;
-        Ok(data_unit::Response::<F>::from_bytes(&payload_bytes)?.into_result()?)
+        Ok(data_unit::Response::<F>::decode_from(&mut payload_bytes.as_slice())?.into_result()?)
     }
 }
 

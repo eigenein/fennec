@@ -1,8 +1,10 @@
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicU16, Ordering};
 
+use bytes::BufMut;
+
 use crate::{
-    protocol::r#struct::Writable,
+    protocol::Encode,
     tcp,
     tcp::{Header, UnitId},
 };
@@ -29,11 +31,11 @@ impl Encoder {
     pub fn wrap(
         &self,
         unit_id: UnitId,
-        request: &impl Writable,
+        request: &impl Encode,
     ) -> Result<(Vec<u8>, u16), tcp::Error> {
         let transaction_id = self.0.fetch_add(1, Ordering::Relaxed);
         let frame_bytes = {
-            let payload_bytes = request.to_bytes()?;
+            let payload_bytes = request.encode_into_bytes();
             let mut frame_bytes = {
                 let length = u16::try_from(payload_bytes.len() + 1)
                     .map_err(|_| tcp::Error::PayloadSizeExceeded(payload_bytes.len()))?;
@@ -42,9 +44,9 @@ impl Encoder {
                     .transaction_id(transaction_id)
                     .length(length)
                     .build()
-                    .to_bytes()?
+                    .encode_into_bytes()
             };
-            frame_bytes.extend(payload_bytes);
+            frame_bytes.put(&*payload_bytes);
             frame_bytes
         };
         Ok((frame_bytes, transaction_id))
@@ -60,7 +62,7 @@ mod tests {
     fn send_example_ok() {
         let encoder = Encoder::with_next_transaction_id(0x1501);
         let (frame, transaction_id) =
-            encoder.wrap(UnitId::NonSignificant, &[0x03_u8, 0x00, 0x04, 0x00, 0x01]).unwrap();
+            encoder.wrap(UnitId::NonSignificant, &[0x03, 0x00, 0x04, 0x00, 0x01]).unwrap();
 
         assert_eq!(transaction_id, 0x1501);
         assert_eq!(encoder.0.into_inner(), 0x1502);

@@ -5,10 +5,7 @@ use core::{fmt::Debug, iter::from_fn, marker::PhantomData};
 
 use bytes::{Buf, BufMut};
 
-use crate::{
-    protocol,
-    protocol::{BitSize, Decode, Encode, Error, adapters::DropRemaining, function},
-};
+use crate::protocol::{BitSize, Decode, Encode, Error, adapters::DropRemaining, function};
 
 /// Read holding registers.
 pub struct Holding;
@@ -68,7 +65,7 @@ impl<V> Args<V> {
     }
 
     #[expect(clippy::missing_panics_doc)]
-    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error>
+    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, Error>
     where
         V: BitSize,
     {
@@ -80,7 +77,7 @@ impl<V> Args<V> {
                 phantom_data: PhantomData,
             })
         } else {
-            Err(protocol::Error::InvalidCount(n_registers))
+            Err(Error::InvalidCount(n_registers))
         }
     }
 }

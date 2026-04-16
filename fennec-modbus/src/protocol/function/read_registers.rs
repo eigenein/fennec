@@ -73,7 +73,6 @@ impl<V> Args<V> {
         self.n_registers
     }
 
-    #[expect(clippy::missing_panics_doc)]
     pub fn new(starting_address: u16, n_values: usize) -> Result<Self, ArgumentError>
     where
         V: BitSize,
@@ -82,7 +81,7 @@ impl<V> Args<V> {
         if (1..=125).contains(&n_registers) {
             Ok(Self {
                 starting_address,
-                n_registers: u16::try_from(n_registers).unwrap(),
+                n_registers: u16::try_from(n_registers)?,
                 phantom_data: PhantomData,
             })
         } else {

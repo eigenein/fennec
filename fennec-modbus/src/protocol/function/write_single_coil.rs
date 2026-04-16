@@ -1,15 +1,14 @@
-use bon::Builder;
 use bytes::{Buf, BufMut};
 
 use crate::protocol::{Decode, Encode, Error};
 
 #[must_use]
-#[derive(Builder, Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Payload {
     /// *Zero-based* address of the coil to write.
-    address: u16,
+    pub address: u16,
 
-    state: bool,
+    pub state: bool,
 }
 
 impl Encode for Payload {
@@ -21,7 +20,10 @@ impl Encode for Payload {
 
 // TODO: wrap `bool`, discard `address`.
 impl Decode for Payload {
+    type Output = Self;
+
     fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        // TODO: add error variant for invalid values.
         Ok(Self { address: buf.try_get_u16()?, state: buf.try_get_u16()? != 0 })
     }
 }
@@ -37,7 +39,8 @@ mod tests {
 
     #[test]
     fn request_example_ok() {
-        let bytes = Payload::builder().address(172).state(true).build().encode_into_bytes();
+        let payload = Payload { address: 172, state: true };
+        let bytes = payload.encode_into_bytes();
         assert_eq!(bytes, PAYLOAD);
     }
 

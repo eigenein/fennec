@@ -69,6 +69,8 @@ pub enum Exception {
 }
 
 impl Decode for Exception {
+    type Output = Self;
+
     fn decode_from(buf: &mut impl Buf) -> Result<Self, protocol::Error> {
         match buf.try_get_u8()? {
             0x01 => Ok(Self::IllegalFunction),

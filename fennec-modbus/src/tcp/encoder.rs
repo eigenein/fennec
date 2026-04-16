@@ -39,12 +39,9 @@ impl Encoder {
             let mut frame_bytes = {
                 let length = u16::try_from(payload_bytes.len() + 1)
                     .map_err(|_| tcp::Error::PayloadSizeExceeded(payload_bytes.len()))?;
-                Header::builder()
-                    .unit_id(unit_id)
-                    .transaction_id(transaction_id)
-                    .length(length)
-                    .build()
-                    .encode_into_bytes()
+                let header =
+                    Header { unit_id, transaction_id, length, protocol_id: Header::PROTOCOL_ID };
+                header.encode_into_bytes()
             };
             frame_bytes.put(&*payload_bytes);
             frame_bytes

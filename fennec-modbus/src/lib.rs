@@ -3,7 +3,6 @@
 
 extern crate alloc;
 
-pub mod client;
 pub mod contrib;
 pub mod protocol;
 pub mod tcp;

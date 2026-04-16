@@ -3,6 +3,7 @@
 pub mod adapters;
 
 use alloc::vec::Vec;
+use core::iter::from_fn;
 
 use bytes::{Buf, BufMut};
 
@@ -38,8 +39,19 @@ impl<const N: usize> Encode for [u8; N] {
 }
 
 pub trait Decode: Sized {
+    type Output;
+
     /// Decode [`Self`] from the byte buffer.
-    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error>;
+    fn decode_from(buf: &mut impl Buf) -> Result<Self::Output, Error>;
+}
+
+impl<V: Decode> Decode for Vec<V> {
+    type Output = Vec<V::Output>;
+
+    fn decode_from(buf: &mut impl Buf) -> Result<Self::Output, Error> {
+        from_fn(|| buf.has_remaining().then(|| V::decode_from(buf)))
+            .collect::<Result<Vec<V::Output>, _>>()
+    }
 }
 
 macro_rules! impl_primitive {
@@ -55,6 +67,8 @@ macro_rules! impl_primitive {
         }
 
         impl Decode for $type {
+            type Output = Self;
+
             fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
                 buf.$decode().map_err(Error::from)
             }

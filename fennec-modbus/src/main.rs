@@ -3,8 +3,7 @@
 use anyhow::Error;
 use clap::{Parser, Subcommand};
 use fennec_modbus::{
-    client::AsyncClient,
-    protocol::function::read_registers::Holding,
+    protocol::function::{ReadRegisters, read_registers, read_registers::Holding},
     tcp::{UnitId, tokio::Client},
 };
 use tracing::level_filters::LevelFilter;
@@ -24,9 +23,12 @@ async fn main() -> Result {
     match args.command {
         Command::ReadHolding { n_values } => {
             let client = args.endpoint.client();
-            let n_values = usize::from(n_values);
-            let values: Vec<u16> =
-                client.read_registers::<Holding, u16>(args.unit_id, args.address, n_values).await?;
+            let values: Vec<u16> = client
+                .call::<ReadRegisters<Holding, Vec<u16>>>(
+                    args.unit_id,
+                    read_registers::Args::new(args.address, n_values.into())?,
+                )
+                .await?;
             for value in values {
                 println!("{value}");
             }
@@ -77,6 +79,6 @@ struct Endpoint {
 
 impl Endpoint {
     pub fn client(self) -> Client<String> {
-        Client::builder().endpoint(self.inner).build()
+        Client::new(self.inner)
     }
 }

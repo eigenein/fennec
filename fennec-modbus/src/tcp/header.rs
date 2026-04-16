@@ -1,4 +1,3 @@
-use bon::Builder;
 use bytes::{Buf, BufMut};
 
 use crate::{
@@ -9,13 +8,12 @@ use crate::{
 
 /// Modbus Application Protocol (Data Unit) header aka «MBAP header».
 #[must_use]
-#[derive(Clone, Builder)]
+#[derive(Clone)]
 pub struct Header {
     /// Transaction ID used to match responses with requests.
     pub transaction_id: u16,
 
     /// Protocol ID. Always `0` for Modbus.
-    #[builder(default = 0)]
     pub protocol_id: u16,
 
     /// Number of following bytes, *including the Unit Identifier and data fields*.
@@ -25,6 +23,10 @@ pub struct Header {
     ///
     /// Identification of a remote slave connected on a serial line or on other buses.
     pub unit_id: UnitId,
+}
+
+impl Header {
+    pub const PROTOCOL_ID: u16 = 0;
 }
 
 impl Encode for Header {
@@ -37,6 +39,8 @@ impl Encode for Header {
 }
 
 impl Decode for Header {
+    type Output = Self;
+
     fn decode_from(buf: &mut impl Buf) -> Result<Self, protocol::Error> {
         Ok(Self {
             transaction_id: buf.try_get_u16()?,
@@ -86,12 +90,13 @@ mod tests {
 
     #[test]
     fn write_example_ok() {
-        let bytes = Header::builder()
-            .unit_id(UnitId::NonSignificant)
-            .transaction_id(0x1501)
-            .length(6)
-            .build()
-            .encode_into_bytes();
+        let header = Header {
+            unit_id: UnitId::NonSignificant,
+            transaction_id: 0x1501,
+            length: 6,
+            protocol_id: 0,
+        };
+        let bytes = header.encode_into_bytes();
         assert_eq!(bytes, BYTES);
     }
 }

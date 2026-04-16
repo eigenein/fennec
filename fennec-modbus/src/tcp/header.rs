@@ -1,26 +1,23 @@
-use binrw::binrw;
 use bon::Builder;
+use bytes::{Buf, BufMut};
 
-use crate::tcp::UnitId;
+use crate::{
+    protocol::{BitSize, Decode, Encode, Error},
+    tcp::UnitId,
+};
 
 /// Modbus Application Protocol (Data Unit) header aka «MBAP header».
 #[must_use]
-#[binrw]
 #[derive(Clone, Builder)]
-#[brw(big)]
 pub struct Header {
     /// Transaction ID used to match responses with requests.
     pub transaction_id: u16,
 
     /// Protocol ID. Always `0` for Modbus.
     #[builder(default = 0)]
-    #[br(assert(protocol_id == 0))]
-    #[bw(assert(*protocol_id == 0))]
     pub protocol_id: u16,
 
     /// Number of following bytes, *including the Unit Identifier and data fields*.
-    #[br(assert(length != 0))]
-    #[bw(assert(*length != 0))]
     pub length: u16,
 
     /// Unit identifier aka «slave ID».
@@ -29,9 +26,27 @@ pub struct Header {
     pub unit_id: UnitId,
 }
 
-impl Header {
-    pub const SIZE: usize = 7;
+impl Encode for Header {
+    fn encode_into(&self, buf: &mut impl BufMut) {
+        buf.put_u16(self.transaction_id);
+        buf.put_u16(self.protocol_id);
+        buf.put_u16(self.length);
+        self.unit_id.encode_into(buf);
+    }
+}
 
+impl Decode for Header {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        Ok(Self {
+            transaction_id: buf.try_get_u16()?,
+            protocol_id: buf.try_get_u16()?,
+            length: buf.try_get_u16()?,
+            unit_id: UnitId::decode_from(buf)?,
+        })
+    }
+}
+
+impl Header {
     /// Expected PDU length.
     ///
     /// TCP transport implementation should read exactly this number of bytes
@@ -42,15 +57,17 @@ impl Header {
     }
 }
 
+impl BitSize for Header {
+    const N_BITS: usize = Self::N_BYTES * 8;
+    const N_BYTES: usize = 7;
+}
+
 #[cfg(test)]
 mod tests {
-    use alloc::vec::Vec;
-
-    use binrw::{BinRead, BinWrite, io::Cursor};
 
     use super::*;
 
-    const ADU_BYTES: &[u8] = &[
+    const BYTES: &[u8] = &[
         0x15, 0x01, // transaction ID: high, low
         0x00, 0x00, // protocol ID
         0x00, 0x06, // length
@@ -59,23 +76,21 @@ mod tests {
 
     #[test]
     fn read_example_ok() {
-        let mut cursor = Cursor::new(ADU_BYTES);
-        let adu = Header::read(&mut cursor).unwrap();
-        assert_eq!(adu.transaction_id, 0x1501);
-        assert_eq!(adu.protocol_id, 0);
-        assert_eq!(adu.unit_id, UnitId::NonSignificant);
+        #[expect(const_item_mutation)]
+        let header = Header::decode_from(&mut BYTES).unwrap();
+        assert_eq!(header.transaction_id, 0x1501);
+        assert_eq!(header.protocol_id, 0);
+        assert_eq!(header.unit_id, UnitId::NonSignificant);
     }
 
     #[test]
     fn write_example_ok() {
-        let mut cursor = Cursor::new(Vec::new());
-        Header::builder()
+        let bytes = Header::builder()
             .unit_id(UnitId::NonSignificant)
             .transaction_id(0x1501)
             .length(6)
             .build()
-            .write(&mut cursor)
-            .unwrap();
-        assert_eq!(cursor.into_inner(), ADU_BYTES);
+            .encode_into_bytes();
+        assert_eq!(bytes, BYTES);
     }
 }

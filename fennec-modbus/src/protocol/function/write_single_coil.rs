@@ -1,30 +1,33 @@
-use alloc::{boxed::Box, format};
-
-use binrw::{BinRead, BinWrite};
 use bon::Builder;
+use bytes::{Buf, BufMut};
+
+use crate::protocol::{Decode, Encode, Error};
 
 #[must_use]
-#[derive(Builder, Copy, Clone, Debug, BinRead, BinWrite)]
-#[brw(big)]
+#[derive(Builder, Copy, Clone, Debug)]
 pub struct Payload {
     /// *Zero-based* address of the coil to write.
     address: u16,
 
-    #[br(try_map = |it: u16| match it {
-        0xFF00 => Ok(true),
-        0x0000 => Ok(false),
-        other => Err(format!("invalid coil value: 0x{other:04X}")),
-    })]
-    #[bw(map = |it: &bool| if *it { 0xFF00u16 } else { 0x0000u16 })]
     state: bool,
+}
+
+impl Encode for Payload {
+    fn encode_into(&self, buf: &mut impl BufMut) {
+        buf.put_u16(self.address);
+        buf.put_u16(if self.state { 0xFF00 } else { 0x0000 });
+    }
+}
+
+// TODO: wrap `bool`, discard `address`.
+impl Decode for Payload {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        Ok(Self { address: buf.try_get_u16()?, state: buf.try_get_u16()? != 0 })
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec;
-
-    use binrw::{BinRead, io::Cursor};
-
     use super::*;
 
     const PAYLOAD: &[u8] = &[
@@ -34,14 +37,15 @@ mod tests {
 
     #[test]
     fn request_example_ok() {
-        let mut output = Cursor::new(vec![]);
-        Payload::builder().address(172).state(true).build().write(&mut output).unwrap();
-        assert_eq!(output.into_inner(), PAYLOAD);
+        let bytes = Payload::builder().address(172).state(true).build().encode_into_bytes();
+        assert_eq!(bytes, PAYLOAD);
     }
 
     #[test]
     fn response_example_ok() {
-        let response = Payload::read(&mut Cursor::new(PAYLOAD)).unwrap();
+        #[expect(const_item_mutation)]
+        let response = Payload::decode_from(&mut PAYLOAD).unwrap();
+
         assert!(response.state);
     }
 }

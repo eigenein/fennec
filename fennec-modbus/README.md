@@ -8,7 +8,7 @@
 
 - **The TCP layer is sans-IO.** Default implementation for Tokio is provided, and may be used with any TCP client.
 - **The Modbus layer is sans-IO.** The TCP layer is provided, and the underlying protocol can be used over any transport.
-- **Extensible functions.** Most used standard Modbus functions are provided, and the client can use any user-implemented function with arbitrary `BinWrite` arguments and `BinRead` output.
+- **Extensible functions.** Most used standard Modbus functions are provided, and the client is free to implement custom functions with custom arguments and output.
 
 ## Sneak peek
 
@@ -26,9 +26,9 @@ let unit_id = UnitId::Significant(1);
 let client = Client::builder()
     .endpoint("battery.iot.home.arpa:502")
     .build();
-let voltage = client
-    .read_registers_value::<Holding, u16>(unit_id, 39201)
-    .await?;
+let centivolts = client
+    .read_registers::<Holding, u16>(unit_id, 39201, 1)
+    .await?[0];
 # Ok(())
 # }
 ```

@@ -2,13 +2,9 @@
 
 use core::marker::PhantomData;
 
-use crate::{protocol, protocol::r#struct::Readable};
+use crate::{protocol, protocol::Decode};
 
-pub mod read_coils;
-pub mod read_discrete_inputs;
-pub mod read_exception_status;
 pub mod read_registers;
-pub mod write_multiple_coils;
 pub mod write_multiple_registers;
 pub mod write_single_coil;
 pub mod write_single_register;
@@ -19,64 +15,18 @@ pub trait Code {
     const CODE: u8;
 }
 
-/// Read from 1 to 2000 contiguous status of coils in a remote device.
-#[derive(Copy, Clone)]
-#[must_use]
-pub struct ReadCoils<S: Readable>(PhantomData<S>);
-
-impl<S: Readable> Code for ReadCoils<S> {
-    const CODE: u8 = 1;
-}
-
-impl<S: Readable> protocol::Function for ReadCoils<S> {
-    type Args = read_coils::Args;
-    type Output = read_coils::Output<S>;
-}
-
-/// Read from 1 to 2000 contiguous status of discrete inputs in a remote device.
-#[derive(Copy, Clone)]
-#[must_use]
-pub struct ReadDiscreteInputs<S>(PhantomData<S>);
-
-impl<S: Readable> Code for ReadDiscreteInputs<S> {
-    const CODE: u8 = 2;
-}
-
-impl<S: Readable> protocol::Function for ReadDiscreteInputs<S> {
-    type Args = read_discrete_inputs::Args;
-    type Output = read_discrete_inputs::Output<S>;
-}
-
 /// Read the contents of a contiguous block of registers in a remote device.
 #[must_use]
 #[derive(Copy, Clone)]
 pub struct ReadRegisters<C, V>(PhantomData<(C, V)>);
 
-impl<C: Code, V: read_registers::Value> Code for ReadRegisters<C, V> {
+impl<C: Code, V: Decode> Code for ReadRegisters<C, V> {
     const CODE: u8 = C::CODE;
 }
 
-impl<C: Code, V: read_registers::Value> protocol::Function for ReadRegisters<C, V> {
+impl<C: Code, V: Decode> protocol::Function for ReadRegisters<C, V> {
     type Args = read_registers::Args<V>;
     type Output = read_registers::Output<V>;
-}
-
-/// Read the contents of a contiguous block of registers in a remote device.
-///
-/// This is the same function as [`ReadRegisters`] – but with the register count known at compile time.
-#[must_use]
-#[derive(Copy, Clone)]
-pub struct ReadRegistersExact<C, V, const N: usize>(PhantomData<(C, V)>);
-
-impl<C: Code, V: read_registers::Value, const N: usize> Code for ReadRegistersExact<C, V, N> {
-    const CODE: u8 = C::CODE;
-}
-
-impl<C: Code, V: read_registers::Value, const N: usize> protocol::Function
-    for ReadRegistersExact<C, V, N>
-{
-    type Args = read_registers::Args<V>;
-    type Output = read_registers::OutputExact<N, V>;
 }
 
 /// Write a single output to either «on» or «off» in a remote device.
@@ -115,21 +65,8 @@ impl Code for ReadExceptionStatus {
 }
 
 impl protocol::Function for ReadExceptionStatus {
-    type Args = read_exception_status::Args;
-    type Output = read_exception_status::Output;
-}
-
-/// Force each coil in a sequence of coils to either «on» or «off» in a remote device.
-#[must_use]
-pub struct WriteMultipleCoils;
-
-impl Code for WriteMultipleCoils {
-    const CODE: u8 = 15;
-}
-
-impl protocol::Function for WriteMultipleCoils {
-    type Args = write_multiple_coils::Args;
-    type Output = write_multiple_coils::Output;
+    type Args = ();
+    type Output = u8;
 }
 
 /// Write a block of contiguous registers (1 to 123 registers) in a remote device.

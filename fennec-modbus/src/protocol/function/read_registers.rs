@@ -1,16 +1,13 @@
 //! Shared structures for reading multiple registers.
 
-mod value;
-
 use alloc::vec::Vec;
-use core::{fmt::Debug, marker::PhantomData};
+use core::{fmt::Debug, iter::from_fn, marker::PhantomData};
 
-use binrw::{BinRead, BinWrite};
+use bytes::{Buf, BufMut};
 
-pub use self::value::*;
 use crate::{
     protocol,
-    protocol::{function, r#struct::Readable},
+    protocol::{BitSize, Decode, Encode, Error, adapters::DropRemaining, function},
 };
 
 /// Read holding registers.
@@ -32,12 +29,12 @@ impl function::Code for Input {
 /// # Example
 ///
 /// ```rust
-/// use fennec_modbus::protocol::{function::read_registers::Args, r#struct::Writable};
+/// use fennec_modbus::protocol::{Encode, function::read_registers::Args};
 ///
 /// let args = Args::<u16>::new(107, 3)?;
 /// assert_eq!(args.n_registers(), 3);
 ///
-/// let bytes = args.to_bytes()?;
+/// let bytes = args.encode_into_bytes();
 /// assert_eq!(
 ///     bytes,
 ///     [
@@ -48,9 +45,8 @@ impl function::Code for Input {
 /// # Ok::<_, anyhow::Error>(())
 /// ```
 #[must_use]
-#[derive(Copy, Clone, Debug, BinWrite)]
-#[bw(big)]
-pub struct Args<V: Value> {
+#[derive(Copy, Clone, Debug)]
+pub struct Args<V> {
     /// *Zero-based* address of the first register to read.
     starting_address: u16,
 
@@ -64,7 +60,7 @@ pub struct Args<V: Value> {
     phantom_data: PhantomData<V>,
 }
 
-impl<V: Value> Args<V> {
+impl<V> Args<V> {
     /// Number of registers to read.
     #[must_use]
     pub const fn n_registers(&self) -> u16 {
@@ -72,7 +68,10 @@ impl<V: Value> Args<V> {
     }
 
     #[expect(clippy::missing_panics_doc)]
-    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error> {
+    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, protocol::Error>
+    where
+        V: BitSize,
+    {
         let n_registers = n_values * V::N_BYTES / 2;
         if (1..=125).contains(&n_registers) {
             Ok(Self {
@@ -86,6 +85,13 @@ impl<V: Value> Args<V> {
     }
 }
 
+impl<V> Encode for Args<V> {
+    fn encode_into(&self, buf: &mut impl BufMut) {
+        buf.put_u16(self.starting_address);
+        buf.put_u16(self.n_registers);
+    }
+}
+
 /// Output of a contiguous block of registers.
 ///
 /// # Type parameters
@@ -95,65 +101,31 @@ impl<V: Value> Args<V> {
 /// # Example
 ///
 /// ```rust
-/// use fennec_modbus::protocol::{function::read_registers::Output, r#struct::Readable};
+/// use fennec_modbus::protocol::{Decode, function::read_registers::Output};
 ///
-/// let output = Output::<u16>::from_bytes(&[
-///     0x06, // byte count
+/// let mut buf: &[u8] = &[
+///     0x06_u8, // byte count
 ///     0x02, 0x2B, // value: high, low
 ///     0x00, 0x00, // value: high, low
 ///     0x00, 0x64, // value: high, low
-/// ])?;
-/// assert_eq!(output.values, [555, 0, 100]);
+/// ];
+/// let output = Output::<u16>::decode_from(&mut buf)?;
+/// assert_eq!(output.0, [555, 0, 100]);
 /// # Ok::<_, anyhow::Error>(())
 /// ```
 #[must_use]
-#[derive(Clone, derive_more::Debug, BinRead)]
-#[br(big)]
-pub struct Output<V: Value> {
-    pub n_bytes: u8,
+#[derive(Clone, derive_more::Debug)]
+pub struct Output<V>(pub Vec<V>);
 
-    #[br(
-        assert(usize::from(n_bytes).is_multiple_of(V::N_BYTES)),
-        count = usize::from(n_bytes) / V::N_BYTES,
-    )]
-    pub values: Vec<V>,
-}
-
-/// Output of contiguous block of registers with size known at compilation time.
-///
-/// # Type parameters
-///
-/// - `N`: number of *values*, one value may span multiple registers
-/// - `V`: value type
-///
-/// # Example
-///
-/// ```rust
-/// use fennec_modbus::protocol::{
-///     function::read_registers::{BigEndianI32, OutputExact},
-///     r#struct::Readable,
-/// };
-///
-/// let output = OutputExact::<1, BigEndianI32>::from_bytes(&[
-///     0x04, // byte count
-///     0x00, 0x00, // high word: high byte, low byte
-///     0x00, 0x01, // low word: high byte, low byte
-/// ])?;
-/// assert_eq!(i32::from(output.values[0]), 1);
-/// # Ok::<_, anyhow::Error>(())
-/// ```
-#[must_use]
-#[derive(Clone, derive_more::Debug, BinRead)]
-#[br(big)]
-pub struct OutputExact<const N: usize, V: Value> {
-    #[br(assert(usize::from(n_bytes) == V::N_BYTES * N))]
-    pub n_bytes: u8,
-
-    pub values: [V; N],
-}
-
-/// Value that can be read from contiguous block of registers.
-pub trait Value: Readable + 'static {
-    /// Number of bytes occupied by a single value.
-    const N_BYTES: usize;
+impl<V> Decode for Output<V>
+where
+    V: Decode,
+{
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        let n_bytes = buf.try_get_u8()?;
+        let mut buf = DropRemaining(buf).take(n_bytes.into());
+        from_fn(|| buf.has_remaining().then(|| V::decode_from(&mut buf)))
+            .collect::<Result<Vec<V>, _>>()
+            .map(Self)
+    }
 }

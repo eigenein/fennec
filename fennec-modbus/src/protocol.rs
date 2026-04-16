@@ -22,13 +22,13 @@ pub use crate::protocol::bytes::*;
 /// or alternate standard function implementations. In the latter case, consider
 /// [making a pull request](https://github.com/eigenein/fennec/pulls).
 pub trait Function: function::Code {
-    /// Function arguments type.
+    /// Arguments encoder.
     ///
-    /// Note that this encodable type *must not* include the function code.
+    /// It encodes what comes *after* the function code.
     type Args: Encode;
 
-    /// Function result type.
+    /// Function output decoder.
     ///
-    /// Note that this decodable type *must not* include the function code.
-    type Decode: Decode;
+    /// It decodes what comes *after* the function code.
+    type Output: Decode;
 }

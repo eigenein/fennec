@@ -41,7 +41,7 @@ impl<C: Code, O> Code for ReadRegisters<C, O> {
 
 impl<C: Code, V: Decode> protocol::Function for ReadRegisters<C, Vec<V>> {
     type Args = read_registers::Args<V>;
-    type Decode = read_registers::Output<Vec<V>>;
+    type Output = read_registers::Output<Vec<V>>;
 }
 
 /// Write a single output to either «on» or «off» in a remote device.
@@ -54,7 +54,7 @@ impl Code for WriteSingleCoil {
 
 impl protocol::Function for WriteSingleCoil {
     type Args = write_single_coil::Payload;
-    type Decode = write_single_coil::Payload;
+    type Output = write_single_coil::Payload;
 }
 
 /// Write a single holding register in a remote device.
@@ -67,7 +67,7 @@ impl Code for WriteSingleRegister {
 
 impl protocol::Function for WriteSingleRegister {
     type Args = write_single_register::Payload;
-    type Decode = write_single_register::Payload;
+    type Output = write_single_register::Payload;
 }
 
 /// Read the contents of eight Exception Status outputs in a remote device.
@@ -81,7 +81,7 @@ impl Code for ReadExceptionStatus {
 
 impl protocol::Function for ReadExceptionStatus {
     type Args = ();
-    type Decode = u8;
+    type Output = u8;
 }
 
 /// Write a block of contiguous registers (1 to 123 registers) in a remote device.
@@ -94,5 +94,5 @@ impl Code for WriteMultipleRegisters {
 
 impl protocol::Function for WriteMultipleRegisters {
     type Args = write_multiple_registers::Args;
-    type Decode = write_multiple_registers::Output;
+    type Output = write_multiple_registers::Output;
 }

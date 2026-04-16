@@ -1,15 +1,14 @@
-use bon::Builder;
 use bytes::{Buf, BufMut};
 
 use crate::protocol::{Decode, Encode, Error};
 
 #[must_use]
-#[derive(Builder, Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Payload {
     /// *Zero-based* address of the register to write.
-    address: u16,
+    pub address: u16,
 
-    value: u16,
+    pub value: u16,
 }
 
 impl Encode for Payload {
@@ -20,6 +19,8 @@ impl Encode for Payload {
 }
 
 impl Decode for Payload {
+    type Output = Self;
+
     fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
         Ok(Self { address: buf.try_get_u16()?, value: buf.try_get_u16()? })
     }
@@ -36,7 +37,8 @@ mod tests {
 
     #[test]
     fn request_example_ok() {
-        let bytes = Payload::builder().address(1).value(3).build().encode_into_bytes();
+        let payload = Payload { address: 1, value: 3 };
+        let bytes = payload.encode_into_bytes();
         assert_eq!(bytes, PAYLOAD);
     }
 

@@ -6,9 +6,6 @@ use crate::protocol::Exception;
 /// Modbus protocol error.
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("invalid count requested ({0})")]
-    InvalidCount(usize),
-
     #[error("exception")]
     Exception(#[from] Exception),
 

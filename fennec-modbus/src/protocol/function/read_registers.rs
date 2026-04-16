@@ -1,11 +1,20 @@
 //! Shared structures for reading multiple registers.
 
-use alloc::vec::Vec;
-use core::{fmt::Debug, iter::from_fn, marker::PhantomData};
+use core::{fmt::Debug, marker::PhantomData};
 
 use bytes::{Buf, BufMut};
 
-use crate::protocol::{BitSize, Decode, Encode, Error, adapters::DropRemaining, function};
+use crate::{
+    protocol,
+    protocol::{
+        BitSize,
+        Decode,
+        Encode,
+        adapters::DropRemaining,
+        function,
+        function::ArgumentError,
+    },
+};
 
 /// Read holding registers.
 pub struct Holding;
@@ -65,7 +74,7 @@ impl<V> Args<V> {
     }
 
     #[expect(clippy::missing_panics_doc)]
-    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, Error>
+    pub fn new(starting_address: u16, n_values: usize) -> Result<Self, ArgumentError>
     where
         V: BitSize,
     {
@@ -77,7 +86,7 @@ impl<V> Args<V> {
                 phantom_data: PhantomData,
             })
         } else {
-            Err(Error::InvalidCount(n_registers))
+            Err(ArgumentError::InvalidRegisterCount(n_registers))
         }
     }
 }
@@ -106,23 +115,20 @@ impl<V> Encode for Args<V> {
 ///     0x00, 0x00, // value: high, low
 ///     0x00, 0x64, // value: high, low
 /// ];
-/// let output = Output::<u16>::decode_from(&mut buf)?;
-/// assert_eq!(output.0, [555, 0, 100]);
+/// let output = Output::<Vec<u16>>::decode_from(&mut buf)?;
+/// assert_eq!(output, [555, 0, 100]);
 /// # Ok::<_, anyhow::Error>(())
 /// ```
 #[must_use]
-#[derive(Clone, derive_more::Debug)]
-pub struct Output<V>(pub Vec<V>);
+#[derive(Copy, Clone)]
+pub struct Output<C>(pub C);
 
-impl<V> Decode for Output<V>
-where
-    V: Decode,
-{
-    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+// TODO: extract into `adapters`.
+impl<V: Decode> Decode for Output<V> {
+    type Output = V::Output;
+
+    fn decode_from(buf: &mut impl Buf) -> Result<Self::Output, protocol::Error> {
         let n_bytes = buf.try_get_u8()?;
-        let mut buf = DropRemaining(buf).take(n_bytes.into());
-        from_fn(|| buf.has_remaining().then(|| V::decode_from(&mut buf)))
-            .collect::<Result<Vec<V>, _>>()
-            .map(Self)
+        V::decode_from(&mut DropRemaining(buf).take(n_bytes.into()))
     }
 }

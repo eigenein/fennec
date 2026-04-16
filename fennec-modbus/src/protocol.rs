@@ -30,5 +30,5 @@ pub trait Function: function::Code {
     /// Function result type.
     ///
     /// Note that this decodable type *must not* include the function code.
-    type Output: Decode;
+    type Decode: Decode;
 }

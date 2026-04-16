@@ -15,22 +15,19 @@
 ```rust,no_run
 use anyhow::Result;
 
-use fennec_modbus::client::AsyncClient;
-use fennec_modbus::protocol::function::read_registers::Holding;
+use fennec_modbus::protocol::function::{ReadRegisters, read_registers, read_registers::Holding};
 use fennec_modbus::tcp::UnitId;
 use fennec_modbus::tcp::tokio::Client;
 
-# #[tokio::main]
-# async fn main() -> Result<()> {
-let unit_id = UnitId::Significant(1);
-let client = Client::builder()
-    .endpoint("battery.iot.home.arpa:502")
-    .build();
-let centivolts = client
-    .read_registers::<Holding, u16>(unit_id, 39201, 1)
-    .await?[0];
-# Ok(())
-# }
+#[tokio::main]
+async fn main() -> Result<()> {
+    let unit_id = UnitId::Significant(1);
+    let client = Client::new("battery.iot.home.arpa:502");
+    let centivolts = client
+        .call::<ReadRegisters::<Holding, Vec<u16>>>(unit_id, read_registers::Args::new(39201, 1)?)
+        .await?[0];
+    Ok(())
+}
 ```
 
 ## Disclaimer

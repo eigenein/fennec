@@ -63,7 +63,7 @@ impl<T: Encode> Encode for Request<T> {
 #[derive(Copy, Clone)]
 pub enum Response<F: Function> {
     /// Successful response.
-    Ok(F::Output),
+    Ok(F::Decode),
 
     /// The connection is healthy, but the response is a Modbus exception.
     ///
@@ -110,24 +110,17 @@ pub enum Response<F: Function> {
 impl<F> Decode for Response<F>
 where
     F: Function,
-    F::Output: Decode,
+    F::Decode: Decode,
 {
-    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+    type Output = Result<<F::Decode as Decode>::Output, Exception>;
+
+    fn decode_from(buf: &mut impl Buf) -> Result<Self::Output, Error> {
         match buf.try_get_u8()? {
-            function_code if function_code == F::CODE => Ok(Self::Ok(F::Output::decode_from(buf)?)),
+            function_code if function_code == F::CODE => Ok(Ok(F::Decode::decode_from(buf)?)),
             function_code if function_code == (F::CODE | 0x80) => {
-                Ok(Self::Exception(Exception::decode_from(buf)?))
+                Ok(Err(Exception::decode_from(buf)?))
             }
             function_code => Err(Error::UnexpectedFunctionCode(function_code)),
-        }
-    }
-}
-
-impl<F: Function> Response<F> {
-    pub fn into_result(self) -> Result<F::Output, Error> {
-        match self {
-            Self::Ok(output) => Ok(output),
-            Self::Exception(exception) => Err(Error::Exception(exception)),
         }
     }
 }

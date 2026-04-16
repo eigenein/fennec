@@ -1,12 +1,11 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use bon::bon;
 use bytes::{Buf, BufMut};
 
 use crate::{
     protocol,
-    protocol::{Decode, Encode, Error},
+    protocol::{Decode, Encode, function::ArgumentError},
 };
 
 #[must_use]
@@ -18,22 +17,15 @@ pub struct Args {
     words: Vec<u16>,
 }
 
-#[bon]
 impl Args {
-    #[builder]
-    pub fn new(
-        /// *Zero-based* address of the first register to read.
-        starting_address: u16,
-        /// Register values.
-        words: Vec<u16>,
-    ) -> Result<Self, protocol::Error> {
+    pub fn new(starting_address: u16, words: Vec<u16>) -> Result<Self, ArgumentError> {
         let n_registers = words.len();
         if (1..=123).contains(&n_registers) {
-            let n_registers = u16::try_from(n_registers).unwrap();
-            let n_bytes = u8::try_from(n_registers * 2).unwrap();
+            let n_registers = u16::try_from(n_registers)?;
+            let n_bytes = u8::try_from(n_registers * 2)?;
             Ok(Self { starting_address, n_registers, n_bytes, words })
         } else {
-            Err(protocol::Error::InvalidCount(n_registers))
+            Err(ArgumentError::InvalidRegisterCount(n_registers))
         }
     }
 }
@@ -50,14 +42,16 @@ impl Encode for Args {
 }
 
 #[must_use]
-#[derive(Copy, Clone, derive_more::Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Output {
     pub starting_address: u16,
     pub n_registers: u16,
 }
 
 impl Decode for Output {
-    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+    type Output = Self;
+
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, protocol::Error> {
         Ok(Self { starting_address: buf.try_get_u16()?, n_registers: buf.try_get_u16()? })
     }
 }
@@ -77,12 +71,7 @@ mod tests {
             0x00, 0x0A, // first word
             0x01, 0x02, // second word
         ];
-        let bytes = Args::builder()
-            .starting_address(1)
-            .words(vec![0x000A, 0x0102])
-            .build()
-            .unwrap()
-            .encode_into_bytes();
+        let bytes = Args::new(1, vec![0x000A, 0x0102]).unwrap().encode_into_bytes();
         assert_eq!(bytes, EXPECTED);
     }
 

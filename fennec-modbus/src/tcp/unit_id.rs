@@ -50,6 +50,8 @@ impl Encode for UnitId {
 }
 
 impl Decode for UnitId {
+    type Output = Self;
+
     fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
         Ok(buf.try_get_u8()?.into())
     }

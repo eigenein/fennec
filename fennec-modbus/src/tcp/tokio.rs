@@ -5,7 +5,6 @@
 use alloc::vec;
 use core::{fmt::Debug, time::Duration};
 
-use bon::bon;
 use thiserror::Error;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -70,21 +69,21 @@ impl ConnectionGuard<'_> {
 /// # Example
 ///
 /// ```rust,no_run
-/// # use anyhow::Result;
-///
+/// use anyhow::Result;
 /// use fennec_modbus::{
-///     client::AsyncClient,
-///     protocol::function::read_registers::Holding,
+///     protocol::function::{ReadRegisters, read_registers, read_registers::Holding},
 ///     tcp::{UnitId, tokio::Client},
 /// };
 ///
-/// # #[tokio::main]
-/// # async fn main() -> Result<()> {
-/// let unit_id = UnitId::Significant(1);
-/// let client = Client::builder().endpoint("battery.iot.home.arpa:502").build();
-/// let decivolts = client.read_registers::<Holding, u16>(unit_id, 39201, 1).await?[0];
-/// # Ok(())
-/// # }
+/// #[tokio::main]
+/// async fn main() -> Result<()> {
+///     let unit_id = UnitId::Significant(1);
+///     let client = Client::new("battery.iot.home.arpa:502");
+///     let decivolts = client
+///         .call::<ReadRegisters<Holding, Vec<u16>>>(unit_id, read_registers::Args::new(39201, 1)?)
+///         .await?[0];
+///     Ok(())
+/// }
 /// ```
 ///
 /// # Connection management
@@ -107,37 +106,40 @@ pub struct Client<E> {
     round_trip_timeout: Duration,
 }
 
-#[bon]
 impl<E> Client<E> {
-    #[builder]
-    pub fn new(
-        /// Connection endpoint, anything that supports [`tokio::net::ToSocketAddrs`].
-        endpoint: E,
-        /// Timeout for establishing a connection.
-        #[builder(default = Duration::from_secs(5))]
-        connect_timeout: Duration,
-        /// Round-trip timeout for entire function call.
-        #[builder(default = Duration::from_secs(1))]
-        round_trip_timeout: Duration,
-    ) -> Self {
+    pub fn new(endpoint: E) -> Self {
         Self {
             encoder: tcp::Encoder::default(),
-            connection: Connection { endpoint, connect_timeout, stream: Mutex::new(None) },
-            round_trip_timeout,
+            connection: Connection {
+                endpoint,
+                connect_timeout: Duration::from_secs(1),
+                stream: Mutex::new(None),
+            },
+            round_trip_timeout: Duration::from_secs(5),
         }
+    }
+
+    pub const fn with_connect_timeout(mut self, duration: Duration) -> Self {
+        self.connection.connect_timeout = duration;
+        self
+    }
+
+    pub const fn with_round_trip_timeout(mut self, duration: Duration) -> Self {
+        self.round_trip_timeout = duration;
+        self
     }
 }
 
-impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
-    type UnitId = tcp::UnitId;
-    type Error = Error;
-
+impl<E> Client<E>
+where
+    E: Clone + ToSocketAddrs,
+{
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "trace"))]
-    async fn call<F: Function>(
+    pub async fn call<F: Function>(
         &self,
         unit_id: tcp::UnitId,
         args: F::Args,
-    ) -> Result<F::Output, Error> {
+    ) -> Result<<F::Decode as Decode>::Output, Error> {
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 
@@ -194,14 +196,14 @@ impl<E: Clone + ToSocketAddrs> crate::client::AsyncClient for Client<E> {
 
                 connection.invalidate();
             })?;
-        Ok(data_unit::Response::<F>::decode_from(&mut payload_bytes.as_slice())?.into_result()?)
+        data_unit::Response::<F>::decode_from(&mut payload_bytes.as_slice())?
+            .map_err(protocol::Error::Exception)
+            .map_err(tcp::Error::Protocol)
+            .map_err(Error::Tcp)
     }
 }
 
-impl<E> Client<E>
-where
-    E: Clone + ToSocketAddrs,
-{
+impl<E> Client<E> {
     /// Disconnect the client.
     ///
     /// Subsequent call will re-establish a connection.

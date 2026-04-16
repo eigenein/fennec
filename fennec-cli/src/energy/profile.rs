@@ -3,7 +3,7 @@ use std::{
     time::Instant,
 };
 
-use chrono::{NaiveTime, TimeDelta};
+use chrono::{Local, NaiveTime, TimeDelta};
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
@@ -64,10 +64,13 @@ impl Profile {
                 );
                 balance_integrator.total += sample;
 
-                if previous.timestamp.date_naive() == current.timestamp.date_naive() {
+                let previous_timestamp = previous.timestamp.with_timezone(&Local);
+                let current_timestamp = current.timestamp.with_timezone(&Local);
+
+                if previous_timestamp.date_naive() == current_timestamp.date_naive() {
                     let previous_bucket =
-                        bucket_time_step.index(previous.timestamp.time()).unwrap();
-                    let next_bucket = bucket_time_step.index(current.timestamp.time()).unwrap();
+                        bucket_time_step.index(previous_timestamp.time()).unwrap();
+                    let next_bucket = bucket_time_step.index(current_timestamp.time()).unwrap();
                     if next_bucket == previous_bucket {
                         balance_integrator.buckets[next_bucket] += sample;
                     }

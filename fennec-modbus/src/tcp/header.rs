@@ -2,7 +2,8 @@ use bon::Builder;
 use bytes::{Buf, BufMut};
 
 use crate::{
-    protocol::{BitSize, Decode, Encode, Error},
+    protocol,
+    protocol::{BitSize, Decode, Encode},
     tcp::UnitId,
 };
 
@@ -36,7 +37,7 @@ impl Encode for Header {
 }
 
 impl Decode for Header {
-    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, protocol::Error> {
         Ok(Self {
             transaction_id: buf.try_get_u16()?,
             protocol_id: buf.try_get_u16()?,

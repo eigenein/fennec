@@ -1,12 +1,15 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use crate::protocol::{
-    BitSize,
-    Decode,
-    Function,
-    function,
-    function::{ReadRegisters, read_registers},
+use crate::{
+    protocol,
+    protocol::{
+        BitSize,
+        Decode,
+        Function,
+        function,
+        function::{ReadRegisters, read_registers},
+    },
 };
 
 /// Abstraction over async Modbus clients.
@@ -16,7 +19,7 @@ pub trait AsyncClient {
     /// Server address type which allows to support proprietary node addressing like, for example, in Modbus+.
     type UnitId: Debug;
 
-    type Error: From<crate::protocol::Error>;
+    type Error: From<protocol::Error>;
 
     /// Call the Modbus function.
     ///

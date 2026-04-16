@@ -139,7 +139,7 @@ where
         &self,
         unit_id: tcp::UnitId,
         args: F::Args,
-    ) -> Result<<F::Decode as Decode>::Output, Error> {
+    ) -> Result<<F::Output as Decode>::Output, Error> {
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 

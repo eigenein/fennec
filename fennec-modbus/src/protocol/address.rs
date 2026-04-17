@@ -29,7 +29,7 @@ impl<const A: u16> Encoder<()> for Const<A> {
     }
 }
 
-/// Address computed as [`BASE`] + size-of-[`V`] × `index`.
+/// Address computed as `BASE` + size-of-`V` × `index`.
 pub struct Stride<const BASE: u16, V>(PhantomData<V>);
 
 impl<const BASE: u16, V: BitSize> Address for Stride<BASE, V> {

@@ -1,9 +1,5 @@
 use core::str::FromStr;
 
-use bytes::{Buf, BufMut};
-
-use crate::protocol::{Decode, Encode, Error};
-
 /// Modbus unit ID aka «slave ID».
 #[must_use]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -31,28 +27,20 @@ impl From<u8> for UnitId {
     }
 }
 
+impl From<UnitId> for u8 {
+    fn from(unit_id: UnitId) -> Self {
+        match unit_id {
+            UnitId::Broadcast => 0,
+            UnitId::NonSignificant => 255,
+            UnitId::Significant(unit_id) => unit_id,
+        }
+    }
+}
+
 impl FromStr for UnitId {
     type Err = core::num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::from(u8::from_str(s)?))
-    }
-}
-
-impl Encode for UnitId {
-    fn encode_into(&self, buf: &mut impl BufMut) {
-        match self {
-            Self::Broadcast => buf.put_u8(0),
-            Self::NonSignificant => buf.put_u8(255),
-            Self::Significant(unit_id) => buf.put_u8(*unit_id),
-        }
-    }
-}
-
-impl Decode for UnitId {
-    type Output = Self;
-
-    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
-        Ok(buf.try_get_u8()?.into())
     }
 }

@@ -4,35 +4,15 @@
 [![Build status](https://img.shields.io/github/actions/workflow/status/eigenein/fennec/check.yaml?style=for-the-badge)](https://github.com/eigenein/fennec/actions/workflows/check.yaml)
 [![Activity](https://img.shields.io/github/commit-activity/y/eigenein/fennec?style=for-the-badge)](https://github.com/eigenein/fennec/commits/main/)
 
-🦊 Modular [Modbus](https://www.modbus.org) client.
+🦊 Modular opinionated type-safe [Modbus](https://www.modbus.org) client.
 
 - **The TCP layer is sans-IO.** Default implementation for Tokio is provided, and may be used with any TCP client.
 - **The Modbus layer is sans-IO.** The TCP layer is provided, and the underlying protocol can be used over any transport.
 - **Extensible functions.** Most used standard Modbus functions are provided, and the client is free to implement custom functions with custom arguments and output.
 
-## Sneak peek
-
-```rust,no_run
-use anyhow::Result;
-
-use fennec_modbus::protocol::function::{ReadRegisters, read_registers, read_registers::Holding};
-use fennec_modbus::tcp::UnitId;
-use fennec_modbus::tcp::tokio::Client;
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let unit_id = UnitId::Significant(1);
-    let client = Client::new("battery.iot.home.arpa:502");
-    let centivolts = client
-        .call::<ReadRegisters::<Holding, Vec<u16>>>(unit_id, read_registers::Args::new(39201, 1)?)
-        .await?[0];
-    Ok(())
-}
-```
-
 ## Disclaimer
 
-The package is used in a live application, but at this point, the public interface is not stabilized and may change wildly.
+The package is used in a live application, but at this point, the implementation is incomplete, and the public interface is not stabilized and may change wildly.
 
 ## Specifications
 

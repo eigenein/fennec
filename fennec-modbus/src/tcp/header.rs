@@ -81,7 +81,7 @@ impl Header {
     /// Expected PDU length.
     ///
     /// TCP transport implementation should read exactly this number of codec
-    /// and parse as [`crate::protocol::data_unit::Response`].
+    /// and parse as [`crate::protocol::Response`].
     #[must_use]
     pub const fn payload_length(&self) -> u16 {
         self.length - 1

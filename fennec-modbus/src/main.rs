@@ -18,9 +18,7 @@ async fn main() -> Result {
         .init();
 
     match args.command {
-        Command::ReadHolding { n_values } => {
-            let client = args.endpoint.client();
-        }
+        Command::Test(_) => {}
     }
 
     Ok(())
@@ -35,27 +33,8 @@ struct Args {
     #[clap(long = "unit-id", alias = "slave-id", env = "UNIT_ID")]
     unit_id: UnitId,
 
-    /// Starting register address.
-    #[clap(long = "address", env = "ADDRESS")]
-    address: u16,
-
     #[clap(subcommand)]
     command: Command,
-}
-
-#[derive(Copy, Clone, Subcommand)]
-enum Command {
-    /// Read holding registers.
-    ReadHolding {
-        /// Number of values to read.
-        #[clap(
-        long = "n-values",
-        env = "N_VALUES",
-        default_value = "1",
-        value_parser = clap::value_parser!(u8).range(1..)
-    )]
-        n_values: u8,
-    },
 }
 
 #[derive(Parser)]
@@ -69,4 +48,18 @@ impl Endpoint {
     pub fn client(self) -> Client<String> {
         Client::new(self.inner)
     }
+}
+
+#[derive(Copy, Clone, Subcommand)]
+enum Command {
+    /// Test reading from the device.
+    #[clap(subcommand)]
+    Test(Device),
+}
+
+#[derive(Copy, Clone, Subcommand)]
+enum Device {
+    /// Fox ESS MQ2200 (Mini Qube), Solakon ONE, and Avocado 22 Pro.
+    #[clap(alias = "solakon-one", alias = "avocado-22-pro")]
+    Mq2200,
 }

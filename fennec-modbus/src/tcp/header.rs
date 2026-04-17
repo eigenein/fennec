@@ -76,6 +76,8 @@ impl codec::Decoder<Header> for Decoder {
 }
 
 impl Header {
+    pub const N_BYTES: usize = 7;
+
     /// Expected PDU length.
     ///
     /// TCP transport implementation should read exactly this number of codec
@@ -84,9 +86,4 @@ impl Header {
     pub const fn payload_length(&self) -> u16 {
         self.length - 1
     }
-}
-
-impl codec::BitSize for Header {
-    const N_BITS: usize = Self::N_BYTES * 8;
-    const N_BYTES: usize = 7;
 }

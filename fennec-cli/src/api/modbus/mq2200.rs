@@ -1,7 +1,10 @@
 //! FoxESS Modbus clients.
 
 use fennec_modbus::{
-    protocol::function::{ReadRegisters, read, read::HoldingRegisters},
+    protocol::{
+        codec::{BigEndian, NativeEndian},
+        function::{Read, read::HoldingRegisters},
+    },
     tcp::UnitId,
 };
 
@@ -48,110 +51,70 @@ impl MQ2200 {
     }
 
     async fn read_min_system_soc(&self) -> Result<Percentage> {
-        Ok(Percentage(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(46609, 1)?,
-                )
-                .await
-                .context("failed to read the minimum system SoC")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, u16, NativeEndian>>(Self::UNIT_ID, 46609)
+            .await
+            .context("failed to read the minimum system SoC")
+            .map(Percentage)
     }
 
     async fn read_min_soc_on_grid(&self) -> Result<Percentage> {
-        Ok(Percentage(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(46611, 1)?,
-                )
-                .await
-                .context("failed to read the minimum SoC on grid")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, u16, NativeEndian>>(Self::UNIT_ID, 46611)
+            .await
+            .context("failed to read the minimum SoC on grid")
+            .map(Percentage)
     }
 
     async fn read_max_soc(&self) -> Result<Percentage> {
-        Ok(Percentage(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(46610, 1)?,
-                )
-                .await
-                .context("failed to read the maximum SoC")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, u16, NativeEndian>>(Self::UNIT_ID, 46610)
+            .await
+            .context("failed to read the maximum SoC")
+            .map(Percentage)
     }
 
     async fn read_design_capacity(&self) -> Result<DecawattHours> {
-        Ok(DecawattHours(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(37635, 1)?,
-                )
-                .await
-                .context("failed to read the design capacity")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, u16, NativeEndian>>(Self::UNIT_ID, 37635)
+            .await
+            .context("failed to read the design capacity")
+            .map(DecawattHours)
     }
 
     async fn read_state_of_charge(&self) -> Result<Percentage> {
-        Ok(Percentage(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(39424, 1)?,
-                )
-                .await
-                .context("failed to read the SoC")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, u16, NativeEndian>>(Self::UNIT_ID, 39424)
+            .await
+            .context("failed to read the SoC")
+            .map(Percentage)
     }
 
     async fn read_state_of_health(&self) -> Result<Percentage> {
-        Ok(Percentage(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(37624, 1)?,
-                )
-                .await
-                .context("failed to read the SoH")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, u16, NativeEndian>>(Self::UNIT_ID, 37624)
+            .await
+            .context("failed to read the SoH")
+            .map(Percentage)
     }
 
     /// Read total external active power.
     ///
     /// Positive means discharging, negative means charging.
     async fn read_active_power(&self) -> Result<Watts> {
-        Ok(Watts::from(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<i32>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(39134, 1)?,
-                )
-                .await
-                .context("failed to read the active power")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, i32, BigEndian>>(Self::UNIT_ID, 39134)
+            .await
+            .context("failed to read the active power")
+            .map(Watts::from)
     }
 
     /// Read current EPS output power.
     async fn read_eps_active_power(&self) -> Result<Watts> {
-        Ok(Watts::from(
-            self.0
-                .call::<ReadRegisters<HoldingRegisters, Vec<i32>>>(
-                    Self::UNIT_ID,
-                    read::Args::new(39216, 1)?,
-                )
-                .await
-                .context("failed to read the EPS active power")?
-                .0[0],
-        ))
+        self.0
+            .call::<Read<HoldingRegisters, i32, BigEndian>>(Self::UNIT_ID, 39216)
+            .await
+            .context("failed to read the EPS active power")
+            .map(Watts::from)
     }
 }

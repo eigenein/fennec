@@ -72,6 +72,7 @@ impl ConnectionGuard<'_> {
 /// use anyhow::Result;
 /// use fennec_modbus::{
 ///     protocol::{
+///         address,
 ///         codec::NativeEndian,
 ///         function::{Read, read::HoldingRegisters},
 ///     },
@@ -82,8 +83,9 @@ impl ConnectionGuard<'_> {
 /// async fn main() -> Result<()> {
 ///     let unit_id = UnitId::Significant(1);
 ///     let client = Client::new("battery.iot.home.arpa:502");
-///     let decivolts =
-///         client.call::<Read<HoldingRegisters, u16, NativeEndian>>(unit_id, 39201).await?;
+///     let decivolts = client
+///         .call::<Read<HoldingRegisters, address::Runtime, u16, NativeEndian>>(unit_id, 39201)
+///         .await?;
 ///     Ok(())
 /// }
 /// ```
@@ -156,7 +158,7 @@ where
 
         let future = async {
             #[cfg(feature = "tracing")]
-            tracing::trace!(transaction_id, len = frame.len(), "writing frame");
+            tracing::trace!(transaction_id, len = frame.len(), "writing frame…");
             connection.get_mut().write_all(&frame).await?;
 
             let header = loop {

@@ -2,7 +2,10 @@
 
 use anyhow::Error;
 use clap::{Parser, Subcommand};
-use fennec_modbus::tcp::{UnitId, tokio::Client};
+use fennec_modbus::{
+    contrib::mq2200,
+    tcp::{UnitId, tokio::Client},
+};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -12,13 +15,51 @@ type Result<T = (), E = Error> = core::result::Result<T, E>;
 async fn main() -> Result {
     let args = Args::parse();
     let env_filter =
-        EnvFilter::builder().with_default_directive(LevelFilter::TRACE.into()).from_env()?;
+        EnvFilter::builder().with_default_directive(LevelFilter::WARN.into()).from_env()?;
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().without_time().compact().with_filter(env_filter))
         .init();
 
+    let client = args.endpoint.client();
+    let unit_id = args.unit_id;
+
     match args.command {
-        Command::Test(_) => {}
+        Command::Test(device) => match device {
+            Device::Mq2200 => {
+                println!(
+                    "State-of-health: {:?}",
+                    client.call::<mq2200::ReadStateOfHealth>(unit_id, ()).await?
+                );
+                println!(
+                    "Design capacity: {:?}",
+                    client.call::<mq2200::ReadDesignCapacity>(unit_id, ()).await?
+                );
+                println!(
+                    "Total active power: {:?}",
+                    client.call::<mq2200::ReadTotalActivePower>(unit_id, ()).await?
+                );
+                println!(
+                    "Total EPS active power: {:?}",
+                    client.call::<mq2200::ReadEpsActivePower>(unit_id, ()).await?
+                );
+                println!(
+                    "State-of-charge: {:?}",
+                    client.call::<mq2200::ReadStateOfCharge>(unit_id, ()).await?
+                );
+                println!(
+                    "Minimum system SoC: {:?}",
+                    client.call::<mq2200::ReadMinimumSystemStateOfCharge>(unit_id, ()).await?
+                );
+                println!(
+                    "Maximum SoC: {:?}",
+                    client.call::<mq2200::ReadMaximumStateOfCharge>(unit_id, ()).await?
+                );
+                println!(
+                    "Minimum SoC on grid: {:?}",
+                    client.call::<mq2200::ReadMinimumStateOfChargeOnGrid>(unit_id, ()).await?
+                );
+            }
+        },
     }
 
     Ok(())
@@ -40,7 +81,7 @@ struct Args {
 #[derive(Parser)]
 struct Endpoint {
     /// Connection endpoint.
-    #[clap(long = "endpoint", env = "ENDPOINT")]
+    #[clap(name = "ENDPOINT", env = "ENDPOINT")]
     inner: String,
 }
 
@@ -52,7 +93,7 @@ impl Endpoint {
 
 #[derive(Copy, Clone, Subcommand)]
 enum Command {
-    /// Test reading from the device.
+    /// Test readings from a live device.
     #[clap(subcommand)]
     Test(Device),
 }

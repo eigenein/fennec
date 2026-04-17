@@ -33,25 +33,19 @@ impl Encoder {
     ///
     /// ```rust
     /// use bytes::BufMut;
+    /// ///
+    /// use fennec_modbus::protocol::codec::NativeEndian;
     /// use fennec_modbus::{
     ///     protocol::codec,
     ///     tcp::{UnitId, transaction},
     /// };
-    ///
-    /// struct BytesEncoder;
-    ///
-    /// impl codec::Encoder<[u8]> for BytesEncoder {
-    ///     fn encode(value: &[u8], to: &mut impl BufMut) {
-    ///         to.put(value);
-    ///     }
-    /// }
     ///
     /// const PAYLOAD: &[u8] = &[0x03, 0x00, 0x04, 0x00, 0x01];
     ///
     /// let encoder = transaction::Encoder::with_next_transaction_id(0x1501);
     /// let mut frame = Vec::new();
     /// let transaction_id =
-    ///     encoder.encode::<_, BytesEncoder>(UnitId::NonSignificant, PAYLOAD, &mut frame).unwrap();
+    ///     encoder.encode::<_, NativeEndian>(UnitId::NonSignificant, PAYLOAD, &mut frame).unwrap();
     ///
     /// assert_eq!(transaction_id, 0x1501);
     /// assert_eq!(

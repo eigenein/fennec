@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 use crate::protocol::{
     Address,
     Function,
-    codec::Decoder,
+    codec::{Decoder, Encoder},
     function::read::{Coils, DiscreteInputs, HoldingRegisters, InputRegisters},
 };
 
@@ -44,13 +44,15 @@ where
     Self: Code,
     // Require address implementation:
     A: Address,
+    // Require arguments encoder implementation:
+    read::ArgsEncoder<C, A, V>: Encoder<A::Args>,
     // Require that the output value decoder is implemented:
     D: Decoder<V>,
 {
     type Args = A::Args;
-    type ArgsEncoder = A::ArgsEncoder;
+    type ArgsEncoder = read::ArgsEncoder<C, A, V>;
     type Output = V;
-    type OutputDecoder = D;
+    type OutputDecoder = read::OutputDecoder<V, D>;
 }
 
 impl<A, V, D> Code for Read<InputRegisters, A, V, D> {

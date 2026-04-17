@@ -18,6 +18,12 @@ impl Encoder<i16> for NativeEndian {
     }
 }
 
+impl Encoder<[u8]> for NativeEndian {
+    fn encode(value: &[u8], to: &mut impl BufMut) {
+        to.put(value);
+    }
+}
+
 macro_rules! impl_be {
     ($type:ty => $encode:ident) => {
         impl Encoder<$type> for crate::protocol::codec::BigEndian {

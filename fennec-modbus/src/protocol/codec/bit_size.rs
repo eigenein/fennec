@@ -17,6 +17,8 @@ macro_rules! impl_for {
     };
 }
 
+impl_for!(u8, 8);
+impl_for!(i8, 8);
 impl_for!(u16, 16);
 impl_for!(i16, 16);
 impl_for!(u32, 32);

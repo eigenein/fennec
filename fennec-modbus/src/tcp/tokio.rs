@@ -14,13 +14,7 @@ use tokio::{
 };
 
 use crate::{
-    protocol::{
-        Function,
-        Request,
-        codec::{BitSize, Decoder},
-        request,
-        response,
-    },
+    protocol::{Function, Request, codec::Decoder, request, response},
     tcp,
     tcp::{header, transaction},
 };
@@ -77,7 +71,10 @@ impl ConnectionGuard<'_> {
 /// ```rust,no_run
 /// use anyhow::Result;
 /// use fennec_modbus::{
-///     protocol::function::{ReadRegisters, read, read::HoldingRegisters},
+///     protocol::{
+///         codec::NativeEndian,
+///         function::{Read, read::HoldingRegisters},
+///     },
 ///     tcp::{UnitId, tokio::Client},
 /// };
 ///
@@ -85,9 +82,8 @@ impl ConnectionGuard<'_> {
 /// async fn main() -> Result<()> {
 ///     let unit_id = UnitId::Significant(1);
 ///     let client = Client::new("battery.iot.home.arpa:502");
-///     let decivolts = client
-///         .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(unit_id, read::Args::new(39201, 1)?)
-///         .await?[0];
+///     let decivolts =
+///         client.call::<Read<HoldingRegisters, u16, NativeEndian>>(unit_id, 39201).await?;
 ///     Ok(())
 /// }
 /// ```

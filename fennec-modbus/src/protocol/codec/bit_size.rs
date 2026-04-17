@@ -1,15 +1,18 @@
 pub trait BitSize {
     /// Number of bits occupied by the value.
-    const N_BITS: usize;
+    const N_BITS: u16;
 
     /// Number of whole bytes occupied by the value.
-    const N_BYTES: usize = Self::N_BITS.div_ceil(8);
+    const N_BYTES: u16 = Self::N_BITS.div_ceil(8);
+
+    /// Number of whole words occupied by the value.
+    const N_WORDS: u16 = Self::N_BITS.div_ceil(16);
 }
 
 macro_rules! impl_for {
     ($type:ty, $n_bits:literal) => {
         impl BitSize for $type {
-            const N_BITS: usize = $n_bits;
+            const N_BITS: u16 = $n_bits;
         }
     };
 }

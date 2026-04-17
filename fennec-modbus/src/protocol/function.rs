@@ -3,13 +3,9 @@ use core::marker::PhantomData;
 use crate::protocol::{
     Function,
     codec::{Decoder, Encoder},
-    function::{
-        address::AddressAndCountEncoder,
-        read::{Coils, DiscreteInputs, HoldingRegisters, InputRegisters},
-    },
+    function::read::{Coils, DiscreteInputs, HoldingRegisters, InputRegisters},
 };
 
-pub mod address;
 pub mod read;
 
 /// Associates function code with function type.
@@ -44,14 +40,14 @@ where
     // Require that the function code is assigned:
     Self: Code,
     // Require that the argument encoder is implemented:
-    AddressAndCountEncoder<C, V>: Encoder<u16>,
+    read::ArgsEncoder<C, V>: Encoder<u16>,
     // Require that the output value decoder is implemented:
     D: Decoder<V>,
 {
     /// Starting address.
     type Args = u16;
 
-    type ArgsEncoder = AddressAndCountEncoder<C, V>;
+    type ArgsEncoder = read::ArgsEncoder<C, V>;
 
     type Output = V;
 

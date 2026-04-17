@@ -18,14 +18,16 @@ pub struct InputRegisters;
 
 /// Encodes starting address passed via the function arguments,
 /// and the number of registers inferred from the target value size.
-pub struct ArgsEncoder<C, V>(
+pub struct ArgsEncoder<C, A, V>(
     /// Binding to the function.
     PhantomData<C>,
+    /// Binding to the address type.
+    PhantomData<A>,
     /// Binding to the output type.
     PhantomData<V>,
 );
 
-impl<C, V: BitSize> ArgsEncoder<C, V> {
+impl<C, A, V: BitSize> ArgsEncoder<C, A, V> {
     const fn assert_valid() {
         const {
             assert!(V::N_BYTES >= 1, "value type must be non-empty");
@@ -34,7 +36,7 @@ impl<C, V: BitSize> ArgsEncoder<C, V> {
     }
 }
 
-impl<V: BitSize> Encoder<u16> for ArgsEncoder<HoldingRegisters, V> {
+impl<V: BitSize> Encoder<u16> for ArgsEncoder<HoldingRegisters, u16, V> {
     /// Encode the address and number of holding registers to read.
     fn encode(starting_address: &u16, to: &mut impl BufMut) {
         Self::assert_valid();
@@ -43,7 +45,7 @@ impl<V: BitSize> Encoder<u16> for ArgsEncoder<HoldingRegisters, V> {
     }
 }
 
-impl<V: BitSize> Encoder<u16> for ArgsEncoder<InputRegisters, V> {
+impl<V: BitSize> Encoder<u16> for ArgsEncoder<InputRegisters, u16, V> {
     /// Encode the address and number of input registers to read.
     fn encode(starting_address: &u16, to: &mut impl BufMut) {
         Self::assert_valid();

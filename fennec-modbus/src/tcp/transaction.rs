@@ -24,7 +24,7 @@ impl Encoder {
 
     /// Prepare the payload for sending.
     ///
-    /// This wraps the payload, normally a [`crate::protocol::data_unit::Request`],
+    /// This wraps the payload, normally a [`crate::protocol::Request`],
     /// into an ADU and returns the respective transaction ID along.
     ///
     /// TCP transport implementors should send the resulting codec to the server.

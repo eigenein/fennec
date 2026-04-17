@@ -1,8 +1,8 @@
 use bytes::Buf;
 
-/// A [`Buf`] adapter which limits the bytes read and drops any remaining bytes.
+/// A [`Buf`] adapter which limits the codec read and drops any remaining codec.
 ///
-/// Useful for forward-compat with devices that pack extra bytes you don't care about.
+/// Useful for forward-compat with devices that pack extra codec you don't care about.
 pub struct DropRemaining<T: Buf>(pub T);
 
 impl<T: Buf> Buf for DropRemaining<T> {

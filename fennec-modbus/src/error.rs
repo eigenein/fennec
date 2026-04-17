@@ -9,9 +9,12 @@ pub enum Error {
     #[error("exception")]
     Exception(#[from] Exception),
 
-    #[error("not enough bytes to read")]
+    #[error("not enough codec to read")]
     TryGetError(#[from] TryGetError),
 
     #[error("unexpected function code ({0})")]
     UnexpectedFunctionCode(u8),
+
+    #[error("payload size exceeded ({0} codec)")]
+    PayloadSizeExceeded(usize),
 }

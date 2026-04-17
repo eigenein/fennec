@@ -2,7 +2,7 @@
 
 #![cfg(feature = "tokio")]
 
-use alloc::vec;
+use alloc::{vec, vec::Vec};
 use core::{fmt::Debug, time::Duration};
 
 use thiserror::Error;
@@ -14,9 +14,15 @@ use tokio::{
 };
 
 use crate::{
-    protocol,
-    protocol::{BitSize, Decode, Function, data_unit},
+    protocol::{
+        Function,
+        Request,
+        codec::{BitSize, Decoder},
+        request,
+        response,
+    },
     tcp,
+    tcp::{header, transaction},
 };
 
 #[must_use]
@@ -71,7 +77,7 @@ impl ConnectionGuard<'_> {
 /// ```rust,no_run
 /// use anyhow::Result;
 /// use fennec_modbus::{
-///     protocol::function::{ReadRegisters, read_registers, read_registers::Holding},
+///     protocol::function::{ReadRegisters, read, read::HoldingRegisters},
 ///     tcp::{UnitId, tokio::Client},
 /// };
 ///
@@ -80,7 +86,7 @@ impl ConnectionGuard<'_> {
 ///     let unit_id = UnitId::Significant(1);
 ///     let client = Client::new("battery.iot.home.arpa:502");
 ///     let decivolts = client
-///         .call::<ReadRegisters<Holding, Vec<u16>>>(unit_id, read_registers::Args::new(39201, 1)?)
+///         .call::<ReadRegisters<HoldingRegisters, Vec<u16>>>(unit_id, read::Args::new(39201, 1)?)
 ///         .await?[0];
 ///     Ok(())
 /// }
@@ -101,7 +107,7 @@ impl ConnectionGuard<'_> {
 /// - Mismatching transaction responses are *dropped*.
 #[must_use]
 pub struct Client<E> {
-    encoder: tcp::Encoder,
+    encoder: transaction::Encoder,
     connection: Connection<E>,
     round_trip_timeout: Duration,
 }
@@ -109,7 +115,7 @@ pub struct Client<E> {
 impl<E> Client<E> {
     pub fn new(endpoint: E) -> Self {
         Self {
-            encoder: tcp::Encoder::default(),
+            encoder: transaction::Encoder::default(),
             connection: Connection {
                 endpoint,
                 connect_timeout: Duration::from_secs(1),
@@ -139,12 +145,17 @@ where
         &self,
         unit_id: tcp::UnitId,
         args: F::Args,
-    ) -> Result<<F::Output as Decode>::Output, Error> {
+    ) -> Result<F::Output, Error> {
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 
-        let (frame, transaction_id) =
-            self.encoder.wrap(unit_id, &data_unit::Request::wrap::<F>(args))?;
+        let mut frame = Vec::new();
+        let transaction_id = self.encoder.encode::<_, request::Encoder<F::ArgsEncoder>>(
+            unit_id,
+            &Request::wrap::<F>(args),
+            &mut frame,
+        )?;
+
         let mut connection = self.connection.get().await?;
 
         let future = async {
@@ -159,7 +170,7 @@ where
                 let header = {
                     let mut header_bytes = [0; tcp::Header::N_BYTES];
                     connection.get_mut().read_exact(&mut header_bytes).await?;
-                    tcp::Header::decode_from(&mut header_bytes.as_slice())?
+                    header::Decoder::decode(&mut header_bytes.as_slice())?
                 };
 
                 #[cfg(feature = "tracing")]
@@ -196,10 +207,7 @@ where
 
                 connection.invalidate();
             })?;
-        data_unit::Response::<F>::decode_from(&mut payload_bytes.as_slice())?
-            .map_err(protocol::Error::Exception)
-            .map_err(tcp::Error::Protocol)
-            .map_err(Error::Tcp)
+        Ok(response::Decoder::<F>::decode(&mut payload_bytes.as_slice())?)
     }
 }
 
@@ -217,8 +225,8 @@ impl<E> Client<E> {
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("TCP transport error")]
-    Tcp(#[from] tcp::Error),
+    #[error("protocol error")]
+    Protocol(#[from] crate::Error),
 
     #[error("I/O error")]
     Io(#[from] tokio::io::Error),
@@ -228,10 +236,4 @@ pub enum Error {
 
     #[error("transaction timeout")]
     TransactionTimeout(tokio::time::error::Elapsed),
-}
-
-impl From<protocol::Error> for Error {
-    fn from(error: protocol::Error) -> Self {
-        Self::Tcp(tcp::Error::Protocol(error))
-    }
 }

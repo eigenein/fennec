@@ -1,52 +1,76 @@
 use bytes::{Buf, BufMut};
 
-use crate::{
-    protocol,
-    protocol::{BitSize, Decode, Encode},
-    tcp::UnitId,
-};
+use crate::{Error, protocol::codec, tcp::Header};
 
-/// Modbus Application Protocol (Data Unit) header aka «MBAP header».
-#[must_use]
-#[derive(Clone)]
-pub struct Header {
-    /// Transaction ID used to match responses with requests.
-    pub transaction_id: u16,
+pub struct Encoder;
 
-    /// Protocol ID. Always `0` for Modbus.
-    pub protocol_id: u16,
-
-    /// Number of following bytes, *including the Unit Identifier and data fields*.
-    pub length: u16,
-
-    /// Unit identifier aka «slave ID».
+impl codec::Encoder<Header> for Encoder {
+    /// Encode the header.
     ///
-    /// Identification of a remote slave connected on a serial line or on other buses.
-    pub unit_id: UnitId,
-}
-
-impl Header {
-    pub const PROTOCOL_ID: u16 = 0;
-}
-
-impl Encode for Header {
-    fn encode_into(&self, buf: &mut impl BufMut) {
-        buf.put_u16(self.transaction_id);
-        buf.put_u16(self.protocol_id);
-        buf.put_u16(self.length);
-        self.unit_id.encode_into(buf);
+    /// # Example
+    ///
+    /// ```rust
+    /// use fennec_modbus::{
+    ///     protocol::codec::Decoder,
+    ///     tcp::{UnitId, header},
+    /// };
+    ///
+    /// let mut bytes: &[u8] = &[
+    ///     0x15, 0x01, // transaction ID: high, low
+    ///     0x00, 0x00, // protocol ID
+    ///     0x00, 0x06, // length
+    ///     0xFF, // unit ID
+    /// ];
+    /// let header = header::Decoder::decode(&mut bytes).unwrap();
+    ///
+    /// assert_eq!(header.transaction_id, 0x1501);
+    /// assert_eq!(header.protocol_id, 0);
+    /// assert_eq!(header.unit_id, UnitId::NonSignificant);
+    /// ```
+    fn encode(header: &Header, buf: &mut impl BufMut) {
+        buf.put_u16(header.transaction_id);
+        buf.put_u16(header.protocol_id);
+        buf.put_u16(header.length);
+        buf.put_u8(header.unit_id.into());
     }
 }
 
-impl Decode for Header {
-    type Output = Self;
+pub struct Decoder;
 
-    fn decode_from(buf: &mut impl Buf) -> Result<Self, protocol::Error> {
-        Ok(Self {
-            transaction_id: buf.try_get_u16()?,
-            protocol_id: buf.try_get_u16()?,
-            length: buf.try_get_u16()?,
-            unit_id: UnitId::decode_from(buf)?,
+impl codec::Decoder<Header> for Decoder {
+    /// Decode a header.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fennec_modbus::{
+    ///     protocol::codec::Encoder,
+    ///     tcp::{Header, UnitId, header},
+    /// };
+    ///
+    /// const EXPECTED: &[u8] = &[
+    ///     0x15, 0x01, // transaction ID: high, low
+    ///     0x00, 0x00, // protocol ID
+    ///     0x00, 0x06, // length
+    ///     0xFF, // unit ID
+    /// ];
+    ///
+    /// let header = Header {
+    ///     unit_id: UnitId::NonSignificant,
+    ///     transaction_id: 0x1501,
+    ///     length: 6,
+    ///     protocol_id: 0,
+    /// };
+    /// let mut bytes = Vec::new();
+    /// header::Encoder::encode(&header, &mut bytes);
+    /// assert_eq!(bytes, EXPECTED);
+    /// ```
+    fn decode(from: &mut impl Buf) -> Result<Header, Error> {
+        Ok(Header {
+            transaction_id: from.try_get_u16()?,
+            protocol_id: from.try_get_u16()?,
+            length: from.try_get_u16()?,
+            unit_id: from.try_get_u8()?.into(),
         })
     }
 }
@@ -54,7 +78,7 @@ impl Decode for Header {
 impl Header {
     /// Expected PDU length.
     ///
-    /// TCP transport implementation should read exactly this number of bytes
+    /// TCP transport implementation should read exactly this number of codec
     /// and parse as [`crate::protocol::data_unit::Response`].
     #[must_use]
     pub const fn payload_length(&self) -> u16 {
@@ -62,41 +86,7 @@ impl Header {
     }
 }
 
-impl BitSize for Header {
+impl codec::BitSize for Header {
     const N_BITS: usize = Self::N_BYTES * 8;
     const N_BYTES: usize = 7;
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    const BYTES: &[u8] = &[
-        0x15, 0x01, // transaction ID: high, low
-        0x00, 0x00, // protocol ID
-        0x00, 0x06, // length
-        0xFF, // unit ID
-    ];
-
-    #[test]
-    fn read_example_ok() {
-        #[expect(const_item_mutation)]
-        let header = Header::decode_from(&mut BYTES).unwrap();
-        assert_eq!(header.transaction_id, 0x1501);
-        assert_eq!(header.protocol_id, 0);
-        assert_eq!(header.unit_id, UnitId::NonSignificant);
-    }
-
-    #[test]
-    fn write_example_ok() {
-        let header = Header {
-            unit_id: UnitId::NonSignificant,
-            transaction_id: 0x1501,
-            length: 6,
-            protocol_id: 0,
-        };
-        let bytes = header.encode_into_bytes();
-        assert_eq!(bytes, BYTES);
-    }
 }

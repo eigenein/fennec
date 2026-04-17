@@ -7,6 +7,7 @@
 //! - **Functions** are the actual Modbus functions expressed in terms of function code,
 //!   request arguments and output.
 
+pub mod address;
 pub mod codec;
 pub mod exception;
 pub mod function;
@@ -105,6 +106,17 @@ pub enum Exception {
     /// Non-standard error code.
     #[error("custom error ({0})")]
     Custom(u8),
+}
+
+/// Address in a data block.
+///
+/// That allows constant generic implementations.
+pub trait Address {
+    /// Concrete address type.
+    type Args;
+
+    /// Address encoder.
+    type ArgsEncoder: Encoder<Self::Args>;
 }
 
 /// Trait that ties function code, arguments and output together.

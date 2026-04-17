@@ -47,6 +47,12 @@ pub type ReadMaximumStateOfCharge =
 pub type ReadMinimumStateOfChargeOnGrid =
     Read<HoldingRegisters, address::Const<46611>, Percentage<u16>, NativeEndian>;
 
+/// Read schedule entry.
+///
+/// This function accepts the slot index as the argument.
+pub type ReadScheduleEntry =
+    Read<HoldingRegisters, address::Stride<48010, ScheduleEntry>, ScheduleEntry, NativeEndian>;
+
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
 pub enum WorkingMode {
@@ -102,11 +108,32 @@ pub struct ScheduleEntry {
 }
 
 impl BitSize for ScheduleEntry {
-    const N_BITS: u16 = 14 * 8;
+    const N_BITS: u16 = 20 * 8;
+}
+
+impl Encoder<ScheduleEntry> for NativeEndian {
+    fn encode(entry: &ScheduleEntry, to: &mut impl BufMut) {
+        to.put_u16(u16::from(entry.is_enabled));
+        Self::encode(&entry.start_hour, to);
+        Self::encode(&entry.start_minute, to);
+        Self::encode(&entry.end_hour, to);
+        Self::encode(&entry.end_minute, to);
+        Self::encode(&entry.working_mode, to);
+        Self::encode(&entry.max_soc, to);
+        Self::encode(&entry.min_soc, to);
+        Self::encode(&entry.feed_soc, to);
+        Self::encode(&entry.power, to);
+
+        // Reserved:
+        to.put_u16(0);
+        to.put_u16(0);
+        to.put_u16(0);
+    }
 }
 
 impl Decoder<ScheduleEntry> for NativeEndian {
     fn decode(from: &mut impl Buf) -> Result<ScheduleEntry, Error> {
+        // Note, 3 words are ignored as reserved.
         Ok(ScheduleEntry {
             is_enabled: from.try_get_u16()? != 0,
             start_hour: Self::decode(from)?,

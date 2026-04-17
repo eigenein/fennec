@@ -1,10 +1,10 @@
 //! Modbus client wrappers for different devices.
 
-use bytes::Buf;
+use bytes::{Buf, BufMut};
 
 use crate::{
     Error,
-    protocol::codec::{BigEndian, BitSize, Decoder, NativeEndian},
+    protocol::codec::{BigEndian, BitSize, Decoder, Encoder, NativeEndian},
 };
 
 pub mod mq2200;
@@ -18,6 +18,12 @@ macro_rules! impl_new_type {
         impl Decoder<$target<$inner>> for $codec {
             fn decode(from: &mut impl Buf) -> Result<$target<$inner>, Error> {
                 <$codec>::decode(from).map($target)
+            }
+        }
+
+        impl Encoder<$target<$inner>> for $codec {
+            fn encode(value: &$target<$inner>, to: &mut impl BufMut) {
+                <$codec>::encode(&value.0, to);
             }
         }
     };

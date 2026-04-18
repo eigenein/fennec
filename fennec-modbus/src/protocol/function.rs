@@ -15,6 +15,16 @@ pub trait Code {
     const CODE: u8;
 }
 
+/// Read function.
+///
+/// This type is an umbrella for the common read operations:
+/// coils, discrete inputs, holding registers, and input registers.
+///
+/// - [`Code`] encodes the function code.
+/// - Concrete [`Address`] implementation encodes address.
+/// - [`read::ArgsEncoder`] encodes the address and the "quantity" parameter.
+/// - Output type defines the number of coils or registers to read.
+/// - Output decoder is responsible for decoding the output.
 pub struct Read<C, A, V, D>(
     /// Binding to the function code.
     PhantomData<C>,
@@ -38,11 +48,15 @@ impl<A, V, D> Code for Read<HoldingRegisters, A, V, D> {
     const CODE: u8 = 3;
 }
 
+impl<A, V, D> Code for Read<InputRegisters, A, V, D> {
+    const CODE: u8 = 4;
+}
+
 impl<C, A, V, D> Function for Read<C, A, V, D>
 where
     // Require that the function code is assigned:
     Self: Code,
-    // Require address implementation:
+    // Require address definition:
     A: Address,
     // Require arguments encoder implementation:
     read::ArgsEncoder<C, A, V>: Encoder<A::Args>,
@@ -53,8 +67,4 @@ where
     type ArgsEncoder = read::ArgsEncoder<C, A, V>;
     type Output = V;
     type OutputDecoder = read::OutputDecoder<V, D>;
-}
-
-impl<A, V, D> Code for Read<InputRegisters, A, V, D> {
-    const CODE: u8 = 4;
 }

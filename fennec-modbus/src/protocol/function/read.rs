@@ -11,9 +11,13 @@ use crate::{
 };
 
 /// Read coils.
+///
+/// TODO: implement argument encoder.
 pub struct Coils;
 
 /// Read discrete inputs.
+///
+/// TODO: implement argument encoder.
 pub struct DiscreteInputs;
 
 /// Read holding registers.
@@ -22,8 +26,9 @@ pub struct HoldingRegisters;
 /// Read input registers.
 pub struct InputRegisters;
 
-/// Encodes starting address passed via the function arguments,
-/// and the number of registers inferred from the target value size.
+/// Encodes:
+/// - starting address passed via the function arguments;
+/// - the number of coils or registers (inferred from the target value size).
 pub struct ArgsEncoder<C, A, V>(
     /// Binding to the function.
     PhantomData<C>,

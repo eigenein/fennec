@@ -6,18 +6,6 @@ pub trait Encoder<T: ?Sized> {
     fn encode(value: &T, to: &mut impl BufMut);
 }
 
-impl Encoder<u8> for NativeEndian {
-    fn encode(value: &u8, to: &mut impl BufMut) {
-        to.put_u8(*value);
-    }
-}
-
-impl Encoder<i8> for NativeEndian {
-    fn encode(value: &i8, to: &mut impl BufMut) {
-        to.put_i8(*value);
-    }
-}
-
 impl Encoder<u16> for NativeEndian {
     fn encode(value: &u16, to: &mut impl BufMut) {
         to.put_u16(*value);
@@ -27,12 +15,6 @@ impl Encoder<u16> for NativeEndian {
 impl Encoder<i16> for NativeEndian {
     fn encode(value: &i16, to: &mut impl BufMut) {
         to.put_i16(*value);
-    }
-}
-
-impl Encoder<[u8]> for NativeEndian {
-    fn encode(value: &[u8], to: &mut impl BufMut) {
-        to.put(value);
     }
 }
 

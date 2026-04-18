@@ -109,7 +109,7 @@ impl Encoder<NaiveTime> for NativeEndian {
 
 impl Decoder<NaiveTime> for NativeEndian {
     fn decode(from: &mut impl Buf) -> Result<NaiveTime, Error> {
-        Ok(NaiveTime { hour: Self::decode(from)?, minute: Self::decode(from)? })
+        Ok(NaiveTime { hour: from.try_get_u8()?, minute: from.try_get_u8()? })
     }
 }
 
@@ -158,8 +158,8 @@ impl Encoder<ScheduleEntry> for NativeEndian {
         Self::encode(&entry.start_time, to);
         Self::encode(&entry.end_time, to);
         Self::encode(&entry.working_mode, to);
-        Self::encode(&entry.maximum_state_of_charge, to);
-        Self::encode(&entry.minimum_state_of_charge, to);
+        to.put_u8(entry.maximum_state_of_charge.0);
+        to.put_u8(entry.minimum_state_of_charge.0);
         Self::encode(&entry.target_state_of_charge, to);
         Self::encode(&entry.power, to);
         Self::encode(&entry.reserved_1, to);
@@ -176,8 +176,8 @@ impl Decoder<ScheduleEntry> for NativeEndian {
             start_time: Self::decode(from)?,
             end_time: Self::decode(from)?,
             working_mode: Self::decode(from)?,
-            maximum_state_of_charge: Self::decode(from)?,
-            minimum_state_of_charge: Self::decode(from)?,
+            maximum_state_of_charge: Percentage(from.try_get_u8()?),
+            minimum_state_of_charge: Percentage(from.try_get_u8()?),
             target_state_of_charge: Self::decode(from)?,
             power: Self::decode(from)?,
             reserved_1: Self::decode(from)?,

@@ -6,18 +6,6 @@ pub trait Decoder<T> {
     fn decode(from: &mut impl Buf) -> Result<T, Error>;
 }
 
-impl Decoder<u8> for NativeEndian {
-    fn decode(from: &mut impl Buf) -> Result<u8, Error> {
-        Ok(from.try_get_u8()?)
-    }
-}
-
-impl Decoder<i8> for NativeEndian {
-    fn decode(from: &mut impl Buf) -> Result<i8, Error> {
-        Ok(from.try_get_i8()?)
-    }
-}
-
 impl Decoder<u16> for NativeEndian {
     fn decode(from: &mut impl Buf) -> Result<u16, Error> {
         Ok(from.try_get_u16()?)

@@ -32,7 +32,6 @@ macro_rules! impl_new_type {
 #[derive(Copy, Clone, Debug)]
 pub struct Percentage<T>(pub T);
 
-impl_new_type!(Percentage => NativeEndian, u8);
 impl_new_type!(Percentage => NativeEndian, u16);
 
 #[derive(Copy, Clone, Debug)]

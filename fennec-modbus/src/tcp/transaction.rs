@@ -34,18 +34,16 @@ impl Encoder {
     /// ```rust
     /// use bytes::BufMut;
     /// ///
-    /// use fennec_modbus::protocol::codec::NativeEndian;
+    /// use fennec_modbus::protocol::codec::{BigEndian, NativeEndian};
     /// use fennec_modbus::{
     ///     protocol::codec,
     ///     tcp::{UnitId, transaction},
     /// };
     ///
-    /// const PAYLOAD: &[u8] = &[0x03, 0x00, 0x04, 0x00, 0x01];
-    ///
     /// let encoder = transaction::Encoder::with_next_transaction_id(0x1501);
     /// let mut frame = Vec::new();
     /// let transaction_id =
-    ///     encoder.encode::<_, NativeEndian>(UnitId::NonSignificant, PAYLOAD, &mut frame).unwrap();
+    ///     encoder.encode::<_, BigEndian>(UnitId::NonSignificant, &0x12345678, &mut frame).unwrap();
     ///
     /// assert_eq!(transaction_id, 0x1501);
     /// assert_eq!(
@@ -53,9 +51,9 @@ impl Encoder {
     ///     [
     ///         0x15, 0x01, // transaction ID: high, low
     ///         0x00, 0x00, // protocol ID
-    ///         0x00, 0x06, // length: high, low
+    ///         0x00, 0x05, // length: high, low
     ///         0xFF, // unit ID
-    ///         0x03, 0x00, 0x04, 0x00, 0x01, // request
+    ///         0x12, 0x34, 0x56, 0x78, // request
     ///     ]
     /// );
     /// ```

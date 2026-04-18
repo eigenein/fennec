@@ -116,10 +116,10 @@ impl<E> Client<E> {
             encoder: transaction::Encoder::default(),
             connection: Connection {
                 endpoint,
-                connect_timeout: Duration::from_secs(1),
+                connect_timeout: Duration::from_secs(5),
                 stream: Mutex::new(None),
             },
-            round_trip_timeout: Duration::from_secs(5),
+            round_trip_timeout: Duration::from_secs(1),
         }
     }
 

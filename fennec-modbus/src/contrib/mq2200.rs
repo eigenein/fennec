@@ -93,18 +93,59 @@ impl Decoder<WorkingMode> for NativeEndian {
     }
 }
 
+/// Scheduler entry start or end time.
+#[derive(Copy, Clone, Debug)]
+pub struct NaiveTime {
+    pub hour: u8,
+    pub minute: u8,
+}
+
+impl Encoder<NaiveTime> for NativeEndian {
+    fn encode(value: &NaiveTime, to: &mut impl BufMut) {
+        to.put_u8(value.hour);
+        to.put_u8(value.minute);
+    }
+}
+
+impl Decoder<NaiveTime> for NativeEndian {
+    fn decode(from: &mut impl Buf) -> Result<NaiveTime, Error> {
+        Ok(NaiveTime { hour: Self::decode(from)?, minute: Self::decode(from)? })
+    }
+}
+
+/// Mode scheduler entry.
 #[derive(Debug)]
 pub struct ScheduleEntry {
     pub is_enabled: bool,
-    pub start_hour: u8,
-    pub start_minute: u8,
-    pub end_hour: u8,
-    pub end_minute: u8,
+
+    /// Time slot start time, inclusive.
+    pub start_time: NaiveTime,
+
+    /// Time slot end time, exclusive.
+    ///
+    /// Note that 23:59 is special as it is *inclusive*. 00:00 cannot be set as end time.
+    /// Confirmed with Fox ESS support that this the intended behaviour.
+    pub end_time: NaiveTime,
+
     pub working_mode: WorkingMode,
-    pub max_soc: Percentage<u8>,
-    pub min_soc: Percentage<u8>,
-    pub feed_soc: Percentage<u16>,
+    pub maximum_state_of_charge: Percentage<u8>,
+    pub minimum_state_of_charge: Percentage<u8>,
+
+    /// This is called "feed SoC" or "fdSoC", but in reality, it is a target SoC
+    /// for charging or discharging.
+    #[allow(clippy::doc_markdown)]
+    pub target_state_of_charge: Percentage<u16>,
+
     pub power: Watts<u16>,
+
+    /// Reserved, set to zero.
+    pub reserved_1: u16,
+
+    /// Reserved, set to zero.
+    pub reserved_2: u16,
+
+    /// Reserved, set to zero.
+    pub reserved_3: u16,
 }
 
 impl BitSize for ScheduleEntry {
@@ -114,20 +155,16 @@ impl BitSize for ScheduleEntry {
 impl Encoder<ScheduleEntry> for NativeEndian {
     fn encode(entry: &ScheduleEntry, to: &mut impl BufMut) {
         to.put_u16(u16::from(entry.is_enabled));
-        Self::encode(&entry.start_hour, to);
-        Self::encode(&entry.start_minute, to);
-        Self::encode(&entry.end_hour, to);
-        Self::encode(&entry.end_minute, to);
+        Self::encode(&entry.start_time, to);
+        Self::encode(&entry.end_time, to);
         Self::encode(&entry.working_mode, to);
-        Self::encode(&entry.max_soc, to);
-        Self::encode(&entry.min_soc, to);
-        Self::encode(&entry.feed_soc, to);
+        Self::encode(&entry.maximum_state_of_charge, to);
+        Self::encode(&entry.minimum_state_of_charge, to);
+        Self::encode(&entry.target_state_of_charge, to);
         Self::encode(&entry.power, to);
-
-        // Reserved:
-        to.put_u16(0);
-        to.put_u16(0);
-        to.put_u16(0);
+        Self::encode(&entry.reserved_1, to);
+        Self::encode(&entry.reserved_2, to);
+        Self::encode(&entry.reserved_3, to);
     }
 }
 
@@ -136,15 +173,16 @@ impl Decoder<ScheduleEntry> for NativeEndian {
         // Note, 3 words are ignored as reserved.
         Ok(ScheduleEntry {
             is_enabled: from.try_get_u16()? != 0,
-            start_hour: Self::decode(from)?,
-            start_minute: Self::decode(from)?,
-            end_hour: Self::decode(from)?,
-            end_minute: Self::decode(from)?,
+            start_time: Self::decode(from)?,
+            end_time: Self::decode(from)?,
             working_mode: Self::decode(from)?,
-            max_soc: Self::decode(from)?,
-            min_soc: Self::decode(from)?,
-            feed_soc: Self::decode(from)?,
+            maximum_state_of_charge: Self::decode(from)?,
+            minimum_state_of_charge: Self::decode(from)?,
+            target_state_of_charge: Self::decode(from)?,
             power: Self::decode(from)?,
+            reserved_1: Self::decode(from)?,
+            reserved_2: Self::decode(from)?,
+            reserved_3: Self::decode(from)?,
         })
     }
 }

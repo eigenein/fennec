@@ -7,59 +7,41 @@ use crate::{
     protocol::{
         Address,
         codec::{BitSize, Decoder, Encoder, adapters::DropRemaining},
+        function::size,
     },
 };
 
-/// Read coils.
-///
-/// TODO: implement argument encoder.
-pub struct Coils;
-
-/// Read discrete inputs.
-///
-/// TODO: implement argument encoder.
-pub struct DiscreteInputs;
-
-/// Read holding registers.
-pub struct HoldingRegisters;
-
-/// Read input registers.
-pub struct InputRegisters;
-
-/// Encodes:
-/// - starting address passed via the function arguments;
-/// - the number of coils or registers (inferred from the target value size).
-pub struct ArgsEncoder<C, A, V>(
-    /// Binding to the function.
-    PhantomData<C>,
+pub struct ArgsEncoder<A, V, S>(
     /// Binding to the address type.
     PhantomData<A>,
     /// Binding to the output type.
     PhantomData<V>,
+    /// Binding to the size type, bits or words.
+    PhantomData<S>,
 );
 
-impl<C, A, V: BitSize> ArgsEncoder<C, A, V> {
-    const fn assert_valid() {
+impl<A, V: BitSize, S> ArgsEncoder<A, V, S> {
+    const fn assert_valid<const N_MAX_BYTES: u16>() {
         const {
             assert!(V::N_BYTES >= 1, "value type must be non-empty");
-            assert!(V::N_BYTES <= 250, "value may be at most 250 bytes large");
+            assert!(V::N_BYTES <= N_MAX_BYTES, "value is too large");
         };
     }
 }
 
-impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<HoldingRegisters, A, V> {
-    /// Encode the address and number of holding registers to read.
+impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size::Bits> {
+    /// Encode the address and number of bits to read.
     fn encode(starting_address: &A::Args, to: &mut impl BufMut) {
-        Self::assert_valid();
+        Self::assert_valid::<246>();
         A::ArgsEncoder::encode(starting_address, to);
-        to.put_u16(V::N_WORDS);
+        to.put_u16(V::N_BITS);
     }
 }
 
-impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<InputRegisters, A, V> {
-    /// Encode the address and number of input registers to read.
+impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size::Words> {
+    /// Encode the address and number of registers to read.
     fn encode(starting_address: &A::Args, to: &mut impl BufMut) {
-        Self::assert_valid();
+        Self::assert_valid::<250>();
         A::ArgsEncoder::encode(starting_address, to);
         to.put_u16(V::N_WORDS);
     }

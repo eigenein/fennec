@@ -4,10 +4,10 @@ use crate::protocol::{
     Address,
     Function,
     codec::{Decoder, Encoder},
-    function::read::{Coils, DiscreteInputs, HoldingRegisters, InputRegisters},
 };
 
 pub mod read;
+mod size;
 
 /// Associates function code with function type.
 pub trait Code {
@@ -15,56 +15,56 @@ pub trait Code {
     const CODE: u8;
 }
 
-/// Read function.
+/// Read coils.
 ///
-/// This type is an umbrella for the common read operations:
-/// coils, discrete inputs, holding registers, and input registers.
-///
-/// - [`Code`] encodes the function code.
-/// - Concrete [`Address`] implementation encodes address.
-/// - [`read::ArgsEncoder`] encodes the address and the "quantity" parameter.
-/// - Output type defines the number of coils or registers to read.
-/// - Output decoder is responsible for decoding the output.
-pub struct Read<C, A, V, D>(
-    /// Binding to the function code.
-    PhantomData<C>,
-    /// Binding to the address type.
-    PhantomData<A>,
-    /// Binding to the output type.
-    PhantomData<V>,
-    /// Binding to the output decoder type.
-    PhantomData<D>,
-);
+/// Type parameters bind to the address, value, and codec types.
+pub struct ReadCoils<A, V, C>(PhantomData<(A, V, C)>);
 
-impl<A, V, D> Code for Read<Coils, A, V, D> {
+impl<A, V, D> Code for ReadCoils<A, V, D> {
     const CODE: u8 = 1;
 }
 
-impl<A, V, D> Code for Read<DiscreteInputs, A, V, D> {
+/// Read discrete inputs.
+pub struct ReadDiscreteInputs<A, V, C>(PhantomData<(A, V, C)>);
+
+impl<A, V, C> Code for ReadDiscreteInputs<A, V, C> {
     const CODE: u8 = 2;
 }
 
-impl<A, V, D> Code for Read<HoldingRegisters, A, V, D> {
+/// Read holding registers.
+pub struct ReadHoldingRegisters<A, V, C>(PhantomData<(A, V, C)>);
+
+impl<A, V, C> Code for ReadHoldingRegisters<A, V, C> {
     const CODE: u8 = 3;
 }
 
-impl<A, V, D> Code for Read<InputRegisters, A, V, D> {
-    const CODE: u8 = 4;
-}
-
-impl<C, A, V, D> Function for Read<C, A, V, D>
+impl<A, V, D> Function for ReadHoldingRegisters<A, V, D>
 where
     // Require that the function code is assigned:
     Self: Code,
     // Require address definition:
     A: Address,
     // Require arguments encoder implementation:
-    read::ArgsEncoder<C, A, V>: Encoder<A::Args>,
+    read::ArgsEncoder<A, V, size::Words>: Encoder<A::Args>,
     // Require that the output value decoder is implemented:
     D: Decoder<V>,
 {
     type Args = A::Args;
-    type ArgsEncoder = read::ArgsEncoder<C, A, V>;
+    type ArgsEncoder = read::ArgsEncoder<A, V, size::Words>;
     type Output = V;
     type OutputDecoder = read::OutputDecoder<V, D>;
+}
+
+/// Read input registers.
+pub struct ReadInputRegisters<A, V, C>(PhantomData<(A, V, C)>);
+
+impl<A, V, C> Code for ReadInputRegisters<A, V, C> {
+    const CODE: u8 = 4;
+}
+
+/// Write multiple registers.
+pub struct WriteMultipleRegisters<A, V, C>(PhantomData<(A, V, C)>);
+
+impl<A, V, C> Code for WriteMultipleRegisters<A, V, C> {
+    const CODE: u8 = 16;
 }

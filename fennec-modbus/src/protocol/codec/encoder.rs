@@ -1,18 +1,18 @@
 use bytes::BufMut;
 
-use crate::protocol::codec::NativeEndian;
+use crate::protocol::codec::Word;
 
 pub trait Encoder<T: ?Sized> {
     fn encode(value: &T, to: &mut impl BufMut);
 }
 
-impl Encoder<u16> for NativeEndian {
+impl Encoder<u16> for Word {
     fn encode(value: &u16, to: &mut impl BufMut) {
         to.put_u16(*value);
     }
 }
 
-impl Encoder<i16> for NativeEndian {
+impl Encoder<i16> for Word {
     fn encode(value: &i16, to: &mut impl BufMut) {
         to.put_i16(*value);
     }

@@ -7,12 +7,11 @@ mod encoder;
 
 pub use self::{bit_size::BitSize, decoder::Decoder, encoder::Encoder};
 
-/// Native-endian codec for primitive types.
-///
-/// 16-bit words are by definition big-endian in Modbus, hence the native-endian codec.
-///
-/// TODO: split into "word" and "composite".
-pub struct NativeEndian;
+/// Native-endian codec for primitive types composed of one word.
+pub struct Word;
 
 /// Big-endian codec for primitive types composed of multiple words.
 pub struct BigEndian;
+
+/// Codec for complex structures composed of multiple words.
+pub struct Struct;

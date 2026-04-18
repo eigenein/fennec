@@ -14,6 +14,8 @@ on [Frank Energie](https://www.frankenergie.nl/nl/dynamisch-energiecontract/dyna
 - Parasitic BMS load
 - Average household consumption per price interval
 
+![Screenshot](screenshot.png)
+
 ## Acknowledgments
 
 ### Modbus Register Tables

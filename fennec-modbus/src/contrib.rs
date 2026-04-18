@@ -4,11 +4,12 @@ use bytes::{Buf, BufMut};
 
 use crate::{
     Error,
-    protocol::codec::{BigEndian, BitSize, Decoder, Encoder, NativeEndian},
+    protocol::codec::{BigEndian, BitSize, Decoder, Encoder, Word},
 };
 
 pub mod mq2200;
 
+// TODO: make endianness a type parameter.
 macro_rules! impl_new_type {
     ($target:ident => $codec:ty, $inner:ty) => {
         impl BitSize for $target<$inner> {
@@ -32,15 +33,15 @@ macro_rules! impl_new_type {
 #[derive(Copy, Clone, Debug)]
 pub struct Percentage<T>(pub T);
 
-impl_new_type!(Percentage => NativeEndian, u16);
+impl_new_type!(Percentage => Word, u16);
 
 #[derive(Copy, Clone, Debug)]
 pub struct DecawattHours<T>(pub T);
 
-impl_new_type!(DecawattHours => NativeEndian, u16);
+impl_new_type!(DecawattHours => Word, u16);
 
 #[derive(Copy, Clone, Debug)]
 pub struct Watts<T>(pub T);
 
-impl_new_type!(Watts => NativeEndian, u16);
+impl_new_type!(Watts => Word, u16);
 impl_new_type!(Watts => BigEndian, i32);

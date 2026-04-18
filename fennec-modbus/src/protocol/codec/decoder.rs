@@ -1,18 +1,18 @@
 use bytes::Buf;
 
-use crate::{Error, protocol::codec::NativeEndian};
+use crate::{Error, protocol::codec::Word};
 
 pub trait Decoder<T> {
     fn decode(from: &mut impl Buf) -> Result<T, Error>;
 }
 
-impl Decoder<u16> for NativeEndian {
+impl Decoder<u16> for Word {
     fn decode(from: &mut impl Buf) -> Result<u16, Error> {
         Ok(from.try_get_u16()?)
     }
 }
 
-impl Decoder<i16> for NativeEndian {
+impl Decoder<i16> for Word {
     fn decode(from: &mut impl Buf) -> Result<i16, Error> {
         Ok(from.try_get_i16()?)
     }

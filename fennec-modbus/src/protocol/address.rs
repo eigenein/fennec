@@ -4,7 +4,7 @@ use bytes::BufMut;
 
 use crate::protocol::{
     Address,
-    codec::{BitSize, Encoder, NativeEndian},
+    codec::{BitSize, Encoder, Word},
 };
 
 /// Address specified in runtime when calling a function.
@@ -12,7 +12,7 @@ pub struct Runtime;
 
 impl Address for Runtime {
     type Args = u16;
-    type ArgsEncoder = NativeEndian;
+    type ArgsEncoder = Word;
 }
 
 /// Address specified via a constant generic argument.

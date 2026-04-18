@@ -73,7 +73,7 @@ impl ConnectionGuard<'_> {
 /// use fennec_modbus::{
 ///     protocol::{
 ///         address,
-///         codec::NativeEndian,
+///         codec::Word,
 ///         function::{Read, read::HoldingRegisters},
 ///     },
 ///     tcp::{UnitId, tokio::Client},
@@ -84,7 +84,7 @@ impl ConnectionGuard<'_> {
 ///     let unit_id = UnitId::Significant(1);
 ///     let client = Client::new("battery.iot.home.arpa:502");
 ///     let decivolts = client
-///         .call::<Read<HoldingRegisters, address::Runtime, u16, NativeEndian>>(unit_id, 39201)
+///         .call::<Read<HoldingRegisters, address::Runtime, u16, Word>>(unit_id, 39201)
 ///         .await?;
 ///     Ok(())
 /// }

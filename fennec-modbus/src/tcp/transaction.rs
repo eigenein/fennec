@@ -34,7 +34,7 @@ impl Encoder {
     /// ```rust
     /// use bytes::BufMut;
     /// ///
-    /// use fennec_modbus::protocol::codec::{BigEndian, NativeEndian};
+    /// use fennec_modbus::protocol::codec::BigEndian;
     /// use fennec_modbus::{
     ///     protocol::codec,
     ///     tcp::{UnitId, transaction},

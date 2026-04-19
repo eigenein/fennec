@@ -1,4 +1,4 @@
-//! Data model size markers.
+//! Data model size specifiers.
 
 /// Encode number of bits (coils or discrete inputs).
 pub struct Bits;

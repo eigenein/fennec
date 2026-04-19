@@ -1,3 +1,5 @@
+//! Codes for functions that read multiple coils or registers.
+
 use core::marker::PhantomData;
 
 use bytes::{Buf, BufMut};
@@ -7,16 +9,16 @@ use crate::{
     protocol::{
         Address,
         codec::{BitSize, Decoder, Encoder, adapters::DropRemaining},
-        function::size,
+        function::size_argument,
     },
 };
 
 pub struct ArgsEncoder<A, V, S>(
     /// Binding to the address type.
     PhantomData<A>,
-    /// Binding to the output type.
+    /// Binding to the value type.
     PhantomData<V>,
-    /// Binding to the size type, bits or words.
+    /// Binding to the size type, normally [`size_argument::Bits`] or [`size_argument::Words`].
     PhantomData<S>,
 );
 
@@ -29,7 +31,7 @@ impl<A, V: BitSize, S> ArgsEncoder<A, V, S> {
     }
 }
 
-impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size::Bits> {
+impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size_argument::Bits> {
     /// Encode the address and number of bits to read.
     fn encode(starting_address: &A::Args, to: &mut impl BufMut) {
         Self::assert_valid::<246>();
@@ -38,7 +40,7 @@ impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size::Bits> 
     }
 }
 
-impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size::Words> {
+impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size_argument::Words> {
     /// Encode the address and number of registers to read.
     fn encode(starting_address: &A::Args, to: &mut impl BufMut) {
         Self::assert_valid::<250>();
@@ -54,7 +56,7 @@ impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size::Words>
 /// ```rust
 /// use fennec_modbus::protocol::{
 ///     codec::{BigEndian, Decoder},
-///     function::read::OutputDecoder,
+///     function::read_multiple::OutputDecoder,
 /// };
 ///
 /// const BYTES: &[u8] = &[
@@ -66,17 +68,17 @@ impl<A: Address, V: BitSize> Encoder<A::Args> for ArgsEncoder<A, V, size::Words>
 /// let value = OutputDecoder::<u32, BigEndian>::decode(&mut BYTES).unwrap();
 /// assert_eq!(value, 0x022B0000);
 /// ```
-pub struct OutputDecoder<V, D>(
+pub struct OutputDecoder<V, C>(
     /// Binding to the value type.
     PhantomData<V>,
     /// Binding to the value decoder type.
-    PhantomData<D>,
+    PhantomData<C>,
 );
 
-impl<V, D: Decoder<V>> Decoder<V> for OutputDecoder<V, D> {
+impl<V, C: Decoder<V>> Decoder<V> for OutputDecoder<V, C> {
     fn decode(from: &mut impl Buf) -> Result<V, Error> {
         let n_bytes = from.try_get_u8()?;
         let mut from = DropRemaining(from).take(usize::from(n_bytes));
-        D::decode(&mut from)
+        C::decode(&mut from)
     }
 }

@@ -4,7 +4,7 @@ use anyhow::Error;
 use clap::{Parser, Subcommand};
 use fennec_modbus::{
     contrib::mq2200,
-    protocol::{address, address::Stride, function::read_multiple::AddressRange},
+    protocol::{address, address::Stride},
     tcp::{UnitId, tokio::Client},
 };
 use tracing::level_filters::LevelFilter;
@@ -71,13 +71,7 @@ async fn main() -> Result {
                 for i in 0..96 {
                     println!(
                         "Schedule #{i}: {:?}",
-                        client
-                            .call::<mq2200::ReadScheduleEntry>(
-                                unit_id,
-                                AddressRange::new(Stride::new(i))
-                            )
-                            .await?
-                            .0
+                        client.call::<mq2200::ReadScheduleEntry>(unit_id, Stride::from(i)).await?.0
                     );
                 }
             }

@@ -25,9 +25,10 @@ pub struct AddressRange<A, V, S>(
     PhantomData<S>,
 );
 
-impl<V: BitSize, S> From<u16> for AddressRange<u16, V, S> {
-    fn from(starting_address: u16) -> Self {
-        Self(starting_address, PhantomData, PhantomData)
+impl<A, V: BitSize, S> From<A> for AddressRange<A, V, S> {
+    /// Wrap address into [`AddressRange`].
+    fn from(address: A) -> Self {
+        Self::new(address)
     }
 }
 

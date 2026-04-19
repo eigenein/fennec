@@ -24,12 +24,16 @@ pub trait BitSize {
     }
 }
 
-impl<T: BitSize, const N: usize> BitSize for [T; N] {
+impl<T: BitSize, const N: usize> BitSize for &[T; N] {
     #[expect(clippy::cast_possible_truncation)]
     const N_BITS: u16 = match (T::N_BITS as usize).checked_mul(N) {
         Some(n_bits) if n_bits <= u16::MAX as usize => n_bits as u16,
         _ => panic!("array size overflow"),
     };
+}
+
+impl<T: BitSize, const N: usize> BitSize for [T; N] {
+    const N_BITS: u16 = <&[T; N]>::N_BITS;
 }
 
 macro_rules! impl_for {

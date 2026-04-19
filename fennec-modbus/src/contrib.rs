@@ -30,17 +30,17 @@ macro_rules! impl_new_type {
     };
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Percentage<T>(pub T);
 
 impl_new_type!(Percentage => u16);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct DecawattHours<T>(pub T);
 
 impl_new_type!(DecawattHours => u16);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Watts<T>(pub T);
 
 impl_new_type!(Watts => u16);

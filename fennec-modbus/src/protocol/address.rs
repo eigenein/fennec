@@ -9,6 +9,7 @@ use crate::protocol::{
 
 /// Address specified via a constant generic argument.
 #[must_use]
+#[derive(Copy, Clone)]
 pub struct Const<const A: u16>;
 
 impl<const A: u16> Address for Const<A> {}
@@ -21,6 +22,7 @@ impl<const A: u16> Encode for Const<A> {
 
 /// Address computed as `BASE` + size-of-`V` × `index`.
 #[must_use]
+#[derive(Copy, Clone)]
 pub struct Stride<const BASE: u16, V>(
     /// Value index within the stride.
     pub u16,

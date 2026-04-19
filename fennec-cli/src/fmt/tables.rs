@@ -1,5 +1,6 @@
 use average::Mean;
 use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
+use fennec_modbus::contrib::mq2200::schedule;
 
 use crate::{
     battery::WorkingMode,
@@ -86,6 +87,34 @@ pub fn build_steps_table(steps: &[Step]) -> Table {
             Cell::new(step.metrics.losses.battery).set_alignment(CellAlignment::Right).fg(
                 if step.metrics.losses.battery >= Mills::TEN { Color::Red } else { Color::Green },
             ),
+        ]);
+    }
+    table
+}
+
+pub fn build_fox_ess_schedule_table(entries: &schedule::Full) -> Table {
+    let mut table = Table::new();
+    table
+        .load_preset(presets::UTF8_FULL_CONDENSED)
+        .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+        .enforce_styling()
+        .set_header(vec![
+            Cell::new("Start\ntime"),
+            Cell::new("End\ntime"),
+            Cell::new("Enabled"),
+            Cell::new("Mode"),
+            Cell::new("Target\nSoC"),
+            Cell::new("Watts"),
+        ]);
+    for entry in entries {
+        let attribute = if entry.is_enabled { Attribute::Reset } else { Attribute::Dim };
+        table.add_row(vec![
+            Cell::new(entry.start_time).add_attribute(attribute),
+            Cell::new(entry.end_time).add_attribute(attribute),
+            Cell::new(entry.is_enabled).add_attribute(attribute),
+            Cell::new(format!("{:?}", entry.working_mode)).add_attribute(attribute),
+            Cell::new(format!("{}", entry.target_state_of_charge.0)).add_attribute(attribute),
+            Cell::new(format!("{}", entry.power.0)).add_attribute(attribute),
         ]);
     }
     table

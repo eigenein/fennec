@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod response;
 mod schedule;
 mod working_mode;
@@ -12,8 +14,8 @@ use serde::{
 };
 use serde_with::serde_as;
 
+pub use self::schedule::Group;
 use self::schedule::Schedule;
-pub use self::schedule::{Group, Groups};
 use crate::{api::fox_cloud::response::Response, prelude::*};
 
 #[derive(Clone)]

@@ -1,6 +1,20 @@
 //! FoxESS Modbus clients.
 
-use fennec_modbus::{contrib::mq2200, protocol::address, tcp::UnitId};
+use std::array::from_fn;
+
+use fennec_modbus::{
+    contrib::{
+        mq2200,
+        mq2200::{
+            ReadScheduleEntryBlock,
+            WriteScheduleEntryBlock,
+            schedule,
+            schedule::{N_BLOCKS, N_ENTRIES_PER_BLOCK},
+        },
+    },
+    protocol::{address, function::write_multiple},
+    tcp::UnitId,
+};
 
 use crate::{
     battery,
@@ -42,6 +56,33 @@ impl MQ2200 {
             min_system_charge,
             charge_range: (min_soc_on_grid..=max_soc).into(),
         })
+    }
+
+    #[instrument(skip_all)]
+    pub async fn write_schedule(&self, schedule: &schedule::Full) -> Result {
+        let blocks: [[schedule::Entry; N_ENTRIES_PER_BLOCK]; N_BLOCKS] = from_fn(|block_index| {
+            from_fn(|entry_index| schedule[block_index * N_ENTRIES_PER_BLOCK + entry_index])
+        });
+
+        for (i, block) in blocks.into_iter().enumerate() {
+            info!(i, "writing the schedule block…");
+
+            #[expect(clippy::cast_possible_truncation)]
+            let address = schedule::BlockIndex(i as u16);
+
+            self.0
+                .call::<WriteScheduleEntryBlock>(
+                    Self::UNIT_ID,
+                    write_multiple::Args::new(address, block),
+                )
+                .await?;
+
+            info!(i, "verifying…");
+            ensure!(self.0.call::<ReadScheduleEntryBlock>(Self::UNIT_ID, address).await? == block);
+        }
+
+        info!("finished");
+        Ok(())
     }
 
     async fn read_min_system_soc(&self) -> Result<Percentage> {

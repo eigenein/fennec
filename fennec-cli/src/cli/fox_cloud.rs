@@ -1,3 +1,5 @@
+#![expect(dead_code)]
+
 use clap::Parser;
 
 use crate::{api::fox_cloud, prelude::*};
@@ -8,7 +10,7 @@ pub struct FoxCloudConnectionArgs {
     api: FoxCloudApiArgs,
 
     /// Do not push schedules to Fox Cloud – only perform dry runs.
-    #[clap(long, env = "SCOUT")]
+    #[clap(long = "fox-ess-scout", env = "SCOUT", name = "FOX_ESS_SCOUT")]
     scout: bool,
 }
 

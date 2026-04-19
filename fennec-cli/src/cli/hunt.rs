@@ -5,10 +5,9 @@ use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
-use itertools::Itertools;
 
 use crate::{
-    api::fox_cloud,
+    api::modbus::schedule,
     battery::WorkingMode,
     cli::{
         battery::BatteryArgs,
@@ -17,7 +16,7 @@ use crate::{
     cron::CronSchedule,
     db::power,
     energy,
-    fmt::tables::build_steps_table,
+    fmt::tables::{build_fox_ess_schedule_table, build_steps_table},
     ops::Interval,
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
@@ -48,6 +47,10 @@ pub struct HuntSharedArgs {
 
     #[clap(flatten)]
     battery: BatteryArgs,
+
+    /// Do not push schedule to the device, dry run.
+    #[clap(long = "scout", env = "SCOUT")]
+    scout: bool,
 }
 
 impl HuntSharedArgs {
@@ -61,6 +64,7 @@ impl HuntSharedArgs {
                 .energy_provider(self.energy_provider)
                 .battery_args(self.battery)
                 .quantum(self.quantum)
+                .scout(self.scout)
                 .build(),
         ))
     }
@@ -90,6 +94,7 @@ pub struct Hunter {
     working_modes: EnumSet<WorkingMode>,
     energy_provider: energy::Provider,
     quantum: WattHours,
+    scout: bool,
 }
 
 impl Hunter {
@@ -169,17 +174,20 @@ impl Hunter {
             "solution summary",
         );
 
-        let schedule = steps.iter().map(|step| (step.interval, step.working_mode)).collect_vec();
-        let groups = fox_cloud::Groups::from_schedule(&schedule, self.battery_args.power_limits);
-        println!("{}", &groups);
+        let entries = {
+            let schedule = steps.iter().map(|step| (step.interval, step.working_mode));
+            schedule::build(schedule, battery_state.charge_range, self.battery_args.power_limits)
+        };
+        println!("{}", build_fox_ess_schedule_table(&entries));
 
-        if let Some(fox_cloud) = &self.connections.fox_cloud {
-            (|| fox_cloud.set_schedule(groups.as_ref()))
+        if self.scout {
+            warn!("not pushing the schedule to Fox Cloud, just scouting");
+        } else {
+            (async || self.connections.battery.write_schedule(&entries).await)
                 .retry(Self::BACKOFF)
                 .notify(log_retried_error)
-                .await?;
-        } else {
-            warn!("not pushing the schedule to Fox Cloud, just scouting");
+                .await
+                .context("failed to push the schedule to the battery")?;
         }
 
         Ok(HunterState { steps, base_loss, metrics, energy_profile })

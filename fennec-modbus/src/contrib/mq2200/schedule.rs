@@ -1,3 +1,5 @@
+use core::fmt::{Display, Formatter};
+
 use bytes::{Buf, BufMut};
 
 use crate::{
@@ -10,16 +12,33 @@ use crate::{
     },
 };
 
+/// Number of entries per schedule block.
+///
+/// There are [`N_BLOCKS`] such blocks.
+pub const N_ENTRIES_PER_BLOCK: usize = 12;
+
+/// Number of schedule blocks, each consisting of [`N_ENTRIES_PER_BLOCK`] entries.
+pub const N_BLOCKS: usize = 8;
+
+/// Full schedule type alias.
+///
+/// Note that this is not encodable nor decodable as it doesn't fit the Modbus payload size.
+/// The type alias is provided solely for convenience.
+pub type Full = [Entry; Entry::COUNT];
+
 /// Schedule block consisting of 12 entries.
-pub type EntryBlock = [Entry; 12];
+pub type EntryBlock = [Entry; N_ENTRIES_PER_BLOCK];
 
 /// Block index for batch-reading 12 schedule entries at a time.
 ///
 /// There are 8 blocks (indices 0–7), covering all 96 entries.
+#[must_use]
+#[derive(Copy, Clone)]
 pub struct BlockIndex(pub u16);
 
 impl BlockIndex {
-    pub const MAX: u16 = 8;
+    #[expect(clippy::cast_possible_truncation)]
+    pub const MAX: u16 = (N_BLOCKS - 1) as u16;
 }
 
 impl Address for BlockIndex {}
@@ -30,8 +49,9 @@ impl Encode for BlockIndex {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u16)]
+#[must_use]
 pub enum WorkingMode {
     SelfUse = 1_u16,
     FeedInPriority = 2_u16,
@@ -71,13 +91,21 @@ impl Decode for WorkingMode {
 }
 
 /// Scheduler entry start or end time.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[must_use]
 pub struct NaiveTime {
     pub hour: u8,
     pub minute: u8,
 }
 
+impl Display for NaiveTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:02}:{:02}", self.hour, self.minute)
+    }
+}
+
 impl NaiveTime {
+    /// The first minute of a day.
     pub const MIN: Self = Self { hour: 0, minute: 0 };
 
     /// The last minute of a day is always _inclusive_.
@@ -98,7 +126,8 @@ impl Decode for NaiveTime {
 }
 
 /// Mode scheduler entry.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[must_use]
 pub struct Entry {
     pub is_enabled: bool,
 
@@ -134,7 +163,7 @@ pub struct Entry {
 
 impl Entry {
     /// Total number of schedule entries in the register space.
-    pub const COUNT: u16 = 96;
+    pub const COUNT: usize = N_BLOCKS * N_ENTRIES_PER_BLOCK;
 
     /// Disabled entry.
     ///

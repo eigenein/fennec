@@ -11,18 +11,15 @@ use crate::{
     quantity::{Zero, power::Watts, ratios::Percentage},
 };
 
-const N_ENTRIES: usize = schedule::Entry::COUNT as usize;
-
 #[instrument(skip_all)]
 pub fn build(
-    schedule: &[(Interval, battery::WorkingMode)],
+    schedule: impl IntoIterator<Item = (Interval, battery::WorkingMode)>,
     charge_range: range::Inclusive<Percentage>,
     battery_power_limits: BatteryPowerLimits,
-) -> [schedule::Entry; N_ENTRIES] {
+) -> schedule::Full {
     info!("building a Fox ESS schedule…");
     let mut schedule: Vec<_> = schedule
-        .iter()
-        .copied()
+        .into_iter()
         .scan(None, |schedule_end, (mut interval, working_mode)| {
             if let Some(schedule_end) = *schedule_end {
                 if interval.start >= schedule_end {
@@ -75,6 +72,7 @@ pub fn build(
                     battery_power_limits.discharging,
                 ),
             };
+
             #[expect(clippy::cast_possible_truncation)]
             #[expect(clippy::cast_sign_loss)]
             schedule::Entry {
@@ -96,7 +94,7 @@ pub fn build(
             }
         })
         .collect();
-    schedule.extend(vec![schedule::Entry::DISABLED; N_ENTRIES - schedule.len()]);
+    schedule.extend(vec![schedule::Entry::DISABLED; schedule::Entry::COUNT - schedule.len()]);
     schedule.try_into().expect("schedule entry number mismatch")
 }
 

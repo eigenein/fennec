@@ -4,6 +4,7 @@ use anyhow::Error;
 use clap::{Parser, Subcommand};
 use fennec_modbus::{
     contrib::mq2200,
+    protocol::{address, address::Stride, function::read_multiple::AddressRange},
     tcp::{UnitId, tokio::Client},
 };
 use tracing::level_filters::LevelFilter;
@@ -28,40 +29,55 @@ async fn main() -> Result {
             Device::Mq2200 => {
                 println!(
                     "State-of-health: {:?}",
-                    client.call::<mq2200::ReadStateOfHealth>(unit_id, ()).await?
+                    client.call::<mq2200::ReadStateOfHealth>(unit_id, address::Const).await?.0
                 );
                 println!(
                     "Design capacity: {:?}",
-                    client.call::<mq2200::ReadDesignCapacity>(unit_id, ()).await?
+                    client.call::<mq2200::ReadDesignCapacity>(unit_id, address::Const).await?.0
                 );
                 println!(
                     "Total active power: {:?}",
-                    client.call::<mq2200::ReadTotalActivePower>(unit_id, ()).await?
+                    client.call::<mq2200::ReadTotalActivePower>(unit_id, address::Const).await?.0
                 );
                 println!(
                     "Total EPS active power: {:?}",
-                    client.call::<mq2200::ReadEpsActivePower>(unit_id, ()).await?
+                    client.call::<mq2200::ReadEpsActivePower>(unit_id, address::Const).await?.0
                 );
                 println!(
                     "State-of-charge: {:?}",
-                    client.call::<mq2200::ReadStateOfCharge>(unit_id, ()).await?
+                    client.call::<mq2200::ReadStateOfCharge>(unit_id, address::Const).await?.0
                 );
                 println!(
                     "Minimum system SoC: {:?}",
-                    client.call::<mq2200::ReadMinimumSystemStateOfCharge>(unit_id, ()).await?
+                    client
+                        .call::<mq2200::ReadMinimumSystemStateOfCharge>(unit_id, address::Const)
+                        .await?
+                        .0
                 );
                 println!(
                     "Maximum SoC: {:?}",
-                    client.call::<mq2200::ReadMaximumStateOfCharge>(unit_id, ()).await?
+                    client
+                        .call::<mq2200::ReadMaximumStateOfCharge>(unit_id, address::Const)
+                        .await?
+                        .0
                 );
                 println!(
                     "Minimum SoC on grid: {:?}",
-                    client.call::<mq2200::ReadMinimumStateOfChargeOnGrid>(unit_id, ()).await?
+                    client
+                        .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(unit_id, address::Const)
+                        .await?
+                        .0
                 );
                 for i in 0..96 {
                     println!(
                         "Schedule #{i}: {:?}",
-                        client.call::<mq2200::ReadScheduleEntry>(unit_id, i).await?
+                        client
+                            .call::<mq2200::ReadScheduleEntry>(
+                                unit_id,
+                                AddressRange::new(Stride::new(i))
+                            )
+                            .await?
+                            .0
                     );
                 }
             }

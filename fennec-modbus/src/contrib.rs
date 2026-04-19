@@ -4,27 +4,27 @@ use bytes::{Buf, BufMut};
 
 use crate::{
     Error,
-    protocol::codec::{BigEndian, BitSize, Decoder, Encoder, Word},
+    protocol::codec::{BitSize, Decode, Encode},
 };
 
 pub mod mq2200;
 
 // TODO: make endianness a type parameter.
 macro_rules! impl_new_type {
-    ($target:ident => $codec:ty, $inner:ty) => {
+    ($target:ident => $inner:ty) => {
         impl BitSize for $target<$inner> {
             const N_BITS: u16 = <$inner as BitSize>::N_BITS;
         }
 
-        impl Decoder<$target<$inner>> for $codec {
-            fn decode(from: &mut impl Buf) -> Result<$target<$inner>, Error> {
-                <$codec>::decode(from).map($target)
+        impl Decode for $target<$inner> {
+            fn decode(from: &mut impl Buf) -> Result<Self, Error> {
+                <$inner>::decode(from).map(Self)
             }
         }
 
-        impl Encoder<$target<$inner>> for $codec {
-            fn encode(value: &$target<$inner>, to: &mut impl BufMut) {
-                <$codec>::encode(&value.0, to);
+        impl Encode for $target<$inner> {
+            fn encode(&self, to: &mut impl BufMut) {
+                self.0.encode(to);
             }
         }
     };
@@ -33,15 +33,15 @@ macro_rules! impl_new_type {
 #[derive(Copy, Clone, Debug)]
 pub struct Percentage<T>(pub T);
 
-impl_new_type!(Percentage => Word, u16);
+impl_new_type!(Percentage => u16);
 
 #[derive(Copy, Clone, Debug)]
 pub struct DecawattHours<T>(pub T);
 
-impl_new_type!(DecawattHours => Word, u16);
+impl_new_type!(DecawattHours => u16);
 
 #[derive(Copy, Clone, Debug)]
 pub struct Watts<T>(pub T);
 
-impl_new_type!(Watts => Word, u16);
-impl_new_type!(Watts => BigEndian, i32);
+impl_new_type!(Watts => u16);
+impl_new_type!(Watts => i32);

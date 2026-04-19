@@ -9,14 +9,14 @@
 
 pub mod address;
 pub mod codec;
-pub mod exception;
 pub mod function;
-pub mod request;
-pub mod response;
 
-use thiserror::Error;
+use bytes::{Buf, BufMut};
 
-use crate::protocol::codec::{Decoder, Encoder};
+use crate::{
+    Error,
+    protocol::codec::{Decode, Encode},
+};
 
 /// Request Protocol Data Unit.
 #[derive(Copy, Clone)]
@@ -35,6 +35,13 @@ impl<A> Request<A> {
     }
 }
 
+impl<A: Encode> Encode for Request<A> {
+    fn encode(&self, to: &mut impl BufMut) {
+        to.put_u8(self.function_code);
+        self.args.encode(to);
+    }
+}
+
 /// Response Protocol Data Unit.
 #[derive(Copy, Clone)]
 pub enum Response<F: Function> {
@@ -45,11 +52,23 @@ pub enum Response<F: Function> {
     Exception(Exception),
 }
 
+impl<F: Function> Decode for Response<F> {
+    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
+        match from.try_get_u8()? {
+            function_code if function_code == F::CODE => Ok(Self::Ok(F::Output::decode(from)?)),
+            function_code if function_code == (F::CODE | 0x80) => {
+                Ok(Self::Exception(Exception::decode(from)?))
+            }
+            function_code => Err(Error::UnexpectedFunctionCode(function_code)),
+        }
+    }
+}
+
 /// High-level protocol error.
 ///
 /// The server received the request without a communication error, but could not handle it.
 #[must_use]
-#[derive(Copy, Clone, Debug, Error)]
+#[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum Exception {
     /// The function code received in the query is not an allowable action for the server:
     ///
@@ -108,15 +127,21 @@ pub enum Exception {
     Custom(u8),
 }
 
-/// Address in a data block.
-///
-/// That allows constant generic implementations.
-pub trait Address {
-    /// Concrete address type.
-    type Args;
-
-    /// Address encoder.
-    type ArgsEncoder: Encoder<Self::Args>;
+impl Decode for Exception {
+    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
+        match from.try_get_u8()? {
+            0x01 => Ok(Self::IllegalFunction),
+            0x02 => Ok(Self::IllegalDataAddress),
+            0x03 => Ok(Self::IllegalDataValue),
+            0x04 => Ok(Self::ServerDeviceFailure),
+            0x05 => Ok(Self::Acknowledge),
+            0x06 => Ok(Self::ServerDeviceBusy),
+            0x08 => Ok(Self::MemoryParityError),
+            0x0A => Ok(Self::GatewayPathUnavailable),
+            0x0B => Ok(Self::GatewayTargetDeviceFailedToRespond),
+            exception_code => Ok(Self::Custom(exception_code)),
+        }
+    }
 }
 
 /// Trait that ties function code, arguments and output together.
@@ -126,14 +151,8 @@ pub trait Address {
 /// [making a pull request](https://github.com/eigenein/fennec/pulls).
 pub trait Function: function::Code {
     /// Function arguments type.
-    type Args;
-
-    /// Function arguments encoder.
-    type ArgsEncoder: Encoder<Self::Args>;
+    type Args: Encode;
 
     /// Function output type.
-    type Output;
-
-    /// Function output decoder.
-    type OutputDecoder: Decoder<Self::Output>;
+    type Output: Decode;
 }

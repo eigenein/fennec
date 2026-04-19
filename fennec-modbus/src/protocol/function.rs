@@ -1,9 +1,8 @@
 use core::marker::PhantomData;
 
 use crate::protocol::{
-    Address,
     Function,
-    codec::{Decoder, Encoder},
+    codec::{Decode, Encode},
 };
 
 pub mod read_multiple;
@@ -19,79 +18,67 @@ pub trait Code {
 /// Read coils.
 ///
 /// Type parameters bind to the address, value, and codec types.
-pub struct ReadCoils<A, V, C>(PhantomData<(A, V, C)>);
+pub struct ReadCoils<A, V>(PhantomData<(A, V)>);
 
-impl<A, V, C> Code for ReadCoils<A, V, C> {
+impl<A, V> Code for ReadCoils<A, V> {
     const CODE: u8 = 1;
 }
 
-impl<A, V, C> Function for ReadCoils<A, V, C>
+impl<A, V> Function for ReadCoils<A, V>
 where
-    A: Address,
-    read_multiple::ArgsEncoder<A, V, size_argument::Bits>: Encoder<A::Args>,
-    C: Decoder<V>,
+    read_multiple::AddressRange<A, V, size_argument::Bits>: Encode,
+    V: Decode,
 {
-    type Args = A::Args;
-    type ArgsEncoder = read_multiple::ArgsEncoder<A, V, size_argument::Bits>;
-    type Output = V;
-    type OutputDecoder = read_multiple::OutputDecoder<V, C>;
+    type Args = read_multiple::AddressRange<A, V, size_argument::Bits>;
+    type Output = read_multiple::Output<V>;
 }
 
 /// Read discrete inputs.
-pub struct ReadDiscreteInputs<A, V, C>(PhantomData<(A, V, C)>);
+pub struct ReadDiscreteInputs<A, V>(PhantomData<(A, V)>);
 
-impl<A, V, C> Code for ReadDiscreteInputs<A, V, C> {
+impl<A, V> Code for ReadDiscreteInputs<A, V> {
     const CODE: u8 = 2;
 }
 
-impl<A, V, C> Function for ReadDiscreteInputs<A, V, C>
+impl<A, V> Function for ReadDiscreteInputs<A, V>
 where
-    A: Address,
-    read_multiple::ArgsEncoder<A, V, size_argument::Bits>: Encoder<A::Args>,
-    C: Decoder<V>,
+    read_multiple::AddressRange<A, V, size_argument::Bits>: Encode,
+    V: Decode,
 {
-    type Args = A::Args;
-    type ArgsEncoder = read_multiple::ArgsEncoder<A, V, size_argument::Bits>;
-    type Output = V;
-    type OutputDecoder = read_multiple::OutputDecoder<V, C>;
+    type Args = read_multiple::AddressRange<A, V, size_argument::Bits>;
+    type Output = read_multiple::Output<V>;
 }
 
 /// Read holding registers.
-pub struct ReadHoldingRegisters<A, V, C>(PhantomData<(A, V, C)>);
+pub struct ReadHoldingRegisters<A, V>(PhantomData<(A, V)>);
 
-impl<A, V, C> Code for ReadHoldingRegisters<A, V, C> {
+impl<A, V> Code for ReadHoldingRegisters<A, V> {
     const CODE: u8 = 3;
 }
 
-impl<A, V, C> Function for ReadHoldingRegisters<A, V, C>
+impl<A, V> Function for ReadHoldingRegisters<A, V>
 where
-    A: Address,
-    read_multiple::ArgsEncoder<A, V, size_argument::Words>: Encoder<A::Args>,
-    C: Decoder<V>,
+    read_multiple::AddressRange<A, V, size_argument::Words>: Encode,
+    V: Decode,
 {
-    type Args = A::Args;
-    type ArgsEncoder = read_multiple::ArgsEncoder<A, V, size_argument::Words>;
-    type Output = V;
-    type OutputDecoder = read_multiple::OutputDecoder<V, C>;
+    type Args = read_multiple::AddressRange<A, V, size_argument::Words>;
+    type Output = read_multiple::Output<V>;
 }
 
 /// Read input registers.
-pub struct ReadInputRegisters<A, V, C>(PhantomData<(A, V, C)>);
+pub struct ReadInputRegisters<A, V>(PhantomData<(A, V)>);
 
-impl<A, V, C> Code for ReadInputRegisters<A, V, C> {
+impl<A, V> Code for ReadInputRegisters<A, V> {
     const CODE: u8 = 4;
 }
 
-impl<A, V, C> Function for ReadInputRegisters<A, V, C>
+impl<A, V> Function for ReadInputRegisters<A, V>
 where
-    A: Address,
-    read_multiple::ArgsEncoder<A, V, size_argument::Words>: Encoder<A::Args>,
-    C: Decoder<V>,
+    read_multiple::AddressRange<A, V, size_argument::Words>: Encode,
+    V: Decode,
 {
-    type Args = A::Args;
-    type ArgsEncoder = read_multiple::ArgsEncoder<A, V, size_argument::Words>;
-    type Output = V;
-    type OutputDecoder = read_multiple::OutputDecoder<V, C>;
+    type Args = read_multiple::AddressRange<A, V, size_argument::Words>;
+    type Output = read_multiple::Output<V>;
 }
 
 /// Write multiple registers.
@@ -100,17 +87,3 @@ pub struct WriteMultipleRegisters<A, V, C>(PhantomData<(A, V, C)>);
 impl<A, V, C> Code for WriteMultipleRegisters<A, V, C> {
     const CODE: u8 = 16;
 }
-
-/*
-impl<A, V, C> Function for WriteMultipleRegisters<A, V, C>
-where
-    A: Address,
-    write_multiple::ArgsEncoder<A, V, size_argument::Words>: Encoder<A::Args>,
-    C: Encoder<V>,
-{
-    type Args = todo!();
-    type ArgsEncoder = write_multiple::ArgsEncoder<A, V, size_argument::Words>;
-    type Output = todo!();
-    type OutputDecoder = todo!();
-}
-*/

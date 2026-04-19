@@ -17,12 +17,6 @@ impl WattHours {
     pub const ONE: Self = Self(1.0);
 }
 
-impl From<fennec_modbus::contrib::DecawattHours<u16>> for DecawattHours {
-    fn from(value: fennec_modbus::contrib::DecawattHours<u16>) -> Self {
-        Self(value.0)
-    }
-}
-
 impl Mul<BasisPoints> for DecawattHours {
     type Output = MilliwattHours;
 

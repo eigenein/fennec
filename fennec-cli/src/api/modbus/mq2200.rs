@@ -1,6 +1,6 @@
 //! FoxESS Modbus clients.
 
-use fennec_modbus::{contrib::mq2200, tcp::UnitId};
+use fennec_modbus::{contrib::mq2200, protocol::address, tcp::UnitId};
 
 use crate::{
     battery,
@@ -46,50 +46,50 @@ impl MQ2200 {
 
     async fn read_min_system_soc(&self) -> Result<Percentage> {
         self.0
-            .call::<mq2200::ReadMinimumSystemStateOfCharge>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadMinimumSystemStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the minimum system SoC")
-            .map(Percentage::from)
+            .map(|output| Percentage(output.0.0))
     }
 
     async fn read_min_soc_on_grid(&self) -> Result<Percentage> {
         self.0
-            .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the minimum SoC on grid")
-            .map(Percentage::from)
+            .map(|output| Percentage(output.0.0))
     }
 
     async fn read_max_soc(&self) -> Result<Percentage> {
         self.0
-            .call::<mq2200::ReadMaximumStateOfCharge>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the maximum SoC")
-            .map(Percentage::from)
+            .map(|output| Percentage(output.0.0))
     }
 
     async fn read_design_capacity(&self) -> Result<DecawattHours> {
         self.0
-            .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the design capacity")
-            .map(DecawattHours::from)
+            .map(|output| DecawattHours(output.0.0))
     }
 
     async fn read_state_of_charge(&self) -> Result<Percentage> {
         self.0
-            .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoC")
-            .map(Percentage::from)
+            .map(|output| Percentage(output.0.0))
     }
 
     async fn read_state_of_health(&self) -> Result<Percentage> {
         self.0
-            .call::<mq2200::ReadStateOfHealth>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoH")
-            .map(Percentage::from)
+            .map(|output| Percentage(output.0.0))
     }
 
     /// Read total external active power.
@@ -97,18 +97,18 @@ impl MQ2200 {
     /// Positive means discharging, negative means charging.
     async fn read_active_power(&self) -> Result<Watts> {
         self.0
-            .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the active power")
-            .map(Watts::from)
+            .map(|output| Watts::from(output.0.0))
     }
 
     /// Read current EPS output power.
     async fn read_eps_active_power(&self) -> Result<Watts> {
         self.0
-            .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, ())
+            .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the EPS active power")
-            .map(Watts::from)
+            .map(|output| Watts::from(output.0.0))
     }
 }

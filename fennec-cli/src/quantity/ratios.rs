@@ -3,12 +3,6 @@ use std::ops::Mul;
 quantity!(Percentage, via: u16, suffix: "%", precision: 1);
 quantity!(BasisPoints, via: u16, suffix: "‱", precision: 0);
 
-impl From<fennec_modbus::contrib::Percentage<u16>> for Percentage {
-    fn from(value: fennec_modbus::contrib::Percentage<u16>) -> Self {
-        Self(value.0)
-    }
-}
-
 impl Percentage {
     /// Convert the percentage into `0.0..=1.0`.
     pub const fn to_ratio(self) -> f64 {

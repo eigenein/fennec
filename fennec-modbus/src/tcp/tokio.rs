@@ -14,9 +14,9 @@ use tokio::{
 };
 
 use crate::{
-    protocol::{Function, Request, codec::Decoder, request, response},
+    protocol::{Function, Request, Response, codec::Decode},
     tcp,
-    tcp::{header, transaction},
+    tcp::{Header, transaction},
 };
 
 #[must_use]
@@ -71,7 +71,7 @@ impl ConnectionGuard<'_> {
 /// ```rust,no_run
 /// use anyhow::Result;
 /// use fennec_modbus::{
-///     protocol::{address, codec::Word, function::ReadHoldingRegisters},
+///     protocol::{address, function::ReadHoldingRegisters},
 ///     tcp::{UnitId, tokio::Client},
 /// };
 ///
@@ -79,9 +79,7 @@ impl ConnectionGuard<'_> {
 /// async fn main() -> Result<()> {
 ///     let unit_id = UnitId::Significant(1);
 ///     let client = Client::new("battery.iot.home.arpa:502");
-///     let decivolts = client
-///         .call::<ReadHoldingRegisters<address::Runtime, u16, Word>>(unit_id, 39201)
-///         .await?;
+///     let decivolts = client.call::<ReadHoldingRegisters<_, u16>>(unit_id, 39201).await?;
 ///     Ok(())
 /// }
 /// ```
@@ -138,17 +136,14 @@ where
     pub async fn call<F: Function>(
         &self,
         unit_id: tcp::UnitId,
-        args: F::Args,
+        args: impl Into<F::Args>,
     ) -> Result<F::Output, Error> {
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 
         let mut frame = Vec::new();
-        let transaction_id = self.encoder.encode::<_, request::Encoder<F::ArgsEncoder>>(
-            unit_id,
-            &Request::wrap::<F>(args),
-            &mut frame,
-        )?;
+        let transaction_id =
+            self.encoder.encode(unit_id, &Request::wrap::<F>(args.into()), &mut frame)?;
 
         let mut connection = self.connection.get().await?;
 
@@ -164,7 +159,7 @@ where
                 let header = {
                     let mut header_bytes = [0; tcp::Header::N_BYTES];
                     connection.get_mut().read_exact(&mut header_bytes).await?;
-                    header::Decoder::decode(&mut header_bytes.as_slice())?
+                    Header::decode(&mut header_bytes.as_slice())?
                 };
 
                 #[cfg(feature = "tracing")]
@@ -201,7 +196,12 @@ where
 
                 connection.invalidate();
             })?;
-        Ok(response::Decoder::<F>::decode(&mut payload_bytes.as_slice())?)
+        match Response::<F>::decode(&mut payload_bytes.as_slice())? {
+            Response::Ok(output) => Ok(output),
+            Response::Exception(exception) => {
+                Err(Error::Protocol(crate::Error::Exception(exception)))
+            }
+        }
     }
 }
 

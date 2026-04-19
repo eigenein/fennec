@@ -5,8 +5,8 @@ use bytes::BufMut;
 
 use crate::{
     Error,
-    protocol::{codec, codec::Encoder as _},
-    tcp::{Header, UnitId, header},
+    protocol::codec::Encode,
+    tcp::{Header, UnitId},
 };
 
 /// Sans-IO Modbus-over-TCP transaction encoder used to prepare requests.
@@ -34,7 +34,6 @@ impl Encoder {
     /// ```rust
     /// use bytes::BufMut;
     /// ///
-    /// use fennec_modbus::protocol::codec::BigEndian;
     /// use fennec_modbus::{
     ///     protocol::codec,
     ///     tcp::{UnitId, transaction},
@@ -42,8 +41,7 @@ impl Encoder {
     ///
     /// let encoder = transaction::Encoder::with_next_transaction_id(0x1501);
     /// let mut frame = Vec::new();
-    /// let transaction_id =
-    ///     encoder.encode::<_, BigEndian>(UnitId::NonSignificant, &0x12345678, &mut frame).unwrap();
+    /// let transaction_id = encoder.encode(UnitId::NonSignificant, &0x12345678, &mut frame).unwrap();
     ///
     /// assert_eq!(transaction_id, 0x1501);
     /// assert_eq!(
@@ -57,14 +55,14 @@ impl Encoder {
     ///     ]
     /// );
     /// ```
-    pub fn encode<P: ?Sized, T: codec::Encoder<P>>(
+    pub fn encode<P: Encode>(
         &self,
         unit_id: UnitId,
         payload: &P,
         to: &mut impl BufMut,
     ) -> Result<u16, Error> {
         let mut request_bytes = Vec::new();
-        T::encode(payload, &mut request_bytes);
+        payload.encode(&mut request_bytes);
 
         let transaction_id = self.0.fetch_add(1, Ordering::Relaxed);
         let header = {
@@ -72,7 +70,7 @@ impl Encoder {
                 .map_err(|_| Error::PayloadSizeExceeded(request_bytes.len()))?;
             Header { unit_id, transaction_id, length, protocol_id: Header::PROTOCOL_ID }
         };
-        header::Encoder::encode(&header, to);
+        header.encode(to);
         to.put(&*request_bytes);
 
         Ok(transaction_id)

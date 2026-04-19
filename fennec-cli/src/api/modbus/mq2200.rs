@@ -49,7 +49,7 @@ impl MQ2200 {
             .call::<mq2200::ReadMinimumSystemStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the minimum system SoC")
-            .map(|output| Percentage(output.0.0))
+            .map(Into::into)
     }
 
     async fn read_min_soc_on_grid(&self) -> Result<Percentage> {
@@ -57,7 +57,7 @@ impl MQ2200 {
             .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the minimum SoC on grid")
-            .map(|output| Percentage(output.0.0))
+            .map(Into::into)
     }
 
     async fn read_max_soc(&self) -> Result<Percentage> {
@@ -65,7 +65,7 @@ impl MQ2200 {
             .call::<mq2200::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the maximum SoC")
-            .map(|output| Percentage(output.0.0))
+            .map(Into::into)
     }
 
     async fn read_design_capacity(&self) -> Result<DecawattHours> {
@@ -73,7 +73,7 @@ impl MQ2200 {
             .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the design capacity")
-            .map(|output| DecawattHours(output.0.0))
+            .map(Into::into)
     }
 
     async fn read_state_of_charge(&self) -> Result<Percentage> {
@@ -81,7 +81,7 @@ impl MQ2200 {
             .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoC")
-            .map(|output| Percentage(output.0.0))
+            .map(Into::into)
     }
 
     async fn read_state_of_health(&self) -> Result<Percentage> {
@@ -89,7 +89,7 @@ impl MQ2200 {
             .call::<mq2200::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoH")
-            .map(|output| Percentage(output.0.0))
+            .map(Into::into)
     }
 
     /// Read total external active power.
@@ -100,7 +100,7 @@ impl MQ2200 {
             .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the active power")
-            .map(|output| Watts::from(output.0.0))
+            .map(Into::into)
     }
 
     /// Read current EPS output power.
@@ -109,6 +109,6 @@ impl MQ2200 {
             .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the EPS active power")
-            .map(|output| Watts::from(output.0.0))
+            .map(Into::into)
     }
 }

@@ -8,31 +8,30 @@ use crate::{
     Error,
     protocol::{
         codec::{BitSize, Decode, Encode, adapters::DropRemaining},
+        function,
         function::size_argument,
     },
 };
 
 /// Address range for reading operations.
 #[must_use]
-pub struct AddressRange<A, V, S>(
+pub struct Args<A, V, S>(
     /// Bare address.
     A,
-    /// Binding to the value type.
-    ///
-    /// This is needed to know the number of registers or coils.
+    /// Binding to the value type. This is needed to know the number of registers or coils.
     PhantomData<V>,
     /// Binding to the size type, normally [`size_argument::Bits`] or [`size_argument::Words`].
     PhantomData<S>,
 );
 
-impl<A, V: BitSize, S> From<A> for AddressRange<A, V, S> {
-    /// Wrap address into [`AddressRange`].
+impl<A, V: BitSize, S> From<A> for Args<A, V, S> {
+    /// Wrap the address into [`Args`].
     fn from(address: A) -> Self {
         Self::new(address)
     }
 }
 
-impl<A, V: BitSize, S> AddressRange<A, V, S> {
+impl<A, V: BitSize, S> Args<A, V, S> {
     /// Create the address range from the starting address.
     pub const fn new(starting_address: A) -> Self {
         Self(starting_address, PhantomData, PhantomData)
@@ -49,7 +48,7 @@ impl<A, V: BitSize, S> AddressRange<A, V, S> {
     }
 }
 
-impl<A: Encode, V: BitSize> Encode for AddressRange<A, V, size_argument::Bits> {
+impl<A: Encode, V: BitSize> Encode for Args<A, V, size_argument::Bits> {
     /// Encode the address and number of bits to read.
     fn encode(&self, to: &mut impl BufMut) {
         Self::assert_valid::<246>();
@@ -58,7 +57,7 @@ impl<A: Encode, V: BitSize> Encode for AddressRange<A, V, size_argument::Bits> {
     }
 }
 
-impl<A: Encode, V: BitSize> Encode for AddressRange<A, V, size_argument::Words> {
+impl<A: Encode, V: BitSize> Encode for Args<A, V, size_argument::Words> {
     /// Encode the address and number of registers to read.
     fn encode(&self, to: &mut impl BufMut) {
         Self::assert_valid::<250>();
@@ -72,7 +71,10 @@ impl<A: Encode, V: BitSize> Encode for AddressRange<A, V, size_argument::Words> 
 /// # Example
 ///
 /// ```rust
-/// use fennec_modbus::protocol::{codec::Decode, function::read_multiple::Output};
+/// use fennec_modbus::protocol::{
+///     codec::Decode,
+///     function::{IntoValue, read_multiple::Output},
+/// };
 ///
 /// const BYTES: &[u8] = &[
 ///     0x04, // byte count
@@ -80,15 +82,23 @@ impl<A: Encode, V: BitSize> Encode for AddressRange<A, V, size_argument::Words> 
 ///     0x00, 0x00, // register: high, low
 /// ];
 ///
-/// let value = Output::<u32>::decode(&mut BYTES).unwrap().0;
+/// let value = Output::<u32>::decode(&mut BYTES).unwrap().into_value();
 /// assert_eq!(value, 0x022B0000);
 /// ```
-pub struct Output<V>(pub V);
+pub struct Output<V>(V);
 
 impl<V: Decode> Decode for Output<V> {
     fn decode(from: &mut impl Buf) -> Result<Self, Error> {
         let n_bytes = from.try_get_u8()?;
         let mut from = DropRemaining(from).take(usize::from(n_bytes));
         V::decode(&mut from).map(Self)
+    }
+}
+
+impl<V> function::IntoValue for Output<V> {
+    type Value = V;
+
+    fn into_value(self) -> Self::Value {
+        self.0
     }
 }

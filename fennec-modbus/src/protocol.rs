@@ -15,7 +15,10 @@ use bytes::{Buf, BufMut};
 
 use crate::{
     Error,
-    protocol::codec::{Decode, Encode},
+    protocol::{
+        codec::{Decode, Encode},
+        function::IntoValue,
+    },
 };
 
 /// Request Protocol Data Unit.
@@ -160,8 +163,12 @@ impl Decode for Exception {
 /// [making a pull request](https://github.com/eigenein/fennec/pulls).
 pub trait Function: function::Code {
     /// Function arguments type.
+    ///
+    /// It must be encodable to get sent in the request.
     type Args: Encode;
 
     /// Function output type.
-    type Output: Decode;
+    ///
+    /// It must be decodable from the response.
+    type Output: Decode + IntoValue;
 }

@@ -14,7 +14,7 @@ use tokio::{
 };
 
 use crate::{
-    protocol::{Function, Request, Response, codec::Decode},
+    protocol::{Function, Request, Response, codec::Decode, function::IntoValue},
     tcp,
     tcp::{Header, transaction},
 };
@@ -137,7 +137,7 @@ where
         &self,
         unit_id: tcp::UnitId,
         args: impl Into<F::Args>,
-    ) -> Result<F::Output, Error> {
+    ) -> Result<<F::Output as IntoValue>::Value, Error> {
         #[cfg(feature = "tracing")]
         tracing::debug!(?unit_id, code = ?F::CODE, "calling function…");
 
@@ -196,7 +196,7 @@ where
 
                 connection.invalidate();
             })?;
-        Ok(Response::<F>::decode(&mut payload_bytes.as_slice())?.into_result()?)
+        Ok(Response::<F>::decode(&mut payload_bytes.as_slice())?.into_result()?.into_value())
     }
 }
 

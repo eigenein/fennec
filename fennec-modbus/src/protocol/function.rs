@@ -15,6 +15,14 @@ pub trait Code {
     const CODE: u8;
 }
 
+/// Function response output.
+pub trait IntoValue {
+    type Value;
+
+    /// Unwrap the function response output.
+    fn into_value(self) -> Self::Value;
+}
+
 /// Read coils.
 ///
 /// Type parameters bind to the address, value, and codec types.
@@ -26,10 +34,10 @@ impl<A, V> Code for ReadCoils<A, V> {
 
 impl<A, V> Function for ReadCoils<A, V>
 where
-    read_multiple::AddressRange<A, V, size_argument::Bits>: Encode,
+    read_multiple::Args<A, V, size_argument::Bits>: Encode,
     V: Decode,
 {
-    type Args = read_multiple::AddressRange<A, V, size_argument::Bits>;
+    type Args = read_multiple::Args<A, V, size_argument::Bits>;
     type Output = read_multiple::Output<V>;
 }
 
@@ -42,10 +50,10 @@ impl<A, V> Code for ReadDiscreteInputs<A, V> {
 
 impl<A, V> Function for ReadDiscreteInputs<A, V>
 where
-    read_multiple::AddressRange<A, V, size_argument::Bits>: Encode,
+    read_multiple::Args<A, V, size_argument::Bits>: Encode,
     V: Decode,
 {
-    type Args = read_multiple::AddressRange<A, V, size_argument::Bits>;
+    type Args = read_multiple::Args<A, V, size_argument::Bits>;
     type Output = read_multiple::Output<V>;
 }
 
@@ -58,10 +66,10 @@ impl<A, V> Code for ReadHoldingRegisters<A, V> {
 
 impl<A, V> Function for ReadHoldingRegisters<A, V>
 where
-    read_multiple::AddressRange<A, V, size_argument::Words>: Encode,
+    read_multiple::Args<A, V, size_argument::Words>: Encode,
     V: Decode,
 {
-    type Args = read_multiple::AddressRange<A, V, size_argument::Words>;
+    type Args = read_multiple::Args<A, V, size_argument::Words>;
     type Output = read_multiple::Output<V>;
 }
 
@@ -74,10 +82,10 @@ impl<A, V> Code for ReadInputRegisters<A, V> {
 
 impl<A, V> Function for ReadInputRegisters<A, V>
 where
-    read_multiple::AddressRange<A, V, size_argument::Words>: Encode,
+    read_multiple::Args<A, V, size_argument::Words>: Encode,
     V: Decode,
 {
-    type Args = read_multiple::AddressRange<A, V, size_argument::Words>;
+    type Args = read_multiple::Args<A, V, size_argument::Words>;
     type Output = read_multiple::Output<V>;
 }
 

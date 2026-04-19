@@ -77,6 +77,13 @@ pub struct NaiveTime {
     pub minute: u8,
 }
 
+impl NaiveTime {
+    pub const MIN: Self = Self { hour: 0, minute: 0 };
+
+    /// The last minute of a day is always _inclusive_.
+    pub const MAX: Self = Self { hour: 23, minute: 59 };
+}
+
 impl Encode for NaiveTime {
     fn encode(&self, to: &mut impl BufMut) {
         to.put_u8(self.hour);
@@ -91,7 +98,7 @@ impl Decode for NaiveTime {
 }
 
 /// Mode scheduler entry.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Entry {
     pub is_enabled: bool,
 
@@ -123,6 +130,28 @@ pub struct Entry {
 
     /// Reserved, set to zero.
     pub reserved_3: u16,
+}
+
+impl Entry {
+    /// Total number of schedule entries in the register space.
+    pub const COUNT: u16 = 96;
+
+    /// Disabled entry.
+    ///
+    /// Actual contents _should not_ matter, but set to safe fallback default.
+    pub const DISABLED: Self = Self {
+        is_enabled: false,
+        start_time: NaiveTime { hour: 0, minute: 0 },
+        end_time: NaiveTime { hour: 0, minute: 0 },
+        working_mode: WorkingMode::SelfUse,
+        maximum_state_of_charge: Percentage(100),
+        minimum_state_of_charge: Percentage(10),
+        target_state_of_charge: Percentage(100),
+        power: Watts(0),
+        reserved_1: 0,
+        reserved_2: 0,
+        reserved_3: 0,
+    };
 }
 
 impl BitSize for Entry {

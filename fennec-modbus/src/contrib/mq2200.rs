@@ -4,7 +4,10 @@ pub mod schedule;
 
 use crate::{
     contrib::{DecawattHours, Percentage, Watts},
-    protocol::{address, function::ReadHoldingRegisters},
+    protocol::{
+        address,
+        function::{ReadHoldingRegisters, WriteMultipleRegisters},
+    },
 };
 
 /// Read the battery state-of-health.
@@ -45,3 +48,7 @@ pub type ReadScheduleEntry =
 
 /// Read 12 schedule entries at a time.
 pub type ReadScheduleEntryBlock = ReadHoldingRegisters<schedule::BlockIndex, schedule::EntryBlock>;
+
+/// Write 12 schedule entries at a time.
+pub type WriteScheduleEntryBlock =
+    WriteMultipleRegisters<schedule::BlockIndex, schedule::EntryBlock>;

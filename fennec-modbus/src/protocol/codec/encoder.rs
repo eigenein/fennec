@@ -1,7 +1,15 @@
+use alloc::vec::Vec;
+
 use bytes::BufMut;
 
 pub trait Encode {
     fn encode(&self, to: &mut impl BufMut);
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        self.encode(&mut bytes);
+        bytes
+    }
 }
 
 impl<T: Encode, const N: usize> Encode for [T; N] {

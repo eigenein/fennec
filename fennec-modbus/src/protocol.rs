@@ -172,3 +172,8 @@ pub trait Function: function::Code {
     /// It must be decodable from the response.
     type Output: Decode + IntoValue;
 }
+
+/// Marker trait to separate addresses from any other encodable types.
+pub trait Address: Encode {}
+
+impl Address for u16 {}

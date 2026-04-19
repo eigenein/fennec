@@ -7,6 +7,7 @@ use bytes::{Buf, BufMut};
 use crate::{
     Error,
     protocol::{
+        Address,
         codec::{BitSize, Decode, Encode, adapters::DropRemaining},
         function,
         function::size_argument,
@@ -16,7 +17,7 @@ use crate::{
 /// Address range for reading operations.
 #[must_use]
 pub struct Args<A, V, S>(
-    /// Bare address.
+    /// Bare starting address.
     A,
     /// Binding to the value type. This is needed to know the number of registers or coils.
     PhantomData<V>,
@@ -36,31 +37,21 @@ impl<A, V: BitSize, S> Args<A, V, S> {
     pub const fn new(starting_address: A) -> Self {
         Self(starting_address, PhantomData, PhantomData)
     }
-
-    /// Assert that the number of bytes in the payload is valid.
-    ///
-    /// If the value type is too big, the assertion would fire at compile time.
-    const fn assert_valid<const N_MAX_BYTES: u16>() {
-        const {
-            assert!(V::N_BYTES >= 1, "value type must be non-empty");
-            assert!(V::N_BYTES <= N_MAX_BYTES, "value is too large");
-        };
-    }
 }
 
-impl<A: Encode, V: BitSize> Encode for Args<A, V, size_argument::Bits> {
+impl<A: Address, V: BitSize> Encode for Args<A, V, size_argument::Bits> {
     /// Encode the address and number of bits to read.
     fn encode(&self, to: &mut impl BufMut) {
-        Self::assert_valid::<246>();
+        V::assert_valid::<246>();
         self.0.encode(to);
         to.put_u16(V::N_BITS);
     }
 }
 
-impl<A: Encode, V: BitSize> Encode for Args<A, V, size_argument::Words> {
+impl<A: Address, V: BitSize> Encode for Args<A, V, size_argument::Words> {
     /// Encode the address and number of registers to read.
     fn encode(&self, to: &mut impl BufMut) {
-        Self::assert_valid::<250>();
+        V::assert_valid::<250>();
         self.0.encode(to);
         to.put_u16(V::N_WORDS);
     }
@@ -82,6 +73,7 @@ impl<A: Encode, V: BitSize> Encode for Args<A, V, size_argument::Words> {
 ///     0x00, 0x00, // register: high, low
 /// ];
 ///
+/// #[expect(const_item_mutation)]
 /// let value = Output::<u32>::decode(&mut BYTES).unwrap().into_value();
 /// assert_eq!(value, 0x022B0000);
 /// ```

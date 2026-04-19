@@ -3,10 +3,25 @@ pub trait BitSize {
     const N_BITS: u16;
 
     /// Number of whole bytes occupied by the value.
-    const N_BYTES: u16 = Self::N_BITS.div_ceil(8);
+    #[expect(clippy::cast_possible_truncation)]
+    const N_BYTES: u8 = {
+        let n_bytes = Self::N_BITS.div_ceil(8);
+        assert!(n_bytes <= u8::MAX as u16, "value type exceeds 255 bytes");
+        n_bytes as u8
+    };
 
     /// Number of whole words occupied by the value.
     const N_WORDS: u16 = Self::N_BITS.div_ceil(16);
+
+    /// Assert that the number of bytes in the payload is valid.
+    ///
+    /// If the value type is too big, the assertion would fire at compile time.
+    fn assert_valid<const N_MAX_BYTES: u8>() {
+        const {
+            assert!(Self::N_BYTES >= 1, "value type must be non-empty");
+            assert!(Self::N_BYTES <= N_MAX_BYTES, "value is too large");
+        };
+    }
 }
 
 impl<T: BitSize, const N: usize> BitSize for [T; N] {

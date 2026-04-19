@@ -35,7 +35,7 @@ impl<A, V> Code for ReadCoils<A, V> {
 impl<A, V> Function for ReadCoils<A, V>
 where
     read_multiple::Args<A, V, size_argument::Bits>: Encode,
-    V: Decode,
+    read_multiple::Output<V>: Decode,
 {
     type Args = read_multiple::Args<A, V, size_argument::Bits>;
     type Output = read_multiple::Output<V>;
@@ -51,7 +51,7 @@ impl<A, V> Code for ReadDiscreteInputs<A, V> {
 impl<A, V> Function for ReadDiscreteInputs<A, V>
 where
     read_multiple::Args<A, V, size_argument::Bits>: Encode,
-    V: Decode,
+    read_multiple::Output<V>: Decode,
 {
     type Args = read_multiple::Args<A, V, size_argument::Bits>;
     type Output = read_multiple::Output<V>;
@@ -67,7 +67,7 @@ impl<A, V> Code for ReadHoldingRegisters<A, V> {
 impl<A, V> Function for ReadHoldingRegisters<A, V>
 where
     read_multiple::Args<A, V, size_argument::Words>: Encode,
-    V: Decode,
+    read_multiple::Output<V>: Decode,
 {
     type Args = read_multiple::Args<A, V, size_argument::Words>;
     type Output = read_multiple::Output<V>;
@@ -83,15 +83,23 @@ impl<A, V> Code for ReadInputRegisters<A, V> {
 impl<A, V> Function for ReadInputRegisters<A, V>
 where
     read_multiple::Args<A, V, size_argument::Words>: Encode,
-    V: Decode,
+    read_multiple::Output<V>: Decode,
 {
     type Args = read_multiple::Args<A, V, size_argument::Words>;
     type Output = read_multiple::Output<V>;
 }
 
 /// Write multiple registers.
-pub struct WriteMultipleRegisters<A, V, C>(PhantomData<(A, V, C)>);
+pub struct WriteMultipleRegisters<A, V>(PhantomData<(A, V)>);
 
-impl<A, V, C> Code for WriteMultipleRegisters<A, V, C> {
+impl<A, V> Code for WriteMultipleRegisters<A, V> {
     const CODE: u8 = 16;
+}
+
+impl<A, V> Function for WriteMultipleRegisters<A, V>
+where
+    write_multiple::Args<A, V, size_argument::Words>: Encode,
+{
+    type Args = write_multiple::Args<A, V, size_argument::Words>;
+    type Output = write_multiple::Output;
 }

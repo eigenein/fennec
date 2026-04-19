@@ -4,6 +4,7 @@ use crate::{
     Error,
     contrib::{Percentage, Watts},
     protocol::{
+        Address,
         address,
         codec::{BitSize, Decode, Encode},
     },
@@ -20,6 +21,8 @@ pub struct BlockIndex(pub u16);
 impl BlockIndex {
     pub const MAX: u16 = 8;
 }
+
+impl Address for BlockIndex {}
 
 impl Encode for BlockIndex {
     fn encode(&self, to: &mut impl BufMut) {

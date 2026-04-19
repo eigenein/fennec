@@ -9,6 +9,14 @@ pub trait BitSize {
     const N_WORDS: u16 = Self::N_BITS.div_ceil(16);
 }
 
+impl<T: BitSize, const N: usize> BitSize for [T; N] {
+    #[expect(clippy::cast_possible_truncation)]
+    const N_BITS: u16 = match (T::N_BITS as usize).checked_mul(N) {
+        Some(n_bits) if n_bits <= u16::MAX as usize => n_bits as u16,
+        _ => panic!("array size overflow"),
+    };
+}
+
 macro_rules! impl_for {
     ($type:ty, $n_bits:literal) => {
         impl BitSize for $type {

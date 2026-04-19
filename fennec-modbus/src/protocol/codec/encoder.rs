@@ -4,6 +4,14 @@ pub trait Encode {
     fn encode(&self, to: &mut impl BufMut);
 }
 
+impl<T: Encode, const N: usize> Encode for [T; N] {
+    fn encode(&self, to: &mut impl BufMut) {
+        for item in self {
+            item.encode(to);
+        }
+    }
+}
+
 macro_rules! impl_be {
     ($type:ty => $encode:ident) => {
         impl Encode for $type {

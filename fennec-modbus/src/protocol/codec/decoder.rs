@@ -1,9 +1,22 @@
+use alloc::vec::Vec;
+
 use bytes::Buf;
 
 use crate::Error;
 
 pub trait Decode: Sized {
     fn decode(from: &mut impl Buf) -> Result<Self, Error>;
+}
+
+impl<T: Decode, const N: usize> Decode for [T; N] {
+    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
+        // Fix when `array::try_from_fn` becomes stable.
+        let mut vec = Vec::with_capacity(N);
+        for _ in 0..N {
+            vec.push(T::decode(from)?);
+        }
+        Ok(vec.try_into().unwrap_or_else(|_| unreachable!()))
+    }
 }
 
 macro_rules! impl_be {

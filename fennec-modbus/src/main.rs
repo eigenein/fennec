@@ -4,7 +4,7 @@ use anyhow::Error;
 use clap::{Parser, Subcommand};
 use fennec_modbus::{
     contrib::mq2200,
-    protocol::{address, address::Stride},
+    protocol::address,
     tcp::{UnitId, tokio::Client},
 };
 use tracing::level_filters::LevelFilter;
@@ -65,10 +65,15 @@ async fn main() -> Result {
                         .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(unit_id, address::Const)
                         .await?
                 );
-                for i in 0..96 {
+                for i in 0..mq2200::schedule::BlockIndex::MAX {
                     println!(
-                        "Schedule #{i}: {:?}",
-                        client.call::<mq2200::ReadScheduleEntry>(unit_id, Stride::from(i)).await?
+                        "Schedule block #{i}: {:?}",
+                        client
+                            .call::<mq2200::ReadScheduleEntryBlock>(
+                                unit_id,
+                                mq2200::schedule::BlockIndex(i)
+                            )
+                            .await?
                     );
                 }
             }

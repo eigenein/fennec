@@ -64,6 +64,15 @@ impl<F: Function> Decode for Response<F> {
     }
 }
 
+impl<F: Function> Response<F> {
+    pub fn into_result(self) -> Result<F::Output, Error> {
+        match self {
+            Self::Ok(output) => Ok(output),
+            Self::Exception(exception) => Err(Error::Exception(exception)),
+        }
+    }
+}
+
 /// High-level protocol error.
 ///
 /// The server received the request without a communication error, but could not handle it.

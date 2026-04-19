@@ -196,12 +196,7 @@ where
 
                 connection.invalidate();
             })?;
-        match Response::<F>::decode(&mut payload_bytes.as_slice())? {
-            Response::Ok(output) => Ok(output),
-            Response::Exception(exception) => {
-                Err(Error::Protocol(crate::Error::Exception(exception)))
-            }
-        }
+        Ok(Response::<F>::decode(&mut payload_bytes.as_slice())?.into_result()?)
     }
 }
 

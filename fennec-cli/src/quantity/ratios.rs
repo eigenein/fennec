@@ -5,6 +5,18 @@ use crate::prelude::*;
 quantity!(Percentage, via: u8, suffix: "%", precision: 1);
 quantity!(BasisPoints, via: u16, suffix: "‱", precision: 0);
 
+impl From<Percentage> for fennec_modbus::contrib::Percentage<u8> {
+    fn from(percentage: Percentage) -> Self {
+        Self(percentage.0)
+    }
+}
+
+impl From<Percentage> for fennec_modbus::contrib::Percentage<u16> {
+    fn from(percentage: Percentage) -> Self {
+        Self(percentage.0.into())
+    }
+}
+
 impl TryFrom<fennec_modbus::contrib::Percentage<u16>> for Percentage {
     type Error = Error;
 

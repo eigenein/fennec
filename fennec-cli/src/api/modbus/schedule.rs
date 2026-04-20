@@ -64,12 +64,9 @@ pub fn build(
                 start_time,
                 end_time,
                 working_mode,
-                // TODO: implement `From` conversions:
-                maximum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.max.0),
-                minimum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.min.0),
-                target_state_of_charge: fennec_modbus::contrib::Percentage(u16::from(
-                    target_charge.0,
-                )),
+                maximum_state_of_charge: charge_range.max.into(),
+                minimum_state_of_charge: charge_range.min.into(),
+                target_state_of_charge: target_charge.into(),
                 // TODO: `feed_power` may need to become `u16`:
                 power: fennec_modbus::contrib::Watts(feed_power.0 as u16),
                 reserved_1: 0,

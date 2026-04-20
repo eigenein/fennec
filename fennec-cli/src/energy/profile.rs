@@ -163,12 +163,10 @@ impl Display for Profile {
                     .set_alignment(CellAlignment::Right)
                     .fg(WorkingMode::Discharge.color()),
             ]);
-        for (index, balance) in self.average_balance.iter().copied().enumerate() {
-            #[expect(clippy::cast_possible_truncation)]
-            #[expect(clippy::cast_possible_wrap)]
+        for (index, balance) in (0_i32..).zip(self.average_balance.iter().copied()) {
             table.add_row(vec![
                 Cell::new(index).set_alignment(CellAlignment::Right).add_attribute(Attribute::Dim),
-                Cell::new((NaiveTime::MIN + self.time_step * index as i32).format("%H:%M"))
+                Cell::new((NaiveTime::MIN + self.time_step * index).format("%H:%M"))
                     .set_alignment(CellAlignment::Right),
                 Cell::new(balance.grid.import)
                     .set_alignment(CellAlignment::Right)

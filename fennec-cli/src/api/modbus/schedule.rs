@@ -1,7 +1,10 @@
 use std::iter::once;
 
 use chrono::Timelike;
-use fennec_modbus::contrib::mq2200::{schedule, schedule::NaiveTime};
+use fennec_modbus::{
+    contrib,
+    contrib::mq2200::{schedule, schedule::NaiveTime},
+};
 
 use crate::{
     battery,
@@ -67,8 +70,7 @@ pub fn build(
                 maximum_state_of_charge: charge_range.max.into(),
                 minimum_state_of_charge: charge_range.min.into(),
                 target_state_of_charge: target_charge.into(),
-                // TODO: `feed_power` may need to become `u16`:
-                power: fennec_modbus::contrib::Watts(feed_power.0 as u16),
+                power: contrib::Watts(feed_power.0 as u16),
                 reserved_1: 0,
                 reserved_2: 0,
                 reserved_3: 0,
@@ -82,10 +84,10 @@ pub fn build(
         start_time: NaiveTime::MIN,
         end_time: NaiveTime::MIN,
         working_mode: schedule::WorkingMode::SelfUse,
-        maximum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.max.0),
-        minimum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.min.0),
-        target_state_of_charge: fennec_modbus::contrib::Percentage(100),
-        power: fennec_modbus::contrib::Watts(0),
+        maximum_state_of_charge: contrib::Percentage(charge_range.max.0),
+        minimum_state_of_charge: contrib::Percentage(charge_range.min.0),
+        target_state_of_charge: contrib::Percentage(100),
+        power: contrib::Watts(0),
         reserved_1: 0,
         reserved_2: 0,
         reserved_3: 0,
@@ -96,20 +98,21 @@ pub fn build(
 }
 
 fn into_time_slots(interval: Interval) -> impl Iterator<Item = Option<(NaiveTime, NaiveTime)>> {
-    #[expect(clippy::cast_possible_truncation)]
-    let start_time =
-        NaiveTime { hour: interval.start.hour() as u8, minute: interval.start.minute() as u8 };
-
-    #[expect(clippy::cast_possible_truncation)]
-    let end_time =
-        NaiveTime { hour: interval.end.hour() as u8, minute: interval.end.minute() as u8 };
+    let start_time = NaiveTime {
+        hour: interval.start.hour().try_into().unwrap(),
+        minute: interval.start.minute().try_into().unwrap(),
+    };
+    let end_time = NaiveTime {
+        hour: interval.end.hour().try_into().unwrap(),
+        minute: interval.end.minute().try_into().unwrap(),
+    };
 
     if end_time.hour == 0 && end_time.minute == 0 {
         // FoxESS intervals are half-open, but they won't accept 00:00 as end time 🤦:
         return once(Some((start_time, NaiveTime::MAX))).chain(once(None));
     }
-
     if interval.start.date_naive() == interval.end.date_naive() {
+        // Same day, just emit the interval "as is".
         once(Some((start_time, end_time))).chain(once(None))
     } else {
         // Split cross-day time spans because we cannot have time slots like 22:00-02:00:

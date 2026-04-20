@@ -6,13 +6,12 @@
 [![Codecov](https://img.shields.io/codecov/c/github/eigenein/fennec?style=for-the-badge)](https://app.codecov.io/gh/eigenein/fennec)
 [![Activity](https://img.shields.io/github/commit-activity/y/eigenein/fennec?style=for-the-badge)](https://github.com/eigenein/fennec/commits/main/)
 
-[FoxESS plug-in home battery](https://www.nextenergy.nl/artikelen/voor-batterij-fanaten) steering based
-on [Frank Energie](https://www.frankenergie.nl/nl/dynamisch-energiecontract/dynamische-energieprijzen) real-time rates and:
+[FoxESS plug-in home battery](https://www.nextenergy.nl/artikelen/voor-batterij-fanaten) steering via local Modbus-over-TCP connection based on:
 
 - Current battery charge
-- Charging and discharging efficiency
-- Parasitic BMS load
-- Average household consumption per price interval
+- [Frank Energie](https://www.frankenergie.nl/nl/dynamisch-energiecontract/dynamische-energieprijzen) real-time electricity prices
+- Automatically estimated charging and discharging efficiency, and BMS' parasitic load
+- Automatically estimated household consumption per price interval
 
 ![Screenshot](screenshot.png)
 

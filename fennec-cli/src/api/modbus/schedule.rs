@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use chrono::{TimeDelta, Timelike};
+use chrono::Timelike;
 use fennec_modbus::contrib::mq2200::{schedule, schedule::NaiveTime};
 
 use crate::{
@@ -20,28 +20,12 @@ pub fn build(
     info!("building a Fox ESS schedule…");
     let mut schedule: Vec<_> = schedule
         .into_iter()
-        .scan(None, |schedule_end, (mut interval, working_mode)| {
-            if let Some(schedule_end) = *schedule_end {
-                if interval.start >= schedule_end {
-                    // Stop at first interval which starts outside the schedule.
-                    return None;
-                }
-                if interval.end > schedule_end {
-                    // Just in case the interval crosses the schedule boundary, cut it.
-                    interval = interval.with_end(schedule_end);
-                }
-            } else {
-                // On first interval, just define the schedule end time (exclusive boundary).
-                // Fox Cloud only accepts a 24-hour schedule.
-                *schedule_end = Some(interval.start + TimeDelta::days(1));
-            }
-            Some((interval, working_mode))
-        })
         .flat_map(|(interval, working_mode)| {
             into_time_slots(interval)
                 .flatten()
                 .map(move |(start_time, end_time)| (working_mode, start_time, end_time))
         })
+        .take(schedule::Entry::N_TOTAL)
         .map(|(working_mode, start_time, end_time)| {
             let (working_mode, target_charge, feed_power) = match working_mode {
                 battery::WorkingMode::Idle => {
@@ -86,6 +70,7 @@ pub fn build(
                 target_state_of_charge: fennec_modbus::contrib::Percentage(u16::from(
                     target_charge.0,
                 )),
+                // TODO: `feed_power` may need to become `u16`:
                 power: fennec_modbus::contrib::Watts(feed_power.0 as u16),
                 reserved_1: 0,
                 reserved_2: 0,

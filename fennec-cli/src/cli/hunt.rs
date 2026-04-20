@@ -181,7 +181,7 @@ impl Hunter {
         println!("{}", build_fox_ess_schedule_table(&entries));
 
         if self.scout {
-            warn!("not pushing the schedule to Fox Cloud, just scouting");
+            warn!("not pushing the scheduleto the battery, just scouting");
         } else {
             (async || self.connections.battery.write_schedule(&entries).await)
                 .retry(Self::BACKOFF)

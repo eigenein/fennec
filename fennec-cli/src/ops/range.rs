@@ -34,14 +34,6 @@ impl<T> Exclusive<T> {
         self
     }
 
-    pub const fn with_end(mut self, end: T) -> Self
-    where
-        T: Copy,
-    {
-        self.end = end;
-        self
-    }
-
     #[must_use]
     pub fn contains(self, other: T) -> bool
     where

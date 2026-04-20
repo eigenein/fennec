@@ -5,7 +5,6 @@ use reqwest::Url;
 
 use crate::{
     api::{homewizard, modbus::mq2200::MQ2200},
-    cli::fox_cloud::FoxCloudConnectionArgs,
     db::Db,
     prelude::*,
 };
@@ -22,9 +21,6 @@ pub struct ConnectionArgs {
     /// Battery Modbus address. Currently, only FoxESS MQ2200 is supported.
     #[clap(long = "battery-address", env = "BATTERY_ADDRESS")]
     battery_address: String,
-
-    #[clap(flatten)]
-    fox_cloud: FoxCloudConnectionArgs,
 }
 
 impl ConnectionArgs {

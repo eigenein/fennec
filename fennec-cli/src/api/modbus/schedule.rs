@@ -1,7 +1,10 @@
 use std::iter::once;
 
 use chrono::{TimeDelta, Timelike};
-use fennec_modbus::contrib::mq2200::{schedule, schedule::NaiveTime};
+use fennec_modbus::contrib::mq2200::{
+    schedule,
+    schedule::{NaiveTime, WorkingMode},
+};
 
 use crate::{
     battery,
@@ -94,8 +97,25 @@ pub fn build(
             }
         })
         .collect();
-    schedule.extend(vec![schedule::Entry::DISABLED; schedule::Entry::COUNT - schedule.len()]);
-    schedule.try_into().expect("schedule entry number mismatch")
+
+    // Actual contents should not matter, but set them to something reasonable anyway:
+    #[expect(clippy::cast_possible_truncation)]
+    let disabled_entry = schedule::Entry {
+        is_enabled: false,
+        start_time: NaiveTime { hour: 0, minute: 0 },
+        end_time: NaiveTime { hour: 0, minute: 0 },
+        working_mode: WorkingMode::SelfUse,
+        maximum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.max.0 as u8),
+        minimum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.min.0 as u8),
+        target_state_of_charge: fennec_modbus::contrib::Percentage(100),
+        power: fennec_modbus::contrib::Watts(0),
+        reserved_1: 0,
+        reserved_2: 0,
+        reserved_3: 0,
+    };
+    schedule.extend(vec![disabled_entry; schedule::Entry::N_TOTAL - schedule.len()]);
+
+    schedule.try_into().expect("invalid schedule entry count")
 }
 
 fn into_time_slots(interval: Interval) -> impl Iterator<Item = Option<(NaiveTime, NaiveTime)>> {

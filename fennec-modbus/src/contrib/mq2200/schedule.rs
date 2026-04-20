@@ -12,6 +12,11 @@ use crate::{
     },
 };
 
+/// Stride of schedule entry blocks.
+///
+/// There are [`Entry::N_TOTAL`] schedule entries starting from here.
+pub type BlockStride = address::Stride<48010, Block>;
+
 /// Number of entries per schedule block.
 ///
 /// There are [`N_BLOCKS`] such blocks.
@@ -24,10 +29,10 @@ pub const N_BLOCKS: usize = 8;
 ///
 /// Note that this is not encodable nor decodable as it doesn't fit the Modbus payload size.
 /// The type alias is provided solely for convenience.
-pub type Full = [Entry; Entry::COUNT];
+pub type Full = [Entry; Entry::N_TOTAL];
 
 /// Schedule block consisting of 12 entries.
-pub type EntryBlock = [Entry; N_ENTRIES_PER_BLOCK];
+pub type Block = [Entry; N_ENTRIES_PER_BLOCK];
 
 /// Block index for batch-reading 12 schedule entries at a time.
 ///
@@ -45,7 +50,7 @@ impl Address for BlockIndex {}
 
 impl Encode for BlockIndex {
     fn encode(&self, to: &mut impl BufMut) {
-        address::Stride::<48010, EntryBlock>::from(self.0).encode(to);
+        BlockStride::from(self.0).encode(to);
     }
 }
 
@@ -108,7 +113,9 @@ impl NaiveTime {
     /// The first minute of a day.
     pub const MIN: Self = Self { hour: 0, minute: 0 };
 
-    /// The last minute of a day is always _inclusive_.
+    /// The last minute of a day.
+    ///
+    /// Note that it is always _inclusive_.
     pub const MAX: Self = Self { hour: 23, minute: 59 };
 }
 
@@ -125,7 +132,7 @@ impl Decode for NaiveTime {
     }
 }
 
-/// Mode scheduler entry.
+/// Single schedule entry.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[must_use]
 pub struct Entry {
@@ -163,24 +170,7 @@ pub struct Entry {
 
 impl Entry {
     /// Total number of schedule entries in the register space.
-    pub const COUNT: usize = N_BLOCKS * N_ENTRIES_PER_BLOCK;
-
-    /// Disabled entry.
-    ///
-    /// Actual contents _should not_ matter, but set to safe fallback default.
-    pub const DISABLED: Self = Self {
-        is_enabled: false,
-        start_time: NaiveTime { hour: 0, minute: 0 },
-        end_time: NaiveTime { hour: 0, minute: 0 },
-        working_mode: WorkingMode::SelfUse,
-        maximum_state_of_charge: Percentage(100),
-        minimum_state_of_charge: Percentage(10),
-        target_state_of_charge: Percentage(100),
-        power: Watts(0),
-        reserved_1: 0,
-        reserved_2: 0,
-        reserved_3: 0,
-    };
+    pub const N_TOTAL: usize = N_BLOCKS * N_ENTRIES_PER_BLOCK;
 }
 
 impl BitSize for Entry {

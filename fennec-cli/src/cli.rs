@@ -2,7 +2,6 @@ pub mod battery;
 mod burrow;
 mod connection;
 mod db;
-mod fox_cloud;
 mod go;
 mod hunt;
 mod log;

@@ -1,12 +1,10 @@
 #![cfg(feature = "cli")]
 
+mod cli;
+
 use anyhow::Error;
 use clap::{Parser, Subcommand};
-use fennec_modbus::{
-    contrib::mq2200,
-    protocol::address,
-    tcp::{UnitId, tokio::Client},
-};
+use fennec_modbus::tcp::{UnitId, tokio::Client};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -25,57 +23,9 @@ async fn main() -> Result {
     let unit_id = args.unit_id;
 
     match args.command {
-        Command::Test(device) => match device {
+        Command::Read(device) => match device {
             Device::Mq2200 => {
-                println!(
-                    "State-of-health: {:?}",
-                    client.call::<mq2200::ReadStateOfHealth>(unit_id, address::Const).await?
-                );
-                println!(
-                    "Design capacity: {:?}",
-                    client.call::<mq2200::ReadDesignCapacity>(unit_id, address::Const).await?
-                );
-                println!(
-                    "Total active power: {:?}",
-                    client.call::<mq2200::ReadTotalActivePower>(unit_id, address::Const).await?
-                );
-                println!(
-                    "Total EPS active power: {:?}",
-                    client.call::<mq2200::ReadEpsActivePower>(unit_id, address::Const).await?
-                );
-                println!(
-                    "State-of-charge: {:?}",
-                    client.call::<mq2200::ReadStateOfCharge>(unit_id, address::Const).await?
-                );
-                println!(
-                    "Minimum system SoC: {:?}",
-                    client
-                        .call::<mq2200::ReadMinimumSystemStateOfCharge>(unit_id, address::Const)
-                        .await?
-                );
-                println!(
-                    "Maximum SoC: {:?}",
-                    client
-                        .call::<mq2200::ReadMaximumStateOfCharge>(unit_id, address::Const)
-                        .await?
-                );
-                println!(
-                    "Minimum SoC on grid: {:?}",
-                    client
-                        .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(unit_id, address::Const)
-                        .await?
-                );
-                for i in 0..mq2200::schedule::BlockIndex::MAX {
-                    println!(
-                        "Schedule block #{i}: {:?}",
-                        client
-                            .call::<mq2200::ReadScheduleEntryBlock>(
-                                unit_id,
-                                mq2200::schedule::BlockIndex(i)
-                            )
-                            .await?
-                    );
-                }
+                cli::mq2200::read(client, unit_id).await?;
             }
         },
     }
@@ -113,7 +63,7 @@ impl Endpoint {
 enum Command {
     /// Test readings from a live device.
     #[clap(subcommand)]
-    Test(Device),
+    Read(Device),
 }
 
 #[derive(Copy, Clone, Subcommand)]

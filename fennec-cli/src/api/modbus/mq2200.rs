@@ -5,12 +5,7 @@ use std::array::from_fn;
 use fennec_modbus::{
     contrib::{
         mq2200,
-        mq2200::{
-            ReadScheduleEntryBlock,
-            WriteScheduleEntryBlock,
-            schedule,
-            schedule::{N_BLOCKS, N_ENTRIES_PER_BLOCK},
-        },
+        mq2200::{ReadScheduleEntryBlock, WriteScheduleEntryBlock, schedule},
     },
     protocol::{address, function::write_multiple},
     tcp::UnitId,
@@ -60,9 +55,12 @@ impl MQ2200 {
 
     #[instrument(skip_all)]
     pub async fn write_schedule(&self, schedule: &schedule::Full) -> Result {
-        let blocks: [[schedule::Entry; N_ENTRIES_PER_BLOCK]; N_BLOCKS] = from_fn(|block_index| {
-            from_fn(|entry_index| schedule[block_index * N_ENTRIES_PER_BLOCK + entry_index])
-        });
+        let blocks: [[schedule::Entry; schedule::N_ENTRIES_PER_BLOCK]; schedule::N_BLOCKS] =
+            from_fn(|block_index| {
+                from_fn(|entry_index| {
+                    schedule[block_index * schedule::N_ENTRIES_PER_BLOCK + entry_index]
+                })
+            });
 
         for (i, block) in blocks.into_iter().enumerate() {
             info!(i, "writing the schedule block…");
@@ -77,8 +75,8 @@ impl MQ2200 {
                 )
                 .await?;
 
-            info!(i, "verifying…");
             ensure!(self.0.call::<ReadScheduleEntryBlock>(Self::UNIT_ID, address).await? == block);
+            info!(i, "verified");
         }
 
         info!("finished");

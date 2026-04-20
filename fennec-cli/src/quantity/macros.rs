@@ -35,6 +35,14 @@ macro_rules! new_type_struct {
 
 #[rustfmt::skip]
 macro_rules! implement_new_type {
+    ($(#[$meta:meta])* $name:ident, u8) => {
+        new_type_struct!($(#[$meta])* $name, u8, #[
+            ::std::cmp::PartialEq,
+            ::std::cmp::Eq,
+            ::std::cmp::PartialOrd,
+            ::std::cmp::Ord
+        ]);
+    };
     ($(#[$meta:meta])* $name:ident, u16) => {
         new_type_struct!($(#[$meta])* $name, u16, #[
             ::std::cmp::PartialEq,

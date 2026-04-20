@@ -62,11 +62,9 @@ impl MQ2200 {
                 })
             });
 
-        for (i, block) in blocks.into_iter().enumerate() {
+        for (i, block) in (0u16..).zip(blocks) {
             info!(i, "writing the schedule block…");
-
-            #[expect(clippy::cast_possible_truncation)]
-            let address = schedule::BlockIndex(i as u16);
+            let address = schedule::BlockIndex(i);
 
             self.0
                 .call::<WriteScheduleEntryBlock>(
@@ -88,7 +86,7 @@ impl MQ2200 {
             .call::<mq2200::ReadMinimumSystemStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the minimum system SoC")
-            .map(Into::into)
+            .and_then(TryInto::try_into)
     }
 
     async fn read_min_soc_on_grid(&self) -> Result<Percentage> {
@@ -96,7 +94,7 @@ impl MQ2200 {
             .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the minimum SoC on grid")
-            .map(Into::into)
+            .and_then(TryInto::try_into)
     }
 
     async fn read_max_soc(&self) -> Result<Percentage> {
@@ -104,7 +102,7 @@ impl MQ2200 {
             .call::<mq2200::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the maximum SoC")
-            .map(Into::into)
+            .and_then(TryInto::try_into)
     }
 
     async fn read_design_capacity(&self) -> Result<DecawattHours> {
@@ -120,7 +118,7 @@ impl MQ2200 {
             .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoC")
-            .map(Into::into)
+            .and_then(TryInto::try_into)
     }
 
     async fn read_state_of_health(&self) -> Result<Percentage> {
@@ -128,7 +126,7 @@ impl MQ2200 {
             .call::<mq2200::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoH")
-            .map(Into::into)
+            .and_then(TryInto::try_into)
     }
 
     /// Read total external active power.

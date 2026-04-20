@@ -1,10 +1,7 @@
 use std::iter::once;
 
 use chrono::{TimeDelta, Timelike};
-use fennec_modbus::contrib::mq2200::{
-    schedule,
-    schedule::{NaiveTime, WorkingMode},
-};
+use fennec_modbus::contrib::mq2200::{schedule, schedule::NaiveTime};
 
 use crate::{
     battery,
@@ -83,13 +80,12 @@ pub fn build(
                 start_time,
                 end_time,
                 working_mode,
-                maximum_state_of_charge: fennec_modbus::contrib::Percentage(
-                    charge_range.max.0 as u8,
-                ),
-                minimum_state_of_charge: fennec_modbus::contrib::Percentage(
-                    charge_range.min.0 as u8,
-                ),
-                target_state_of_charge: fennec_modbus::contrib::Percentage(target_charge.0),
+                // TODO: implement `From` conversions:
+                maximum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.max.0),
+                minimum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.min.0),
+                target_state_of_charge: fennec_modbus::contrib::Percentage(u16::from(
+                    target_charge.0,
+                )),
                 power: fennec_modbus::contrib::Watts(feed_power.0 as u16),
                 reserved_1: 0,
                 reserved_2: 0,
@@ -99,14 +95,13 @@ pub fn build(
         .collect();
 
     // Actual contents should not matter, but set them to something reasonable anyway:
-    #[expect(clippy::cast_possible_truncation)]
     let disabled_entry = schedule::Entry {
         is_enabled: false,
-        start_time: NaiveTime { hour: 0, minute: 0 },
-        end_time: NaiveTime { hour: 0, minute: 0 },
-        working_mode: WorkingMode::SelfUse,
-        maximum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.max.0 as u8),
-        minimum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.min.0 as u8),
+        start_time: NaiveTime::MIN,
+        end_time: NaiveTime::MIN,
+        working_mode: schedule::WorkingMode::SelfUse,
+        maximum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.max.0),
+        minimum_state_of_charge: fennec_modbus::contrib::Percentage(charge_range.min.0),
         target_state_of_charge: fennec_modbus::contrib::Percentage(100),
         power: fennec_modbus::contrib::Watts(0),
         reserved_1: 0,

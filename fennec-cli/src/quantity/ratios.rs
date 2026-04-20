@@ -1,11 +1,15 @@
 use std::ops::Mul;
 
-quantity!(Percentage, via: u16, suffix: "%", precision: 1);
+use crate::prelude::*;
+
+quantity!(Percentage, via: u8, suffix: "%", precision: 1);
 quantity!(BasisPoints, via: u16, suffix: "‱", precision: 0);
 
-impl From<fennec_modbus::contrib::Percentage<u16>> for Percentage {
-    fn from(value: fennec_modbus::contrib::Percentage<u16>) -> Self {
-        Self(value.0)
+impl TryFrom<fennec_modbus::contrib::Percentage<u16>> for Percentage {
+    type Error = Error;
+
+    fn try_from(value: fennec_modbus::contrib::Percentage<u16>) -> Result<Self> {
+        Ok(Self(value.0.try_into()?))
     }
 }
 
@@ -20,6 +24,6 @@ impl Mul<Self> for Percentage {
     type Output = BasisPoints;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        BasisPoints(self.0 * rhs.0)
+        BasisPoints(u16::from(self.0) * u16::from(rhs.0))
     }
 }

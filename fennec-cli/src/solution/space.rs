@@ -4,6 +4,7 @@ use bon::bon;
 use itertools::Itertools;
 
 use crate::{
+    battery::WorkingMode,
     ops::range,
     prelude::*,
     solution::{Metrics, Solution, Step},
@@ -37,15 +38,28 @@ impl Space {
 
 impl Space {
     /// Get the solution at the given time slot index and energy.
-    ///
-    /// This method respects allowed energy levels.
     #[must_use]
-    pub fn get(&self, interval_index: usize, energy_level: usize) -> Option<&Solution> {
+    pub fn get(
+        &self,
+        interval_index: usize,
+        energy_level: usize,
+        working_mode: WorkingMode,
+    ) -> Option<&Solution> {
         match interval_index.cmp(&self.n_intervals) {
             Ordering::Less => {
-                if self.allowed_energy_levels.contains(energy_level) {
+                if (
+                    // Normal operation:
+                    self.allowed_energy_levels.contains(energy_level)
+                ) || (
+                    // From under the allowed energy levels, only allow charging:
+                    (energy_level < self.allowed_energy_levels.min) && working_mode.is_charging()
+                ) || (
+                    // From above the allowed energy levels, only allow discharging:
+                    (energy_level > self.allowed_energy_levels.max) && working_mode.is_discharging()
+                ) {
                     self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
                 } else {
+                    // Invalid energy level.
                     None
                 }
             }
@@ -53,6 +67,7 @@ impl Space {
                 if self.allowed_energy_levels.contains(energy_level) {
                     Some(&Solution::BOUNDARY)
                 } else {
+                    // Invalid energy level.
                     None
                 }
             }

@@ -39,6 +39,14 @@ impl Display for WorkingMode {
 }
 
 impl WorkingMode {
+    pub fn is_charging(self) -> bool {
+        (self == Self::Charge) || (self == Self::Harness)
+    }
+
+    pub fn is_discharging(self) -> bool {
+        (self == Self::Discharge) || (self == Self::Compensate)
+    }
+
     pub const fn color(self) -> Color {
         match self {
             Self::Charge => Color::Green,

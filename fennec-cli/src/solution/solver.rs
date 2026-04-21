@@ -150,7 +150,7 @@ impl Solver<'_> {
                     .call();
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
-                    solutions.get(interval_index + 1, step.energy_level_after)?;
+                    solutions.get(interval_index + 1, step.energy_level_after, working_mode)?;
                 Some(Solution { metrics: step.metrics + next_solution.metrics, step: Some(step) })
             })
             .min()

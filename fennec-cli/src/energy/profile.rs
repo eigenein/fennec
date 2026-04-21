@@ -12,7 +12,7 @@ use super::Balance;
 use crate::{
     battery,
     battery::{EfficiencyEstimator, WorkingMode},
-    cli::battery::BatteryPowerLimits,
+    cli::battery::PowerLimits,
     db::power,
     ops::{BucketIntegrator, BucketMean, Integrator},
     prelude::*,
@@ -31,7 +31,7 @@ pub struct Profile {
 impl Profile {
     #[instrument(skip_all)]
     pub async fn try_estimate<T>(
-        battery_power_limits: BatteryPowerLimits,
+        battery_power_limits: PowerLimits,
         bucket_time_step: TimeDelta,
         mut logs: T,
     ) -> Result<Self>

@@ -243,39 +243,6 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                     span.tag { (logger_state.battery.actual_capacity()) }
                                 }
                             }
-                            div.control {
-                                div.tags.has-addons {
-                                    span.tag.is-info {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-gear {} }
-                                            span { "Min SoC" }
-                                        }
-                                    }
-                                    span.tag { (logger_state.battery.min_system_charge) }
-                                }
-                            }
-                            div.control {
-                                div.tags.has-addons {
-                                    span.tag.is-info {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-user-gear {} }
-                                            span { "SoC range" }
-                                        }
-                                    }
-                                    span.tag {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-greater-than-equal {} }
-                                            span { (logger_state.battery.charge_range.min) }
-                                        }
-                                    }
-                                    span.tag {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-less-than-equal {} }
-                                            span { (logger_state.battery.charge_range.max) }
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
                 }

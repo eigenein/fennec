@@ -4,12 +4,12 @@ use clap::Parser;
 
 use crate::{
     energy,
-    quantity::{power::Watts, price::KilowattHourPrice},
+    quantity::{power::Watts, price::KilowattHourPrice, ratios::Percentage},
 };
 
 #[must_use]
 #[derive(Copy, Clone, Parser)]
-pub struct BatteryPowerLimits {
+pub struct PowerLimits {
     /// Charging power in watts.
     #[clap(
         name = "charging_power",
@@ -38,7 +38,7 @@ pub struct BatteryPowerLimits {
     pub max_inverter_output: Watts,
 }
 
-impl BatteryPowerLimits {
+impl PowerLimits {
     /// Calculate the effective power limits giving the average EPS power.
     pub fn max_effective_flow(self, average_eps_power: Watts) -> energy::Flow<Watts> {
         energy::Flow {
@@ -51,10 +51,33 @@ impl BatteryPowerLimits {
     }
 }
 
+#[must_use]
+#[derive(Copy, Clone, Parser)]
+pub struct ChargeLimits {
+    /// Minimum allowed state-of-charge in percents.
+    #[clap(
+        long = "battery-min-state-of-charge",
+        env = "BATTERY_MIN_STATE_OF_CHARGE",
+        default_value = "10"
+    )]
+    pub min: Percentage,
+
+    /// Maximum allowed state-of-charge in percents.
+    #[clap(
+        long = "battery-max-state-of-charge",
+        env = "BATTERY_MAX_STATE_OF_CHARGE",
+        default_value = "100"
+    )]
+    pub max: Percentage,
+}
+
 #[derive(Parser)]
 pub struct BatteryArgs {
     #[clap(flatten)]
-    pub power_limits: BatteryPowerLimits,
+    pub power_limits: PowerLimits,
+
+    #[clap(flatten)]
+    pub charge_limits: ChargeLimits,
 
     /// Battery health costs lost to the cycling, in ¤/kWh.
     #[clap(

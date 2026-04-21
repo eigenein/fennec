@@ -2,7 +2,7 @@ use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 
 use crate::{
-    cli::{battery::BatteryPowerLimits, db::DbArgs},
+    cli::{battery::PowerLimits, db::DbArgs},
     db::power,
     energy,
     prelude::*,
@@ -34,7 +34,7 @@ pub struct BurrowEnergyBalanceProfileArgs {
     db: DbArgs,
 
     #[clap(flatten)]
-    power_limits: BatteryPowerLimits,
+    power_limits: PowerLimits,
 
     #[clap(long = "bucket-time-step", default_value = "15min")]
     bucket_time_step: humantime::Duration,

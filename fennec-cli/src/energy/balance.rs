@@ -5,7 +5,7 @@ use derive_more::{Add, AddAssign};
 use super::Flow;
 use crate::{
     battery::WorkingMode,
-    cli::battery::BatteryPowerLimits,
+    cli::battery::PowerLimits,
     quantity::{Zero, power::Watts},
 };
 
@@ -28,7 +28,7 @@ impl Balance<Watts> {
     ///
     /// This allows to track not just the net deficit, but also how much the battery can actually
     /// compensate or absorb.
-    pub fn new(battery_power_limits: BatteryPowerLimits, net_power: Watts) -> Self {
+    pub fn new(battery_power_limits: PowerLimits, net_power: Watts) -> Self {
         let battery_net_import =
             (-net_power).clamp(-battery_power_limits.discharging, battery_power_limits.charging);
         let grid_net_import = net_power + battery_net_import;

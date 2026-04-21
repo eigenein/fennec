@@ -128,8 +128,6 @@ impl Hunter {
             charge = ?battery_state.charge,
             health = ?battery_state.health,
             actual_capacity = ?battery_state.actual_capacity(),
-            min_system_charge = ?battery_state.min_system_charge,
-            charge_range = ?battery_state.charge_range,
             "battery state",
         );
 
@@ -148,10 +146,14 @@ impl Hunter {
             .energy_prices(&energy_prices)
             .balance_profile(&energy_profile)
             .working_modes(self.working_modes)
-            .min_residual_energy(battery_state.min_residual_energy())
+            .min_residual_energy(
+                battery_state.actual_capacity() * self.battery_args.charge_limits.min,
+            )
             .max_residual_energy(
                 // Current residual may be higher than the maximum SoC setting:
-                battery_state.max_residual_energy().max(battery_state.residual_energy()),
+                battery_state
+                    .residual_energy()
+                    .max(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
             .battery_efficiency(energy_profile.battery_efficiency)
             .now(now)
@@ -176,7 +178,11 @@ impl Hunter {
 
         let entries = {
             let schedule = steps.iter().map(|step| (step.interval, step.working_mode));
-            schedule::build(schedule, battery_state.charge_range, self.battery_args.power_limits)
+            schedule::build(
+                schedule,
+                self.battery_args.charge_limits,
+                self.battery_args.power_limits,
+            )
         };
         println!("{}", build_fox_ess_schedule_table(&entries));
 

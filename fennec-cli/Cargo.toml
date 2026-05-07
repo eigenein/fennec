@@ -21,7 +21,7 @@ is-it-maintained-open-issues = { repository = "eigenein/fennec" }
 
 [dependencies]
 anyhow = "1.0.102"
-average = "0.16.0"
+average = "0.17.0"
 axum = { version = "0.8.8", features = ["http2"] }
 backon = { version = "1.6.0", features = ["tokio-sleep"] }
 bon = "3.9.1"
@@ -45,7 +45,7 @@ maud = { version = "0.27.0", features = ["axum"] }
 md5 = "0.8.0"
 mongodb = { version = "3.5.2", features = ["bson-3", "zlib-compression", "snappy-compression", "zstd-compression"] }
 reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "deflate", "brotli", "gzip", "http2"] }
-sentry = { version = "0.47.0", default-features = false, features = ["rustls", "tracing", "backtrace", "contexts", "panic", "reqwest", "anyhow", "release-health"] }
+sentry = { version = "0.48.0", default-features = false, features = ["rustls", "tracing", "backtrace", "contexts", "panic", "reqwest", "anyhow", "release-health"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 serde_with = { version = "3.18.0", features = ["chrono"] }

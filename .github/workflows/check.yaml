@@ -7,12 +7,13 @@ on:
     tags-ignore:
       - '**'
     paths-ignore:
-      - "README.md"
       - ".dockerignore"
+      - ".github/workflows/code-review.yaml"
       - ".gitignore"
+      - ".goreleaser.yaml"
+      - "README.md"
       - "renovate.json"
       - "rustfmt.toml"
-      - ".goreleaser.yaml"
   pull_request:
     branches:
       - "main"

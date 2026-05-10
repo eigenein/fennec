@@ -23,10 +23,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "⚡️ Rust Cache"
-        uses: "Swatinem/rust-cache@v2"
-        with:
-          cache-on-failure: true
+      - name: "⬆️ Set up Rust"
+        uses: "dtolnay/rust-toolchain@stable"
 
       - name: "📋 Get version"
         id: "version"
@@ -38,9 +36,6 @@ jobs:
         run: |
           git tag "${{ steps.version.outputs.version }}"
           git push origin "${{ steps.version.outputs.version }}"
-
-      - name: "⬆️ Update Rust"
-        run: "rustup update --no-self-update"
 
       - uses: "mlugg/setup-zig@v2"
         name: "⚡️ Install Zig"

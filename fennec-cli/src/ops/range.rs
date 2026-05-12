@@ -1,3 +1,4 @@
+/// Half-open range.
 #[must_use]
 #[derive(Copy, Clone, Eq, PartialEq, derive_more::Debug)]
 #[debug("{start:?}..{end:?}")]
@@ -7,14 +8,6 @@ pub struct Exclusive<T> {
 }
 
 impl<T> Exclusive<T> {
-    /// TODO: convert to builder.
-    pub const fn from_std(range: std::ops::Range<T>) -> Self
-    where
-        T: Copy,
-    {
-        Self { start: range.start, end: range.end }
-    }
-
     pub const fn with_start(mut self, start: T) -> Self
     where
         T: Copy,

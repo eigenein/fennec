@@ -50,7 +50,7 @@ impl Api {
             .into_iter()
             .map(|item| {
                 (
-                    Interval::from_std(item.from..item.till),
+                    Interval { start: item.from, end: item.till },
                     Flow {
                         import: item.all_in,
                         // FIXME: from 2027, this becomes just `item.market + Self::PURCHASE_FEE`:

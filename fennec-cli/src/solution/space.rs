@@ -85,19 +85,18 @@ impl Space {
         let summary = solution.metrics;
 
         // Unrolling the solution steps:
-        let mut step = solution.step;
+        let mut next_step = solution.step;
         let mut interval_index = 0;
         let steps = from_fn(|| {
             // Finish when current step is that of the boundary condition:
-            let current_step = step.take()?;
+            let current_step = next_step.take()?;
 
             // Hop to the next state:
-            let next_energy_level = current_step.energy_level_after;
             interval_index += 1;
             if interval_index < self.inner.rows() {
                 // Retrieve the related step if we are not the boundary:
-                step = self
-                    .get_mut(interval_index, next_energy_level)
+                next_step = self
+                    .get_mut(interval_index, current_step.energy_level_after)
                     .take()
                     .expect("next energy level must point to an existing solution")
                     .step;

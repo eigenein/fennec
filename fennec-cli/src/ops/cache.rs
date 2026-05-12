@@ -1,9 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::{
-    ops::{Cache, cache},
-    prelude::*,
-};
+use crate::{ops::Cache, prelude::*};
 
 impl<V> Cache<V> {
     pub const fn new(time_to_live: Duration) -> Self {
@@ -18,12 +15,13 @@ impl<V> Cache<V> {
             &self.entry,
             Some(entry) if entry.timestamp.elapsed() <= self.time_to_live
         ) {
-            self.entry = Some(cache::Entry::now(init.await?));
+            self.entry = Some(Entry::now(init.await?));
         }
         Ok(&self.entry.as_ref().unwrap().value)
     }
 }
 
+/// Timestamped cache entry.
 #[must_use]
 pub struct Entry<T> {
     pub timestamp: Instant,

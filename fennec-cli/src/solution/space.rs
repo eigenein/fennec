@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, iter::from_fn};
 
 use bon::bon;
-use itertools::Itertools;
+use grid::Grid;
 
 use crate::{
     battery::WorkingMode,
@@ -12,15 +12,8 @@ use crate::{
 
 #[must_use]
 pub struct Space {
+    inner: Grid<Option<Solution>>,
     allowed_energy_levels: range::Inclusive<usize>,
-
-    /// Number of time intervals.
-    n_intervals: usize,
-
-    /// Flattened 2D array of solutions to speed up the lookups.
-    ///
-    /// Here, [`None`] means there is no solution in the given state.
-    flat_matrix: Vec<Option<Solution>>,
 }
 
 #[bon]
@@ -30,9 +23,7 @@ impl Space {
         n_intervals: usize,
         #[builder(into)] allowed_energy_levels: range::Inclusive<usize>,
     ) -> Self {
-        let flat_matrix =
-            (0..(n_intervals * (allowed_energy_levels.max + 1))).map(|_| None).collect_vec();
-        Self { allowed_energy_levels, n_intervals, flat_matrix }
+        Self { inner: Grid::new(n_intervals, allowed_energy_levels.max + 1), allowed_energy_levels }
     }
 }
 
@@ -45,7 +36,7 @@ impl Space {
         energy_level: usize,
         working_mode: WorkingMode,
     ) -> Option<&Solution> {
-        match interval_index.cmp(&self.n_intervals) {
+        match interval_index.cmp(&self.inner.rows()) {
             Ordering::Less => {
                 if (
                     // Normal operation:
@@ -57,7 +48,7 @@ impl Space {
                     // From above the allowed energy levels, only allow discharging:
                     (energy_level > self.allowed_energy_levels.max) && working_mode.is_discharging()
                 ) {
-                    self.flat_matrix[self.flat_index(interval_index, energy_level)].as_ref()
+                    self.inner[(interval_index, energy_level)].as_ref()
                 } else {
                     // Invalid energy level.
                     None
@@ -79,23 +70,10 @@ impl Space {
 
     /// Get the mutable solution at the given time slot index and energy.
     ///
-    /// This method allows accessing any partial solution, regardless of minimally allowed energy levels.
-    ///
-    /// Panics on energy levels higher than upper bound.
+    /// Panics outside the bounds.
     #[must_use]
     pub fn get_mut(&mut self, interval_index: usize, energy_level: usize) -> &mut Option<Solution> {
-        match interval_index.cmp(&self.n_intervals) {
-            Ordering::Less => {
-                let flat_index = self.flat_index(interval_index, energy_level);
-                &mut self.flat_matrix[flat_index]
-            }
-            Ordering::Equal => {
-                panic!("boundary solutions are immutable");
-            }
-            Ordering::Greater => {
-                panic!("interval index is out of bounds ({interval_index})");
-            }
-        }
+        &mut self.inner[(interval_index, energy_level)]
     }
 
     pub fn backtrack(mut self, initial_energy_level: usize) -> Result<(Metrics, Vec<Step>)> {
@@ -116,7 +94,7 @@ impl Space {
             // Hop to the next state:
             let next_energy_level = current_step.energy_level_after;
             interval_index += 1;
-            if interval_index < self.n_intervals {
+            if interval_index < self.inner.rows() {
                 // Retrieve the related step if we are not the boundary:
                 step = self
                     .get_mut(interval_index, next_energy_level)
@@ -130,14 +108,5 @@ impl Space {
         });
 
         Ok((summary, steps.collect()))
-    }
-
-    /// Convert the indices into the respective index in the flattened array.
-    ///
-    /// Panics on energy levels higher than upper bound.
-    #[must_use]
-    fn flat_index(&self, interval_index: usize, energy_level: usize) -> usize {
-        assert!(energy_level <= self.allowed_energy_levels.max);
-        interval_index * (self.allowed_energy_levels.max + 1) + energy_level
     }
 }

@@ -3,6 +3,7 @@ use chrono::{DateTime, Local, TimeZone};
 
 use crate::{
     ops::{Schedule, range},
+    prelude::*,
     quantity::time::Hours,
 };
 
@@ -17,7 +18,7 @@ impl<Tz: TimeZone> Interval<Tz> {
 impl<Tz: TimeZone, V> TryFrom<Box<[(Interval<Tz>, V)]>> for Schedule<Tz, V> {
     type Error = Error;
 
-    fn try_from(inner: Box<[(Interval<Tz>, V)]>) -> crate::prelude::Result<Self> {
+    fn try_from(inner: Box<[(Interval<Tz>, V)]>) -> Result<Self> {
         ensure!(!inner.is_empty(), "the schedule is empty");
         for [(previous, _), (next, _)] in inner.array_windows() {
             ensure!(previous.end == next.start, "item `{next:?}` cannot follow `{previous:?}`");

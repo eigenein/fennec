@@ -133,6 +133,9 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                     }
                                 }
                             }
+                        }
+
+                        div.field.is-grouped.is-grouped-multiline {
                             div.control {
                                 div.tags.has-addons {
                                     span.tag.is-info {
@@ -224,77 +227,65 @@ async fn get_index(State(state): State<application::State>) -> Markup {
 
                 section.section.pt-5 {
                     div.container {
-                        div.card {
-                            header.card-header {
-                                p.card-header-title {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-calendar {} }
-                                        span { "Schedule" }
-                                    }
-                                }
-                            }
-                            div.card-content {
-                                div.table-container {
-                                    table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
-                                        thead { (steps_table_header()) }
-                                        tfoot { (steps_table_header()) }
-                                        tbody {
-                                            @for step in &hunter_state.steps {
-                                                tr.(WorkingModeColor(step.working_mode)) {
-                                                    td {
-                                                        (step.interval.start.format("%b"))
-                                                        (PreEscaped("&nbsp;"))
-                                                        (step.interval.start.format("%d"))
-                                                    }
-                                                    td { (step.interval.start.format("%H:%M")) }
-                                                    td { (step.interval.end.format("%H:%M")) }
-                                                    td { (step.duration) }
-                                                    td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
-                                                        (step.energy_price.import)
-                                                    }
-                                                    td {
-                                                        (step.working_mode)
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.grid.import) }
-                                                            span.icon { i.fas.fa-angles-down {} }
-                                                        }
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.grid.export) }
-                                                            span.icon { i.fas.fa-angles-up {} }
-                                                        }
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.battery.import) }
-                                                            span.icon { i.fas.fa-angle-down {} }
-                                                        }
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.energy_balance.battery.export) }
-                                                            span.icon { i.fas.fa-angle-up {} }
-                                                        }
-                                                    }
-                                                    td.has-text-right {
-                                                        span.icon-text.is-flex-wrap-nowrap {
-                                                            span { (step.residual_energy_after) }
-                                                            (StateOfCharge {
-                                                                residual_energy: step.residual_energy_after,
-                                                                actual_capacity: logger_state.battery.actual_capacity(),
-                                                            }.icon())
-                                                        }
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
-                                                        (step.metrics.losses.grid)
-                                                    }
-                                                    td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
-                                                        (step.metrics.losses.battery)
-                                                    }
+                        div.table-container {
+                            table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                thead { (steps_table_header()) }
+                                tfoot { (steps_table_header()) }
+                                tbody {
+                                    @for step in &hunter_state.steps {
+                                        tr.(WorkingModeColor(step.working_mode)) {
+                                            td {
+                                                (step.interval.start.format("%b"))
+                                                (PreEscaped("&nbsp;"))
+                                                (step.interval.start.format("%d"))
+                                            }
+                                            td { (step.interval.start.format("%H:%M")) }
+                                            td { (step.interval.end.format("%H:%M")) }
+                                            td { (step.duration) }
+                                            td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
+                                                (step.energy_price.import)
+                                            }
+                                            td {
+                                                (step.working_mode)
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.grid.import) }
+                                                    span.icon { i.fas.fa-angles-down {} }
                                                 }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.grid.export) }
+                                                    span.icon { i.fas.fa-angles-up {} }
+                                                }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.battery.import) }
+                                                    span.icon { i.fas.fa-angle-down {} }
+                                                }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.battery.export) }
+                                                    span.icon { i.fas.fa-angle-up {} }
+                                                }
+                                            }
+                                            td.has-text-right {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.residual_energy_after) }
+                                                    (StateOfCharge {
+                                                        residual_energy: step.residual_energy_after,
+                                                        actual_capacity: logger_state.battery.actual_capacity(),
+                                                    }.icon())
+                                                }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
+                                                (step.metrics.losses.grid)
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
+                                                (step.metrics.losses.battery)
                                             }
                                         }
                                     }
@@ -312,18 +303,18 @@ fn steps_table_header() -> Markup {
     html! {
         tr {
             th { "Date" }
-            th { "Start" br; "time" }
-            th { "End" br; "time" }
+            th { "Start time" }
+            th { "End time" }
             th { "Duration" }
-            th.has-text-right { "Energy" br; "price" }
-            th { "Working" br; "mode" }
-            th.has-text-right { "Grid" br; "import" }
-            th.has-text-right { "Grid" br; "export" }
-            th.has-text-right { "Battery" br; "import" }
-            th.has-text-right { "Battery" br; "export" }
-            th.has-text-right { "Residual" br; "after" }
-            th.has-text-right { "Grid" br; "loss" }
-            th.has-text-right { "Battery" br; "loss" }
+            th.has-text-right { "Energy price" }
+            th { "Working mode" }
+            th.has-text-right { "Grid import" }
+            th.has-text-right { "Grid export" }
+            th.has-text-right { "Battery import" }
+            th.has-text-right { "Battery export" }
+            th.has-text-right { "Residual after" }
+            th.has-text-right { "Grid loss" }
+            th.has-text-right { "Battery loss" }
         }
     }
 }

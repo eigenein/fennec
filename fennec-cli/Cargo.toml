@@ -21,7 +21,6 @@ is-it-maintained-open-issues = { repository = "eigenein/fennec" }
 
 [dependencies]
 anyhow = "1.0.102"
-average = "0.17.0"
 axum = { version = "0.8.8", features = ["http2"] }
 backon = { version = "1.6.0", features = ["tokio-sleep"] }
 bon = "3.9.1"

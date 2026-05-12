@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
 
-use comfy_table::{Attribute, Color};
 use enumset::EnumSetType;
 
 #[derive(Debug, Hash, clap::ValueEnum, EnumSetType)]
@@ -45,25 +44,5 @@ impl WorkingMode {
 
     pub fn is_discharging(self) -> bool {
         (self == Self::Discharge) || (self == Self::Compensate) || (self == Self::Idle)
-    }
-
-    pub const fn color(self) -> Color {
-        match self {
-            Self::Charge => Color::Green,
-            Self::Discharge => Color::Blue,
-            Self::SelfUse => Color::DarkYellow,
-            Self::Harness => Color::DarkCyan,
-            Self::Compensate => Color::Magenta,
-            Self::Idle => Color::Reset,
-        }
-    }
-
-    pub const fn attribute(self) -> Attribute {
-        match self {
-            Self::SelfUse | Self::Harness | Self::Compensate | Self::Charge | Self::Discharge => {
-                Attribute::NormalIntensity
-            }
-            Self::Idle => Attribute::Dim,
-        }
     }
 }

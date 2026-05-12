@@ -19,7 +19,6 @@ use crate::{
     cron::CronSchedule,
     db::power,
     energy,
-    fmt::tables::{build_fox_ess_schedule_table, build_steps_table},
     ops::{Cache, Interval},
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
@@ -176,7 +175,6 @@ impl Hunter {
             .build();
         let base_loss = solver.base_loss();
         let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
-        println!("{}", build_steps_table(&steps));
         info!(
             profit = ?(base_loss - metrics.losses.total()),
             ?base_loss,
@@ -195,7 +193,6 @@ impl Hunter {
                 self.battery_args.power_limits,
             )
         };
-        println!("{}", build_fox_ess_schedule_table(&entries));
 
         if self.scout {
             warn!("not pushing the schedule to the battery, just scouting");

@@ -7,7 +7,6 @@ mod cli;
 mod cron;
 mod db;
 mod energy;
-mod fmt;
 mod ops;
 mod prelude;
 mod quantity;

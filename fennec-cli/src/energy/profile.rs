@@ -11,7 +11,7 @@ use futures_util::TryStreamExt;
 use super::Balance;
 use crate::{
     battery,
-    battery::{EfficiencyEstimator, WorkingMode},
+    battery::EfficiencyEstimator,
     cli::battery::PowerLimits,
     db::power,
     ops::{BucketIntegrator, BucketMean, Integrator},
@@ -156,14 +156,10 @@ impl Display for Profile {
             .set_header(vec![
                 Cell::new("Bucket").set_alignment(CellAlignment::Right),
                 Cell::new("Start\ntime").set_alignment(CellAlignment::Right),
-                Cell::new("Grid\nimport").set_alignment(CellAlignment::Right).fg(Color::Red),
+                Cell::new("Grid\nimport").set_alignment(CellAlignment::Right),
                 Cell::new("Grid\nexport").set_alignment(CellAlignment::Right),
-                Cell::new("Battery\nimport")
-                    .set_alignment(CellAlignment::Right)
-                    .fg(WorkingMode::Charge.color()),
-                Cell::new("Battery\nexport")
-                    .set_alignment(CellAlignment::Right)
-                    .fg(WorkingMode::Discharge.color()),
+                Cell::new("Battery\nimport").set_alignment(CellAlignment::Right),
+                Cell::new("Battery\nexport").set_alignment(CellAlignment::Right),
             ]);
         for (index, balance) in (0_i32..).zip(self.average_balance.iter().copied()) {
             table.add_row(vec![
@@ -174,12 +170,8 @@ impl Display for Profile {
                     .set_alignment(CellAlignment::Right)
                     .fg(if balance.grid.import > Watts::ZERO { Color::Red } else { Color::Reset }),
                 Cell::new(balance.grid.export).set_alignment(CellAlignment::Right),
-                Cell::new(balance.battery.import)
-                    .fg(WorkingMode::Charge.color())
-                    .set_alignment(CellAlignment::Right),
-                Cell::new(balance.battery.export)
-                    .fg(WorkingMode::Discharge.color())
-                    .set_alignment(CellAlignment::Right),
+                Cell::new(balance.battery.import).set_alignment(CellAlignment::Right),
+                Cell::new(balance.battery.export).set_alignment(CellAlignment::Right),
             ]);
         }
         write!(f, "{table}")

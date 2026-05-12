@@ -33,7 +33,6 @@ croner = "3.0.1"
 derive_more = { version = "2.1.1", features = ["full"] }
 dotenvy = "0.15.7"
 enumset = "1.1.10"
-# fm-rs = "0.1.5"
 fennec-modbus = { path = "../fennec-modbus" }
 futures-core = "0.3.32"
 futures-util = "0.3.32"
@@ -41,7 +40,6 @@ http = "1.4.0"
 humantime = "2.3.0"
 itertools = "0.14.0"
 maud = { version = "0.27.0", features = ["axum"] }
-md5 = "0.8.0"
 mongodb = { version = "3.5.2", features = ["bson-3", "zlib-compression", "snappy-compression", "zstd-compression"] }
 reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "deflate", "brotli", "gzip", "http2"] }
 sentry = { version = "0.48.0", default-features = false, features = ["rustls", "tracing", "backtrace", "contexts", "panic", "reqwest", "anyhow", "release-health"] }

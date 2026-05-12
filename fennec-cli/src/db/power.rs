@@ -6,7 +6,7 @@ use serde_with::serde_as;
 
 use crate::{
     db,
-    quantity::{Zero, energy::WattHours, power::Watts},
+    quantity::{energy::WattHours, power::Watts},
 };
 
 /// Net power balance measurement.
@@ -31,25 +31,13 @@ pub struct Measurement {
     #[serde(rename = "netWatts")]
     pub net_deficit: Watts,
 
-    /// TODO: make non-optional and rename.
-    #[serde(default, rename = "batteryV4")]
-    pub battery: Option<BatteryMeasurement>,
-
-    /// TODO: remove in favour of the `battery` attribute.
-    #[serde(rename = "epsActivePower", default = "default_eps_active_power")]
-    pub eps_active_power: Watts,
+    #[serde(rename = "batteryV4")]
+    pub battery: BatteryMeasurement,
 }
 
 impl db::Measurement for Measurement {
     const COLLECTION_NAME: &str = "powerMeasurements";
     const GRANULARITY: TimeseriesGranularity = TimeseriesGranularity::Seconds;
-}
-
-/// Fallback to read the old logs when the EPS load was missing completely.
-///
-/// TODO: it can be removed when the old measurements get deleted by the TTL.
-const fn default_eps_active_power() -> Watts {
-    Watts::ZERO
 }
 
 /// Battery power measurements.

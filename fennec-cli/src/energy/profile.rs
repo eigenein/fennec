@@ -79,32 +79,34 @@ impl Profile {
 
             eps_power_integrator += Integrator::trapezoid(
                 duration,
-                previous.eps_active_power,
-                current.eps_active_power,
+                previous.battery.eps_active_power,
+                current.battery.eps_active_power,
             );
 
-            if let Some((previous, current)) = previous.battery.zip(current.battery) {
-                let residual_energy_sample =
-                    // The value sign here matches the active power sign, so charging is negative:
-                    Integrator { weight: duration, value: previous.residual_energy - current.residual_energy };
+            let residual_energy_sample =
+                // The value sign here matches the active power sign, so charging is negative:
+                Integrator { weight: duration, value: previous.battery.residual_energy - current.battery.residual_energy };
 
-                if previous.active_power == Watts::ZERO && current.active_power == Watts::ZERO {
-                    parasitic_power_integrator += residual_energy_sample;
-                } else if previous.active_power > Watts::ZERO && current.active_power > Watts::ZERO
-                {
-                    discharging_efficiency_estimator.push(
-                        residual_energy_sample,
-                        previous.active_power,
-                        current.active_power,
-                    );
-                } else if previous.active_power < Watts::ZERO && current.active_power < Watts::ZERO
-                {
-                    charging_efficiency_estimator.push(
-                        residual_energy_sample,
-                        previous.active_power,
-                        current.active_power,
-                    );
-                }
+            if previous.battery.active_power == Watts::ZERO
+                && current.battery.active_power == Watts::ZERO
+            {
+                parasitic_power_integrator += residual_energy_sample;
+            } else if previous.battery.active_power > Watts::ZERO
+                && current.battery.active_power > Watts::ZERO
+            {
+                discharging_efficiency_estimator.push(
+                    residual_energy_sample,
+                    previous.battery.active_power,
+                    current.battery.active_power,
+                );
+            } else if previous.battery.active_power < Watts::ZERO
+                && current.battery.active_power < Watts::ZERO
+            {
+                charging_efficiency_estimator.push(
+                    residual_energy_sample,
+                    previous.battery.active_power,
+                    current.battery.active_power,
+                );
             }
 
             previous = current;
@@ -133,7 +135,7 @@ impl Profile {
 
         Ok(Self {
             time_step: bucket_time_step,
-            average_balance: balance_integrator.try_into()?,
+            average_balance: balance_integrator.try_into()?, // FIXME: make infallible.
             average_eps_power,
             battery_efficiency,
         })

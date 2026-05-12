@@ -17,7 +17,7 @@ use crate::{
     db::power,
     energy,
     fmt::tables::{build_fox_ess_schedule_table, build_steps_table},
-    ops::Interval,
+    ops::{Cache, Interval},
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
@@ -78,7 +78,7 @@ pub struct HuntOnceArgs {
 
 impl HuntOnceArgs {
     pub async fn run(self) -> Result {
-        let (connections, hunter) = self.shared.hunter().await?;
+        let (connections, mut hunter) = self.shared.hunter().await?;
         let result = hunter.run_once().await;
         connections.db.shutdown().await;
         drop(result?);
@@ -95,6 +95,11 @@ pub struct Hunter {
     energy_provider: energy::Provider,
     quantum: WattHours,
     scout: bool,
+
+    /// TODO: custom builder.
+    /// TODO: make configurable.
+    #[builder(skip = Cache::new(Duration::from_hours(1)))]
+    energy_profile_cache: Cache<energy::Profile>,
 }
 
 impl Hunter {
@@ -102,7 +107,7 @@ impl Hunter {
         ExponentialBuilder::new().with_min_delay(Duration::from_secs(10));
 
     pub async fn run_forever(
-        self,
+        mut self,
         schedule: CronSchedule,
         component: web::application::Component<HunterState>,
     ) -> Result {
@@ -114,7 +119,7 @@ impl Hunter {
     }
 
     #[instrument(skip_all)]
-    pub async fn run_once(&self) -> Result<HunterState> {
+    pub async fn run_once(&mut self) -> Result<HunterState> {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices =
             (|| self.get_prices(now)).retry(Self::BACKOFF).notify(log_retried_error).await?;
@@ -131,20 +136,23 @@ impl Hunter {
             "battery state",
         );
 
-        let energy_profile = {
-            let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
-            energy::Profile::try_estimate(
-                self.battery_args.power_limits,
-                self.energy_provider.time_step(),
-                power_logs,
-            )
-            .await?
-        };
+        let energy_profile = self
+            .energy_profile_cache
+            .get_with(async {
+                let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
+                energy::Profile::try_estimate(
+                    self.battery_args.power_limits,
+                    self.energy_provider.time_step(),
+                    power_logs,
+                )
+                .await
+            })
+            .await?;
 
         let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
-            .balance_profile(&energy_profile)
+            .balance_profile(energy_profile)
             .working_modes(self.working_modes)
             .min_residual_energy(
                 battery_state.actual_capacity() * self.battery_args.charge_limits.min,
@@ -196,7 +204,13 @@ impl Hunter {
                 .context("failed to push the schedule to the battery")?;
         }
 
-        Ok(HunterState { steps, base_loss, metrics, energy_profile })
+        Ok(HunterState {
+            steps,
+            base_loss,
+            metrics,
+            average_eps_power: energy_profile.average_eps_power,
+            battery_efficiency: energy_profile.battery_efficiency,
+        })
     }
 
     /// Fetch energy prices for up to 2 days.

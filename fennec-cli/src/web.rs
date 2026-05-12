@@ -167,7 +167,7 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (hunter_state.energy_profile.average_eps_power)
+                                        (hunter_state.average_eps_power)
                                     }
                                 }
                             }
@@ -182,19 +182,19 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-rotate {} }
-                                            span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.round_trip())) }
+                                            span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.round_trip())) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-down {} }
-                                            span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.charging)) }
+                                            span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.charging)) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-up {} }
-                                            span { (format!("{:.1}%", 100.0 * hunter_state.energy_profile.battery_efficiency.discharging)) }
+                                            span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.discharging)) }
                                         }
                                     }
                                 }
@@ -208,7 +208,7 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (hunter_state.energy_profile.battery_efficiency.parasitic_load)
+                                        (hunter_state.battery_efficiency.parasitic_load)
                                     }
                                 }
                             }

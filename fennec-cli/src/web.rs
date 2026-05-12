@@ -7,7 +7,6 @@ use std::net::IpAddr;
 use axum::{Router, extract::State, response::IntoResponse, routing::get};
 use clap::crate_version;
 use http::{StatusCode, header};
-use humantime::format_duration;
 use maud::{DOCTYPE, Markup, PreEscaped, html};
 
 use crate::{
@@ -35,14 +34,15 @@ async fn get_readiness() -> impl IntoResponse {
 
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
+#[expect(clippy::significant_drop_tightening)]
 async fn get_index(State(state): State<application::State>) -> Markup {
     info!("access");
 
-    let logger = state.logger.get();
-    let logger_state = &logger.value;
+    let logger = state.logger.read().unwrap();
+    let logger_state = &logger;
 
-    let hunter = state.hunter.get();
-    let hunter_state = &hunter.value;
+    let hunter = state.hunter.read().unwrap();
+    let hunter_state = &hunter;
 
     html! {
         (DOCTYPE)
@@ -84,31 +84,6 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                 }
                 section.section.pb-5 {
                     div.container {
-                        div.field.is-grouped.is-grouped-multiline {
-                            div.control {
-                                div.tags.has-addons {
-                                    span.tag.is-info {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-timeline {} }
-                                            span { "Hunter" }
-                                        }
-                                    }
-                                    span.tag { (format_duration(hunter.timestamp.elapsed())) }
-                                }
-                            }
-                            div.control {
-                                div.tags.has-addons {
-                                    span.tag.is-info {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-heart-circle-bolt {} }
-                                            span { "Logger" }
-                                        }
-                                    }
-                                    span.tag { (format_duration(logger.timestamp.elapsed())) }
-                                }
-                            }
-                        }
-
                         div.field.is-grouped.is-grouped-multiline {
                             div.control {
                                 div.tags.has-addons {

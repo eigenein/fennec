@@ -1,4 +1,7 @@
-use std::net::IpAddr;
+use std::{
+    net::IpAddr,
+    sync::{Arc, RwLock},
+};
 
 use clap::Parser;
 use tokio::{spawn, try_join};
@@ -40,8 +43,8 @@ impl GoArgs {
         let logger = Logger::builder().connections(connections.clone()).build();
 
         // Run the first iteration at startup immediately in a fallible manner:
-        let logger_state = web::application::Component::now(logger.run_once().await?);
-        let hunter_state = web::application::Component::now(hunter.run_once().await?);
+        let logger_state = Arc::new(RwLock::new(logger.run_once().await?));
+        let hunter_state = Arc::new(RwLock::new(hunter.run_once().await?));
         let state =
             web::application::State { logger: logger_state.clone(), hunter: hunter_state.clone() };
 

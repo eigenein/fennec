@@ -1,14 +1,14 @@
 pub mod cache;
 mod integrator;
-mod interval;
 pub mod range;
+pub mod schedule;
 
 use std::time::Duration;
 
-pub use self::{
-    integrator::{BucketIntegrator, BucketMean, Integrator},
-    interval::Interval,
-};
+use chrono::TimeZone;
+
+pub use self::integrator::{BucketIntegrator, BucketMean, Integrator};
+use self::schedule::Interval;
 use crate::prelude::*;
 
 /// Simple one-value time-to-live cache.
@@ -33,3 +33,5 @@ impl<T> Cache<T> {
         Ok(&self.entry.as_ref().unwrap().value)
     }
 }
+
+pub struct Schedule<Tz: TimeZone, T>(Vec<(Interval<Tz>, T)>);

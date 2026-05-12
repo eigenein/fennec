@@ -3,7 +3,7 @@ use chrono::{NaiveDate, TimeDelta};
 use crate::{
     api::frank_energie,
     energy::Flow,
-    ops::Interval,
+    ops::schedule::Interval,
     prelude::*,
     quantity::price::KilowattHourPrice,
 };

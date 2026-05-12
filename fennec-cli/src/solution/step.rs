@@ -1,7 +1,7 @@
 use crate::{
     battery::WorkingMode,
     energy,
-    ops::Interval,
+    ops::schedule::Interval,
     quantity::{energy::WattHours, price::KilowattHourPrice, time::Hours},
     solution,
 };

@@ -19,7 +19,7 @@ use crate::{
     cron::CronSchedule,
     db::power,
     energy,
-    ops::{Cache, Interval},
+    ops::{Cache, schedule::Interval},
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,

@@ -1,20 +1,9 @@
-use std::fmt::{Debug, Formatter};
-
-use chrono::{DateTime, TimeZone};
-
-use crate::quantity::time::Hours;
-
 #[must_use]
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, derive_more::Debug)]
+#[debug("{start:?}..{end:?}")]
 pub struct Exclusive<T> {
     pub start: T,
     pub end: T,
-}
-
-impl<T: Debug> Debug for Exclusive<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}..{:?}", self.start, self.end)
-    }
 }
 
 impl<T> Exclusive<T> {
@@ -40,16 +29,6 @@ impl<T> Exclusive<T> {
         T: Copy + PartialOrd,
     {
         (self.start <= other) && (other < self.end)
-    }
-}
-
-impl<Tz> Exclusive<DateTime<Tz>>
-where
-    Tz: TimeZone,
-    <Tz as TimeZone>::Offset: Copy,
-{
-    pub fn hours(self) -> Hours {
-        (self.end - self.start).into()
     }
 }
 

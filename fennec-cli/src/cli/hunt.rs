@@ -140,7 +140,7 @@ impl Hunter {
 
         let energy_profile = self
             .energy_profile_cache
-            .get_with(async {
+            .get_or_insert_with(async {
                 let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
                 energy::Profile::try_estimate(
                     self.battery_args.power_limits,

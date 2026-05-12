@@ -13,17 +13,20 @@ use crate::prelude::*;
 
 /// Simple one-value time-to-live cache.
 #[must_use]
-pub struct Cache<T> {
+pub struct Cache<V> {
     time_to_live: Duration,
-    entry: Option<cache::Entry<T>>,
+    entry: Option<cache::Entry<V>>,
 }
 
-impl<T> Cache<T> {
+impl<V> Cache<V> {
     pub const fn new(time_to_live: Duration) -> Self {
         Self { time_to_live, entry: None }
     }
 
-    pub async fn get_with(&mut self, init: impl Future<Output = Result<T>>) -> Result<&T> {
+    pub async fn get_or_insert_with(
+        &mut self,
+        init: impl Future<Output = Result<V>>,
+    ) -> Result<&V> {
         if !matches!(
             &self.entry,
             Some(entry) if entry.timestamp.elapsed() <= self.time_to_live
@@ -34,4 +37,5 @@ impl<T> Cache<T> {
     }
 }
 
-pub struct Schedule<Tz: TimeZone, T>(Vec<(Interval<Tz>, T)>);
+/// Non-empty, ordered and continuous schedule.
+pub struct Schedule<Tz: TimeZone, V>(Box<[(Interval<Tz>, V)]>);

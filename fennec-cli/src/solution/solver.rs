@@ -112,7 +112,7 @@ impl Solver<'_> {
                     interval = interval.with_start(self.now);
                 }
                 let flow = self.balance_profile.average_balance_on(interval.start.time());
-                energy_price.loss((flow.grid + flow.battery.reversed()) * interval.hours())
+                energy_price.loss((flow.grid + flow.battery.reversed()) * interval.duration())
             })
             .sum()
     }
@@ -174,9 +174,9 @@ impl Solver<'_> {
 
         let duration = if interval.contains(self.now) {
             // The interval has already started, trim the start time:
-            interval.with_start(self.now).hours()
+            interval.with_start(self.now).duration()
         } else {
-            interval.hours()
+            interval.duration()
         };
 
         let battery_flows = battery.apply(balance_request.battery, duration);

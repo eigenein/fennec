@@ -5,9 +5,9 @@ mod working_mode;
 use std::net::IpAddr;
 
 use axum::{Router, extract::State, response::IntoResponse, routing::get};
-use chrono_humanize::HumanTime;
 use clap::crate_version;
 use http::{StatusCode, header};
+use humantime::format_duration;
 use maud::{DOCTYPE, Markup, PreEscaped, html};
 
 use crate::{
@@ -39,10 +39,10 @@ async fn get_index(State(state): State<application::State>) -> Markup {
     info!("access");
 
     let logger = state.logger.get();
-    let logger_state = &logger.state;
+    let logger_state = &logger.value;
 
     let hunter = state.hunter.get();
-    let hunter_state = &hunter.state;
+    let hunter_state = &hunter.value;
 
     html! {
         (DOCTYPE)
@@ -93,7 +93,7 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                             span { "Hunter" }
                                         }
                                     }
-                                    span.tag { (HumanTime::from(hunter.last_run_at)) }
+                                    span.tag { (format_duration(hunter.timestamp.elapsed())) }
                                 }
                             }
                             div.control {
@@ -104,7 +104,7 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                             span { "Logger" }
                                         }
                                     }
-                                    span.tag { (HumanTime::from(logger.last_run_at)) }
+                                    span.tag { (format_duration(logger.timestamp.elapsed())) }
                                 }
                             }
                         }

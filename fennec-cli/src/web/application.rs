@@ -1,8 +1,9 @@
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-use chrono::{DateTime, Local};
-
-use crate::state::{HunterState, LoggerState};
+use crate::{
+    ops::cache,
+    state::{HunterState, LoggerState},
+};
 
 /// TODO: this is actually more like "last result".
 #[must_use]
@@ -14,7 +15,7 @@ pub struct State {
 
 /// TODO: this is more like just a lock wrapper.
 #[must_use]
-pub struct Component<T>(Arc<RwLock<ComponentInner<T>>>);
+pub struct Component<T>(Arc<RwLock<cache::Entry<T>>>);
 
 impl<T> Clone for Component<T> {
     fn clone(&self) -> Self {
@@ -24,28 +25,14 @@ impl<T> Clone for Component<T> {
 
 impl<T> Component<T> {
     pub fn now(state: T) -> Self {
-        Self(Arc::new(RwLock::new(ComponentInner::now(state))))
+        Self(Arc::new(RwLock::new(cache::Entry::now(state))))
     }
 
-    pub fn get(&self) -> RwLockReadGuard<'_, ComponentInner<T>> {
+    pub fn get(&self) -> RwLockReadGuard<'_, cache::Entry<T>> {
         self.0.read().unwrap()
     }
 
     pub fn update(&self, state: T) {
-        let mut lock = self.0.write().unwrap();
-        lock.last_run_at = Local::now();
-        lock.state = state;
-    }
-}
-
-#[must_use]
-pub struct ComponentInner<T> {
-    pub last_run_at: DateTime<Local>,
-    pub state: T,
-}
-
-impl<T> ComponentInner<T> {
-    fn now(state: T) -> Self {
-        Self { last_run_at: Local::now(), state }
+        *self.0.write().unwrap() = cache::Entry::now(state);
     }
 }

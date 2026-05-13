@@ -1,35 +1,43 @@
 use std::time::{Duration, Instant};
 
-use crate::{ops::Cache, prelude::*};
+use crate::prelude::*;
 
-impl<V> Cache<V> {
-    pub const fn new(time_to_live: Duration) -> Self {
-        Self { time_to_live, entry: None }
+/// Cache that persist till the deadline.
+#[must_use]
+pub struct Deadline<V>(Option<(Instant, V)>);
+
+impl<V> Deadline<V> {
+    pub async fn get_or_insert_with(
+        &mut self,
+        init: impl Future<Output = Result<(Instant, V)>>,
+    ) -> Result<&V> {
+        if !matches!(&self.0, Some((deadline, _)) if Instant::now() <= *deadline) {
+            self.0 = Some(init.await?);
+        }
+        Ok(&self.0.as_ref().unwrap().1)
+    }
+}
+
+#[must_use]
+pub struct Ttl<V> {
+    duration: Duration,
+    inner: Deadline<V>,
+}
+
+impl<V> Ttl<V> {
+    pub const fn new(duration: Duration) -> Self {
+        Self { duration, inner: Deadline(None) }
     }
 
     pub async fn get_or_insert_with(
         &mut self,
         init: impl Future<Output = Result<V>>,
     ) -> Result<&V> {
-        if !matches!(
-            &self.entry,
-            Some(entry) if entry.timestamp.elapsed() <= self.time_to_live
-        ) {
-            self.entry = Some(Entry::now(init.await?));
-        }
-        Ok(&self.entry.as_ref().unwrap().value)
-    }
-}
-
-/// Timestamped cache entry.
-#[must_use]
-pub struct Entry<T> {
-    pub timestamp: Instant,
-    pub value: T,
-}
-
-impl<T> Entry<T> {
-    pub fn now(value: T) -> Self {
-        Self { timestamp: Instant::now(), value }
+        self.inner
+            .get_or_insert_with(async {
+                let deadline = Instant::now() + self.duration;
+                Ok((deadline, init.await?))
+            })
+            .await
     }
 }

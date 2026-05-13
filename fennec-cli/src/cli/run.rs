@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Parser)]
-pub struct GoArgs {
+pub struct RunArgs {
     #[clap(flatten)]
     shared: HuntSharedArgs,
 
@@ -35,7 +35,7 @@ pub struct GoArgs {
     bind_port: u16,
 }
 
-impl GoArgs {
+impl RunArgs {
     pub async fn run(self) -> Result {
         let (connections, mut hunter) = self.shared.hunter().await?;
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;

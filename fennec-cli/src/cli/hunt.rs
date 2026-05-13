@@ -19,7 +19,7 @@ use crate::{
     cron::CronSchedule,
     db::power,
     energy,
-    ops::{Cache, schedule::Interval},
+    ops::{cache, schedule::Interval},
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
@@ -71,22 +71,6 @@ impl HuntSharedArgs {
     }
 }
 
-#[derive(Parser)]
-pub struct HuntOnceArgs {
-    #[clap(flatten)]
-    shared: HuntSharedArgs,
-}
-
-impl HuntOnceArgs {
-    pub async fn run(self) -> Result {
-        let (connections, mut hunter) = self.shared.hunter().await?;
-        let result = hunter.run_once().await;
-        connections.db.shutdown().await;
-        drop(result?);
-        Ok(())
-    }
-}
-
 #[must_use]
 #[derive(Builder)]
 pub struct Hunter {
@@ -99,8 +83,8 @@ pub struct Hunter {
 
     /// TODO: custom builder.
     /// TODO: make configurable.
-    #[builder(skip = Cache::new(Duration::from_hours(1)))]
-    energy_profile_cache: Cache<energy::Profile>,
+    #[builder(skip = cache::Ttl::new(Duration::from_hours(1)))]
+    energy_profile_cache: cache::Ttl<energy::Profile>,
 }
 
 impl Hunter {

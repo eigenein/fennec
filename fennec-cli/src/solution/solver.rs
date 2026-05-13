@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use bon::{Builder, bon};
+use bon::Builder;
 use chrono::{DateTime, Local};
 use enumset::EnumSet;
 
@@ -42,7 +42,6 @@ pub struct Solver<'a> {
     quantum: WattHours,
 }
 
-#[bon]
 impl Solver<'_> {
     /// Find the optimal battery schedule.
     ///
@@ -77,24 +76,14 @@ impl Solver<'_> {
             .build();
 
         // Going backwards:
-        for (interval_index, (interval, energy_price)) in
-            self.energy_prices.iter().copied().enumerate().rev()
-        {
-            let optimize_step = self
-                .optimize_step()
-                .interval_index(interval_index)
-                .interval(interval)
-                .average_balance(self.balance_profile.average_balance_on(interval.start.time()))
-                .energy_price(energy_price);
-
-            // Calculate partial solutions for the current hour:
-            // FIXME: when `interval_index == 0`, we don't need to solve all energy levels.
+        for interval_index in 0..self.energy_prices.len() {
+            // Calculate partial solutions for the current time interval:
             for energy_level in 0..=max_energy_level {
-                *solutions.get_mut(interval_index, energy_level) = optimize_step
-                    .clone()
-                    .solutions(&solutions)
-                    .initial_residual_energy(self.quantum.midpoint(energy_level))
-                    .call();
+                *solutions.get_mut(interval_index, energy_level) = self.optimize_step(
+                    interval_index,
+                    self.quantum.midpoint(energy_level),
+                    &solutions,
+                );
             }
         }
 
@@ -121,13 +110,9 @@ impl Solver<'_> {
     ///
     /// - [`Some`] [`PartialSolution`], if a solution exists.
     /// - [`None`], if there is no solution.
-    #[builder(derive(Clone))]
     fn optimize_step(
         &self,
         interval_index: usize,
-        interval: Interval,
-        average_balance: energy::Balance<Watts>,
-        energy_price: energy::Flow<KilowattHourPrice>,
         initial_residual_energy: WattHours,
         solutions: &Space,
     ) -> Option<Solution> {
@@ -140,14 +125,7 @@ impl Solver<'_> {
         self.working_modes
             .iter()
             .filter_map(|working_mode| {
-                let step = self
-                    .simulate_step()
-                    .interval(interval)
-                    .energy_price(energy_price)
-                    .average_balance(average_balance)
-                    .battery(battery)
-                    .working_mode(working_mode)
-                    .call();
+                let step = self.simulate_step(battery, interval_index, working_mode);
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after, working_mode)?;
@@ -158,15 +136,15 @@ impl Solver<'_> {
 
     /// Simulate the battery working in the specified mode given the initial conditions,
     /// and return the loss and new residual energy.
-    #[builder]
     fn simulate_step(
         &self,
         mut battery: battery::Simulator,
-        interval: Interval,
-        average_balance: energy::Balance<Watts>,
-        energy_price: energy::Flow<KilowattHourPrice>,
+        interval_index: usize,
         working_mode: WorkingMode,
     ) -> Step {
+        let (interval, energy_price) = self.energy_prices[interval_index];
+        let average_balance = self.balance_profile.average_balance_on(interval.start.time());
+
         // Remember that the average flow represents theoretical possibility,
         // actual flow depends on the working mode:
         let balance_request =
@@ -174,6 +152,7 @@ impl Solver<'_> {
 
         let duration = if interval.contains(self.now) {
             // The interval has already started, trim the start time:
+            // TODO: de-dup this:
             interval.with_start(self.now).duration()
         } else {
             interval.duration()

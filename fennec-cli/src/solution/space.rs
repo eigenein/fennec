@@ -76,8 +76,8 @@ impl Space {
         &mut self.inner[(interval_index, energy_level)]
     }
 
-    pub fn backtrack(mut self, initial_energy_level: usize) -> Result<(Metrics, Vec<Step>)> {
-        let solution = self.get_mut(0, initial_energy_level).take().with_context(|| {
+    pub fn backtrack(&self, initial_energy_level: usize) -> Result<(Metrics, Vec<Step>)> {
+        let solution = self.inner[(0, initial_energy_level)].with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
 
@@ -95,9 +95,7 @@ impl Space {
             interval_index += 1;
             if interval_index < self.inner.rows() {
                 // Retrieve the related step if we are not the boundary:
-                next_step = self
-                    .get_mut(interval_index, current_step.energy_level_after)
-                    .take()
+                next_step = self.inner[(interval_index, current_step.energy_level_after)]
                     .expect("next energy level must point to an existing solution")
                     .step;
             }

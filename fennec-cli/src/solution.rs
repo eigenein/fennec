@@ -10,6 +10,7 @@ pub use self::{losses::Losses, metrics::Metrics, solver::Solver, space::Space, s
 use crate::quantity::Zero;
 
 #[must_use]
+#[derive(Copy, Clone)]
 pub struct Solution {
     pub metrics: Metrics,
 

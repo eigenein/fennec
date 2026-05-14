@@ -1,5 +1,6 @@
 use anyhow::{Error, ensure};
 use chrono::{DateTime, Local, TimeZone};
+use derive_more::Deref;
 
 use crate::{ops::range, prelude::*, quantity::time::Hours};
 
@@ -13,18 +14,28 @@ impl<Tz: TimeZone> Interval<Tz> {
     }
 }
 
-/// Non-empty, ordered and continuous schedule.
-pub struct Schedule<Tz: TimeZone, V>(Box<[(Interval<Tz>, V)]>);
+/// Ordered continuous schedule.
+#[derive(Deref)]
+pub struct Schedule<Tz: TimeZone, V>(Vec<(Interval<Tz>, V)>);
 
-impl<Tz: TimeZone, V> TryFrom<Box<[(Interval<Tz>, V)]>> for Schedule<Tz, V> {
+impl<Tz: TimeZone, V> TryFrom<Vec<(Interval<Tz>, V)>> for Schedule<Tz, V> {
     type Error = Error;
 
-    fn try_from(inner: Box<[(Interval<Tz>, V)]>) -> Result<Self> {
-        ensure!(!inner.is_empty(), "the schedule is empty");
+    fn try_from(inner: Vec<(Interval<Tz>, V)>) -> Result<Self> {
         for [(previous, _), (next, _)] in inner.array_windows() {
             ensure!(previous.end == next.start, "item `{next:?}` cannot follow `{previous:?}`");
         }
         Ok(Self(inner))
+    }
+}
+
+impl<Tz: TimeZone, V> Schedule<Tz, V> {
+    pub fn extend(&mut self, other: Self) -> Result {
+        if let (Some((last, _)), Some((first, _))) = (self.0.last(), other.0.first()) {
+            ensure!(last.end == first.start, "there is a gap between the schedules");
+        }
+        self.0.extend(other.0);
+        Ok(())
     }
 }
 
@@ -41,17 +52,11 @@ mod tests {
         let second = Local.with_ymd_and_hms(2026, 5, 12, 20, 20, 0).unwrap();
         let third = Local.with_ymd_and_hms(2026, 5, 12, 20, 30, 0).unwrap();
 
-        let inner = Box::from([
+        let inner = vec![
             (Interval { start: first, end: second }, 1),
             (Interval { start: second, end: third }, 2),
-        ]);
+        ];
         assert!(Schedule::try_from(inner).is_ok());
-    }
-
-    /// Verify that empty schedule is invalid.
-    #[test]
-    fn try_from_empty() {
-        assert!(Schedule::<Local, ()>::try_from(Box::from([])).is_err());
     }
 
     /// Verify that schedule with a gap is invalid.
@@ -62,10 +67,10 @@ mod tests {
         let entry_3 = Local.with_ymd_and_hms(2026, 5, 12, 20, 30, 0).unwrap();
         let entry_4 = Local.with_ymd_and_hms(2026, 5, 12, 20, 40, 0).unwrap();
 
-        let inner = Box::from([
+        let inner = vec![
             (Interval { start: entry_1, end: entry_2 }, 1),
             (Interval { start: entry_3, end: entry_4 }, 2),
-        ]);
+        ];
         assert!(Schedule::try_from(inner).is_err());
     }
 }

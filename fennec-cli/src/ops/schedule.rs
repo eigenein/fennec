@@ -1,11 +1,7 @@
 use anyhow::{Error, ensure};
 use chrono::{DateTime, Local, TimeZone};
 
-use crate::{
-    ops::{Schedule, range},
-    prelude::*,
-    quantity::time::Hours,
-};
+use crate::{ops::range, prelude::*, quantity::time::Hours};
 
 /// Half-open time interval.
 pub type Interval<Tz = Local> = range::Exclusive<DateTime<Tz>>;
@@ -16,6 +12,9 @@ impl<Tz: TimeZone> Interval<Tz> {
         (self.end - self.start).into()
     }
 }
+
+/// Non-empty, ordered and continuous schedule.
+pub struct Schedule<Tz: TimeZone, V>(Box<[(Interval<Tz>, V)]>);
 
 impl<Tz: TimeZone, V> TryFrom<Box<[(Interval<Tz>, V)]>> for Schedule<Tz, V> {
     type Error = Error;

@@ -8,7 +8,7 @@ use crate::{
     battery,
     battery::WorkingMode,
     energy,
-    ops::schedule::Interval,
+    ops::Interval,
     prelude::*,
     quantity::{
         Midpoint,

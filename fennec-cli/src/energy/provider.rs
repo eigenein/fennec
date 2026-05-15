@@ -3,7 +3,7 @@ use chrono::{NaiveDate, TimeDelta};
 use crate::{
     api::frank_energie,
     energy::Flow,
-    ops::Interval,
+    ops::Schedule,
     prelude::*,
     quantity::price::KilowattHourPrice,
 };
@@ -29,10 +29,7 @@ impl Provider {
         }
     }
 
-    pub async fn get_prices(
-        self,
-        on: NaiveDate,
-    ) -> Result<Vec<(Interval, Flow<KilowattHourPrice>)>> {
+    pub async fn get_prices(self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         match self {
             Self::FrankEnergieQuarterly => {
                 frank_energie::Api::new(frank_energie::Resolution::Quarterly)?.get_prices(on).await

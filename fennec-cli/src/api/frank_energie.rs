@@ -3,7 +3,12 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
-use crate::{energy::Flow, ops::Interval, prelude::*, quantity::price::KilowattHourPrice};
+use crate::{
+    energy::Flow,
+    ops::{Interval, Schedule},
+    prelude::*,
+    quantity::price::KilowattHourPrice,
+};
 
 pub struct Api {
     client: reqwest::Client,
@@ -22,10 +27,7 @@ impl Api {
     }
 
     #[instrument(skip_all, fields(on = ?on))]
-    pub async fn get_prices(
-        &self,
-        on: NaiveDate,
-    ) -> Result<Vec<(Interval, Flow<KilowattHourPrice>)>> {
+    pub async fn get_prices(&self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         debug!(?on, "fetching…");
         let Some(data) = self
             .client
@@ -37,23 +39,19 @@ impl Api {
             .await?
             .data
         else {
-            return Ok(Vec::new());
+            return Ok(Schedule::new());
         };
-        Ok(data
-            .market_prices
-            .electricity
-            .into_iter()
-            .map(|item| {
-                (
-                    Interval::new(item.from, item.till),
-                    Flow {
-                        import: item.all_in,
-                        // FIXME: from 2027, this becomes just `item.market + Self::PURCHASE_FEE`:
-                        export: (item.market + Self::PURCHASE_FEE) * Self::VAT,
-                    },
-                )
-            })
-            .collect())
+        let slots = data.market_prices.electricity.into_iter().map(|item| {
+            (
+                Interval::new(item.from, item.till),
+                Flow {
+                    import: item.all_in,
+                    // TODO: from 2027, this becomes just `item.market + Self::PURCHASE_FEE`:
+                    export: (item.market + Self::PURCHASE_FEE) * Self::VAT,
+                },
+            )
+        });
+        Schedule::try_from_iter(slots)
     }
 }
 

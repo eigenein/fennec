@@ -4,5 +4,5 @@ mod schedule;
 
 pub use self::{
     integrator::{BucketIntegrator, BucketMean, Integrator},
-    schedule::Interval,
+    schedule::{Interval, Schedule},
 };

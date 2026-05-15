@@ -1,11 +1,10 @@
-use std::{cmp::Ordering, iter::from_fn};
+use std::{cmp::Ordering, iter::from_fn, ops::RangeInclusive};
 
 use bon::bon;
 use grid::Grid;
 
 use crate::{
     battery::WorkingMode,
-    ops::range,
     prelude::*,
     solution::{Metrics, Solution, Step},
 };
@@ -13,17 +12,17 @@ use crate::{
 #[must_use]
 pub struct Space {
     inner: Grid<Option<Solution>>,
-    allowed_energy_levels: range::Inclusive<usize>,
+    allowed_energy_levels: RangeInclusive<usize>,
 }
 
 #[bon]
 impl Space {
     #[builder]
-    pub fn new(
-        n_intervals: usize,
-        #[builder(into)] allowed_energy_levels: range::Inclusive<usize>,
-    ) -> Self {
-        Self { inner: Grid::new(n_intervals, allowed_energy_levels.max + 1), allowed_energy_levels }
+    pub fn new(n_intervals: usize, allowed_energy_levels: RangeInclusive<usize>) -> Self {
+        Self {
+            inner: Grid::new(n_intervals, allowed_energy_levels.end() + 1),
+            allowed_energy_levels,
+        }
     }
 }
 
@@ -40,13 +39,15 @@ impl Space {
             Ordering::Less => {
                 if (
                     // Normal operation:
-                    self.allowed_energy_levels.contains(energy_level)
+                    self.allowed_energy_levels.contains(&energy_level)
                 ) || (
                     // From under the allowed energy levels, only allow charging:
-                    (energy_level < self.allowed_energy_levels.min) && working_mode.is_charging()
+                    (energy_level < *self.allowed_energy_levels.start())
+                        && working_mode.is_charging()
                 ) || (
                     // From above the allowed energy levels, only allow discharging:
-                    (energy_level > self.allowed_energy_levels.max) && working_mode.is_discharging()
+                    (energy_level > *self.allowed_energy_levels.end())
+                        && working_mode.is_discharging()
                 ) {
                     self.inner[(interval_index, energy_level)].as_ref()
                 } else {
@@ -55,7 +56,7 @@ impl Space {
                 }
             }
             Ordering::Equal => {
-                if self.allowed_energy_levels.contains(energy_level) {
+                if self.allowed_energy_levels.contains(&energy_level) {
                     Some(&Solution::BOUNDARY)
                 } else {
                     // Invalid energy level.

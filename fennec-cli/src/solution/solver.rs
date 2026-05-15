@@ -70,10 +70,8 @@ impl Solver<'_> {
             .expect("maximum residual energy must be quantizable");
         info!(?self.quantum, min_energy_level, max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
 
-        let mut solutions = Space::builder()
-            .n_intervals(self.energy_prices.len())
-            .allowed_energy_levels(min_energy_level..=max_energy_level)
-            .build();
+        let mut solutions =
+            Space::new(self.energy_prices.len(), min_energy_level..=max_energy_level);
 
         // Going backwards:
         for interval_index in 0..self.energy_prices.len() {

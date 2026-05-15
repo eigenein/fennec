@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, iter::from_fn, ops::RangeInclusive};
 
-use bon::bon;
 use grid::Grid;
 
 use crate::{
@@ -11,22 +10,26 @@ use crate::{
 
 #[must_use]
 pub struct Space {
-    inner: Grid<Option<Solution>>,
+    /// Range of allowed energy levels.
+    ///
+    /// Note, that the solution space itself does not care about what these energy levels
+    /// represent.
     allowed_energy_levels: RangeInclusive<usize>,
+
+    /// [DP][1] solution space: rows are time intervals and columns are quantized energy levels.
+    ///
+    /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
+    grid: Grid<Option<Solution>>,
 }
 
-#[bon]
 impl Space {
-    #[builder]
     pub fn new(n_intervals: usize, allowed_energy_levels: RangeInclusive<usize>) -> Self {
         Self {
-            inner: Grid::new(n_intervals, allowed_energy_levels.end() + 1),
+            grid: Grid::new(n_intervals, allowed_energy_levels.end() + 1),
             allowed_energy_levels,
         }
     }
-}
 
-impl Space {
     /// Get the solution at the given time slot index and energy.
     #[must_use]
     pub fn get(
@@ -35,7 +38,7 @@ impl Space {
         energy_level: usize,
         working_mode: WorkingMode,
     ) -> Option<&Solution> {
-        match interval_index.cmp(&self.inner.rows()) {
+        match interval_index.cmp(&self.grid.rows()) {
             Ordering::Less => {
                 if (
                     // Normal operation:
@@ -49,7 +52,7 @@ impl Space {
                     (energy_level > *self.allowed_energy_levels.end())
                         && working_mode.is_discharging()
                 ) {
-                    self.inner[(interval_index, energy_level)].as_ref()
+                    self.grid[(interval_index, energy_level)].as_ref()
                 } else {
                     // Invalid energy level.
                     None
@@ -74,11 +77,11 @@ impl Space {
     /// Panics outside the bounds.
     #[must_use]
     pub fn get_mut(&mut self, interval_index: usize, energy_level: usize) -> &mut Option<Solution> {
-        &mut self.inner[(interval_index, energy_level)]
+        &mut self.grid[(interval_index, energy_level)]
     }
 
     pub fn backtrack(&self, initial_energy_level: usize) -> Result<(Metrics, Vec<Step>)> {
-        let solution = self.inner[(0, initial_energy_level)].with_context(|| {
+        let solution = self.grid[(0, initial_energy_level)].with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
 
@@ -94,9 +97,9 @@ impl Space {
 
             // Hop to the next state:
             interval_index += 1;
-            if interval_index < self.inner.rows() {
+            if interval_index < self.grid.rows() {
                 // Retrieve the related step if we are not the boundary:
-                next_step = self.inner[(interval_index, current_step.energy_level_after)]
+                next_step = self.grid[(interval_index, current_step.energy_level_after)]
                     .expect("next energy level must point to an existing solution")
                     .step;
             }

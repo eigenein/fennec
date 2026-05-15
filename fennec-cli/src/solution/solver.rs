@@ -8,7 +8,7 @@ use crate::{
     battery,
     battery::WorkingMode,
     energy,
-    ops::Interval,
+    ops::Schedule,
     prelude::*,
     quantity::{
         Midpoint,
@@ -23,7 +23,7 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Solver<'a> {
-    energy_prices: &'a [(Interval, energy::Flow<KilowattHourPrice>)],
+    energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
     balance_profile: &'a energy::Profile,
 
     /// Enabled working modes.

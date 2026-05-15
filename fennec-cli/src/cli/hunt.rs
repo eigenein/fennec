@@ -20,7 +20,8 @@ use crate::{
     cron::CronSchedule,
     db::power,
     energy,
-    ops::{Interval, cache},
+    energy::Flow,
+    ops::{Schedule, cache},
     prelude::*,
     quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
@@ -202,10 +203,7 @@ impl Hunter {
 
     /// Fetch energy prices for up to 2 days.
     #[instrument(skip_all, fields(now = ?now))]
-    async fn get_prices(
-        &self,
-        now: DateTime<Local>,
-    ) -> Result<Vec<(Interval, energy::Flow<KilowattHourPrice>)>> {
+    async fn get_prices(&self, now: DateTime<Local>) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         const ONE_DAY: Days = Days::new(1);
 
         let today = now.date_naive();
@@ -213,9 +211,9 @@ impl Hunter {
         ensure!(!prices.is_empty());
 
         let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
-        prices.extend(self.energy_provider.get_prices(tomorrow).await?);
+        prices.extend(self.energy_provider.get_prices(tomorrow).await?)?;
 
-        prices.retain(|(interval, _)| interval.end() > now);
+        prices.retain(now);
         info!(len = prices.len(), "fetched energy prices");
 
         Ok(prices)

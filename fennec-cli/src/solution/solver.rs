@@ -74,7 +74,7 @@ impl Solver<'_> {
             Space::new(self.energy_prices.len(), min_energy_level..=max_energy_level);
 
         // Going backwards:
-        for interval_index in 0..self.energy_prices.len() {
+        for interval_index in (0..self.energy_prices.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in 0..=max_energy_level {
                 *solutions.get_mut(interval_index, energy_level) = self.optimize_step(

@@ -93,11 +93,8 @@ impl Solver<'_> {
             .iter()
             .copied()
             .map(|(mut interval, energy_price)| {
-                if interval.contains(self.now) {
-                    // TODO: de-dup this:
-                    interval = interval.with_start(self.now);
-                }
-                let flow = self.balance_profile.average_balance_on(interval.start.time());
+                interval = interval.clamp_start(self.now);
+                let flow = self.balance_profile.average_balance_on(interval.start().time());
                 energy_price.loss((flow.grid + flow.battery.reversed()) * interval.duration())
             })
             .sum()
@@ -140,21 +137,14 @@ impl Solver<'_> {
         working_mode: WorkingMode,
     ) -> Step {
         let (interval, energy_price) = self.energy_prices[interval_index];
-        let average_balance = self.balance_profile.average_balance_on(interval.start.time());
+        let average_balance = self.balance_profile.average_balance_on(interval.start().time());
 
         // Remember that the average flow represents theoretical possibility,
         // actual flow depends on the working mode:
         let balance_request =
             average_balance.with_working_mode(working_mode, self.max_battery_flow);
 
-        let duration = if interval.contains(self.now) {
-            // The interval has already started, trim the start time:
-            // TODO: de-dup this:
-            interval.with_start(self.now).duration()
-        } else {
-            interval.duration()
-        };
-
+        let duration = interval.clamp_start(self.now).duration();
         let battery_flows = battery.apply(balance_request.battery, duration);
         let requested_battery = balance_request.battery * duration;
         let battery_shortage = requested_battery - battery_flows.external;

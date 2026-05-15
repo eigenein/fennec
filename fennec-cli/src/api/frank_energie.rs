@@ -45,7 +45,7 @@ impl Api {
             .into_iter()
             .map(|item| {
                 (
-                    Interval { start: item.from, end: item.till },
+                    Interval::new(item.from, item.till),
                     Flow {
                         import: item.all_in,
                         // FIXME: from 2027, this becomes just `item.market + Self::PURCHASE_FEE`:
@@ -135,8 +135,8 @@ mod tests {
         assert!(!series.is_empty());
         assert!(series.len() <= 24 * 4);
         let (time_range, _) = &series[0];
-        assert_eq!(time_range.start.hour(), 0);
-        assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start));
+        assert_eq!(time_range.start().hour(), 0);
+        assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start()));
         Ok(())
     }
 

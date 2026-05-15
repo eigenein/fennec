@@ -95,19 +95,19 @@ pub fn build(
 
 fn into_time_slots(interval: Interval) -> impl Iterator<Item = Option<(NaiveTime, NaiveTime)>> {
     let start_time = NaiveTime {
-        hour: interval.start.hour().try_into().unwrap(),
-        minute: interval.start.minute().try_into().unwrap(),
+        hour: interval.start().hour().try_into().unwrap(),
+        minute: interval.start().minute().try_into().unwrap(),
     };
     let end_time = NaiveTime {
-        hour: interval.end.hour().try_into().unwrap(),
-        minute: interval.end.minute().try_into().unwrap(),
+        hour: interval.end().hour().try_into().unwrap(),
+        minute: interval.end().minute().try_into().unwrap(),
     };
 
     if end_time.hour == 0 && end_time.minute == 0 {
         // FoxESS intervals are half-open, but they won't accept 00:00 as end time 🤦:
         return once(Some((start_time, NaiveTime::MAX))).chain(once(None));
     }
-    if interval.start.date_naive() == interval.end.date_naive() {
+    if interval.start().date_naive() == interval.end().date_naive() {
         // Same day, just emit the interval "as is".
         once(Some((start_time, end_time))).chain(once(None))
     } else {

@@ -235,12 +235,12 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                     @for ((interval, energy_price), step) in &hunter_state.steps {
                                         tr.(WorkingModeColor(step.working_mode)) {
                                             td {
-                                                (interval.start.format("%b"))
+                                                (interval.start().format("%b"))
                                                 (PreEscaped("&nbsp;"))
-                                                (interval.start.format("%d"))
+                                                (interval.start().format("%d"))
                                             }
-                                            td { (interval.start.format("%H:%M")) }
-                                            td { (interval.end.format("%H:%M")) }
+                                            td { (interval.start().format("%H:%M")) }
+                                            td { (interval.end().format("%H:%M")) }
                                             td { (step.duration) }
                                             td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
                                                 (energy_price.import)

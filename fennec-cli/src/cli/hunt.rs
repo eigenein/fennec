@@ -215,7 +215,7 @@ impl Hunter {
         let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
         prices.extend(self.energy_provider.get_prices(tomorrow).await?);
 
-        prices.retain(|(interval, _)| interval.end > now);
+        prices.retain(|(interval, _)| interval.end() > now);
         info!(len = prices.len(), "fetched energy prices");
 
         Ok(prices)

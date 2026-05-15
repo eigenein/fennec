@@ -6,10 +6,7 @@ use crate::{
     solution,
 };
 
-/// Single-hour working plan step.
-///
-/// Technically, it is not needed to store all the attributes here because I could always zip
-/// the back track with the original metrics, but having it here makes it much easier to work with.
+/// Working plan for a single [`crate::ops::Interval`].
 #[derive(Copy, Clone)]
 pub struct Step {
     pub interval: Interval,

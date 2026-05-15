@@ -1,12 +1,14 @@
 use crate::{
     battery,
-    quantity::{currency::Mills, power::Watts},
+    energy::Flow,
+    ops::Interval,
+    quantity::{currency::Mills, power::Watts, price::KilowattHourPrice},
     solution::{Metrics, Step},
 };
 
 #[must_use]
 pub struct HunterState {
-    pub steps: Vec<Step>,
+    pub steps: Vec<((Interval, Flow<KilowattHourPrice>), Step)>,
     pub base_loss: Mills,
     pub metrics: Metrics,
     pub average_eps_power: Watts,

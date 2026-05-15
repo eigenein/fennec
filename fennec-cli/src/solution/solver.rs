@@ -161,8 +161,6 @@ impl Solver<'_> {
         let battery_shortage = requested_battery - battery_flows.external;
         let grid_flow = balance_request.grid * duration + battery_shortage.reversed();
         Step {
-            interval,
-            energy_price,
             working_mode,
             duration,
             energy_balance: energy::Balance {

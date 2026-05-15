@@ -8,6 +8,7 @@ use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
 use clap::Parser;
 use enumset::EnumSet;
+use itertools::Itertools;
 
 use crate::{
     api::modbus::schedule,
@@ -36,7 +37,7 @@ pub struct HuntSharedArgs {
         env = "WORKING_MODES",
         value_delimiter = ',',
         num_args = 1..,
-        default_value = "idle,harness,charge,compensate",
+        default_value = "harness,compensate,charge,self-use",
     )]
     working_modes: Vec<WorkingMode>,
 
@@ -135,7 +136,6 @@ impl Hunter {
             })
             .await?;
 
-        let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
             .balance_profile(energy_profile)
@@ -158,7 +158,10 @@ impl Hunter {
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let base_loss = solver.base_loss();
-        let (metrics, steps) = solver.solve().backtrack(initial_energy_level)?;
+        let solution_space = solver.solve();
+        let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
+        let (metrics, steps) = solution_space.backtrack(initial_energy_level)?;
+        let steps: Vec<_> = energy_prices.into_iter().zip_eq(steps).collect();
         info!(
             profit = ?(base_loss - metrics.losses.total()),
             ?base_loss,
@@ -170,7 +173,7 @@ impl Hunter {
         );
 
         let entries = {
-            let schedule = steps.iter().map(|step| (step.interval, step.working_mode));
+            let schedule = steps.iter().map(|((interval, _), step)| (*interval, step.working_mode));
             schedule::build(
                 schedule,
                 self.battery_args.charge_limits,

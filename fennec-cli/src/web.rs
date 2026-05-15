@@ -232,18 +232,18 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                 thead { (steps_table_header()) }
                                 tfoot { (steps_table_header()) }
                                 tbody {
-                                    @for step in &hunter_state.steps {
+                                    @for ((interval, energy_price), step) in &hunter_state.steps {
                                         tr.(WorkingModeColor(step.working_mode)) {
                                             td {
-                                                (step.interval.start.format("%b"))
+                                                (interval.start.format("%b"))
                                                 (PreEscaped("&nbsp;"))
-                                                (step.interval.start.format("%d"))
+                                                (interval.start.format("%d"))
                                             }
-                                            td { (step.interval.start.format("%H:%M")) }
-                                            td { (step.interval.end.format("%H:%M")) }
+                                            td { (interval.start.format("%H:%M")) }
+                                            td { (interval.end.format("%H:%M")) }
                                             td { (step.duration) }
                                             td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
-                                                (step.energy_price.import)
+                                                (energy_price.import)
                                             }
                                             td {
                                                 (step.working_mode)

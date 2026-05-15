@@ -80,7 +80,10 @@ impl Space {
         &mut self.grid[(interval_index, energy_level)]
     }
 
-    pub fn backtrack(&self, initial_energy_level: usize) -> Result<(Metrics, Vec<Step>)> {
+    pub fn backtrack(
+        &self,
+        initial_energy_level: usize,
+    ) -> Result<(Metrics, impl Iterator<Item = Step>)> {
         let solution = self.grid[(0, initial_energy_level)].with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
@@ -91,7 +94,7 @@ impl Space {
         // Unrolling the solution steps:
         let mut next_step = solution.step;
         let mut interval_index = 0;
-        let steps = from_fn(|| {
+        let steps = from_fn(move || {
             // Finish when current step is that of the boundary condition:
             let current_step = next_step.take()?;
 
@@ -108,6 +111,6 @@ impl Space {
             Some(current_step)
         });
 
-        Ok((summary, steps.collect()))
+        Ok((summary, steps))
     }
 }

@@ -30,6 +30,10 @@ impl Space {
         }
     }
 
+    pub const fn size(&self) -> usize {
+        self.grid.rows().checked_mul(self.grid.cols()).unwrap()
+    }
+
     /// Get the solution at the given time slot index and energy.
     #[must_use]
     pub fn get(

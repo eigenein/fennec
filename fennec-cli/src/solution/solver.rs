@@ -72,20 +72,19 @@ impl Solver<'_> {
 
         let mut solutions =
             Space::new(self.energy_prices.len(), min_energy_level..=max_energy_level);
+        let mut n_some: usize = 0;
 
         // Going backwards:
         for interval_index in (0..self.energy_prices.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in 0..=max_energy_level {
-                *solutions.get_mut(interval_index, energy_level) = self.optimize_step(
-                    interval_index,
-                    self.quantum.midpoint(energy_level),
-                    &solutions,
-                );
+                *solutions.get_mut(interval_index, energy_level) = self
+                    .optimize_step(interval_index, self.quantum.midpoint(energy_level), &solutions)
+                    .inspect(|_| n_some += 1);
             }
         }
 
-        info!(elapsed = ?start_instant.elapsed(), "optimized");
+        info!(elapsed = ?start_instant.elapsed(), space_size = solutions.size(), n_some, "optimized");
         solutions
     }
 

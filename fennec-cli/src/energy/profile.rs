@@ -1,10 +1,6 @@
-use std::{
-    fmt::{Display, Formatter},
-    time::Instant,
-};
+use std::time::Instant;
 
 use chrono::{Local, NaiveTime, TimeDelta};
-use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, modifiers, presets};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 
@@ -143,37 +139,5 @@ impl Profile {
 
     pub fn average_balance_on(&self, time: NaiveTime) -> Balance<Watts> {
         self.average_balance[self.time_step.index(time).unwrap()]
-    }
-}
-
-impl Display for Profile {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-        table
-            .load_preset(presets::UTF8_FULL_CONDENSED)
-            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
-            .enforce_styling()
-            .set_header(vec![
-                Cell::new("Bucket").set_alignment(CellAlignment::Right),
-                Cell::new("Start\ntime").set_alignment(CellAlignment::Right),
-                Cell::new("Grid\nimport").set_alignment(CellAlignment::Right),
-                Cell::new("Grid\nexport").set_alignment(CellAlignment::Right),
-                Cell::new("Battery\nimport").set_alignment(CellAlignment::Right),
-                Cell::new("Battery\nexport").set_alignment(CellAlignment::Right),
-            ]);
-        for (index, balance) in (0_i32..).zip(self.average_balance.iter().copied()) {
-            table.add_row(vec![
-                Cell::new(index).set_alignment(CellAlignment::Right).add_attribute(Attribute::Dim),
-                Cell::new((NaiveTime::MIN + self.time_step * index).format("%H:%M"))
-                    .set_alignment(CellAlignment::Right),
-                Cell::new(balance.grid.import)
-                    .set_alignment(CellAlignment::Right)
-                    .fg(if balance.grid.import > Watts::ZERO { Color::Red } else { Color::Reset }),
-                Cell::new(balance.grid.export).set_alignment(CellAlignment::Right),
-                Cell::new(balance.battery.import).set_alignment(CellAlignment::Right),
-                Cell::new(balance.battery.export).set_alignment(CellAlignment::Right),
-            ]);
-        }
-        write!(f, "{table}")
     }
 }

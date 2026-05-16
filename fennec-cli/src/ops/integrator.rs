@@ -92,9 +92,3 @@ impl<T> Index<usize> for BucketMean<T> {
         self.buckets[index].as_ref().unwrap_or(&self.total)
     }
 }
-
-impl<T> BucketMean<T> {
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.buckets.iter().map(|average| average.as_ref().unwrap_or(&self.total))
-    }
-}

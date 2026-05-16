@@ -2,42 +2,27 @@ use std::time::{Duration, Instant};
 
 use crate::prelude::*;
 
-/// Cache that persist till the deadline.
-#[must_use]
-pub struct Deadline<V>(Option<(Instant, V)>);
-
-impl<V> Deadline<V> {
-    pub async fn get_or_insert_with(
-        &mut self,
-        init: impl Future<Output = Result<(Instant, V)>>,
-    ) -> Result<&V> {
-        if !matches!(&self.0, Some((deadline, _)) if Instant::now() <= *deadline) {
-            self.0 = Some(init.await?);
-        }
-        Ok(&self.0.as_ref().unwrap().1)
-    }
-}
-
 #[must_use]
 pub struct Ttl<V> {
+    /// Time-to-live duration.
     duration: Duration,
-    inner: Deadline<V>,
+
+    /// Cached value along with the deadline.
+    slot: Option<(Instant, V)>,
 }
 
 impl<V> Ttl<V> {
     pub const fn new(duration: Duration) -> Self {
-        Self { duration, inner: Deadline(None) }
+        Self { duration, slot: None }
     }
 
     pub async fn get_or_insert_with(
         &mut self,
         init: impl Future<Output = Result<V>>,
     ) -> Result<&V> {
-        self.inner
-            .get_or_insert_with(async {
-                let deadline = Instant::now() + self.duration;
-                Ok((deadline, init.await?))
-            })
-            .await
+        if self.slot.as_ref().is_none_or(|(deadline, _)| Instant::now() > *deadline) {
+            self.slot = Some((Instant::now() + self.duration, init.await?));
+        }
+        Ok(&self.slot.as_ref().unwrap().1)
     }
 }

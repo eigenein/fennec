@@ -226,66 +226,76 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                 }
 
                 section.section.pt-5 {
-                    div.container {
-                        div.table-container {
-                            table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
-                                thead { (steps_table_header()) }
-                                tfoot { (steps_table_header()) }
-                                tbody {
-                                    @for ((interval, energy_price), step) in &hunter_state.steps {
-                                        tr.(WorkingModeColor(step.working_mode)) {
-                                            td {
-                                                (interval.start().format("%b"))
-                                                (PreEscaped("&nbsp;"))
-                                                (interval.start().format("%d"))
-                                            }
-                                            td { (interval.start().format("%H:%M")) }
-                                            td { (interval.end().format("%H:%M")) }
-                                            td { (step.duration) }
-                                            td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
-                                                (energy_price.import)
-                                            }
-                                            td {
-                                                (step.working_mode)
-                                            }
-                                            td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (step.energy_balance.grid.import) }
-                                                    span.icon { i.fas.fa-angles-down {} }
+                    div.card {
+                        header.card-header {
+                            p.card-header-title {
+                                span.icon-text {
+                                    span.icon { i.fa-solid.fa-calendar {} }
+                                    span { "Schedule" }
+                                }
+                            }
+                        }
+                        div.card-content {
+                            div.table-container {
+                                table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                    thead { (steps_table_header()) }
+                                    tfoot { (steps_table_header()) }
+                                    tbody {
+                                        @for ((interval, energy_price), step) in &hunter_state.steps {
+                                            tr.(WorkingModeColor(step.working_mode)) {
+                                                td {
+                                                    (interval.start().format("%b"))
+                                                    (PreEscaped("&nbsp;"))
+                                                    (interval.start().format("%d"))
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (step.energy_balance.grid.export) }
-                                                    span.icon { i.fas.fa-angles-up {} }
+                                                td { (interval.start().format("%H:%M")) }
+                                                td { (interval.end().format("%H:%M")) }
+                                                td { (step.duration) }
+                                                td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
+                                                    (energy_price.import)
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (step.energy_balance.battery.import) }
-                                                    span.icon { i.fas.fa-angle-down {} }
+                                                td {
+                                                    (step.working_mode)
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (step.energy_balance.battery.export) }
-                                                    span.icon { i.fas.fa-angle-up {} }
+                                                td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (step.energy_balance.grid.import) }
+                                                        span.icon { i.fas.fa-angles-down {} }
+                                                    }
                                                 }
-                                            }
-                                            td.has-text-right {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (step.residual_energy_after) }
-                                                    (StateOfCharge {
-                                                        residual_energy: step.residual_energy_after,
-                                                        actual_capacity: logger_state.battery.actual_capacity(),
-                                                    }.icon())
+                                                td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (step.energy_balance.grid.export) }
+                                                        span.icon { i.fas.fa-angles-up {} }
+                                                    }
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
-                                                (step.metrics.losses.grid)
-                                            }
-                                            td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
-                                                (step.metrics.losses.battery)
+                                                td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (step.energy_balance.battery.import) }
+                                                        span.icon { i.fas.fa-angle-down {} }
+                                                    }
+                                                }
+                                                td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (step.energy_balance.battery.export) }
+                                                        span.icon { i.fas.fa-angle-up {} }
+                                                    }
+                                                }
+                                                td.has-text-right {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (step.residual_energy_after) }
+                                                        (StateOfCharge {
+                                                            residual_energy: step.residual_energy_after,
+                                                            actual_capacity: logger_state.battery.actual_capacity(),
+                                                        }.icon())
+                                                    }
+                                                }
+                                                td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
+                                                    (step.metrics.losses.grid)
+                                                }
+                                                td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
+                                                    (step.metrics.losses.battery)
+                                                }
                                             }
                                         }
                                     }

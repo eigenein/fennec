@@ -52,8 +52,8 @@ pub struct HuntSharedArgs {
     battery: BatteryArgs,
 
     /// Do not push schedule to the device, dry run.
-    #[clap(long = "scout", env = "SCOUT")]
-    scout: bool,
+    #[clap(long = "dry-run", alias = "scout", env = "DRY_RUN")]
+    dry_run: bool,
 }
 
 impl HuntSharedArgs {
@@ -67,7 +67,7 @@ impl HuntSharedArgs {
                 .energy_provider(self.energy_provider)
                 .battery_args(self.battery)
                 .quantum(self.quantum)
-                .scout(self.scout)
+                .scout(self.dry_run)
                 .build(),
         ))
     }

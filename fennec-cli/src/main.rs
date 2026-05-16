@@ -55,6 +55,5 @@ fn main() -> Result {
 async fn async_main(args: Args) -> Result {
     match args.command {
         Command::Run(args) => args.run().await,
-        Command::Burrow(args) => args.run().await,
     }
 }

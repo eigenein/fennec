@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub, SubAssign};
 
-use derive_more::{Add, AddAssign};
+use derive_more::{Add, AddAssign, Sub};
 
 use super::Flow;
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone, Debug, PartialEq, Add, AddAssign)]
+#[derive(Copy, Clone, Debug, PartialEq, Add, AddAssign, Sub)]
 pub struct Balance<T> {
     /// How much of energy we must import from and export to the grid on average.
     pub grid: Flow<T>,

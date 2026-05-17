@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use chrono::{Local, NaiveTime, TimeDelta};
+use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 
@@ -10,7 +10,12 @@ use crate::{
     battery::EfficiencyEstimator,
     cli::battery::PowerLimits,
     db::power,
-    ops::{BucketIntegrator, BucketMean, Integrator},
+    ops::{
+        BucketIntegrator,
+        BucketMean,
+        Integrator,
+        smoothing::{Clocked, HalfLife},
+    },
     prelude::*,
     quantity::{Quantum, Zero, power::Watts, time::Hours},
 };
@@ -139,5 +144,30 @@ impl Profile {
 
     pub fn average_balance_on(&self, time: NaiveTime) -> Balance<Watts> {
         self.average_balance[self.time_step.index(time).unwrap()]
+    }
+}
+
+#[must_use]
+pub struct Exponential {
+    decay: HalfLife,
+
+    /// Global average energy balance.
+    average: Clocked<Balance<Watts>>,
+
+    /// Per-minute-bucket energy balance deviation from the global average.
+    deviations: [Clocked<Balance<Watts>>; 24 * 60],
+}
+
+impl Exponential {
+    pub fn new(now: DateTime<Local>, decay: HalfLife) -> Self {
+        let deviations = std::array::from_fn(|_| Clocked::new(Balance::ZERO, now));
+        Self { decay, average: Clocked::new(Balance::ZERO, now), deviations }
+    }
+
+    pub fn update(&mut self, balance: Balance<Watts>, at: DateTime<Local>) {
+        self.average.update(balance, at, self.decay);
+
+        let index: usize = (at.hour() * 60 + at.minute()).try_into().unwrap();
+        self.deviations[index].update(balance - *self.average.get(), at, self.decay);
     }
 }

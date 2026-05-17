@@ -1,5 +1,6 @@
 use std::{
     f64::consts::LN_2,
+    mem::replace,
     ops::{AddAssign, Mul, Sub},
 };
 
@@ -32,42 +33,25 @@ impl<V> Exponential<V> {
     }
 }
 
-/// Exponential moving average with explicit temporal smoothing factor per update.
+/// Half-life-parameterized exponential decay.
 #[must_use]
-pub struct HalfLife<V> {
-    /// Inner raw exponential smoother.
-    smoother: Exponential<V>,
-
+#[derive(Copy, Clone)]
+pub struct HalfLife(
     /// Lambda of the exponential decay, [`LN_2`] divided by the half-time – in [nepers][1] per second, Nps⁻¹.
     ///
     /// [1]: https://en.wikipedia.org/wiki/Neper
-    decay_rate_per_sec: f64,
-}
+    f64,
+);
 
-impl<V> HalfLife<V> {
-    pub fn new(initial_value: V, half_life: TimeDelta) -> Self {
-        Self {
-            smoother: Exponential::new(initial_value),
-            decay_rate_per_sec: LN_2 / half_life.as_seconds_f64(),
-        }
-    }
-
-    /// Get the smoothed value.
-    pub const fn get(&self) -> &V {
-        &self.smoother.0
-    }
-
-    pub fn update(&mut self, value: V, elapsed: TimeDelta)
-    where
-        V: Clone + AddAssign + Sub<Output = V> + Mul<f64, Output = V>,
-    {
-        self.smoother.update(value, self.smoothing_factor(elapsed));
+impl HalfLife {
+    pub fn new(half_life: TimeDelta) -> Self {
+        Self(LN_2 / half_life.as_seconds_f64())
     }
 
     /// Calculate the smoothing factor from the elapsed time.
-    fn smoothing_factor(&self, elapsed: TimeDelta) -> f64 {
+    pub fn smoothing_factor(self, elapsed: TimeDelta) -> f64 {
         assert!(elapsed >= TimeDelta::zero(), "elapsed time must be non-negative");
-        let decay = elapsed.as_seconds_f64() * self.decay_rate_per_sec;
+        let decay = elapsed.as_seconds_f64() * self.0;
         -(-decay).exp_m1()
     }
 }
@@ -75,13 +59,13 @@ impl<V> HalfLife<V> {
 /// Exponential moving average with automatic temporal smoothing.
 #[must_use]
 pub struct Clocked<V> {
-    smoother: HalfLife<V>,
+    smoother: Exponential<V>,
     last_updated_at: DateTime<Local>,
 }
 
 impl<V> Clocked<V> {
-    pub fn new(initial_value: V, initialized_at: DateTime<Local>, half_life: TimeDelta) -> Self {
-        Self { smoother: HalfLife::new(initial_value, half_life), last_updated_at: initialized_at }
+    pub const fn new(initial_value: V, initialized_at: DateTime<Local>) -> Self {
+        Self { smoother: Exponential::new(initial_value), last_updated_at: initialized_at }
     }
 
     /// Get the smoothed value.
@@ -89,11 +73,12 @@ impl<V> Clocked<V> {
         self.smoother.get()
     }
 
-    pub fn update(&mut self, value: V, at: DateTime<Local>)
+    /// Update the moving average according to the elapsed time and decay parameter.
+    pub fn update(&mut self, value: V, at: DateTime<Local>, decay: HalfLife)
     where
         V: Clone + AddAssign + Sub<Output = V> + Mul<f64, Output = V>,
     {
-        self.smoother.update(value, at - self.last_updated_at);
-        self.last_updated_at = at;
+        let elapsed = at - replace(&mut self.last_updated_at, at);
+        self.smoother.update(value, decay.smoothing_factor(elapsed));
     }
 }

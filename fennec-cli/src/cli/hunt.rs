@@ -6,17 +6,13 @@ use std::{
 use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
-use clap::Parser;
 use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
     api::modbus::schedule,
     battery::WorkingMode,
-    cli::{
-        battery::BatteryArgs,
-        connection::{ConnectionArgs, Connections},
-    },
+    cli::{battery::BatteryArgs, connection::Connections},
     cron::CronSchedule,
     db::power,
     energy,
@@ -28,51 +24,6 @@ use crate::{
     state::HunterState,
 };
 
-#[derive(Parser)]
-pub struct HuntSharedArgs {
-    #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
-    energy_provider: energy::Provider,
-
-    #[clap(
-        long = "working-modes",
-        env = "WORKING_MODES",
-        value_delimiter = ',',
-        num_args = 1..,
-        default_value = "harness,compensate,charge,self-use",
-    )]
-    working_modes: Vec<WorkingMode>,
-
-    #[clap(long = "quantum-watthours", env = "QUANTUM_WATTHOURS", default_value = "1")]
-    quantum: WattHours,
-
-    #[clap(flatten)]
-    connections: ConnectionArgs,
-
-    #[clap(flatten)]
-    battery: BatteryArgs,
-
-    /// Do not push schedule to the device, dry run.
-    #[clap(long = "dry-run", alias = "scout", env = "DRY_RUN")]
-    dry_run: bool,
-}
-
-impl HuntSharedArgs {
-    pub async fn hunter(self) -> Result<(Connections, Hunter)> {
-        let connections = self.connections.connect().await?;
-        Ok((
-            connections.clone(),
-            Hunter::builder()
-                .connections(connections)
-                .working_modes(self.working_modes.iter().copied().collect())
-                .energy_provider(self.energy_provider)
-                .battery_args(self.battery)
-                .quantum(self.quantum)
-                .scout(self.dry_run)
-                .build(),
-        ))
-    }
-}
-
 #[must_use]
 #[derive(Builder)]
 pub struct Hunter {
@@ -83,8 +34,6 @@ pub struct Hunter {
     quantum: WattHours,
     scout: bool,
 
-    /// TODO: custom builder.
-    /// TODO: make configurable.
     #[builder(skip = cache::Ttl::new(Duration::from_hours(1)))]
     energy_profile_cache: cache::Ttl<energy::Profile>,
 }
@@ -158,14 +107,11 @@ impl Hunter {
             )
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
-        let base_loss = solver.base_loss();
         let solutions = solver.solve();
         let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
         let steps: Vec<_> = energy_prices.into_iter().zip_eq(steps).collect();
         info!(
-            profit = ?(base_loss - metrics.losses.total()),
-            ?base_loss,
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,
             battery.charge = ?metrics.internal_battery_flow.import,
@@ -194,7 +140,6 @@ impl Hunter {
 
         Ok(HunterState {
             steps,
-            base_loss,
             metrics,
             average_eps_power: energy_profile.average_eps_power,
             battery_efficiency: energy_profile.battery_efficiency,

@@ -27,8 +27,11 @@ macro_rules! new_type_struct {
             ::serde::Serialize,
             ::std::clone::Clone,
             ::std::marker::Copy,
+            ::musli::Encode,
+            ::musli::Decode,
             $($derive),*
         )]
+        #[musli(transparent)]
         pub struct $name(pub $inner);
     };
 }

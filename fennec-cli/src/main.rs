@@ -54,6 +54,7 @@ fn main() -> Result {
 
 async fn async_main(args: Args) -> Result {
     match args.command {
-        Command::Run(args) => args.run().await,
+        Command::Run(args) => Box::pin(args.run()).await,
+        Command::Trace(args) => Box::pin(args.run()).await,
     }
 }

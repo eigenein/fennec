@@ -1,18 +1,21 @@
 use std::ops::{Div, Mul, SubAssign};
 
 use derive_more::{Add, AddAssign, Sub};
+use musli::{Decode, Encode};
 
 use crate::quantity::{Zero, currency::Mills, energy::WattHours, price::KilowattHourPrice};
 
 /// Generic bidirectional energy flow.
 #[must_use]
 #[expect(clippy::derive_partial_eq_without_eq)]
-#[derive(Copy, Clone, Debug, PartialEq, Add, Sub, AddAssign)]
+#[derive(Copy, Clone, Debug, PartialEq, Add, Sub, AddAssign, Encode, Decode)]
 pub struct Flow<T> {
     /// Importing from grid or charging the battery.
+    #[musli(Binary, name = 1)]
     pub import: T,
 
     /// Exporting to the grid or discharging the battery.
+    #[musli(Binary, name = 2)]
     pub export: T,
 }
 

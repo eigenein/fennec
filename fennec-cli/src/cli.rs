@@ -4,10 +4,12 @@ mod hunt;
 mod log;
 mod run;
 mod sentry;
+mod trace;
+mod web;
 
 use clap::{Parser, Subcommand};
 
-use crate::cli::{run::RunArgs, sentry::SentryArgs};
+use crate::cli::{run::RunArgs, sentry::SentryArgs, trace::TraceArgs};
 
 #[derive(Parser)]
 #[command(author, version, about, propagate_version = true)]
@@ -25,4 +27,8 @@ pub enum Command {
     /// Main entry point. Run the full-featured real-time optimization service.
     #[clap(name = "run")]
     Run(Box<RunArgs>),
+
+    /// Trace debugging information.
+    #[clap(name = "trace")]
+    Trace(TraceArgs),
 }

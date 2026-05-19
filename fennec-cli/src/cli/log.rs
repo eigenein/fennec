@@ -4,28 +4,42 @@ use std::{
 };
 
 use backon::{ConstantBuilder, Retryable};
-use bon::Builder;
+use chrono::{Local, TimeDelta};
 use tokio::try_join;
 
 use crate::{
-    cli::connection::Connections,
+    cli::{battery, connection::Connections},
     cron::CronSchedule,
     db::{Measurement, power},
+    energy,
+    energy::Balance,
+    ops::smoothing,
     prelude::*,
     state::LoggerState,
 };
 
 /// Battery state and power meter logger.
-#[derive(Builder)]
 pub struct Logger {
     connections: Connections,
+    battery_power_limits: battery::PowerLimits,
+    energy_profile: energy::ProfileManager,
 }
 
 impl Logger {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
+    pub async fn new(
+        connections: Connections,
+        battery_power_limits: battery::PowerLimits,
+    ) -> Result<Self> {
+        // TODO: make configurable:
+        let decay = smoothing::HalfLife::new(TimeDelta::days(7));
+        let energy_profile = energy::ProfileManager::read_or_default(decay).await?;
+        Ok(Self { connections, battery_power_limits, energy_profile })
+    }
+
     pub async fn run_forever(
-        self,
+        mut self,
         schedule: CronSchedule,
         state: Arc<RwLock<LoggerState>>,
     ) -> Result {
@@ -38,7 +52,7 @@ impl Logger {
     }
 
     /// Run a single logging iteration.
-    pub async fn run_once(&self) -> Result<LoggerState> {
+    pub async fn run_once(&mut self) -> Result<LoggerState> {
         let read_state = || async {
             // Retry them together to ensure the measurements are in sync.
             try_join!(
@@ -51,17 +65,25 @@ impl Logger {
             .notify(log_retried_error)
             .await
             .context("failed to read the energy state")?;
+
+        let net_deficit = grid_metrics.active_power + battery_state.active_power;
+        self.energy_profile
+            .update(Balance::new(self.battery_power_limits, net_deficit), Local::now())
+            .write()
+            .await?;
+
         let battery_measurement = power::BatteryMeasurement::builder()
             .residual_energy(battery_state.residual_energy())
             .active_power(battery_state.active_power)
             .eps_active_power(battery_state.eps_active_power)
             .build();
         power::Measurement::builder()
-            .net_deficit(grid_metrics.active_power + battery_state.active_power)
+            .net_deficit(net_deficit)
             .battery(battery_measurement)
             .build()
             .insert_into(&self.connections.db)
             .await?;
+
         Ok(LoggerState { battery: battery_state })
     }
 }

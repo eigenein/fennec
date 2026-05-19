@@ -6,5 +6,6 @@ LABEL org.opencontainers.image.authors="eigenein"
 LABEL org.opencontainers.image.source="https://github.com/eigenein/fennec"
 
 STOPSIGNAL SIGKILL
+WORKDIR /fennec
 ENTRYPOINT ["/fennec-cli"]
 ADD $TARGETPLATFORM/fennec-cli /

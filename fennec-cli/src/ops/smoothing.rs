@@ -5,13 +5,16 @@ use std::{
 };
 
 use chrono::{DateTime, Local, TimeDelta};
+use musli::{Decode, Encode};
 
 /// Raw [exponential moving average][1] with explicit smoothing factor per update.
 ///
 /// [1]: https://en.wikipedia.org/wiki/Exponential_smoothing
 #[must_use]
+#[derive(Encode, Decode)]
 pub struct Exponential<V>(
     /// Smoothed value.
+    #[musli(name = 1)]
     V,
 );
 
@@ -25,6 +28,10 @@ impl<V> Exponential<V> {
         &self.0
     }
 
+    /// Update the value.
+    ///
+    /// - Smoothing factor of 0 preserves the stored value.
+    /// - Smoothing factor of 1 replaces the stored value.
     pub fn update<F>(&mut self, value: V, factor: F)
     where
         V: Clone + AddAssign + Sub<Output = V> + Mul<F, Output = V>,
@@ -58,8 +65,13 @@ impl HalfLife {
 
 /// Exponential moving average with automatic temporal smoothing.
 #[must_use]
+#[derive(Encode, Decode)]
 pub struct Clocked<V> {
+    #[musli(Binary, name = 1)]
     smoother: Exponential<V>,
+
+    #[musli(Binary, name = 2)]
+    #[musli(with = crate::ops::musli::chrono)]
     last_updated_at: DateTime<Local>,
 }
 

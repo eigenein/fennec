@@ -1,8 +1,9 @@
-use std::time::Instant;
+use std::{fmt::Debug, path::Path, time::Instant};
 
 use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
+use musli::{Decode, Encode, wire};
 
 use super::Balance;
 use crate::{
@@ -20,6 +21,7 @@ use crate::{
     quantity::{Quantum, Zero, power::Watts, time::Hours},
 };
 
+/// TODO: reduce to battery profile and move under `battery`.
 #[must_use]
 pub struct Profile {
     pub average_eps_power: Watts,
@@ -147,27 +149,87 @@ impl Profile {
     }
 }
 
+/// TODO: merge into [`State`], pass `decay` from outside.
 #[must_use]
-pub struct Exponential {
+pub struct Manager {
     decay: HalfLife,
-
-    /// Global average energy balance.
-    average: Clocked<Balance<Watts>>,
-
-    /// Per-minute-bucket energy balance deviation from the global average.
-    deviations: [Clocked<Balance<Watts>>; 24 * 60],
+    state: State,
 }
 
-impl Exponential {
-    pub fn new(now: DateTime<Local>, decay: HalfLife) -> Self {
-        let deviations = std::array::from_fn(|_| Clocked::new(Balance::ZERO, now));
-        Self { decay, average: Clocked::new(Balance::ZERO, now), deviations }
+impl Manager {
+    pub const PATH: &str = "energy-profile.musli";
+
+    pub async fn read_or_default(decay: HalfLife) -> Result<Self> {
+        let path = Path::new(Self::PATH);
+        let state = if path.exists() {
+            info!("reading…");
+            State::read_from(path).await?
+        } else {
+            info!("creating new");
+            State::new()
+        };
+        Ok(Self { decay, state })
     }
 
-    pub fn update(&mut self, balance: Balance<Watts>, at: DateTime<Local>) {
-        self.average.update(balance, at, self.decay);
+    pub fn update(&mut self, balance: Balance<Watts>, at: DateTime<Local>) -> &Self {
+        self.state.average.update(balance, at, self.decay);
 
-        let index: usize = (at.hour() * 60 + at.minute()).try_into().unwrap();
-        self.deviations[index].update(balance - *self.average.get(), at, self.decay);
+        let deviation = balance - *self.state.average.get();
+        self.state.deviations[State::index(at.time())].update(deviation, at, self.decay);
+
+        self
+    }
+
+    pub async fn write(&self) -> Result {
+        self.state.write_to(Path::new(Self::PATH)).await
+    }
+}
+
+/// Persistent state of the energy profile.
+///
+/// TODO: rename into `Profile`, when the above is gone.
+#[must_use]
+#[derive(Encode, Decode)]
+pub struct State {
+    /// Global average energy balance.
+    #[musli(Binary, name = 1)]
+    average: Clocked<Balance<Watts>>,
+
+    /// Energy balance deviation from the global average per [`Self::N_MINUTES_PER_SLOT`] minutes.
+    #[musli(Binary, name = 2)]
+    deviations: [Clocked<Balance<Watts>>; Self::N_SLOTS],
+}
+
+impl State {
+    const N_MINUTES_PER_SLOT: usize = 5;
+    const N_SLOTS: usize = 1440 / Self::N_MINUTES_PER_SLOT;
+
+    fn index(for_: NaiveTime) -> usize {
+        (for_.hour() * 60 + for_.minute()) as usize / Self::N_MINUTES_PER_SLOT
+    }
+
+    fn new() -> Self {
+        let now = Local::now();
+        let deviations = std::array::from_fn(|_| Clocked::new(Balance::ZERO, now));
+        Self { average: Clocked::new(Balance::ZERO, now), deviations }
+    }
+
+    #[instrument(skip_all, fields(path = ?path))]
+    pub async fn read_from(path: impl AsRef<Path> + Debug) -> Result<Self> {
+        let bytes = tokio::fs::read(path).await.context("failed to read the energy profile")?;
+        wire::decode(bytes.as_slice()).context("failed to decode the energy profile")
+    }
+
+    pub const fn get_average(&self) -> Balance<Watts> {
+        *self.average.get()
+    }
+
+    #[instrument(skip_all, fields(path = ?path))]
+    async fn write_to(&self, path: impl AsRef<Path> + Debug) -> Result {
+        let bytes = wire::to_vec(&self).context("failed to encode the energy profile")?;
+        tokio::fs::write(path, bytes.as_slice())
+            .await
+            .context("failed to write the energy profile")?;
+        Ok(())
     }
 }

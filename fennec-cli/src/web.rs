@@ -90,11 +90,11 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                                     span.tag.is-info {
                                         span.icon-text {
                                             span.icon { i.fas.fa-money-bill {} }
-                                            span { "Profit" }
+                                            span { "Loss" }
                                         }
                                     }
                                     span.tag {
-                                        (hunter_state.profit())
+                                        (hunter_state.metrics.losses.total())
                                     }
                                 }
                             }

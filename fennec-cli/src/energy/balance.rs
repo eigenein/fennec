@@ -1,6 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub, SubAssign};
 
 use derive_more::{Add, AddAssign, Sub};
+use musli::{Decode, Encode};
 
 use super::Flow;
 use crate::{
@@ -10,12 +11,14 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone, Debug, PartialEq, Add, AddAssign, Sub)]
+#[derive(Copy, Clone, Debug, PartialEq, Add, AddAssign, Sub, Encode, Decode)]
 pub struct Balance<T> {
     /// How much of energy we must import from and export to the grid on average.
+    #[musli(Binary, name = 1)]
     pub grid: Flow<T>,
 
     /// How much of energy the battery is able to get from the PV excess and produce to power the household.
+    #[musli(Binary, name = 2)]
     pub battery: Flow<T>,
 }
 
@@ -28,10 +31,10 @@ impl Balance<Watts> {
     ///
     /// This allows to track not just the net deficit, but also how much the battery can actually
     /// compensate or absorb.
-    pub fn new(battery_power_limits: PowerLimits, net_power: Watts) -> Self {
+    pub fn new(battery_power_limits: PowerLimits, net_deficit: Watts) -> Self {
         let battery_net_import =
-            (-net_power).clamp(-battery_power_limits.discharging, battery_power_limits.charging);
-        let grid_net_import = net_power + battery_net_import;
+            (-net_deficit).clamp(-battery_power_limits.discharging, battery_power_limits.charging);
+        let grid_net_import = net_deficit + battery_net_import;
         Self {
             grid: Flow {
                 import: grid_net_import.max(Watts::ZERO),

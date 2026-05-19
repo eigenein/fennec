@@ -10,14 +10,7 @@ use crate::{
     energy,
     ops::Schedule,
     prelude::*,
-    quantity::{
-        Midpoint,
-        Quantum,
-        currency::Mills,
-        energy::WattHours,
-        power::Watts,
-        price::KilowattHourPrice,
-    },
+    quantity::{Midpoint, Quantum, energy::WattHours, power::Watts, price::KilowattHourPrice},
     solution::{Losses, Metrics, Solution, Space, Step},
 };
 
@@ -86,18 +79,6 @@ impl Solver<'_> {
 
         info!(elapsed = ?start_instant.elapsed(), space_size = solutions.size(), n_some, "optimized");
         solutions
-    }
-
-    pub fn base_loss(&self) -> Mills {
-        self.energy_prices
-            .iter()
-            .copied()
-            .map(|(mut interval, energy_price)| {
-                interval = interval.clamp_start(self.now);
-                let flow = self.balance_profile.average_balance_on(interval.start().time());
-                energy_price.loss((flow.grid + flow.battery.reversed()) * interval.duration())
-            })
-            .sum()
     }
 
     /// # Returns

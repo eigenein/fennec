@@ -162,10 +162,10 @@ impl Manager {
     pub async fn read_or_default(decay: HalfLife) -> Result<Self> {
         let path = Path::new(Self::PATH);
         let state = if path.exists() {
-            info!("reading…");
+            info!("reading energy profile…");
             State::read_from(path).await?
         } else {
-            info!("creating new");
+            info!("creating new energy profile");
             State::new()
         };
         Ok(Self { decay, state })

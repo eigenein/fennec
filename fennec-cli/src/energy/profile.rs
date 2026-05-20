@@ -157,18 +157,26 @@ impl Profile {
 pub struct Exponential {
     /// Global average energy balance.
     #[musli(Binary, name = 1)]
-    average: Clocked<Balance<Watts>>,
+    average_balance: Clocked<Balance<Watts>>,
 
     /// Energy balance deviation from the global average per [`Self::N_MINUTES_PER_SLOT`] minutes.
     #[musli(Binary, name = 2)]
-    deviations: [Clocked<Balance<Watts>>; Self::N_SLOTS],
+    balance_deviations: [Clocked<Balance<Watts>>; Self::N_SLOTS],
+
+    /// Average EPS active power.
+    #[musli(Binary, name = 3, default = Self::default_eps_power)]
+    eps_active_power: Clocked<Watts>,
 }
 
 impl Default for Exponential {
     fn default() -> Self {
         let now = Local::now();
         let deviations = std::array::from_fn(|_| Clocked::new(Balance::ZERO, now));
-        Self { average: Clocked::new(Balance::ZERO, now), deviations }
+        Self {
+            average_balance: Clocked::new(Balance::ZERO, now),
+            balance_deviations: deviations,
+            eps_active_power: Clocked::new(Watts::ZERO, now),
+        }
     }
 }
 
@@ -203,25 +211,36 @@ impl Exponential {
         Ok(())
     }
 
-    pub const fn get_average(&self) -> Balance<Watts> {
-        *self.average.get()
+    pub const fn get_eps_active_power(&self) -> Watts {
+        *self.eps_active_power.get()
+    }
+
+    pub const fn get_average_balance(&self) -> Balance<Watts> {
+        *self.average_balance.get()
     }
 
     pub fn update(
         &mut self,
         balance: Balance<Watts>,
+        eps_active_power: Watts,
         at: DateTime<Local>,
         decay: HalfLife,
     ) -> &Self {
-        self.average.update(balance, at, decay);
+        self.average_balance.update(balance, at, decay);
+        self.eps_active_power.update(eps_active_power, at, decay);
 
-        let deviation = balance - *self.average.get();
-        self.deviations[Self::slot_index(at.time())].update(deviation, at, decay);
+        let deviation = balance - *self.average_balance.get();
+        self.balance_deviations[Self::slot_index(at.time())].update(deviation, at, decay);
 
         self
     }
 
     fn slot_index(for_: NaiveTime) -> usize {
         (for_.hour() * 60 + for_.minute()) as usize / Self::N_MINUTES_PER_SLOT
+    }
+
+    /// Default smoother to upgrade the persisted structure.
+    fn default_eps_power() -> Clocked<Watts> {
+        Clocked::new(Watts::ZERO, Local::now())
     }
 }

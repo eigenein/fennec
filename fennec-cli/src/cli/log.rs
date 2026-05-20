@@ -70,6 +70,7 @@ impl Logger {
         self.energy_profile
             .update(
                 Balance::new(self.battery_power_limits, net_deficit),
+                battery_state.eps_active_power,
                 Local::now(),
                 self.energy_profile_decay,
             )

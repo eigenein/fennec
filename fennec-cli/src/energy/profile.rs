@@ -214,11 +214,11 @@ impl Exponential {
     }
 
     pub const fn get_eps_active_power(&self) -> Watts {
-        *self.eps_active_power.smoother().get()
+        *self.eps_active_power.get()
     }
 
     pub const fn get_average_balance(&self) -> Balance<Watts> {
-        *self.average_balance.smoother().get()
+        *self.average_balance.get()
     }
 
     pub fn update(
@@ -231,7 +231,7 @@ impl Exponential {
         self.average_balance.update(balance, at, decay);
         self.eps_active_power.update(eps_active_power, at, decay);
 
-        let deviation = balance - *self.average_balance.smoother().get();
+        let deviation = balance - *self.average_balance.get();
         self.balance_deviations[Self::slot_index(at.time())].update(deviation, at, decay);
 
         self

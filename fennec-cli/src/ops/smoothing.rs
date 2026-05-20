@@ -29,11 +29,11 @@ impl<V> Exponential<V> {
         &self.0
     }
 
-    pub fn get_decayed<F>(&self, decay_factor: F) -> V
+    pub fn get_decayed(&self, decay_factor: DecayFactor) -> V
     where
-        V: Clone + Mul<F, Output = V>,
+        V: Clone + Mul<f64, Output = V>,
     {
-        self.0.clone() * decay_factor
+        self.0.clone() * decay_factor.0
     }
 
     /// Update the value.
@@ -116,8 +116,17 @@ impl<V> Clocked<V> {
         Self { smoother: Exponential::new(initial_value), last_updated_at: initialized_at }
     }
 
-    pub const fn smoother(&self) -> &Exponential<V> {
-        &self.smoother
+    /// Get the current smoothed value.
+    pub const fn get(&self) -> &V {
+        self.smoother.get()
+    }
+
+    /// Get the current smoothed value decayed to the specified moment in time.
+    pub fn get_decayed(&self, at: DateTime<Local>, decay: HalfLife) -> V
+    where
+        V: Clone + Mul<f64, Output = V>,
+    {
+        self.smoother.get_decayed(decay.decay_factor(at - self.last_updated_at))
     }
 
     /// Update the moving average according to the elapsed time and decay parameter.

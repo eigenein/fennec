@@ -35,7 +35,7 @@ pub struct RunArgs {
     #[clap(long, env = "LOGGER_CRON", default_value = "*/5 * * * * *")]
     logger_cron: CronSchedule,
 
-    #[clap(long, env = "OPTIMIZER_CRON", default_value = "0 */5 * * * *")]
+    #[clap(long, env = "OPTIMIZER_CRON", default_value = "0 */15 * * * *")]
     optimizer_cron: CronSchedule,
 
     #[clap(long, env = "POWER_LOG_TTL", default_value = "14days")]

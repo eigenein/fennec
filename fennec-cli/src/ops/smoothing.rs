@@ -122,19 +122,19 @@ impl<V> Clocked<V> {
     }
 
     /// Get the current smoothed value decayed to the specified moment in time.
-    pub fn get_decayed(&self, at: DateTime<Local>, decay: HalfLife) -> V
+    pub fn get_decayed(&self, at: DateTime<Local>, half_life: HalfLife) -> V
     where
         V: Clone + Mul<f64, Output = V>,
     {
-        self.smoother.get_decayed(decay.decay_factor(at - self.last_updated_at))
+        self.smoother.get_decayed(half_life.decay_factor(at - self.last_updated_at))
     }
 
     /// Update the moving average according to the elapsed time and decay parameter.
-    pub fn update(&mut self, value: V, at: DateTime<Local>, decay: HalfLife)
+    pub fn update(&mut self, value: V, at: DateTime<Local>, half_life: HalfLife)
     where
         V: Clone + AddAssign + Sub<Output = V> + Mul<f64, Output = V>,
     {
         let elapsed = at - replace(&mut self.last_updated_at, at);
-        self.smoother.update(value, decay.smoothing_factor(elapsed));
+        self.smoother.update(value, half_life.smoothing_factor(elapsed));
     }
 }

@@ -18,7 +18,7 @@ use crate::{
         smoothing::{Clocked, HalfLife},
     },
     prelude::*,
-    quantity::{Quantum, Zero, power::Watts, time::Hours},
+    quantity::{Quantum, Zero, energy::WattHours, power::Watts, time::Hours},
 };
 
 /// TODO: reduce to battery profile and move under `battery`.
@@ -49,7 +49,7 @@ impl Profile {
         let mut balance_integrator = {
             let max_naive_time =
                 NaiveTime::from_num_seconds_from_midnight_opt(86399, 999_999_999).unwrap();
-            BucketIntegrator::new(bucket_time_step.index(max_naive_time).unwrap())
+            BucketIntegrator::new(bucket_time_step.index(max_naive_time))
         };
         let mut eps_power_integrator = Integrator::new();
         let mut parasitic_power_integrator = Integrator::new();
@@ -71,9 +71,8 @@ impl Profile {
                 let current_timestamp = current.timestamp.with_timezone(&Local);
 
                 if previous_timestamp.date_naive() == current_timestamp.date_naive() {
-                    let previous_bucket =
-                        bucket_time_step.index(previous_timestamp.time()).unwrap();
-                    let next_bucket = bucket_time_step.index(current_timestamp.time()).unwrap();
+                    let previous_bucket = bucket_time_step.index(previous_timestamp.time());
+                    let next_bucket = bucket_time_step.index(current_timestamp.time());
                     if next_bucket == previous_bucket {
                         balance_integrator.buckets[next_bucket] += sample;
                     }
@@ -145,7 +144,7 @@ impl Profile {
     }
 
     pub fn average_balance_on(&self, time: NaiveTime) -> Balance<Watts> {
-        self.average_balance[self.time_step.index(time).unwrap()]
+        self.average_balance[self.time_step.index(time)]
     }
 }
 
@@ -221,18 +220,28 @@ impl Exponential {
         *self.average_balance.get()
     }
 
+    pub fn integrate_balance_deviations(
+        &self,
+        from: NaiveTime,
+        to: NaiveTime,
+        half_life: HalfLife,
+    ) -> Balance<WattHours> {
+        assert!(from <= to);
+        todo!()
+    }
+
     pub fn update(
         &mut self,
         balance: Balance<Watts>,
         eps_active_power: Watts,
         at: DateTime<Local>,
-        decay: HalfLife,
+        half_life: HalfLife,
     ) -> &Self {
-        self.average_balance.update(balance, at, decay);
-        self.eps_active_power.update(eps_active_power, at, decay);
+        self.average_balance.update(balance, at, half_life);
+        self.eps_active_power.update(eps_active_power, at, half_life);
 
         let deviation = balance - *self.average_balance.get();
-        self.balance_deviations[Self::slot_index(at.time())].update(deviation, at, decay);
+        self.balance_deviations[Self::slot_index(at.time())].update(deviation, at, half_life);
 
         self
     }

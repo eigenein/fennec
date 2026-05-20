@@ -23,7 +23,7 @@ pub struct Logger {
     connections: Connections,
     battery_power_limits: battery::PowerLimits,
     energy_profile: energy::ExponentialProfile,
-    energy_profile_decay: HalfLife,
+    energy_profile_half_life: HalfLife,
 }
 
 impl Logger {
@@ -32,10 +32,10 @@ impl Logger {
     pub async fn new(
         connections: Connections,
         battery_power_limits: battery::PowerLimits,
-        energy_profile_decay: HalfLife,
+        energy_profile_half_life: HalfLife,
     ) -> Result<Self> {
         let energy_profile = energy::ExponentialProfile::read_or_default().await?;
-        Ok(Self { connections, battery_power_limits, energy_profile, energy_profile_decay })
+        Ok(Self { connections, battery_power_limits, energy_profile, energy_profile_half_life })
     }
 
     pub async fn run_forever(
@@ -72,7 +72,7 @@ impl Logger {
                 Balance::new(self.battery_power_limits, net_deficit),
                 battery_state.eps_active_power,
                 Local::now(),
-                self.energy_profile_decay,
+                self.energy_profile_half_life,
             )
             .write()
             .await?;

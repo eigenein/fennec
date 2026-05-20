@@ -53,14 +53,8 @@ impl Solver<'_> {
     pub fn solve(self) -> Space {
         let start_instant = Instant::now();
 
-        let min_energy_level = self
-            .quantum
-            .index(self.min_residual_energy)
-            .expect("minimum energy level must be quantizable");
-        let max_energy_level = self
-            .quantum
-            .index(self.max_residual_energy)
-            .expect("maximum residual energy must be quantizable");
+        let min_energy_level = self.quantum.index(self.min_residual_energy);
+        let max_energy_level = self.quantum.index(self.max_residual_energy);
         info!(?self.quantum, min_energy_level, max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
 
         let mut solutions =
@@ -138,7 +132,7 @@ impl Solver<'_> {
                 battery: battery_flows.external,
             },
             residual_energy_after: battery.residual_energy,
-            energy_level_after: self.quantum.index(battery.residual_energy).unwrap(),
+            energy_level_after: self.quantum.index(battery.residual_energy),
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {

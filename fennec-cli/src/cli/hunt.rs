@@ -108,7 +108,7 @@ impl Hunter {
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let solutions = solver.solve();
-        let initial_energy_level = self.quantum.index(battery_state.residual_energy()).unwrap();
+        let initial_energy_level = self.quantum.index(battery_state.residual_energy());
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
         let steps: Vec<_> = energy_prices.into_iter().zip_eq(steps).collect();
         info!(

@@ -29,17 +29,37 @@ impl<V> Exponential<V> {
         &self.0
     }
 
-    /// Update the value.
-    ///
-    /// - Smoothing factor of 0 preserves the stored value.
-    /// - Smoothing factor of 1 replaces the stored value.
-    pub fn update<F>(&mut self, value: V, factor: F)
+    pub fn get_decayed<F>(&self, decay_factor: F) -> V
     where
-        V: Clone + AddAssign + Sub<Output = V> + Mul<F, Output = V>,
+        V: Clone + Mul<F, Output = V>,
     {
-        self.0 += (value - self.0.clone()) * factor;
+        self.0.clone() * decay_factor
+    }
+
+    /// Update the value.
+    pub fn update(&mut self, value: V, smoothing_factor: SmoothingFactor)
+    where
+        V: Clone + AddAssign + Sub<Output = V> + Mul<f64, Output = V>,
+    {
+        self.0 += (value - self.0.clone()) * smoothing_factor.0;
     }
 }
+
+/// Exponential [smoothing factor][1].
+///
+/// Note: larger values of smoothing factor actually reduce the level of smoothing.
+///
+/// [1]: https://en.wikipedia.org/wiki/Exponential_smoothing#:~:text=available.%20The%20term-,smoothing%20factor,-applied%20to
+#[must_use]
+#[derive(Copy, Clone)]
+pub struct SmoothingFactor(f64);
+
+/// Exponential [decay factor][1].
+///
+/// [1]: https://en.wikipedia.org/wiki/Exponential_decay
+#[must_use]
+#[derive(Copy, Clone)]
+pub struct DecayFactor(f64);
 
 /// Half-life-parameterized exponential decay.
 #[must_use]
@@ -57,10 +77,25 @@ impl HalfLife {
     }
 
     /// Calculate the smoothing factor from the elapsed time.
-    pub fn smoothing_factor(self, elapsed: TimeDelta) -> f64 {
+    ///
+    /// Algebraically, this is equivalent to one minus [`Self::decay_factor`], but more stable.
+    pub fn smoothing_factor(self, elapsed: TimeDelta) -> SmoothingFactor {
+        SmoothingFactor(-(-self.decay(elapsed)).exp_m1())
+    }
+
+    /// Calculate the decay factor.
+    ///
+    /// Algebraically, this is equivalent to one minus [`Self::smoothing_factor`], but more stable.
+    pub fn decay_factor(self, elapsed: TimeDelta) -> DecayFactor {
+        DecayFactor((-self.decay(elapsed)).exp())
+    }
+
+    /// λΔt measured in [nepers][1].
+    ///
+    /// [1]: https://en.wikipedia.org/wiki/Neper
+    fn decay(self, elapsed: TimeDelta) -> f64 {
         assert!(elapsed >= TimeDelta::zero(), "elapsed time must be non-negative");
-        let decay = elapsed.as_seconds_f64() * self.0;
-        -(-decay).exp_m1()
+        elapsed.as_seconds_f64() * self.0
     }
 }
 

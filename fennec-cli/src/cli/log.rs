@@ -4,7 +4,7 @@ use std::{
 };
 
 use backon::{ConstantBuilder, Retryable};
-use chrono::{Local, TimeDelta};
+use chrono::Local;
 use tokio::try_join;
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
     db::{Measurement, power},
     energy,
     energy::Balance,
-    ops::smoothing,
+    ops::smoothing::HalfLife,
     prelude::*,
     state::LoggerState,
 };
@@ -22,7 +22,8 @@ use crate::{
 pub struct Logger {
     connections: Connections,
     battery_power_limits: battery::PowerLimits,
-    energy_profile: energy::ProfileManager,
+    energy_profile: energy::ExponentialProfile,
+    energy_profile_decay: HalfLife,
 }
 
 impl Logger {
@@ -31,11 +32,10 @@ impl Logger {
     pub async fn new(
         connections: Connections,
         battery_power_limits: battery::PowerLimits,
+        energy_profile_decay: HalfLife,
     ) -> Result<Self> {
-        // TODO: make configurable:
-        let decay = smoothing::HalfLife::new(TimeDelta::days(7));
-        let energy_profile = energy::ProfileManager::read_or_default(decay).await?;
-        Ok(Self { connections, battery_power_limits, energy_profile })
+        let energy_profile = energy::ExponentialProfile::read_or_default().await?;
+        Ok(Self { connections, battery_power_limits, energy_profile, energy_profile_decay })
     }
 
     pub async fn run_forever(
@@ -68,7 +68,11 @@ impl Logger {
 
         let net_deficit = grid_metrics.active_power + battery_state.active_power;
         self.energy_profile
-            .update(Balance::new(self.battery_power_limits, net_deficit), Local::now())
+            .update(
+                Balance::new(self.battery_power_limits, net_deficit),
+                Local::now(),
+                self.energy_profile_decay,
+            )
             .write()
             .await?;
 

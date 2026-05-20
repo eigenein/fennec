@@ -2,6 +2,7 @@ use std::{
     f64::consts::LN_2,
     mem::replace,
     ops::{AddAssign, Mul, Sub},
+    time::Duration,
 };
 
 use chrono::{DateTime, Local, TimeDelta};
@@ -51,8 +52,8 @@ pub struct HalfLife(
 );
 
 impl HalfLife {
-    pub fn new(half_life: TimeDelta) -> Self {
-        Self(LN_2 / half_life.as_seconds_f64())
+    pub const fn new(half_life: Duration) -> Self {
+        Self(LN_2 / half_life.as_secs_f64())
     }
 
     /// Calculate the smoothing factor from the elapsed time.

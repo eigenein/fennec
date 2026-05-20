@@ -15,6 +15,7 @@ use crate::{
     cron::CronSchedule,
     db::power,
     energy,
+    ops::smoothing::HalfLife,
     prelude::*,
     quantity::energy::WattHours,
     web,
@@ -31,17 +32,17 @@ pub struct RunArgs {
     #[clap(flatten)]
     battery: BatteryArgs,
 
-    #[clap(long = "logger-cron", env = "LOGGER_CRON", default_value = "*/5 * * * * *")]
+    #[clap(long, env = "LOGGER_CRON", default_value = "*/5 * * * * *")]
     logger_cron: CronSchedule,
 
-    #[clap(long = "optimizer-cron", env = "OPTIMIZER_CRON", default_value = "0 */5 * * * *")]
+    #[clap(long, env = "OPTIMIZER_CRON", default_value = "0 */5 * * * *")]
     optimizer_cron: CronSchedule,
 
-    #[clap(long = "power-log-ttl", env = "POWER_LOG_TTL", default_value = "14days")]
+    #[clap(long, env = "POWER_LOG_TTL", default_value = "14days")]
     power_log_ttl: humantime::Duration,
 
     #[clap(
-        long = "working-modes",
+        long,
         env = "WORKING_MODES",
         value_delimiter = ',',
         num_args = 1..,
@@ -49,14 +50,17 @@ pub struct RunArgs {
     )]
     working_modes: Vec<WorkingMode>,
 
-    #[clap(long = "energy-provider", env = "ENERGY_PROVIDER")]
+    #[clap(long, env = "ENERGY_PROVIDER")]
     energy_provider: energy::Provider,
 
     #[clap(long = "quantum-watthours", env = "QUANTUM_WATTHOURS", default_value = "1")]
     quantum: WattHours,
 
+    #[clap(long, env = "ENERGY_PROFILE_HALF_LIFE", default_value = "7d")]
+    energy_profile_half_life: humantime::Duration,
+
     /// Do not push schedule to the device, dry run.
-    #[clap(long = "dry-run", alias = "scout", env = "DRY_RUN")]
+    #[clap(long, alias = "scout", env = "DRY_RUN")]
     dry_run: bool,
 }
 
@@ -67,7 +71,12 @@ impl RunArgs {
         let connections = self.connections.connect().await?;
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
 
-        let mut logger = Logger::new(connections.clone(), battery_power_limits).await?;
+        let mut logger = Logger::new(
+            connections.clone(),
+            battery_power_limits,
+            HalfLife::new(self.energy_profile_half_life.into()),
+        )
+        .await?;
         let mut hunter = Hunter::builder()
             .connections(connections.clone())
             .working_modes(self.working_modes.iter().copied().collect())

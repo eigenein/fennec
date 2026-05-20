@@ -83,7 +83,7 @@ pub struct BatteryArgs {
     #[clap(
         long = "battery-degradation-cost",
         env = "BATTERY_DEGRADATION_COST",
-        default_value = "0.01"
+        default_value = "0.001"
     )]
     pub degradation_cost: KilowattHourPrice,
 }

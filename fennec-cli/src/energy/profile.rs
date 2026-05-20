@@ -164,6 +164,8 @@ pub struct Exponential {
     balance_deviations: [Clocked<Balance<Watts>>; Self::N_SLOTS],
 
     /// Average EPS active power.
+    ///
+    /// TODO: eventually, remove `default`.
     #[musli(Binary, name = 3, default = Self::default_eps_power)]
     eps_active_power: Clocked<Watts>,
 }
@@ -212,11 +214,11 @@ impl Exponential {
     }
 
     pub const fn get_eps_active_power(&self) -> Watts {
-        *self.eps_active_power.get()
+        *self.eps_active_power.smoother().get()
     }
 
     pub const fn get_average_balance(&self) -> Balance<Watts> {
-        *self.average_balance.get()
+        *self.average_balance.smoother().get()
     }
 
     pub fn update(
@@ -229,7 +231,7 @@ impl Exponential {
         self.average_balance.update(balance, at, decay);
         self.eps_active_power.update(eps_active_power, at, decay);
 
-        let deviation = balance - *self.average_balance.get();
+        let deviation = balance - *self.average_balance.smoother().get();
         self.balance_deviations[Self::slot_index(at.time())].update(deviation, at, decay);
 
         self
@@ -239,7 +241,7 @@ impl Exponential {
         (for_.hour() * 60 + for_.minute()) as usize / Self::N_MINUTES_PER_SLOT
     }
 
-    /// Default smoother to upgrade the persisted structure.
+    /// Default smoother to upgrade the persisted profile.
     fn default_eps_power() -> Clocked<Watts> {
         Clocked::new(Watts::ZERO, Local::now())
     }

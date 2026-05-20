@@ -81,9 +81,8 @@ impl<V> Clocked<V> {
         Self { smoother: Exponential::new(initial_value), last_updated_at: initialized_at }
     }
 
-    /// Get the smoothed value.
-    pub const fn get(&self) -> &V {
-        self.smoother.get()
+    pub const fn smoother(&self) -> &Exponential<V> {
+        &self.smoother
     }
 
     /// Update the moving average according to the elapsed time and decay parameter.

@@ -19,7 +19,7 @@ name = "fennec-modbus"
 required-features = ["cli"]
 
 [features]
-default = ["cli", "tokio"]
+default = ["tokio"]
 ## Enable the CLI tool.
 cli = ["tokio", "tokio/rt-multi-thread", "tokio/macros", "tracing", "dep:clap", "dep:anyhow", "dep:tracing-subscriber"]
 ## Enable Tokio TCP transport.

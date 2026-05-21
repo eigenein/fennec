@@ -10,7 +10,4 @@ pub mod ratios;
 pub mod time;
 mod zero;
 
-pub use self::{
-    quantum::{Midpoint, Quantum},
-    zero::Zero,
-};
+pub use self::{quantum::Quantum, zero::Zero};

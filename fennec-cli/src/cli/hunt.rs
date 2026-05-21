@@ -19,7 +19,7 @@ use crate::{
     energy::Flow,
     ops::{Schedule, cache},
     prelude::*,
-    quantity::{Quantum, energy::WattHours, price::KilowattHourPrice},
+    quantity::{energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
     state::HunterState,
 };

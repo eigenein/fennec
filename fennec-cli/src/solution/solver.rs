@@ -10,7 +10,7 @@ use crate::{
     energy,
     ops::Schedule,
     prelude::*,
-    quantity::{Midpoint, Quantum, energy::WattHours, power::Watts, price::KilowattHourPrice},
+    quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice},
     solution::{Losses, Metrics, Solution, Space, Step},
 };
 

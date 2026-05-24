@@ -112,6 +112,8 @@ impl Solver<'_> {
         working_mode: WorkingMode,
     ) -> Step {
         let (interval, energy_price) = self.energy_prices[interval_index];
+
+        // TODO: this needs to be average over the interval now:
         let average_balance = self.balance_profile.average_balance_on(interval.start().time());
 
         // Remember that the average flow represents theoretical possibility,

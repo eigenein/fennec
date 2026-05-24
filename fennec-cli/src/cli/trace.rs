@@ -8,9 +8,9 @@ pub struct TraceArgs {}
 impl TraceArgs {
     pub async fn run(self) -> Result {
         let profile = ExponentialProfile::read().await?;
-        let balance = profile.get_average_balance();
+        let balance = profile.average_balance();
         info!(
-            eps_active_power = ?profile.get_eps_active_power(),
+            eps_active_power = ?profile.eps_active_power(),
             grid_import = ?balance.grid.import,
             grid_export = ?balance.grid.export,
             battery_import = ?balance.battery.import,

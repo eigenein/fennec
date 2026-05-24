@@ -17,6 +17,8 @@ impl WattHours {
     pub const ONE: Self = Self(1.0);
 
     /// Project the value into a bucket index.
+    ///
+    /// TODO: I think I'll eventually use just integer [`WattHours`].
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     pub const fn index(self, of: Self) -> usize {
@@ -26,6 +28,8 @@ impl WattHours {
     }
 
     /// Un-project the bucket index into the value that represents the middle of the bucket.
+    ///
+    /// TODO: I think I'll eventually use just integer [`WattHours`].
     #[expect(clippy::cast_precision_loss)]
     pub const fn midpoint(self, index: usize) -> Self {
         Self(self.0 * (index as f64 + 0.5))

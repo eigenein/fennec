@@ -1,6 +1,6 @@
 use std::{path::Path, time::Instant};
 
-use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike};
+use chrono::{DateTime, Local, NaiveTime, TimeDelta};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use musli::{Decode, Encode, wire};
@@ -18,7 +18,7 @@ use crate::{
         smoothing::{Clocked, HalfLife},
     },
     prelude::*,
-    quantity::{Quantum, Zero, energy::WattHours, power::Watts, time::Hours},
+    quantity::{Quantum, Zero, power::Watts, time::Hours},
 };
 
 /// TODO: reduce to battery profile and move under `battery`.
@@ -158,24 +158,16 @@ pub struct Exponential {
     #[musli(Binary, name = 1)]
     average_balance: Clocked<Balance<Watts>>,
 
-    /// Energy balance deviation from the global average per [`Self::N_MINUTES_PER_SLOT`] minutes.
-    #[musli(Binary, name = 2)]
-    balance_deviations: [Clocked<Balance<Watts>>; Self::N_SLOTS],
-
     /// Average EPS active power.
-    ///
-    /// TODO: eventually, remove `default`.
-    #[musli(Binary, name = 3, default = Self::default_eps_power)]
+    #[musli(Binary, name = 3)]
     eps_active_power: Clocked<Watts>,
 }
 
 impl Default for Exponential {
     fn default() -> Self {
         let now = Local::now();
-        let deviations = std::array::from_fn(|_| Clocked::new(Balance::ZERO, now));
         Self {
             average_balance: Clocked::new(Balance::ZERO, now),
-            balance_deviations: deviations,
             eps_active_power: Clocked::new(Watts::ZERO, now),
         }
     }
@@ -183,9 +175,6 @@ impl Default for Exponential {
 
 impl Exponential {
     const PATH: &str = "energy-profile.musli";
-
-    const N_MINUTES_PER_SLOT: usize = 5;
-    const N_SLOTS: usize = 1440 / Self::N_MINUTES_PER_SLOT;
 
     pub async fn read_or_default() -> Result<Self> {
         let path = Path::new(Self::PATH);
@@ -212,22 +201,12 @@ impl Exponential {
         Ok(())
     }
 
-    pub const fn get_eps_active_power(&self) -> Watts {
+    pub const fn eps_active_power(&self) -> Watts {
         *self.eps_active_power.get()
     }
 
-    pub const fn get_average_balance(&self) -> Balance<Watts> {
+    pub const fn average_balance(&self) -> Balance<Watts> {
         *self.average_balance.get()
-    }
-
-    pub fn integrate_balance_deviations(
-        &self,
-        from: NaiveTime,
-        to: NaiveTime,
-        half_life: HalfLife,
-    ) -> Balance<WattHours> {
-        assert!(from <= to);
-        todo!()
     }
 
     pub fn update(
@@ -240,18 +219,6 @@ impl Exponential {
         self.average_balance.update(balance, at, half_life);
         self.eps_active_power.update(eps_active_power, at, half_life);
 
-        let deviation = balance - *self.average_balance.get();
-        self.balance_deviations[Self::slot_index(at.time())].update(deviation, at, half_life);
-
         self
-    }
-
-    fn slot_index(for_: NaiveTime) -> usize {
-        (for_.hour() * 60 + for_.minute()) as usize / Self::N_MINUTES_PER_SLOT
-    }
-
-    /// Default smoother to upgrade the persisted profile.
-    fn default_eps_power() -> Clocked<Watts> {
-        Clocked::new(Watts::ZERO, Local::now())
     }
 }

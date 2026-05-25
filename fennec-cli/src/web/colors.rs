@@ -1,6 +1,13 @@
-use plotters::style::HSLColor;
+use plotters::style::RGBColor;
 
-pub const SUCCESS: HSLColor = HSLColor(141.0 / 360.0, 0.71, 0.48);
-pub const WARNING: HSLColor = HSLColor(48.0 / 360.0, 1.0, 0.67);
-pub const DANGER: HSLColor = HSLColor(348.0 / 360.0, 1.0, 0.61);
-pub const LINK: HSLColor = HSLColor(217.0 / 360.0, 0.71, 0.53);
+/// Bulma success colour.
+pub const SUCCESS: RGBColor = RGBColor(72, 199, 142);
+
+/// Bulma warning colour.
+pub const WARNING: RGBColor = RGBColor(255, 183, 15);
+
+/// Bulma danger colour.
+pub const DANGER: RGBColor = RGBColor(255, 102, 133);
+
+/// Bulma link colour.
+pub const LINK: RGBColor = RGBColor(66, 88, 255);

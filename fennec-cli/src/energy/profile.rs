@@ -163,7 +163,7 @@ pub struct New {
     eps_active_power: Clocked<Watts>,
 
     #[musli(Binary, name = 4, default = Self::default_harmonics)]
-    harmonics: Vec<Clocked<Harmonic>>,
+    balance_harmonics: Vec<Clocked<Harmonic>>,
 }
 
 impl Default for New {
@@ -174,7 +174,7 @@ impl Default for New {
             eps_active_power: Clocked::new(Watts::ZERO, now),
 
             // TODO: make number of harmonics configurable?
-            harmonics: vec![Clocked::new(Harmonic::ZERO, now); 8],
+            balance_harmonics: vec![Clocked::new(Harmonic::ZERO, now); 8],
         }
     }
 }
@@ -216,8 +216,8 @@ impl New {
         *self.mean_balance.value()
     }
 
-    pub const fn harmonics(&self) -> &[Clocked<Harmonic>] {
-        self.harmonics.as_slice()
+    pub const fn balance_harmonics(&self) -> &[Clocked<Harmonic>] {
+        self.balance_harmonics.as_slice()
     }
 
     pub fn update(
@@ -235,7 +235,7 @@ impl New {
 
         // Capture daily periodicity, hence one full day is τ radians:
         let day_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
-        for (k, harmonic) in (1..).zip(self.harmonics.iter_mut()) {
+        for (k, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
             harmonic.update(Harmonic::project(deviation, day_phase * f64::from(k)), at, half_life);
         }
     }
@@ -243,7 +243,7 @@ impl New {
     pub fn deviation_at(&self, naive_time: NaiveTime) -> Balance<Watts> {
         let day_phase = f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU;
         (1..)
-            .zip(self.harmonics.iter())
+            .zip(self.balance_harmonics.iter())
             .map(|(k, harmonic)| {
                 let phase = day_phase * f64::from(k);
                 harmonic.value().cosine * phase.cos() + harmonic.value().sine * phase.sin()
@@ -260,7 +260,7 @@ impl New {
         let n_days = interval.duration().days();
 
         (1..)
-            .zip(self.harmonics.iter())
+            .zip(self.balance_harmonics.iter())
             .map(|(k, harmonic)| {
                 let angular_frequency = TAU * f64::from(k);
                 let harmonic = harmonic.value();

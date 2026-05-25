@@ -55,6 +55,9 @@ jobs:
       - name: "🧪 Install coverage tools"
         uses: "taiki-e/install-action@cargo-llvm-cov"
 
+      - name: "📦 Install plotters dependencies"
+        run: "sudo apt install pkg-config libfreetype6-dev libfontconfig1-dev"
+
       - name: "🧪 Test"
         run: "cargo +nightly llvm-cov --codecov --doctests --output-path=codecov.json --workspace -- --include-ignored"
         env:

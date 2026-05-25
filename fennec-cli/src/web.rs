@@ -15,9 +15,7 @@ use plotters::{
     backend::SVGBackend,
     chart::ChartBuilder,
     drawing::IntoDrawingArea,
-    element::PathElement,
     series::LineSeries,
-    style,
     style::Color,
 };
 

@@ -1,7 +1,6 @@
-use std::{f64::consts::TAU, ops::Mul, path::Path, time::Instant};
+use std::{f64::consts::TAU, path::Path, time::Instant};
 
 use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike};
-use derive_more::{AddAssign, Sub};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use musli::{Decode, Encode, wire};
@@ -12,7 +11,10 @@ use crate::{
     battery::EfficiencyEstimator,
     cli::battery::PowerLimits,
     db::power,
-    math::smoothing::{Clocked, HalfLife},
+    math::{
+        fourier::Harmonic,
+        smoothing::{Clocked, HalfLife},
+    },
     ops::{BucketIntegrator, BucketMean, Integrator, Interval},
     prelude::*,
     quantity::{Quantum, Zero, power::Watts, time::Hours},
@@ -158,7 +160,7 @@ pub struct New {
     eps_active_power: Clocked<Watts>,
 
     #[musli(Binary, name = 4, default = Self::default_harmonics)]
-    balance_harmonics: Vec<Clocked<Harmonic>>,
+    balance_harmonics: Vec<Clocked<Harmonic<Balance<Watts>>>>,
 }
 
 impl Default for New {
@@ -211,7 +213,7 @@ impl New {
         *self.mean_balance.value()
     }
 
-    pub const fn balance_harmonics(&self) -> &[Clocked<Harmonic>] {
+    pub const fn balance_harmonics(&self) -> &[Clocked<Harmonic<Balance<Watts>>>] {
         self.balance_harmonics.as_slice()
     }
 
@@ -229,9 +231,9 @@ impl New {
         self.mean_balance.update(balance, at, half_life);
 
         // Capture daily periodicity, hence one full day is τ radians:
-        let day_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
+        let base_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
         for (k, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
-            harmonic.update(Harmonic::project(deviation, day_phase * f64::from(k)), at, half_life);
+            harmonic.update(Harmonic::project(deviation, base_phase, k), at, half_life);
         }
     }
 
@@ -272,46 +274,7 @@ impl New {
             .fold(Balance::ZERO, |sum, item| sum + item)
     }
 
-    fn default_harmonics() -> Vec<Clocked<Harmonic>> {
+    fn default_harmonics() -> Vec<Clocked<Harmonic<Balance<Watts>>>> {
         vec![Clocked::new(Harmonic::ZERO, Local::now()); 8]
-    }
-}
-
-/// Single non-constant term of the [decomposition][1].
-///
-/// [1]: https://en.wikipedia.org/wiki/Fourier_series
-#[derive(Clone, AddAssign, Sub, Encode, Decode)]
-pub struct Harmonic {
-    #[musli(Binary, name = 1)]
-    cosine: Balance<Watts>,
-
-    #[musli(Binary, name = 2)]
-    sine: Balance<Watts>,
-}
-
-impl Zero for Harmonic {
-    const ZERO: Self = Self { cosine: Balance::ZERO, sine: Balance::ZERO };
-}
-
-impl Mul<f64> for Harmonic {
-    type Output = Self;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Self { cosine: self.cosine * rhs, sine: self.sine * rhs }
-    }
-}
-
-impl Harmonic {
-    /// Project the signal onto the harmonic.
-    pub fn project(signal: Balance<Watts>, phase: f64) -> Self {
-        Self { cosine: signal * (2.0 * phase.cos()), sine: signal * (2.0 * phase.sin()) }
-    }
-
-    pub const fn cosine(&self) -> Balance<Watts> {
-        self.cosine
-    }
-
-    pub const fn sine(&self) -> Balance<Watts> {
-        self.sine
     }
 }

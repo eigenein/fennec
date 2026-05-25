@@ -240,8 +240,19 @@ impl New {
         }
     }
 
+    pub fn deviation_at(&self, naive_time: NaiveTime) -> Balance<Watts> {
+        let day_phase = f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU;
+        (1..)
+            .zip(self.harmonics.iter())
+            .map(|(k, harmonic)| {
+                let phase = day_phase * f64::from(k);
+                harmonic.value().cosine * phase.cos() + harmonic.value().sine * phase.sin()
+            })
+            .fold(Balance::ZERO, |sum, item| sum + item)
+    }
+
     /// Calculate the mean deviation of the balance over the interval.
-    pub fn mean_deviation_between(&self, interval: Interval) -> Balance<Watts> {
+    pub fn mean_deviation_over(&self, interval: Interval) -> Balance<Watts> {
         assert_ne!(interval.start(), interval.end());
 
         let start_time = f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0;

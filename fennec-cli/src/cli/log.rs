@@ -13,7 +13,7 @@ use crate::{
     db::{Measurement, power},
     energy,
     energy::Balance,
-    ops::smoothing::HalfLife,
+    math::smoothing::HalfLife,
     prelude::*,
     state::LoggerState,
 };

@@ -2,7 +2,6 @@ pub mod cache;
 mod integrator;
 pub mod musli;
 mod schedule;
-pub mod smoothing;
 
 pub use self::{
     integrator::{BucketIntegrator, BucketMean, Integrator},

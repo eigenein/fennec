@@ -12,13 +12,8 @@ use crate::{
     battery::EfficiencyEstimator,
     cli::battery::PowerLimits,
     db::power,
-    ops::{
-        BucketIntegrator,
-        BucketMean,
-        Integrator,
-        Interval,
-        smoothing::{Clocked, HalfLife},
-    },
+    math::smoothing::{Clocked, HalfLife},
+    ops::{BucketIntegrator, BucketMean, Integrator, Interval},
     prelude::*,
     quantity::{Quantum, Zero, power::Watts, time::Hours},
 };

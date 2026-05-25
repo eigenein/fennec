@@ -15,7 +15,7 @@ use crate::{
     cron::CronSchedule,
     db::power,
     energy,
-    ops::smoothing::HalfLife,
+    math::smoothing::HalfLife,
     prelude::*,
     quantity::energy::WattHours,
     web,

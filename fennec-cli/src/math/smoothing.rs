@@ -1,11 +1,10 @@
 use std::{
     f64::consts::LN_2,
-    mem::replace,
     ops::{AddAssign, Mul, Sub},
     time::Duration,
 };
 
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::TimeDelta;
 use musli::{Decode, Encode};
 
 /// Raw [exponential moving average][1] with explicit smoothing factor per update.
@@ -75,37 +74,5 @@ impl HalfLife {
     fn decay(self, elapsed: TimeDelta) -> f64 {
         assert!(elapsed >= TimeDelta::zero(), "elapsed time must be non-negative");
         elapsed.as_seconds_f64() * self.0
-    }
-}
-
-/// Exponential moving average with automatic temporal smoothing.
-#[must_use]
-#[derive(Clone, Encode, Decode)]
-pub struct Clocked<V> {
-    #[musli(Binary, name = 1)]
-    smoother: Exponential<V>,
-
-    #[musli(Binary, name = 2)]
-    #[musli(with = crate::ops::musli::chrono)]
-    last_updated_at: DateTime<Local>,
-}
-
-impl<V> Clocked<V> {
-    pub const fn new(initial_value: V, initialized_at: DateTime<Local>) -> Self {
-        Self { smoother: Exponential::new(initial_value), last_updated_at: initialized_at }
-    }
-
-    /// Get the current smoothed value.
-    pub const fn value(&self) -> &V {
-        self.smoother.value()
-    }
-
-    /// Update the moving average according to the elapsed time and decay parameter.
-    pub fn update(&mut self, value: V, at: DateTime<Local>, half_life: HalfLife)
-    where
-        V: Clone + AddAssign + Sub<Output = V> + Mul<f64, Output = V>,
-    {
-        let elapsed = at - replace(&mut self.last_updated_at, at);
-        self.smoother.update(value, half_life.smoothing_factor(elapsed));
     }
 }

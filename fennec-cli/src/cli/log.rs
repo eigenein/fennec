@@ -86,6 +86,12 @@ impl Logger {
             .build()
             .insert_into(&self.connections.db)
             .await?;
+        info!(
+            grid.net_deficit = ?net_deficit,
+            battery.active_power = ?battery_measurement.active_power,
+            battery.eps_active_power = ?battery_measurement.eps_active_power,
+            battery.residual_energy = ?battery_measurement.residual_energy,
+        );
 
         Ok(LoggerState { battery: battery_state })
     }

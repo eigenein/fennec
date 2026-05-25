@@ -1,4 +1,7 @@
-use std::ops::{Add, Div, Mul, Sub, SubAssign};
+use std::{
+    fmt::Debug,
+    ops::{Add, Div, Mul, Sub, SubAssign},
+};
 
 use derive_more::{Add, AddAssign, Sub};
 use musli::{Decode, Encode};
@@ -31,6 +34,8 @@ impl Balance<Watts> {
     ///
     /// This allows to track not just the net deficit, but also how much the battery can actually
     /// compensate or absorb.
+    ///
+    /// See also: <https://en.wikipedia.org/wiki/Jensen%27s_inequality>.
     pub fn new(battery_power_limits: PowerLimits, net_deficit: Watts) -> Self {
         let battery_net_import =
             (-net_deficit).clamp(-battery_power_limits.discharging, battery_power_limits.charging);

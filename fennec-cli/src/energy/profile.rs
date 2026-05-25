@@ -216,6 +216,10 @@ impl New {
         *self.mean_balance.value()
     }
 
+    pub const fn harmonics(&self) -> &[Clocked<Harmonic>] {
+        self.harmonics.as_slice()
+    }
+
     pub fn update(
         &mut self,
         balance: Balance<Watts>,
@@ -270,8 +274,8 @@ impl New {
 /// Single non-constant term of the [decomposition][1].
 ///
 /// [1]: https://en.wikipedia.org/wiki/Fourier_series
-#[derive(Copy, Clone, AddAssign, Sub, Encode, Decode)]
-struct Harmonic {
+#[derive(Clone, AddAssign, Sub, Encode, Decode)]
+pub struct Harmonic {
     #[musli(Binary, name = 1)]
     cosine: Balance<Watts>,
 
@@ -295,5 +299,13 @@ impl Harmonic {
     /// Project the signal onto the harmonic.
     pub fn project(signal: Balance<Watts>, phase: f64) -> Self {
         Self { cosine: signal * (2.0 * phase.cos()), sine: signal * (2.0 * phase.sin()) }
+    }
+
+    pub const fn cosine(&self) -> Balance<Watts> {
+        self.cosine
+    }
+
+    pub const fn sine(&self) -> Balance<Watts> {
+        self.sine
     }
 }

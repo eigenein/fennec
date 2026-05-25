@@ -1,4 +1,4 @@
-//! FoxESS Modbus clients.
+//! FoxESS Modbus client.
 
 use std::array::from_fn;
 

@@ -76,6 +76,11 @@ jobs:
           username: "${{ github.actor }}"
           password: "${{ secrets.GITHUB_TOKEN }}"
 
+      - name: "📦 Install plotters dependencies"
+        run: |
+          sudo apt --yes update
+          sudo apt --yes install pkg-config libfreetype6-dev libfontconfig1-dev
+
       - uses: "goreleaser/goreleaser-action@v7"
         name: "🚀 Build and publish"
         with:

@@ -1,73 +1,9 @@
-use std::{
-    f64::consts::TAU,
-    ops::{Add, Mul, Range},
-};
+use std::ops::Mul;
 
 use derive_more::{AddAssign, Sub};
 use musli::{Decode, Encode};
 
 use crate::quantity::Zero;
-
-#[derive(Encode, Decode)]
-pub struct Decomposition<T> {
-    /// Zero-frequency component.
-    #[musli(Binary, name = 1)]
-    pub mean: T,
-
-    #[musli(Binary, name = 2)]
-    harmonics: Vec<Harmonic<T>>,
-}
-
-impl<T> Decomposition<T> {
-    /// Fourier decomposition with zeroed mean and harmonics.
-    pub fn zero(n_harmonics: usize) -> Self
-    where
-        T: Copy + Zero,
-    {
-        Self { mean: T::ZERO, harmonics: vec![Harmonic::ZERO; n_harmonics] }
-    }
-
-    /// Calculate deviation from the mean at the given base phase.
-    pub fn deviation_at(&self, base_phase: f64) -> T
-    where
-        T: Copy + Add<Output = T> + Mul<f64, Output = T> + Zero,
-    {
-        (1..)
-            .zip(self.harmonics.iter())
-            .map(|(k, harmonic)| {
-                let phase = base_phase * f64::from(k);
-                harmonic.cosine * phase.cos() + harmonic.sine * phase.sin()
-            })
-            .fold(T::ZERO, |sum, item| sum + item)
-    }
-
-    /// Calculate the mean deviation of the balance over the given interval,
-    /// assuming the function is periodic over the unit interval.
-    #[expect(clippy::float_cmp)]
-    pub fn mean_deviation_over(&self, interval: Range<f64>) -> T
-    where
-        T: Copy + Zero + Add<Output = T> + Mul<f64, Output = T>,
-    {
-        assert_ne!(interval.start, interval.end);
-
-        let length = interval.end - interval.start;
-        (1..)
-            .zip(self.harmonics.iter())
-            .map(|(k, harmonic)| {
-                let angular_frequency = TAU * f64::from(k);
-                let cosine_mean = ((angular_frequency * interval.end).sin()
-                    - (angular_frequency * interval.start).sin())
-                    / angular_frequency
-                    / length;
-                let sine_mean = ((angular_frequency * interval.start).cos()
-                    - (angular_frequency * interval.end).cos())
-                    / angular_frequency
-                    / length;
-                harmonic.cosine * cosine_mean + harmonic.sine * sine_mean
-            })
-            .fold(T::ZERO, |sum, item| sum + item)
-    }
-}
 
 /// As single [harmonic][1] from a [harmonic spectrum][2].
 ///

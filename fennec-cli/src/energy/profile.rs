@@ -13,7 +13,7 @@ use crate::{
     db::power,
     math::{
         fourier::Harmonic,
-        smoothing::{Clocked, HalfLife},
+        smoothing::{Exponential, HalfLife},
     },
     ops::{BucketIntegrator, BucketMean, Integrator, Interval},
     prelude::*,
@@ -151,27 +151,31 @@ impl Profile {
 #[must_use]
 #[derive(Clone, Encode, Decode)]
 pub struct New {
-    /// Global average energy balance (constant term of the Fourier decomposition).
-    #[musli(Binary, name = 1)]
-    mean_balance: Clocked<Balance<Watts>>,
+    #[musli(Binary, name = 6)]
+    #[musli(with = crate::ops::musli::chrono)]
+    last_updated_at: DateTime<Local>,
 
     /// Average EPS active power.
-    #[musli(Binary, name = 3)]
-    eps_active_power: Clocked<Watts>,
+    #[musli(Binary, name = 7)]
+    eps_active_power: Exponential<Watts>,
 
-    #[musli(Binary, name = 4, default = Self::default_harmonics)]
-    balance_harmonics: Vec<Clocked<Harmonic<Balance<Watts>>>>,
+    /// Global average energy balance (constant term of the Fourier decomposition).
+    #[musli(Binary, name = 8)]
+    mean_balance: Exponential<Balance<Watts>>,
+
+    #[musli(Binary, name = 9)]
+    balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
 }
 
 impl Default for New {
     fn default() -> Self {
-        let now = Local::now();
         Self {
-            mean_balance: Clocked::new(Balance::ZERO, now),
-            eps_active_power: Clocked::new(Watts::ZERO, now),
+            last_updated_at: Local::now(),
+            mean_balance: Exponential::new(Balance::ZERO),
+            eps_active_power: Exponential::new(Watts::ZERO),
 
             // TODO: make number of harmonics configurable?
-            balance_harmonics: vec![Clocked::new(Harmonic::ZERO, now); 8],
+            balance_harmonics: vec![Exponential::new(Harmonic::ZERO); 8],
         }
     }
 }
@@ -213,10 +217,6 @@ impl New {
         *self.mean_balance.value()
     }
 
-    pub const fn balance_harmonics(&self) -> &[Clocked<Harmonic<Balance<Watts>>>] {
-        self.balance_harmonics.as_slice()
-    }
-
     pub fn update(
         &mut self,
         balance: Balance<Watts>,
@@ -224,16 +224,21 @@ impl New {
         at: DateTime<Local>,
         half_life: HalfLife,
     ) {
-        self.eps_active_power.update(eps_active_power, at, half_life);
+        let smoothing_factor = {
+            let elapsed = at - std::mem::replace(&mut self.last_updated_at, at);
+            half_life.smoothing_factor(elapsed)
+        };
+
+        self.eps_active_power.update(eps_active_power, smoothing_factor);
 
         // Deviation is calculated before the mean update eats the signal:
         let deviation = balance - *self.mean_balance.value();
-        self.mean_balance.update(balance, at, half_life);
+        self.mean_balance.update(balance, smoothing_factor);
 
         // Capture daily periodicity, hence one full day is τ radians:
         let base_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
         for (k, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
-            harmonic.update(Harmonic::project(deviation, base_phase, k), at, half_life);
+            harmonic.update(Harmonic::project(deviation, base_phase, k), smoothing_factor);
         }
     }
 
@@ -272,9 +277,5 @@ impl New {
                 harmonic.cosine * cosine_mean + harmonic.sine * sine_mean
             })
             .fold(Balance::ZERO, |sum, item| sum + item)
-    }
-
-    fn default_harmonics() -> Vec<Clocked<Harmonic<Balance<Watts>>>> {
-        vec![Clocked::new(Harmonic::ZERO, Local::now()); 8]
     }
 }

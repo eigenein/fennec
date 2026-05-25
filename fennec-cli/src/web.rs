@@ -1,16 +1,29 @@
 pub mod application;
 mod battery;
+pub mod colors;
 mod working_mode;
 
 use std::net::IpAddr;
 
 use axum::{Router, extract::State, response::IntoResponse, routing::get};
+use chrono::NaiveTime;
 use clap::crate_version;
 use http::{StatusCode, header};
+use itertools::Itertools;
 use maud::{DOCTYPE, Markup, PreEscaped, html};
+use plotters::{
+    backend::SVGBackend,
+    chart::ChartBuilder,
+    drawing::IntoDrawingArea,
+    element::PathElement,
+    series::LineSeries,
+    style,
+    style::Color,
+};
 
 use crate::{
     battery::WorkingMode,
+    energy,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours},
     web::{battery::StateOfCharge, working_mode::WorkingModeColor},
@@ -40,6 +53,7 @@ async fn get_index(State(state): State<application::State>) -> Markup {
 
     let logger = state.logger.read().unwrap();
     let logger_state = &logger;
+    let mean_balance = logger_state.energy_profile.mean_balance();
 
     let hunter = state.hunter.read().unwrap();
     let hunter_state = &hunter;
@@ -66,6 +80,9 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                     integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
                     crossorigin="anonymous"
                     referrerpolicy="no-referrer";
+                style {
+                    ".has-plotters-fix svg { width: 100%; height: auto; display: block; }"
+                }
             }
             body {
                 nav.navbar.has-shadow role="navigation" aria-label="main navigation" {
@@ -304,6 +321,91 @@ async fn get_index(State(state): State<application::State>) -> Markup {
                         }
                     }
                 }
+
+                section.section.pt-0 {
+                    div.card {
+                        header.card-header {
+                            p.card-header-title {
+                                span.icon-text {
+                                    span.icon { i.fa-solid.fa-chart-line {} }
+                                    span { "Energy profile" }
+                                }
+                            }
+                        }
+                        div.card-content {
+                            div.field.is-grouped.is-grouped-multiline {
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-success {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-charging-station {} }
+                                                span { "Battery mean import" }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angle-down {} }
+                                                span { (mean_balance.battery.import) }
+                                            }
+                                        }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-warning {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-charging-station {} }
+                                                span { "Battery mean export" }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angle-up {} }
+                                                span { (mean_balance.battery.export) }
+                                            }
+                                        }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-danger {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-plug {} }
+                                                span { "Grid mean import" }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angles-down {} }
+                                                span { (mean_balance.grid.import) }
+                                            }
+                                        }
+                                    }
+                                }
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-link {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-plug {} }
+                                                span { "Grid mean export" }
+                                            }
+                                        }
+                                        span.tag {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-angles-up {} }
+                                                span { (mean_balance.grid.export) }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            figure.image.has-plotters-fix {
+                                (energy_profile_chart(&logger_state.energy_profile))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -327,4 +429,77 @@ fn steps_table_header() -> Markup {
             th.has-text-right { "Battery loss" }
         }
     }
+}
+
+#[must_use]
+fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
+    let mut points = {
+        let mean_balance = energy_profile.mean_balance();
+        (0..24)
+            .cartesian_product([0, 10, 20, 30, 40, 50])
+            .map(|(hour, minute)| {
+                (
+                    f64::from(hour) + f64::from(minute) / 60.0,
+                    NaiveTime::from_hms_opt(hour % 24, minute, 0).unwrap(),
+                )
+            })
+            .map(|(x, naive_time)| (x, mean_balance + energy_profile.deviation_at(naive_time)))
+            .collect_vec()
+    };
+    let (min_y, max_y) = {
+        let values = points
+            .iter()
+            .flat_map(|(_, balance)| {
+                [
+                    balance.grid.import,
+                    balance.grid.export,
+                    balance.battery.import,
+                    balance.battery.export,
+                ]
+            })
+            .map(|power| power.0);
+        (
+            values.clone().min_by(f64::total_cmp).unwrap_or_default(),
+            values.max_by(f64::total_cmp).unwrap_or_default(),
+        )
+    };
+    points.push((24.0, points[0].1));
+
+    let mut svg = PreEscaped(String::new());
+    {
+        let drawing_area = SVGBackend::with_string(&mut svg.0, (1000, 250)).into_drawing_area();
+        let mut chart = ChartBuilder::on(&drawing_area)
+            .x_label_area_size(20)
+            .y_label_area_size(40)
+            .margin_top(10)
+            .build_cartesian_2d(0_f64..24_f64, min_y..max_y)
+            .unwrap();
+        chart.configure_mesh().y_max_light_lines(0).draw().unwrap();
+        chart
+            .draw_series(LineSeries::new(
+                points.iter().map(|(x, balance)| (*x, balance.grid.import.0)),
+                colors::DANGER.stroke_width(2),
+            ))
+            .unwrap();
+        chart
+            .draw_series(LineSeries::new(
+                points.iter().map(|(x, balance)| (*x, balance.grid.export.0)),
+                colors::LINK.stroke_width(2),
+            ))
+            .unwrap();
+        chart
+            .draw_series(LineSeries::new(
+                points.iter().map(|(x, balance)| (*x, balance.battery.import.0)),
+                colors::SUCCESS.stroke_width(2),
+            ))
+            .unwrap();
+        chart
+            .draw_series(LineSeries::new(
+                points.iter().map(|(x, balance)| (*x, balance.battery.export.0)),
+                colors::WARNING.stroke_width(2),
+            ))
+            .unwrap();
+        drawing_area.present().unwrap();
+    }
+    svg
 }

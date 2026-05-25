@@ -22,7 +22,7 @@ use crate::{
 pub struct Logger {
     connections: Connections,
     battery_power_limits: battery::PowerLimits,
-    energy_profile: energy::ExponentialProfile,
+    energy_profile: energy::NewProfile,
     energy_profile_half_life: HalfLife,
 }
 
@@ -34,7 +34,7 @@ impl Logger {
         battery_power_limits: battery::PowerLimits,
         energy_profile_half_life: HalfLife,
     ) -> Result<Self> {
-        let energy_profile = energy::ExponentialProfile::read_or_default().await?;
+        let energy_profile = energy::NewProfile::read_or_default().await?;
         Ok(Self { connections, battery_power_limits, energy_profile, energy_profile_half_life })
     }
 
@@ -67,8 +67,17 @@ impl Logger {
             .context("failed to read the energy state")?;
 
         let net_deficit = grid_metrics.active_power + battery_state.active_power;
+        let balance = Balance::new(self.battery_power_limits, net_deficit);
+        info!(
+            grid.import = ?balance.grid.import,
+            grid.export = ?balance.grid.export,
+            battery.import = ?balance.battery.import,
+            battery.export = ?balance.battery.export,
+            "energy balance",
+        );
+
         self.energy_profile.update(
-            Balance::new(self.battery_power_limits, net_deficit),
+            balance,
             battery_state.eps_active_power,
             Local::now(),
             self.energy_profile_half_life,
@@ -91,8 +100,9 @@ impl Logger {
             battery.active_power = ?battery_measurement.active_power,
             battery.eps_active_power = ?battery_measurement.eps_active_power,
             battery.residual_energy = ?battery_measurement.residual_energy,
+            "measurements",
         );
 
-        Ok(LoggerState { battery: battery_state })
+        Ok(LoggerState { battery: battery_state, energy_profile: self.energy_profile.clone() })
     }
 }

@@ -1,5 +1,6 @@
 use crate::{
     battery,
+    energy,
     energy::Flow,
     ops::Interval,
     quantity::{power::Watts, price::KilowattHourPrice},
@@ -17,4 +18,5 @@ pub struct HunterState {
 #[must_use]
 pub struct LoggerState {
     pub battery: battery::State,
+    pub energy_profile: energy::NewProfile,
 }

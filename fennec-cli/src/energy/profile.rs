@@ -152,7 +152,7 @@ impl Profile {
 
 /// TODO: rename into `Profile`, when the above is gone.
 #[must_use]
-#[derive(Encode, Decode)]
+#[derive(Clone, Encode, Decode)]
 pub struct New {
     /// Global average energy balance (constant term of the Fourier decomposition).
     #[musli(Binary, name = 1)]

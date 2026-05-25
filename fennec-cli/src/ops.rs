@@ -1,6 +1,6 @@
 pub mod cache;
 mod integrator;
-mod musli;
+pub mod musli;
 mod schedule;
 pub mod smoothing;
 

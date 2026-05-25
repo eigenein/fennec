@@ -7,3 +7,10 @@ impl From<TimeDelta> for Hours {
         Self(time_delta.as_seconds_f64() / 3600.0)
     }
 }
+
+impl Hours {
+    /// Convert the duration to days.
+    pub const fn days(self) -> f64 {
+        self.0 / 24.0
+    }
+}

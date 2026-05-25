@@ -12,7 +12,7 @@ use musli::{Decode, Encode};
 ///
 /// [1]: https://en.wikipedia.org/wiki/Exponential_smoothing
 #[must_use]
-#[derive(Encode, Decode)]
+#[derive(Clone, Encode, Decode)]
 pub struct Exponential<V>(
     /// Smoothed value.
     #[musli(name = 1)]
@@ -25,15 +25,8 @@ impl<V> Exponential<V> {
     }
 
     /// Get the smoothed value.
-    pub const fn get(&self) -> &V {
+    pub const fn value(&self) -> &V {
         &self.0
-    }
-
-    pub fn get_decayed(&self, decay_factor: DecayFactor) -> V
-    where
-        V: Clone + Mul<f64, Output = V>,
-    {
-        self.0.clone() * decay_factor.0
     }
 
     /// Update the value.
@@ -53,13 +46,6 @@ impl<V> Exponential<V> {
 #[must_use]
 #[derive(Copy, Clone)]
 pub struct SmoothingFactor(f64);
-
-/// Exponential [decay factor][1].
-///
-/// [1]: https://en.wikipedia.org/wiki/Exponential_decay
-#[must_use]
-#[derive(Copy, Clone)]
-pub struct DecayFactor(f64);
 
 /// Half-life-parameterized exponential decay.
 #[must_use]
@@ -83,13 +69,6 @@ impl HalfLife {
         SmoothingFactor(-(-self.decay(elapsed)).exp_m1())
     }
 
-    /// Calculate the decay factor.
-    ///
-    /// Algebraically, this is equivalent to one minus [`Self::smoothing_factor`], but more stable.
-    pub fn decay_factor(self, elapsed: TimeDelta) -> DecayFactor {
-        DecayFactor((-self.decay(elapsed)).exp())
-    }
-
     /// λΔt measured in [nepers][1].
     ///
     /// [1]: https://en.wikipedia.org/wiki/Neper
@@ -101,7 +80,7 @@ impl HalfLife {
 
 /// Exponential moving average with automatic temporal smoothing.
 #[must_use]
-#[derive(Encode, Decode)]
+#[derive(Clone, Encode, Decode)]
 pub struct Clocked<V> {
     #[musli(Binary, name = 1)]
     smoother: Exponential<V>,
@@ -117,16 +96,8 @@ impl<V> Clocked<V> {
     }
 
     /// Get the current smoothed value.
-    pub const fn get(&self) -> &V {
-        self.smoother.get()
-    }
-
-    /// Get the current smoothed value decayed to the specified moment in time.
-    pub fn get_decayed(&self, at: DateTime<Local>, half_life: HalfLife) -> V
-    where
-        V: Clone + Mul<f64, Output = V>,
-    {
-        self.smoother.get_decayed(half_life.decay_factor(at - self.last_updated_at))
+    pub const fn value(&self) -> &V {
+        self.smoother.value()
     }
 
     /// Update the moving average according to the elapsed time and decay parameter.

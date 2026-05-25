@@ -6,6 +6,6 @@ mod provider;
 pub use self::{
     balance::Balance,
     flow::Flow,
-    profile::{Exponential as ExponentialProfile, Profile},
+    profile::{New as ExponentialProfile, Profile},
     provider::Provider,
 };

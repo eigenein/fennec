@@ -1,6 +1,7 @@
-use std::{path::Path, time::Instant};
+use std::{f64::consts::TAU, ops::Mul, path::Path, time::Instant};
 
-use chrono::{DateTime, Local, NaiveTime, TimeDelta};
+use chrono::{DateTime, Local, NaiveTime, TimeDelta, Timelike};
+use derive_more::{AddAssign, Sub};
 use futures_core::TryStream;
 use futures_util::TryStreamExt;
 use musli::{Decode, Encode, wire};
@@ -15,6 +16,7 @@ use crate::{
         BucketIntegrator,
         BucketMean,
         Integrator,
+        Interval,
         smoothing::{Clocked, HalfLife},
     },
     prelude::*,
@@ -148,32 +150,36 @@ impl Profile {
     }
 }
 
-/// Persistent state of the energy profile.
-///
 /// TODO: rename into `Profile`, when the above is gone.
 #[must_use]
 #[derive(Encode, Decode)]
-pub struct Exponential {
-    /// Global average energy balance.
+pub struct New {
+    /// Global average energy balance (constant term of the Fourier decomposition).
     #[musli(Binary, name = 1)]
-    average_balance: Clocked<Balance<Watts>>,
+    mean_balance: Clocked<Balance<Watts>>,
 
     /// Average EPS active power.
     #[musli(Binary, name = 3)]
     eps_active_power: Clocked<Watts>,
+
+    #[musli(Binary, name = 4, default = Self::default_harmonics)]
+    harmonics: Vec<Clocked<Harmonic>>,
 }
 
-impl Default for Exponential {
+impl Default for New {
     fn default() -> Self {
         let now = Local::now();
         Self {
-            average_balance: Clocked::new(Balance::ZERO, now),
+            mean_balance: Clocked::new(Balance::ZERO, now),
             eps_active_power: Clocked::new(Watts::ZERO, now),
+
+            // TODO: make number of harmonics configurable?
+            harmonics: vec![Clocked::new(Harmonic::ZERO, now); 8],
         }
     }
 }
 
-impl Exponential {
+impl New {
     const PATH: &str = "energy-profile.musli";
 
     pub async fn read_or_default() -> Result<Self> {
@@ -193,6 +199,7 @@ impl Exponential {
         wire::decode(bytes.as_slice()).context("failed to decode the energy profile")
     }
 
+    /// TODO: write to temporary file and rename for atomicity.
     pub async fn write(&self) -> Result {
         let bytes = wire::to_vec(&self).context("failed to encode the energy profile")?;
         tokio::fs::write(Self::PATH, bytes.as_slice())
@@ -202,11 +209,11 @@ impl Exponential {
     }
 
     pub const fn eps_active_power(&self) -> Watts {
-        *self.eps_active_power.get()
+        *self.eps_active_power.value()
     }
 
-    pub const fn average_balance(&self) -> Balance<Watts> {
-        *self.average_balance.get()
+    pub const fn mean_balance(&self) -> Balance<Watts> {
+        *self.mean_balance.value()
     }
 
     pub fn update(
@@ -215,10 +222,78 @@ impl Exponential {
         eps_active_power: Watts,
         at: DateTime<Local>,
         half_life: HalfLife,
-    ) -> &Self {
-        self.average_balance.update(balance, at, half_life);
+    ) {
         self.eps_active_power.update(eps_active_power, at, half_life);
 
-        self
+        // Deviation is calculated before the mean update eats the signal:
+        let deviation = balance - *self.mean_balance.value();
+        self.mean_balance.update(balance, at, half_life);
+
+        // Capture daily periodicity, hence one full day is τ radians:
+        let day_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
+        for (k, harmonic) in (1..).zip(self.harmonics.iter_mut()) {
+            harmonic.update(Harmonic::project(deviation, day_phase * f64::from(k)), at, half_life);
+        }
+    }
+
+    /// Calculate the mean deviation of the balance over the interval.
+    pub fn mean_deviation_between(&self, interval: Interval) -> Balance<Watts> {
+        assert_ne!(interval.start(), interval.end());
+
+        let start_time = f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0;
+        let end_time = f64::from(interval.end().time().num_seconds_from_midnight()) / 86400.0;
+        let n_days = interval.duration().days();
+
+        (1..)
+            .zip(self.harmonics.iter())
+            .map(|(k, harmonic)| {
+                let angular_frequency = TAU * f64::from(k);
+                let harmonic = harmonic.value();
+                let cosine_mean = ((angular_frequency * end_time).sin()
+                    - (angular_frequency * start_time).sin())
+                    / angular_frequency
+                    / n_days;
+                let sine_mean = ((angular_frequency * start_time).cos()
+                    - (angular_frequency * end_time).cos())
+                    / angular_frequency
+                    / n_days;
+                harmonic.cosine * cosine_mean + harmonic.sine * sine_mean
+            })
+            .fold(Balance::ZERO, |sum, item| sum + item)
+    }
+
+    fn default_harmonics() -> Vec<Clocked<Harmonic>> {
+        vec![Clocked::new(Harmonic::ZERO, Local::now()); 8]
+    }
+}
+
+/// Single non-constant term of the [decomposition][1].
+///
+/// [1]: https://en.wikipedia.org/wiki/Fourier_series
+#[derive(Copy, Clone, AddAssign, Sub, Encode, Decode)]
+struct Harmonic {
+    #[musli(Binary, name = 1)]
+    cosine: Balance<Watts>,
+
+    #[musli(Binary, name = 2)]
+    sine: Balance<Watts>,
+}
+
+impl Zero for Harmonic {
+    const ZERO: Self = Self { cosine: Balance::ZERO, sine: Balance::ZERO };
+}
+
+impl Mul<f64> for Harmonic {
+    type Output = Self;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self { cosine: self.cosine * rhs, sine: self.sine * rhs }
+    }
+}
+
+impl Harmonic {
+    /// Project the signal onto the harmonic.
+    pub fn project(signal: Balance<Watts>, phase: f64) -> Self {
+        Self { cosine: signal * (2.0 * phase.cos()), sine: signal * (2.0 * phase.sin()) }
     }
 }

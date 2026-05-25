@@ -67,15 +67,13 @@ impl Logger {
             .context("failed to read the energy state")?;
 
         let net_deficit = grid_metrics.active_power + battery_state.active_power;
-        self.energy_profile
-            .update(
-                Balance::new(self.battery_power_limits, net_deficit),
-                battery_state.eps_active_power,
-                Local::now(),
-                self.energy_profile_half_life,
-            )
-            .write()
-            .await?;
+        self.energy_profile.update(
+            Balance::new(self.battery_power_limits, net_deficit),
+            battery_state.eps_active_power,
+            Local::now(),
+            self.energy_profile_half_life,
+        );
+        self.energy_profile.write().await?;
 
         let battery_measurement = power::BatteryMeasurement::builder()
             .residual_energy(battery_state.residual_energy())

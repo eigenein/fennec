@@ -441,7 +441,9 @@ fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
                     NaiveTime::from_hms_opt(hour % 24, minute, 0).unwrap(),
                 )
             })
-            .map(|(x, naive_time)| (x, mean_balance + energy_profile.deviation_at(naive_time)))
+            .map(|(x, naive_time)| {
+                (x, mean_balance + energy_profile.balance_deviation_at(naive_time))
+            })
             .collect_vec()
     };
     let (min_y, max_y) = {

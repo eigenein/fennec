@@ -12,10 +12,10 @@ use crate::{
     cli::battery::PowerLimits,
     db::power,
     math::{
-        fourier::Harmonic,
+        fourier,
         smoothing::{Clocked, HalfLife},
     },
-    ops::{BucketIntegrator, BucketMean, Integrator, Interval},
+    ops::{BucketIntegrator, BucketMean, Integrator},
     prelude::*,
     quantity::{Quantum, Zero, power::Watts, time::Hours},
 };
@@ -151,27 +151,20 @@ impl Profile {
 #[must_use]
 #[derive(Clone, Encode, Decode)]
 pub struct New {
-    /// Global average energy balance (constant term of the Fourier decomposition).
-    #[musli(Binary, name = 1)]
-    mean_balance: Clocked<Balance<Watts>>,
-
     /// Average EPS active power.
     #[musli(Binary, name = 3)]
-    eps_active_power: Clocked<Watts>,
+    pub eps_active_power: Clocked<Watts>,
 
-    #[musli(Binary, name = 4, default = Self::default_harmonics)]
-    balance_harmonics: Vec<Clocked<Harmonic<Balance<Watts>>>>,
+    #[musli(Binary, name = 5, default = Self::default_decomposition)]
+    balance: Clocked<fourier::Decomposition<Balance<Watts>>>,
 }
 
 impl Default for New {
     fn default() -> Self {
         let now = Local::now();
         Self {
-            mean_balance: Clocked::new(Balance::ZERO, now),
             eps_active_power: Clocked::new(Watts::ZERO, now),
-
-            // TODO: make number of harmonics configurable?
-            balance_harmonics: vec![Clocked::new(Harmonic::ZERO, now); 8],
+            balance: Self::default_decomposition(),
         }
     }
 }
@@ -205,16 +198,12 @@ impl New {
         Ok(())
     }
 
-    pub const fn eps_active_power(&self) -> Watts {
-        *self.eps_active_power.value()
-    }
-
     pub const fn mean_balance(&self) -> Balance<Watts> {
-        *self.mean_balance.value()
+        self.balance.value().mean
     }
 
-    pub const fn balance_harmonics(&self) -> &[Clocked<Harmonic<Balance<Watts>>>] {
-        self.balance_harmonics.as_slice()
+    pub fn balance_deviation_at(&self, naive_time: NaiveTime) -> Balance<Watts> {
+        self.balance.value().deviation_at(Self::phase_of(naive_time))
     }
 
     pub fn update(
@@ -225,56 +214,19 @@ impl New {
         half_life: HalfLife,
     ) {
         self.eps_active_power.update(eps_active_power, at, half_life);
-
-        // Deviation is calculated before the mean update eats the signal:
-        let deviation = balance - *self.mean_balance.value();
-        self.mean_balance.update(balance, at, half_life);
-
-        // Capture daily periodicity, hence one full day is τ radians:
-        let base_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
-        for (k, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
-            harmonic.update(Harmonic::project(deviation, base_phase, k), at, half_life);
-        }
+        self.balance.update(
+            self.balance.value().project(balance, Self::phase_of(at.time())),
+            at,
+            half_life,
+        );
     }
 
-    pub fn deviation_at(&self, naive_time: NaiveTime) -> Balance<Watts> {
-        let day_phase = f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU;
-        (1..)
-            .zip(self.balance_harmonics.iter())
-            .map(|(k, harmonic)| {
-                let phase = day_phase * f64::from(k);
-                harmonic.value().cosine * phase.cos() + harmonic.value().sine * phase.sin()
-            })
-            .fold(Balance::ZERO, |sum, item| sum + item)
+    fn phase_of(naive_time: NaiveTime) -> f64 {
+        f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU
     }
 
-    /// Calculate the mean deviation of the balance over the interval.
-    pub fn mean_deviation_over(&self, interval: Interval) -> Balance<Watts> {
-        assert_ne!(interval.start(), interval.end());
-
-        let start_time = f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0;
-        let end_time = f64::from(interval.end().time().num_seconds_from_midnight()) / 86400.0;
-        let n_days = interval.duration().days();
-
-        (1..)
-            .zip(self.balance_harmonics.iter())
-            .map(|(k, harmonic)| {
-                let angular_frequency = TAU * f64::from(k);
-                let harmonic = harmonic.value();
-                let cosine_mean = ((angular_frequency * end_time).sin()
-                    - (angular_frequency * start_time).sin())
-                    / angular_frequency
-                    / n_days;
-                let sine_mean = ((angular_frequency * start_time).cos()
-                    - (angular_frequency * end_time).cos())
-                    / angular_frequency
-                    / n_days;
-                harmonic.cosine * cosine_mean + harmonic.sine * sine_mean
-            })
-            .fold(Balance::ZERO, |sum, item| sum + item)
-    }
-
-    fn default_harmonics() -> Vec<Clocked<Harmonic<Balance<Watts>>>> {
-        vec![Clocked::new(Harmonic::ZERO, Local::now()); 8]
+    fn default_decomposition() -> Clocked<fourier::Decomposition<Balance<Watts>>> {
+        // TODO: make number of harmonics configurable?
+        Clocked::new(fourier::Decomposition::zero(8), Local::now())
     }
 }

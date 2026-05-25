@@ -1,6 +1,6 @@
 use std::{
     f64::consts::TAU,
-    ops::{Add, Mul, Range},
+    ops::{Add, AddAssign, Mul, Range, Sub},
 };
 
 use derive_more::{AddAssign, Sub};
@@ -8,7 +8,7 @@ use musli::{Decode, Encode};
 
 use crate::quantity::Zero;
 
-#[derive(Encode, Decode)]
+#[derive(Clone, Encode, Decode)]
 pub struct Decomposition<T> {
     /// Zero-frequency component.
     #[musli(Binary, name = 1)]
@@ -16,6 +16,44 @@ pub struct Decomposition<T> {
 
     #[musli(Binary, name = 2)]
     harmonics: Vec<Harmonic<T>>,
+}
+
+impl<T: AddAssign> AddAssign for Decomposition<T> {
+    fn add_assign(&mut self, rhs: Self) {
+        assert_eq!(self.harmonics.len(), rhs.harmonics.len());
+        self.mean += rhs.mean;
+        for (lhs, rhs) in self.harmonics.iter_mut().zip(rhs.harmonics) {
+            *lhs += rhs;
+        }
+    }
+}
+
+impl<T: Sub<Output = T>> Sub for Decomposition<T> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        assert_eq!(self.harmonics.len(), rhs.harmonics.len());
+        Self {
+            mean: self.mean - rhs.mean,
+            harmonics: self
+                .harmonics
+                .into_iter()
+                .zip(rhs.harmonics)
+                .map(|(lhs, rhs)| lhs - rhs)
+                .collect(),
+        }
+    }
+}
+
+impl<T: Mul<f64, Output = T>> Mul<f64> for Decomposition<T> {
+    type Output = Self;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self {
+            mean: self.mean * rhs,
+            harmonics: self.harmonics.into_iter().map(|harmonic| harmonic * rhs).collect(),
+        }
+    }
 }
 
 impl<T> Decomposition<T> {
@@ -34,8 +72,8 @@ impl<T> Decomposition<T> {
     {
         (1..)
             .zip(self.harmonics.iter())
-            .map(|(k, harmonic)| {
-                let phase = base_phase * f64::from(k);
+            .map(|(mode_index, harmonic)| {
+                let phase = base_phase * f64::from(mode_index);
                 harmonic.cosine * phase.cos() + harmonic.sine * phase.sin()
             })
             .fold(T::ZERO, |sum, item| sum + item)
@@ -53,8 +91,8 @@ impl<T> Decomposition<T> {
         let length = interval.end - interval.start;
         (1..)
             .zip(self.harmonics.iter())
-            .map(|(k, harmonic)| {
-                let angular_frequency = TAU * f64::from(k);
+            .map(|(mode_index, harmonic)| {
+                let angular_frequency = TAU * f64::from(mode_index);
                 let cosine_mean = ((angular_frequency * interval.end).sin()
                     - (angular_frequency * interval.start).sin())
                     / angular_frequency
@@ -66,6 +104,25 @@ impl<T> Decomposition<T> {
                 harmonic.cosine * cosine_mean + harmonic.sine * sine_mean
             })
             .fold(T::ZERO, |sum, item| sum + item)
+    }
+
+    /// TODO: I'm honestly unsure how to name this operation. Claude, got ideas?
+    pub fn project(&self, signal: T, base_phase: f64) -> Self
+    where
+        T: Copy + Sub<Output = T> + Mul<f64, Output = T>,
+    {
+        let deviation = signal - self.mean;
+
+        Self {
+            // The mean is going to tend to the signal:
+            mean: signal,
+
+            // The harmonics, on the other hand, tend to the projections onto the Fourier series:
+            harmonics: (1..)
+                .take(self.harmonics.len())
+                .map(|mode_index| Harmonic::project(deviation, base_phase, mode_index))
+                .collect(),
+        }
     }
 }
 

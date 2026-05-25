@@ -41,7 +41,7 @@ humantime = "2.3.0"
 maud = { version = "0.27.0", features = ["axum"] }
 musli = { version = "0.0.149", features = ["wire", "serde"] }
 mongodb = { version = "3.5.2", features = ["bson-3", "zlib-compression", "snappy-compression", "zstd-compression"] }
-plotters = { version = "0.3.7", default-features = false, features = ["svg_backend", "line_series"]}
+plotters = { version = "0.3.7", default-features = false, features = ["svg_backend", "line_series", "full_palette"]}
 reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "deflate", "brotli", "gzip", "http2"] }
 sentry = { version = "0.48.0", default-features = false, features = ["rustls", "tracing", "backtrace", "contexts", "panic", "reqwest", "anyhow", "release-health"] }
 serde = { version = "1.0.228", features = ["derive"] }

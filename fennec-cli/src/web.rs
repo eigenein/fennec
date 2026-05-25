@@ -16,7 +16,8 @@ use plotters::{
     chart::ChartBuilder,
     drawing::IntoDrawingArea,
     series::LineSeries,
-    style::Color,
+    style,
+    style::{Color, full_palette},
 };
 
 use crate::{
@@ -472,7 +473,14 @@ fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
             .margin_top(10)
             .build_cartesian_2d(0_f64..24_f64, min_y..max_y)
             .unwrap();
-        chart.configure_mesh().y_max_light_lines(0).draw().unwrap();
+        chart
+            .configure_mesh()
+            .bold_line_style(&full_palette::GREY_600)
+            .light_line_style(&full_palette::GREY_600.mix(0.25))
+            .label_style(&full_palette::GREY_600)
+            .y_max_light_lines(0)
+            .draw()
+            .unwrap();
         chart
             .draw_series(LineSeries::new(
                 points.iter().map(|(x, balance)| (*x, balance.grid.import.0)),

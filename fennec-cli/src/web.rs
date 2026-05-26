@@ -474,7 +474,7 @@ fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
             .unwrap();
         chart
             .configure_mesh()
-            .bold_line_style(full_palette::GREY_600)
+            .bold_line_style(full_palette::GREY_600.mix(0.75))
             .light_line_style(full_palette::GREY_600.mix(0.25))
             .label_style(&full_palette::GREY_600)
             .y_max_light_lines(0)

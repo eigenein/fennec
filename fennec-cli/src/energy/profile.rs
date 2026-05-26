@@ -262,7 +262,10 @@ impl New {
 
     /// Calculate the mean deviation of the balance over the interval.
     pub fn mean_deviation_over(&self, interval: Interval) -> Balance<Watts> {
-        assert_ne!(interval.start(), interval.end());
+        assert!(interval.start() < interval.end());
+
+        // FIXME: support this:
+        assert!(interval.start().time() < interval.end().time());
 
         let start_time = f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0;
         let end_time = f64::from(interval.end().time().num_seconds_from_midnight()) / 86400.0;

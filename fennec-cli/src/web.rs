@@ -8,7 +8,6 @@ use std::net::IpAddr;
 
 use axum::{Router, extract::State, response::IntoResponse, routing::get};
 use chrono::NaiveTime;
-use clap::crate_version;
 use http::{StatusCode, header};
 use itertools::Itertools;
 use maud::{Markup, PreEscaped, html};

@@ -10,6 +10,7 @@ use enumset::EnumSet;
 use itertools::Itertools;
 
 use crate::{
+    Schedule,
     api::modbus::schedule,
     battery::WorkingMode,
     cli::{battery::BatteryArgs, connection::Connections},
@@ -17,7 +18,7 @@ use crate::{
     db::power,
     energy,
     energy::Flow,
-    ops::{Schedule, cache},
+    ops::cache,
     prelude::*,
     quantity::{energy::WattHours, price::KilowattHourPrice},
     solution::Solver,

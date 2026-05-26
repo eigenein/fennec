@@ -1,8 +1,8 @@
 use crate::{
+    Interval,
     battery,
     energy,
     energy::Flow,
-    ops::Interval,
     quantity::{power::Watts, price::KilowattHourPrice},
     solution::{Metrics, Step},
 };

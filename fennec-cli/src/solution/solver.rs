@@ -5,10 +5,10 @@ use chrono::{DateTime, Local};
 use enumset::EnumSet;
 
 use crate::{
+    Schedule,
     battery,
     battery::WorkingMode,
     energy,
-    ops::Schedule,
     prelude::*,
     quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice},
     solution::{Losses, Metrics, Solution, Space, Step},

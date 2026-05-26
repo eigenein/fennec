@@ -1,9 +1,9 @@
 use chrono::{NaiveDate, TimeDelta};
 
 use crate::{
+    Schedule,
     api::frank_energie,
     energy::Flow,
-    ops::Schedule,
     prelude::*,
     quantity::price::KilowattHourPrice,
 };

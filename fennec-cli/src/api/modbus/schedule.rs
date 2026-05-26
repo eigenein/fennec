@@ -7,9 +7,9 @@ use fennec_modbus::{
 };
 
 use crate::{
+    Interval,
     battery,
     cli,
-    ops::Interval,
     prelude::*,
     quantity::{Zero, power::Watts},
 };

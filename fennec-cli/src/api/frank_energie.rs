@@ -3,12 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    energy::Flow,
-    ops::{Interval, Schedule},
-    prelude::*,
-    quantity::price::KilowattHourPrice,
-};
+use crate::{Interval, Schedule, energy::Flow, prelude::*, quantity::price::KilowattHourPrice};
 
 pub struct Api {
     client: reqwest::Client,

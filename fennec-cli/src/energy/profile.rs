@@ -7,6 +7,7 @@ use musli::{Decode, Encode, wire};
 
 use super::Balance;
 use crate::{
+    Interval,
     battery,
     battery::EfficiencyEstimator,
     cli::battery::PowerLimits,
@@ -15,7 +16,7 @@ use crate::{
         fourier::Harmonic,
         smoothing::{Exponential, HalfLife},
     },
-    ops::{BucketIntegrator, BucketMean, Integrator, Interval},
+    ops::{BucketIntegrator, BucketMean, Integrator},
     prelude::*,
     quantity::{Quantum, Zero, power::Watts, time::Hours},
 };

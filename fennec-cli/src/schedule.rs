@@ -20,6 +20,7 @@ impl Interval {
         Self { start, end }
     }
 
+    #[must_use]
     pub const fn start(self) -> DateTime<Local>
     where
         Self: Copy,
@@ -27,6 +28,7 @@ impl Interval {
         self.start
     }
 
+    #[must_use]
     pub const fn end(self) -> DateTime<Local>
     where
         Self: Copy,
@@ -56,6 +58,7 @@ pub struct Schedule<V>(VecDeque<(Interval, V)>);
 
 impl<V> Schedule<V> {
     /// Create new empty schedule.
+    #[expect(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self(VecDeque::new())
     }

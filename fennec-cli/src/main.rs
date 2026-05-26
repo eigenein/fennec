@@ -1,4 +1,5 @@
 #![allow(clippy::doc_markdown)]
+#![allow(clippy::missing_panics_doc)]
 #![doc = include_str!("../../README.md")]
 
 mod api;
@@ -11,6 +12,7 @@ mod math;
 mod ops;
 mod prelude;
 mod quantity;
+mod schedule;
 mod solution;
 mod state;
 mod web;
@@ -20,6 +22,7 @@ use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
+pub use self::schedule::{Interval, Schedule};
 use crate::{
     cli::{Args, Command},
     prelude::*,

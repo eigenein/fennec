@@ -18,7 +18,6 @@ version = "0.94.0-alpha.7"
 [workspace.lints.clippy]
 future_not_send = "allow"
 missing_errors_doc = "allow"
-type_repetition_in_bounds = "allow"
 
 [workspace.lints.clippy.pedantic]
 level = "warn"

@@ -56,7 +56,22 @@ fn navbar() -> Markup {
                             text y="0.95em" font-size="90" { "🦊" }
                         }
                     }
-                    a.navbar-item href=(handlers::energy_balance::PATH) { "Energy profile" }
+                    a.navbar-item href=(handlers::energy_balance::PATH) {
+                        span.icon-text {
+                            span.icon { i.fa-solid.fa-chart-line {} }
+                            span { "Profile" }
+                        }
+                    }
+                }
+                div.navbar-menu {
+                    div.navbar-end {
+                        a.navbar-item href="https://github.com/eigenein/fennec" {
+                            span.icon-text {
+                                span.icon { i.fa-solid.fa-arrow-up-right-from-square {} }
+                                span { "GitHub" }
+                            }
+                        }
+                    }
                 }
             }
         }

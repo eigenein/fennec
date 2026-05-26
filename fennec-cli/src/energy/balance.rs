@@ -29,6 +29,15 @@ impl<T: Zero> Zero for Balance<T> {
     const ZERO: Self = Self { grid: Flow::ZERO, battery: Flow::ZERO };
 }
 
+impl<T> IntoIterator for Balance<T> {
+    type Item = T;
+    type IntoIter = std::array::IntoIter<T, 4>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [self.battery.import, self.battery.export, self.grid.import, self.grid.export].into_iter()
+    }
+}
+
 impl Balance<Watts> {
     /// Split the net household deficit into grid and battery energy flows.
     ///

@@ -55,7 +55,7 @@ fn navbar() -> Markup {
                             text y="0.95em" font-size="90" { "🦊" }
                         }
                     }
-                    a.navbar-item href=(handlers::energy_balance::PATH) {
+                    a.navbar-item href=(handlers::energy_profile::PATH) {
                         span.icon-text {
                             span.icon { i.fa-solid.fa-chart-line {} }
                             span { "Profile" }

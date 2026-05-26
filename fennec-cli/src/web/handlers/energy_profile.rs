@@ -1,8 +1,15 @@
+use std::ops::Range;
+
 use axum::extract::State;
 use chrono::NaiveTime;
 use itertools::Itertools;
 use maud::{Markup, PreEscaped, html};
-use plotters::{backend::SVGBackend, chart::ChartBuilder, prelude::*};
+use plotters::{
+    backend::SVGBackend,
+    chart::ChartBuilder,
+    coord::{Shift, types::RangedCoordf64},
+    prelude::*,
+};
 
 use crate::{
     energy,
@@ -10,7 +17,7 @@ use crate::{
     web::{application, partials},
 };
 
-pub const PATH: &str = "/energy-balance";
+pub const PATH: &str = "/energy-profile";
 
 #[instrument(skip_all)]
 #[expect(clippy::significant_drop_tightening)]
@@ -22,7 +29,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
     let mean_balance = logger_state.energy_profile.mean_balance();
 
     partials::page(
-        "Energy balance",
+        "Energy profile",
         html! {
             section.section.pb-5 {
                 div.card {
@@ -83,11 +90,11 @@ pub async fn get(State(state): State<application::State>) -> Markup {
             section.section.pt-5 {
                 div.card {
                     header.card-header {
-                        p.card-header-title { "Balance graph" }
+                        p.card-header-title { "Instant balance" }
                     }
                     div.card-content {
                         figure.image.has-plotters-fix {
-                            (energy_profile_chart(&logger_state.energy_profile))
+                            (energy_balance_chart(&logger_state.energy_profile))
                         }
                     }
                 }
@@ -97,7 +104,33 @@ pub async fn get(State(state): State<application::State>) -> Markup {
 }
 
 #[must_use]
-fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
+fn new_chart(
+    buf: &mut Markup,
+    value_range: Range<f64>,
+) -> (
+    DrawingArea<SVGBackend<'_>, Shift>,
+    ChartContext<'_, SVGBackend<'_>, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
+) {
+    let drawing_area = SVGBackend::with_string(&mut buf.0, (1000, 250)).into_drawing_area();
+    let mut chart = ChartBuilder::on(&drawing_area)
+        .x_label_area_size(20)
+        .y_label_area_size(40)
+        .margin_top(10)
+        .build_cartesian_2d(0_f64..24_f64, value_range)
+        .unwrap();
+    chart
+        .configure_mesh()
+        .bold_line_style(full_palette::GREY_600.mix(0.75))
+        .light_line_style(full_palette::GREY_600.mix(0.25))
+        .label_style(&full_palette::GREY_600)
+        .y_max_light_lines(0)
+        .draw()
+        .unwrap();
+    (drawing_area, chart)
+}
+
+#[must_use]
+fn energy_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
     let mut points = {
         let mean_balance = energy_profile.mean_balance();
         (0..24)
@@ -111,18 +144,9 @@ fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
             .map(|(x, naive_time)| (x, mean_balance + energy_profile.deviation_at(naive_time)))
             .collect_vec()
     };
+
     let (min_y, max_y) = {
-        let values = points
-            .iter()
-            .flat_map(|(_, balance)| {
-                [
-                    balance.grid.import,
-                    balance.grid.export,
-                    balance.battery.import,
-                    balance.battery.export,
-                ]
-            })
-            .map(|power| power.0);
+        let values = points.iter().flat_map(|(_, balance)| *balance).map(|power| power.0);
         (
             values.clone().min_by(f64::total_cmp).unwrap_or_default(),
             values.max_by(f64::total_cmp).unwrap_or_default(),
@@ -132,21 +156,7 @@ fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
 
     let mut svg = PreEscaped(String::new());
     {
-        let drawing_area = SVGBackend::with_string(&mut svg.0, (1000, 250)).into_drawing_area();
-        let mut chart = ChartBuilder::on(&drawing_area)
-            .x_label_area_size(20)
-            .y_label_area_size(40)
-            .margin_top(10)
-            .build_cartesian_2d(0_f64..24_f64, min_y..max_y)
-            .unwrap();
-        chart
-            .configure_mesh()
-            .bold_line_style(full_palette::GREY_600.mix(0.75))
-            .light_line_style(full_palette::GREY_600.mix(0.25))
-            .label_style(&full_palette::GREY_600)
-            .y_max_light_lines(0)
-            .draw()
-            .unwrap();
+        let (drawing_area, mut chart) = new_chart(&mut svg, min_y..max_y);
         chart
             .draw_series(LineSeries::new(
                 points.iter().map(|(x, balance)| (*x, balance.grid.import.0)),

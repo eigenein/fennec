@@ -166,7 +166,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                 }
             }
 
-            section.section.pt-5 {
+            section.section.py-5 {
                 div.card {
                     header.card-header {
                         p.card-header-title { "Schedule" }

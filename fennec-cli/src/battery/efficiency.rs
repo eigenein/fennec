@@ -1,5 +1,5 @@
 use crate::{
-    ops::Integrator,
+    math::Integrator,
     quantity::{energy::WattHours, power::Watts, time::Hours},
 };
 

@@ -13,10 +13,12 @@ use crate::{
     cli::battery::PowerLimits,
     db::power,
     math::{
+        BucketIntegrator,
+        BucketMean,
+        Integrator,
         fourier::Harmonic,
         smoothing::{Exponential, HalfLife},
     },
-    ops::{BucketIntegrator, BucketMean, Integrator},
     prelude::*,
     quantity::{Quantum, Zero, power::Watts, time::Hours},
 };

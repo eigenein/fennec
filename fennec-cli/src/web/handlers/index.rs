@@ -1,12 +1,8 @@
 use axum::extract::State;
-use chrono::NaiveTime;
-use itertools::Itertools;
 use maud::{Markup, PreEscaped, html};
-use plotters::{backend::SVGBackend, chart::ChartBuilder, prelude::*};
 
 use crate::{
     battery::WorkingMode,
-    energy,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours},
     web::{application, battery::StateOfCharge, partials, working_mode::WorkingModeColor},
@@ -20,320 +16,232 @@ pub async fn get(State(state): State<application::State>) -> Markup {
 
     let logger = state.logger.read().unwrap();
     let logger_state = &logger;
-    let mean_balance = logger_state.energy_profile.mean_balance();
 
     let hunter = state.hunter.read().unwrap();
     let hunter_state = &hunter;
 
-    partials::page(html! {
-        section.section.pb-5 {
-            div.container {
-                div.field.is-grouped.is-grouped-multiline {
-                    div.control {
-                        div.tags.has-addons {
-                            span.tag.is-info {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-money-bill {} }
-                                    span { "Loss" }
-                                }
-                            }
-                            span.tag {
-                                (hunter_state.metrics.losses.total())
-                            }
-                        }
-                    }
-                    div.control {
-                        div.tags.has-addons {
-                            span.tag.is-info {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-arrow-right-arrow-left {} }
-                                    span { "Flow" }
-                                }
-                            }
-                            span.tag {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-angle-down {} }
-                                    span { (hunter_state.metrics.internal_battery_flow.import) }
-                                }
-                            }
-                            span.tag {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-angle-up {} }
-                                    span { (hunter_state.metrics.internal_battery_flow.export) }
-                                }
-                            }
-                        }
-                    }
-                    div.control {
-                        div.tags.has-addons {
-                            span.tag.is-info {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-rotate {} }
-                                    span { "Cycles" }
-                                }
-                            }
-                            span.tag {
-                                (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / logger_state.battery.actual_capacity() / 2.0))
-                            }
-                        }
-                    }
-                }
-
-                div.field.is-grouped.is-grouped-multiline {
-                    div.control {
-                        div.tags.has-addons {
-                            span.tag.is-info {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-plug-circle-bolt {} }
-                                    span { "EPS" }
-                                }
-                            }
-                            span.tag {
-                                (hunter_state.average_eps_power)
-                            }
-                        }
-                    }
-                    div.control {
-                        div.tags.has-addons {
-                            span.tag.is-info {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-charging-station {} }
-                                    span { "Efficiency" }
-                                }
-                            }
-                            span.tag {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-rotate {} }
-                                    span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.round_trip())) }
-                                }
-                            }
-                            span.tag {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-angle-down {} }
-                                    span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.charging)) }
-                                }
-                            }
-                            span.tag {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-angle-up {} }
-                                    span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.discharging)) }
-                                }
-                            }
-                        }
-                    }
-                    div.control {
-                        div.tags.has-addons {
-                            span.tag.is-info {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-plug-circle-minus {} }
-                                    span { "Parasitic load" }
-                                }
-                            }
-                            span.tag {
-                                (hunter_state.battery_efficiency.parasitic_load)
-                            }
-                        }
-                    }
-                }
-
-                div.field.is-grouped.is-grouped-multiline {
-                    div.control {
-                        div.tags.has-addons {
-                             @let state_of_charge = StateOfCharge {
-                                residual_energy: logger_state.battery.residual_energy(),
-                                actual_capacity: logger_state.battery.actual_capacity(),
-                            };
-                            span.tag.(state_of_charge.class()) {
-                                span.icon-text {
-                                    (state_of_charge.icon())
-                                    span { "Charge" }
-                                }
-                            }
-                            span.tag { (logger_state.battery.charge) }
-                            span.tag { (logger_state.battery.residual_energy()) }
-                        }
-                    }
-                    div.control {
-                        div.tags.has-addons {
-                            span.tag.is-info {
-                                span.icon-text {
-                                    span.icon { i.fas.fa-star-of-life {} }
-                                    span { "Health" }
-                                }
-                            }
-                            span.tag { (logger_state.battery.health) }
-                            span.tag { (logger_state.battery.actual_capacity()) }
-                        }
-                    }
-                }
-            }
-        }
-
-        section.section.pt-5 {
-            div.card {
-                header.card-header {
-                    p.card-header-title {
-                        span.icon-text {
-                            span.icon { i.fa-solid.fa-calendar {} }
-                            span { "Schedule" }
-                        }
-                    }
-                }
-                div.card-content {
-                    div.table-container {
-                        table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
-                            thead { (steps_table_header()) }
-                            tfoot { (steps_table_header()) }
-                            tbody {
-                                @for ((interval, energy_price), step) in &hunter_state.steps {
-                                    tr.(WorkingModeColor(step.working_mode)) {
-                                        td {
-                                            (interval.start().format("%b"))
-                                            (PreEscaped("&nbsp;"))
-                                            (interval.start().format("%d"))
-                                        }
-                                        td { (interval.start().format("%H:%M")) }
-                                        td { (interval.end().format("%H:%M")) }
-                                        td { (step.duration) }
-                                        td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
-                                            (energy_price.import)
-                                        }
-                                        td {
-                                            (step.working_mode)
-                                        }
-                                        td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
-                                            span.icon-text.is-flex-wrap-nowrap {
-                                                span { (step.energy_balance.grid.import) }
-                                                span.icon { i.fas.fa-angles-down {} }
-                                            }
-                                        }
-                                        td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
-                                            span.icon-text.is-flex-wrap-nowrap {
-                                                span { (step.energy_balance.grid.export) }
-                                                span.icon { i.fas.fa-angles-up {} }
-                                            }
-                                        }
-                                        td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
-                                            span.icon-text.is-flex-wrap-nowrap {
-                                                span { (step.energy_balance.battery.import) }
-                                                span.icon { i.fas.fa-angle-down {} }
-                                            }
-                                        }
-                                        td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
-                                            span.icon-text.is-flex-wrap-nowrap {
-                                                span { (step.energy_balance.battery.export) }
-                                                span.icon { i.fas.fa-angle-up {} }
-                                            }
-                                        }
-                                        td.has-text-right {
-                                            span.icon-text.is-flex-wrap-nowrap {
-                                                span { (step.residual_energy_after) }
-                                                (StateOfCharge {
-                                                    residual_energy: step.residual_energy_after,
-                                                    actual_capacity: logger_state.battery.actual_capacity(),
-                                                }.icon())
-                                            }
-                                        }
-                                        td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
-                                            (step.metrics.losses.grid)
-                                        }
-                                        td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
-                                            (step.metrics.losses.battery)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        section.section.pt-0 {
-            div.card {
-                header.card-header {
-                    p.card-header-title {
-                        span.icon-text {
-                            span.icon { i.fa-solid.fa-chart-line {} }
-                            span { "Energy profile" }
-                        }
-                    }
-                }
-                div.card-content {
+    partials::page(
+        "Fennec",
+        html! {
+            section.section.pb-5 {
+                div.box {
                     div.field.is-grouped.is-grouped-multiline {
                         div.control {
                             div.tags.has-addons {
-                                span.tag.is-success {
+                                span.tag.is-info {
                                     span.icon-text {
-                                        span.icon { i.fas.fa-charging-station {} }
-                                        span { "Battery mean import" }
+                                        span.icon { i.fas.fa-money-bill {} }
+                                        span { "Loss" }
+                                    }
+                                }
+                                span.tag {
+                                    (hunter_state.metrics.losses.total())
+                                }
+                            }
+                        }
+                        div.control {
+                            div.tags.has-addons {
+                                span.tag.is-info {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-arrow-right-arrow-left {} }
+                                        span { "Flow" }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-down {} }
-                                        span { (mean_balance.battery.import) }
-                                    }
-                                }
-                            }
-                        }
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-warning {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-charging-station {} }
-                                        span { "Battery mean export" }
+                                        span { (hunter_state.metrics.internal_battery_flow.import) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-up {} }
-                                        span { (mean_balance.battery.export) }
+                                        span { (hunter_state.metrics.internal_battery_flow.export) }
                                     }
                                 }
                             }
                         }
                         div.control {
                             div.tags.has-addons {
-                                span.tag.is-danger {
+                                span.tag.is-info {
                                     span.icon-text {
-                                        span.icon { i.fas.fa-plug {} }
-                                        span { "Grid mean import" }
+                                        span.icon { i.fas.fa-rotate {} }
+                                        span { "Cycles" }
                                     }
                                 }
                                 span.tag {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-angles-down {} }
-                                        span { (mean_balance.grid.import) }
-                                    }
-                                }
-                            }
-                        }
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-link {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-plug {} }
-                                        span { "Grid mean export" }
-                                    }
-                                }
-                                span.tag {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-angles-up {} }
-                                        span { (mean_balance.grid.export) }
-                                    }
+                                    (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / logger_state.battery.actual_capacity() / 2.0))
                                 }
                             }
                         }
                     }
 
-                    figure.image.has-plotters-fix {
-                        (energy_profile_chart(&logger_state.energy_profile))
+                    div.field.is-grouped.is-grouped-multiline {
+                        div.control {
+                            div.tags.has-addons {
+                                span.tag.is-info {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-plug-circle-bolt {} }
+                                        span { "EPS" }
+                                    }
+                                }
+                                span.tag {
+                                    (hunter_state.average_eps_power)
+                                }
+                            }
+                        }
+                        div.control {
+                            div.tags.has-addons {
+                                span.tag.is-info {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-charging-station {} }
+                                        span { "Efficiency" }
+                                    }
+                                }
+                                span.tag {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-rotate {} }
+                                        span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.round_trip())) }
+                                    }
+                                }
+                                span.tag {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-angle-down {} }
+                                        span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.charging)) }
+                                    }
+                                }
+                                span.tag {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-angle-up {} }
+                                        span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.discharging)) }
+                                    }
+                                }
+                            }
+                        }
+                        div.control {
+                            div.tags.has-addons {
+                                span.tag.is-info {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-plug-circle-minus {} }
+                                        span { "Parasitic load" }
+                                    }
+                                }
+                                span.tag {
+                                    (hunter_state.battery_efficiency.parasitic_load)
+                                }
+                            }
+                        }
+                    }
+
+                    div.field.is-grouped.is-grouped-multiline {
+                        div.control {
+                            div.tags.has-addons {
+                                 @let state_of_charge = StateOfCharge {
+                                    residual_energy: logger_state.battery.residual_energy(),
+                                    actual_capacity: logger_state.battery.actual_capacity(),
+                                };
+                                span.tag.(state_of_charge.class()) {
+                                    span.icon-text {
+                                        (state_of_charge.icon())
+                                        span { "Charge" }
+                                    }
+                                }
+                                span.tag { (logger_state.battery.charge) }
+                                span.tag { (logger_state.battery.residual_energy()) }
+                            }
+                        }
+                        div.control {
+                            div.tags.has-addons {
+                                span.tag.is-info {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-star-of-life {} }
+                                        span { "Health" }
+                                    }
+                                }
+                                span.tag { (logger_state.battery.health) }
+                                span.tag { (logger_state.battery.actual_capacity()) }
+                            }
+                        }
                     }
                 }
             }
-        }
-    })
+
+            section.section.pt-5 {
+                div.card {
+                    header.card-header {
+                        p.card-header-title { "Schedule" }
+                    }
+                    div.card-content {
+                        div.table-container {
+                            table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                thead { (steps_table_header()) }
+                                tfoot { (steps_table_header()) }
+                                tbody {
+                                    @for ((interval, energy_price), step) in &hunter_state.steps {
+                                        tr.(WorkingModeColor(step.working_mode)) {
+                                            td {
+                                                (interval.start().format("%b"))
+                                                (PreEscaped("&nbsp;"))
+                                                (interval.start().format("%d"))
+                                            }
+                                            td { (interval.start().format("%H:%M")) }
+                                            td { (interval.end().format("%H:%M")) }
+                                            td { (step.duration) }
+                                            td.has-text-right.has-text-weight-medium[step.working_mode != WorkingMode::Idle] {
+                                                (energy_price.import)
+                                            }
+                                            td {
+                                                (step.working_mode)
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.grid.import >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.grid.import) }
+                                                    span.icon { i.fas.fa-angles-down {} }
+                                                }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.grid.export >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.grid.export) }
+                                                    span.icon { i.fas.fa-angles-up {} }
+                                                }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.battery.import >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.battery.import) }
+                                                    span.icon { i.fas.fa-angle-down {} }
+                                                }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.energy_balance.battery.export >= WattHours::ONE] {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.energy_balance.battery.export) }
+                                                    span.icon { i.fas.fa-angle-up {} }
+                                                }
+                                            }
+                                            td.has-text-right {
+                                                span.icon-text.is-flex-wrap-nowrap {
+                                                    span { (step.residual_energy_after) }
+                                                    (StateOfCharge {
+                                                        residual_energy: step.residual_energy_after,
+                                                        actual_capacity: logger_state.battery.actual_capacity(),
+                                                    }.icon())
+                                                }
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {
+                                                (step.metrics.losses.grid)
+                                            }
+                                            td.has-text-right.has-text-weight-medium[step.metrics.losses.battery >= Mills::TEN] {
+                                                (step.metrics.losses.battery)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    )
 }
 
 fn steps_table_header() -> Markup {
@@ -354,84 +262,4 @@ fn steps_table_header() -> Markup {
             th.has-text-right { "Battery loss" }
         }
     }
-}
-
-#[must_use]
-fn energy_profile_chart(energy_profile: &energy::NewProfile) -> Markup {
-    let mut points = {
-        let mean_balance = energy_profile.mean_balance();
-        (0..24)
-            .cartesian_product([0, 10, 20, 30, 40, 50])
-            .map(|(hour, minute)| {
-                (
-                    f64::from(hour) + f64::from(minute) / 60.0,
-                    NaiveTime::from_hms_opt(hour % 24, minute, 0).unwrap(),
-                )
-            })
-            .map(|(x, naive_time)| (x, mean_balance + energy_profile.deviation_at(naive_time)))
-            .collect_vec()
-    };
-    let (min_y, max_y) = {
-        let values = points
-            .iter()
-            .flat_map(|(_, balance)| {
-                [
-                    balance.grid.import,
-                    balance.grid.export,
-                    balance.battery.import,
-                    balance.battery.export,
-                ]
-            })
-            .map(|power| power.0);
-        (
-            values.clone().min_by(f64::total_cmp).unwrap_or_default(),
-            values.max_by(f64::total_cmp).unwrap_or_default(),
-        )
-    };
-    points.push((24.0, points[0].1));
-
-    let mut svg = PreEscaped(String::new());
-    {
-        let drawing_area = SVGBackend::with_string(&mut svg.0, (1000, 250)).into_drawing_area();
-        let mut chart = ChartBuilder::on(&drawing_area)
-            .x_label_area_size(20)
-            .y_label_area_size(40)
-            .margin_top(10)
-            .build_cartesian_2d(0_f64..24_f64, min_y..max_y)
-            .unwrap();
-        chart
-            .configure_mesh()
-            .bold_line_style(full_palette::GREY_600.mix(0.75))
-            .light_line_style(full_palette::GREY_600.mix(0.25))
-            .label_style(&full_palette::GREY_600)
-            .y_max_light_lines(0)
-            .draw()
-            .unwrap();
-        chart
-            .draw_series(LineSeries::new(
-                points.iter().map(|(x, balance)| (*x, balance.grid.import.0)),
-                crate::web::plotters::DANGER.stroke_width(2),
-            ))
-            .unwrap();
-        chart
-            .draw_series(LineSeries::new(
-                points.iter().map(|(x, balance)| (*x, balance.grid.export.0)),
-                crate::web::plotters::LINK.stroke_width(2),
-            ))
-            .unwrap();
-        chart
-            .draw_series(LineSeries::new(
-                points.iter().map(|(x, balance)| (*x, balance.battery.import.0)),
-                crate::web::plotters::SUCCESS.stroke_width(2),
-            ))
-            .unwrap();
-        chart
-            .draw_series(LineSeries::new(
-                points.iter().map(|(x, balance)| (*x, balance.battery.export.0)),
-                crate::web::plotters::WARNING.stroke_width(2),
-            ))
-            .unwrap();
-        drawing_area.present().unwrap();
-    }
-    svg
 }

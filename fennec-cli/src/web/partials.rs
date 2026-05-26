@@ -1,25 +1,28 @@
 use clap::crate_version;
 use maud::{DOCTYPE, Markup, Render, html};
 
-pub fn page(body: impl Render) -> Markup {
+use crate::web::handlers;
+
+pub fn page(title: &str, body: impl Render) -> Markup {
     html! {
         (DOCTYPE)
         html lang="en" {
-            (head())
+            (head(title))
             body {
                 (navbar())
                 (body)
+                (footer())
             }
         }
     }
 }
 
-fn head() -> Markup {
+fn head(title: &str) -> Markup {
     html! {
         head {
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1";
-            title { "Fennec" }
+            title { (title) }
             link
                 rel="icon"
                 href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='1em' font-size='90'>🦊</text></svg>";
@@ -53,7 +56,21 @@ fn navbar() -> Markup {
                             text y="0.95em" font-size="90" { "🦊" }
                         }
                     }
-                    span.navbar-item {
+                    a.navbar-item href=(handlers::energy_balance::PATH) { "Energy profile" }
+                }
+            }
+        }
+    }
+}
+
+fn footer() -> Markup {
+    html! {
+        footer.footer {
+            div.content.has-text-centered {
+                p {
+                    strong { "Fennec" }
+                    " "
+                    a href=(format!("https://github.com/eigenein/fennec/releases/tag/{}", crate_version!())) {
                         (crate_version!())
                     }
                 }

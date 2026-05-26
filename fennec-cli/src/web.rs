@@ -15,6 +15,7 @@ pub async fn serve(address: IpAddr, port: u16, state: application::State) -> Res
     info!(%address, port, "serving web UI…");
     let app = Router::new()
         .route("/", get(handlers::index::get))
+        .route(handlers::energy_balance::PATH, get(handlers::energy_balance::get))
         .route("/readiness", get(handlers::readiness::get))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind((address, port)).await?;

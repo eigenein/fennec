@@ -11,7 +11,6 @@ pub fn page(title: &str, body: impl Render) -> Markup {
             body {
                 (navbar())
                 (body)
-                (footer())
             }
         }
     }
@@ -51,7 +50,7 @@ fn navbar() -> Markup {
         nav.navbar.has-shadow role="navigation" aria-label="main navigation" {
             div.container {
                 div.navbar-brand {
-                    a.navbar-item href="/" {
+                    a.navbar-item href="/" title=(crate_version!()) {
                         svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100" {
                             text y="0.95em" font-size="90" { "🦊" }
                         }
@@ -71,22 +70,6 @@ fn navbar() -> Markup {
                                 span { "GitHub" }
                             }
                         }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn footer() -> Markup {
-    html! {
-        footer.footer {
-            div.content.has-text-centered {
-                p {
-                    strong { "Fennec" }
-                    " "
-                    a href=(format!("https://github.com/eigenein/fennec/releases/tag/{}", crate_version!())) {
-                        (crate_version!())
                     }
                 }
             }

@@ -264,9 +264,7 @@ impl New {
     pub fn mean_deviation_over(&self, interval: Interval) -> Balance<Watts> {
         assert!(interval.start() < interval.end());
 
-        // FIXME: support this:
-        assert!(interval.start().time() < interval.end().time());
-
+        // The harmonics are periodic over 24 hours, so we only care about the naive time:
         let start_time = f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0;
         let end_time = f64::from(interval.end().time().num_seconds_from_midnight()) / 86400.0;
         let n_days = interval.duration().days();

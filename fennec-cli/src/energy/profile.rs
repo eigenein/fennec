@@ -220,6 +220,10 @@ impl New {
         *self.mean_balance.value()
     }
 
+    pub const fn balance_harmonics(&self) -> &[Exponential<Harmonic<Balance<Watts>>>] {
+        self.balance_harmonics.as_slice()
+    }
+
     pub fn update(
         &mut self,
         balance: Balance<Watts>,

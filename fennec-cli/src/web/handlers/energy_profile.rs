@@ -99,6 +99,54 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                     }
                 }
             }
+
+            section.section.pt-5 {
+                div.card {
+                    header.card-header {
+                        p.card-header-title { "Harmonics" }
+                    }
+                    div.card-content {
+                        div.table-container {
+                            table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                thead {
+                                    tr {
+                                        th.has-text-right rowspan="2" { "Mode" }
+                                        th align="center" colspan="2" { "Battery import" }
+                                        th align="center" colspan="2" { "Battery export" }
+                                        th align="center" colspan="2" { "Grid import" }
+                                        th align="center" colspan="2" { "Grid export" }
+                                    }
+                                    tr {
+                                        th.has-text-right { "Cosine" }
+                                        th.has-text-right { "Sine" }
+                                        th.has-text-right { "Cosine" }
+                                        th.has-text-right { "Sine" }
+                                        th.has-text-right { "Cosine" }
+                                        th.has-text-right { "Sine" }
+                                        th.has-text-right { "Cosine" }
+                                        th.has-text-right { "Sine" }
+                                    }
+                                }
+                                tbody {
+                                    @for (mode_index, harmonic) in (1..).zip(logger_state.energy_profile.balance_harmonics()) {
+                                        tr {
+                                            th.has-text-right { "#" (mode_index) }
+                                            td.has-text-right { (harmonic.value().cosine.battery.import) }
+                                            td.has-text-right { (harmonic.value().sine.battery.import) }
+                                            td.has-text-right { (harmonic.value().cosine.battery.export) }
+                                            td.has-text-right { (harmonic.value().sine.battery.export) }
+                                            td.has-text-right { (harmonic.value().cosine.grid.import) }
+                                            td.has-text-right { (harmonic.value().sine.grid.import) }
+                                            td.has-text-right { (harmonic.value().cosine.grid.export) }
+                                            td.has-text-right { (harmonic.value().sine.grid.export) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         },
     )
 }

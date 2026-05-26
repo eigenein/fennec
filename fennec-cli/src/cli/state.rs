@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[must_use]
-pub struct HunterState {
+pub struct Hunter {
     pub steps: Vec<((Interval, Flow<KilowattHourPrice>), Step)>,
     pub metrics: Metrics,
     pub average_eps_power: Watts,
@@ -16,7 +16,7 @@ pub struct HunterState {
 }
 
 #[must_use]
-pub struct LoggerState {
+pub struct Logger {
     pub battery: battery::State,
     pub energy_profile: energy::NewProfile,
 }

@@ -4,6 +4,7 @@ mod hunt;
 mod log;
 mod run;
 mod sentry;
+pub mod state;
 mod web;
 
 use clap::{Parser, Subcommand};

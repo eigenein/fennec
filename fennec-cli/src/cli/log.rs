@@ -8,14 +8,13 @@ use chrono::Local;
 use tokio::try_join;
 
 use crate::{
-    cli::{battery, connection::Connections},
+    cli::{battery, connection::Connections, state},
     cron::CronSchedule,
     db::{Measurement, power},
     energy,
     energy::Balance,
     math::smoothing::HalfLife,
     prelude::*,
-    state::LoggerState,
 };
 
 /// Battery state and power meter logger.
@@ -41,7 +40,7 @@ impl Logger {
     pub async fn run_forever(
         mut self,
         schedule: CronSchedule,
-        state: Arc<RwLock<LoggerState>>,
+        state: Arc<RwLock<state::Logger>>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
@@ -52,7 +51,7 @@ impl Logger {
     }
 
     /// Run a single logging iteration.
-    pub async fn run_once(&mut self) -> Result<LoggerState> {
+    pub async fn run_once(&mut self) -> Result<state::Logger> {
         let read_state = || async {
             // Retry them together to ensure the measurements are in sync.
             try_join!(
@@ -103,6 +102,6 @@ impl Logger {
             "measurements",
         );
 
-        Ok(LoggerState { battery: battery_state, energy_profile: self.energy_profile.clone() })
+        Ok(state::Logger { battery: battery_state, energy_profile: self.energy_profile.clone() })
     }
 }

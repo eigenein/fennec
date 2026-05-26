@@ -14,7 +14,6 @@ mod prelude;
 mod quantity;
 mod schedule;
 mod solution;
-mod state;
 mod web;
 
 use clap::{Parser, crate_version};

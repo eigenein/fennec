@@ -13,7 +13,7 @@ use crate::{
     Schedule,
     api::modbus::schedule,
     battery::WorkingMode,
-    cli::{battery::BatteryArgs, connection::Connections},
+    cli::{battery::BatteryArgs, connection::Connections, state},
     cron::CronSchedule,
     db::power,
     energy,
@@ -22,7 +22,6 @@ use crate::{
     prelude::*,
     quantity::{energy::WattHours, price::KilowattHourPrice},
     solution::Solver,
-    state::HunterState,
 };
 
 #[must_use]
@@ -46,7 +45,7 @@ impl Hunter {
     pub async fn run_forever(
         mut self,
         schedule: CronSchedule,
-        state: Arc<RwLock<HunterState>>,
+        state: Arc<RwLock<state::Hunter>>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
@@ -57,7 +56,7 @@ impl Hunter {
     }
 
     #[instrument(skip_all)]
-    pub async fn run_once(&mut self) -> Result<HunterState> {
+    pub async fn run_once(&mut self) -> Result<state::Hunter> {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices =
             (|| self.get_prices(now)).retry(Self::BACKOFF).notify(log_retried_error).await?;
@@ -139,7 +138,7 @@ impl Hunter {
                 .context("failed to push the schedule to the battery")?;
         }
 
-        Ok(HunterState {
+        Ok(state::Hunter {
             steps,
             metrics,
             average_eps_power: energy_profile.average_eps_power,

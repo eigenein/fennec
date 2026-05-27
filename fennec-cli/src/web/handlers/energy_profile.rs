@@ -216,7 +216,7 @@ fn render_chart(points: &[(f64, Balance<Watts>)]) -> Markup {
 }
 
 #[must_use]
-fn instant_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
+fn instant_balance_chart(energy_profile: &energy::Profile) -> Markup {
     let mut points = {
         let mean_balance = energy_profile.mean_balance();
         (0..24)
@@ -235,7 +235,7 @@ fn instant_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
 }
 
 #[must_use]
-fn interval_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
+fn interval_balance_chart(energy_profile: &energy::Profile) -> Markup {
     let points = {
         (0..24)
             .map(|hour| {

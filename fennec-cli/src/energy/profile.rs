@@ -1,104 +1,23 @@
-use std::{f64::consts::TAU, path::Path, time::Instant};
+use std::{f64::consts::TAU, path::Path};
 
 use chrono::{DateTime, Local, NaiveTime, Timelike};
-use futures_core::TryStream;
-use futures_util::TryStreamExt;
 use musli::{Decode, Encode, wire};
 
 use super::Balance;
 use crate::{
     Interval,
-    battery,
-    battery::EfficiencyEstimator,
-    db::power,
     math::{
-        Integrator,
         fourier::Harmonic,
         smoothing::{Exponential, HalfLife},
     },
     prelude::*,
-    quantity::{Zero, power::Watts, time::Hours},
+    quantity::{Zero, power::Watts},
 };
-
-#[must_use]
-#[deprecated = "move `try_estimate` to `battery::Efficiency`"]
-pub struct Profile {
-    pub battery_efficiency: battery::Efficiency,
-}
-
-impl Profile {
-    #[instrument(skip_all)]
-    pub async fn try_estimate<T>(mut logs: T) -> Result<Self>
-    where
-        T: TryStream<Ok = power::Measurement, Error = Error> + Unpin,
-    {
-        info!("crunching consumption logs…");
-        let start_time = Instant::now();
-
-        let mut previous = logs.try_next().await?.context("empty consumption logs")?;
-
-        let mut parasitic_power_integrator = Integrator::new();
-        let mut charging_efficiency_estimator = EfficiencyEstimator::new();
-        let mut discharging_efficiency_estimator = EfficiencyEstimator::new();
-
-        while let Some(current) = logs.try_next().await? {
-            let duration = Hours::from(current.timestamp - previous.timestamp);
-
-            let residual_energy_sample =
-                // The value sign here matches the active power sign, so charging is negative:
-                Integrator { weight: duration, value: previous.battery.residual_energy - current.battery.residual_energy };
-
-            if previous.battery.active_power == Watts::ZERO
-                && current.battery.active_power == Watts::ZERO
-            {
-                parasitic_power_integrator += residual_energy_sample;
-            } else if previous.battery.active_power > Watts::ZERO
-                && current.battery.active_power > Watts::ZERO
-            {
-                discharging_efficiency_estimator.push(
-                    residual_energy_sample,
-                    previous.battery.active_power,
-                    current.battery.active_power,
-                );
-            } else if previous.battery.active_power < Watts::ZERO
-                && current.battery.active_power < Watts::ZERO
-            {
-                charging_efficiency_estimator.push(
-                    residual_energy_sample,
-                    previous.battery.active_power,
-                    current.battery.active_power,
-                );
-            }
-
-            previous = current;
-        }
-
-        let parasitic_load = parasitic_power_integrator.mean().unwrap_or(Watts::ZERO);
-        charging_efficiency_estimator.sub_assign_residual_energy(parasitic_load);
-        discharging_efficiency_estimator.sub_assign_residual_energy(parasitic_load);
-        let battery_efficiency = battery::Efficiency {
-            charging: charging_efficiency_estimator.estimate().clamp(0.5, 1.5),
-            discharging: (1.0 / discharging_efficiency_estimator.estimate()).clamp(0.5, 1.5),
-            parasitic_load,
-        };
-
-        info!(
-            battery_efficiency.charging,
-            battery_efficiency.discharging,
-            battery_round_trip_efficiency = battery_efficiency.round_trip(),
-            ?parasitic_load,
-            elapsed = ?start_time.elapsed(),
-            "done",
-        );
-
-        Ok(Self { battery_efficiency })
-    }
-}
 
 /// TODO: rename into `Profile`, when the above is gone.
 #[must_use]
 #[derive(Clone, Encode, Decode)]
-pub struct New {
+pub struct Profile {
     #[musli(Binary, name = 6)]
     #[musli(with = crate::ops::musli::chrono)]
     last_updated_at: DateTime<Local>,
@@ -115,7 +34,7 @@ pub struct New {
     balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
 }
 
-impl Default for New {
+impl Default for Profile {
     fn default() -> Self {
         Self {
             last_updated_at: Local::now(),
@@ -128,7 +47,7 @@ impl Default for New {
     }
 }
 
-impl New {
+impl Profile {
     const PATH: &str = "energy-profile.musli";
 
     pub async fn read_or_default() -> Result<Self> {

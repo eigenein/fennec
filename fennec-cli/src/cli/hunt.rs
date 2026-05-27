@@ -12,6 +12,7 @@ use itertools::Itertools;
 use crate::{
     Schedule,
     api::modbus::schedule,
+    battery,
     battery::WorkingMode,
     cli::{battery::BatteryArgs, connection::Connections, state},
     cron::CronSchedule,
@@ -35,7 +36,7 @@ pub struct Hunter {
     scout: bool,
 
     #[builder(skip = cache::Ttl::new(Duration::from_hours(1)))]
-    energy_profile_cache: cache::Ttl<energy::Profile>,
+    battery_efficiency_cache: cache::Ttl<battery::Efficiency>,
 }
 
 impl Hunter {
@@ -73,14 +74,14 @@ impl Hunter {
             "battery state",
         );
 
-        let battery_profile = self
-            .energy_profile_cache
+        let battery_efficiency = *self
+            .battery_efficiency_cache
             .get_or_insert_with(async {
                 let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
-                energy::Profile::try_estimate(power_logs).await
+                battery::Efficiency::try_estimate(power_logs).await
             })
             .await?;
-        let energy_profile = energy::NewProfile::read_or_default().await?;
+        let energy_profile = energy::Profile::read_or_default().await?;
 
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
@@ -95,7 +96,7 @@ impl Hunter {
                     .residual_energy()
                     .max(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
-            .battery_efficiency(battery_profile.battery_efficiency)
+            .battery_efficiency(battery_efficiency)
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(
@@ -136,7 +137,7 @@ impl Hunter {
                 .context("failed to push the schedule to the battery")?;
         }
 
-        Ok(state::Hunter { steps, metrics, battery_efficiency: battery_profile.battery_efficiency })
+        Ok(state::Hunter { steps, metrics, battery_efficiency })
     }
 
     /// Fetch energy prices for up to 2 days.

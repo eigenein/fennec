@@ -3,9 +3,4 @@ mod flow;
 mod profile;
 mod provider;
 
-pub use self::{
-    balance::Balance,
-    flow::Flow,
-    profile::{New as NewProfile, Profile},
-    provider::Provider,
-};
+pub use self::{balance::Balance, flow::Flow, profile::Profile, provider::Provider};

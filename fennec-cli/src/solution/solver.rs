@@ -17,7 +17,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver<'a> {
     energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
-    energy_profile: &'a energy::NewProfile,
+    energy_profile: &'a energy::Profile,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,

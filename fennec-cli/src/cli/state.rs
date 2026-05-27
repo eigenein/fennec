@@ -17,5 +17,5 @@ pub struct Hunter {
 #[must_use]
 pub struct Logger {
     pub battery: battery::State,
-    pub energy_profile: energy::NewProfile,
+    pub energy_profile: energy::Profile,
 }

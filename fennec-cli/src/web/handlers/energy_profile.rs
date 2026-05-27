@@ -121,34 +121,34 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                                 thead {
                                     tr {
                                         th.has-text-right rowspan="2" { "Mode" }
-                                        th align="center" colspan="2" { "Battery import" }
-                                        th align="center" colspan="2" { "Battery export" }
-                                        th align="center" colspan="2" { "Grid import" }
-                                        th align="center" colspan="2" { "Grid export" }
+                                        th.has-text-success align="center" colspan="2" { "Battery import" }
+                                        th.has-text-warning align="center" colspan="2" { "Battery export" }
+                                        th.has-text-danger align="center" colspan="2" { "Grid import" }
+                                        th.has-text-link align="center" colspan="2" { "Grid export" }
                                     }
                                     tr {
-                                        th.has-text-right { "Cosine" }
-                                        th.has-text-right { "Sine" }
-                                        th.has-text-right { "Cosine" }
-                                        th.has-text-right { "Sine" }
-                                        th.has-text-right { "Cosine" }
-                                        th.has-text-right { "Sine" }
-                                        th.has-text-right { "Cosine" }
-                                        th.has-text-right { "Sine" }
+                                        th.has-text-right.has-text-success { "Cosine" }
+                                        th.has-text-right.has-text-success { "Sine" }
+                                        th.has-text-right.has-text-warning { "Cosine" }
+                                        th.has-text-right.has-text-warning { "Sine" }
+                                        th.has-text-right.has-text-danger { "Cosine" }
+                                        th.has-text-right.has-text-danger { "Sine" }
+                                        th.has-text-right.has-text-link { "Cosine" }
+                                        th.has-text-right.has-text-link { "Sine" }
                                     }
                                 }
                                 tbody {
                                     @for (mode_index, harmonic) in (1..).zip(logger_state.energy_profile.balance_harmonics()) {
                                         tr {
                                             th.has-text-right { "#" (mode_index) }
-                                            td.has-text-right { (harmonic.value().cosine.battery.import) }
-                                            td.has-text-right { (harmonic.value().sine.battery.import) }
-                                            td.has-text-right { (harmonic.value().cosine.battery.export) }
-                                            td.has-text-right { (harmonic.value().sine.battery.export) }
-                                            td.has-text-right { (harmonic.value().cosine.grid.import) }
-                                            td.has-text-right { (harmonic.value().sine.grid.import) }
-                                            td.has-text-right { (harmonic.value().cosine.grid.export) }
-                                            td.has-text-right { (harmonic.value().sine.grid.export) }
+                                            td.has-text-right.has-text-success { (harmonic.value().cosine.battery.import) }
+                                            td.has-text-right.has-text-success { (harmonic.value().sine.battery.import) }
+                                            td.has-text-right.has-text-warning { (harmonic.value().cosine.battery.export) }
+                                            td.has-text-right.has-text-warning { (harmonic.value().sine.battery.export) }
+                                            td.has-text-right.has-text-danger { (harmonic.value().cosine.grid.import) }
+                                            td.has-text-right.has-text-danger { (harmonic.value().sine.grid.import) }
+                                            td.has-text-right.has-text-link { (harmonic.value().cosine.grid.export) }
+                                            td.has-text-right.has-text-link { (harmonic.value().sine.grid.export) }
                                         }
                                     }
                                 }

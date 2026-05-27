@@ -14,7 +14,6 @@ use crate::{
     quantity::{Zero, power::Watts},
 };
 
-/// TODO: rename into `Profile`, when the above is gone.
 #[must_use]
 #[derive(Clone, Encode, Decode)]
 pub struct Profile {

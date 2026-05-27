@@ -11,11 +11,7 @@ use fennec_modbus::{
     tcp::UnitId,
 };
 
-use crate::{
-    battery,
-    prelude::*,
-    quantity::{energy::DecawattHours, power::Watts, ratios::Percentage},
-};
+use crate::{battery, energy::Flow, prelude::*};
 
 /// FoxESS MQ2200 Modbus client.
 #[must_use]
@@ -30,15 +26,62 @@ impl MQ2200 {
 
     #[instrument(skip_all)]
     pub async fn read_state(&self) -> Result<battery::State> {
-        let design_capacity = self.read_design_capacity().await?;
-        let health = self.read_state_of_health().await?;
+        let design_capacity = self
+            .0
+            .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the design capacity")?
+            .into();
+        let health = self
+            .0
+            .call::<mq2200::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the SoH")?
+            .try_into()?;
 
         // Fast-changing values should be read next to each other with minimum delays:
-        let charge = self.read_state_of_charge().await?;
-        let active_power = self.read_active_power().await?;
-        let eps_active_power = self.read_eps_active_power().await?;
+        let charge = self
+            .0
+            .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the SoC")?
+            .try_into()?;
+        let active_power = self
+            .0
+            .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the active power")?
+            .into();
+        let eps_active_power = self
+            .0
+            .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the EPS active power")?
+            .into();
+        let total_grid_export_energy = self
+            .0
+            .call::<mq2200::ReadTotalGridExportEnergy>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the total exported energy")?
+            .into();
+        let total_grid_import_energy = self
+            .0
+            .call::<mq2200::ReadTotalGridImportEnergy>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the total exported energy")?
+            .into();
 
-        Ok(battery::State { charge, health, design_capacity, active_power, eps_active_power })
+        Ok(battery::State {
+            charge,
+            health,
+            design_capacity,
+            active_power,
+            eps_active_power,
+            total_grid_flow: Flow {
+                import: total_grid_import_energy,
+                export: total_grid_export_energy,
+            },
+        })
     }
 
     #[instrument(skip_all)]
@@ -67,49 +110,5 @@ impl MQ2200 {
 
         info!("finished");
         Ok(())
-    }
-
-    async fn read_design_capacity(&self) -> Result<DecawattHours> {
-        self.0
-            .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the design capacity")
-            .map(Into::into)
-    }
-
-    async fn read_state_of_charge(&self) -> Result<Percentage> {
-        self.0
-            .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the SoC")
-            .and_then(TryInto::try_into)
-    }
-
-    async fn read_state_of_health(&self) -> Result<Percentage> {
-        self.0
-            .call::<mq2200::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the SoH")
-            .and_then(TryInto::try_into)
-    }
-
-    /// Read total external active power.
-    ///
-    /// Positive means discharging, negative means charging.
-    async fn read_active_power(&self) -> Result<Watts> {
-        self.0
-            .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the active power")
-            .map(Into::into)
-    }
-
-    /// Read current EPS output power.
-    async fn read_eps_active_power(&self) -> Result<Watts> {
-        self.0
-            .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the EPS active power")
-            .map(Into::into)
     }
 }

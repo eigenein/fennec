@@ -8,7 +8,7 @@ use crate::quantity::{
 
 quantity!(MilliwattHours, via: i64, suffix: "mWh", precision: 0);
 quantity!(WattHours, via: f64, suffix: "Wh", precision: 0);
-quantity!(DecawattHours, via: u16, suffix: "daWh", precision: 1);
+quantity!(DecawattHours, via: u32, suffix: "daWh", precision: 1);
 quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 1);
 
 implement_mul!(Watts, Hours, WattHours);
@@ -38,6 +38,12 @@ impl WattHours {
 
 impl From<fennec_modbus::contrib::DecawattHours<u16>> for DecawattHours {
     fn from(value: fennec_modbus::contrib::DecawattHours<u16>) -> Self {
+        Self(value.0.into())
+    }
+}
+
+impl From<fennec_modbus::contrib::DecawattHours<u32>> for DecawattHours {
+    fn from(value: fennec_modbus::contrib::DecawattHours<u32>) -> Self {
         Self(value.0)
     }
 }

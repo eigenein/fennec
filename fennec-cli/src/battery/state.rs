@@ -1,7 +1,10 @@
-use crate::quantity::{
-    energy::{DecawattHours, WattHours},
-    power::Watts,
-    ratios::Percentage,
+use crate::{
+    energy::Flow,
+    quantity::{
+        energy::{DecawattHours, WattHours},
+        power::Watts,
+        ratios::Percentage,
+    },
 };
 
 #[must_use]
@@ -22,6 +25,8 @@ pub struct State {
 
     /// Active power on the EPS output.
     pub eps_active_power: Watts,
+
+    pub total_grid_flow: Flow<DecawattHours>,
 }
 
 impl State {

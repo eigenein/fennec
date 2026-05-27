@@ -35,10 +35,15 @@ pub struct Percentage<T>(pub T);
 
 impl_new_type!(Percentage => u16);
 
+/// [Decawatt][1]-hours, 1 daWh is equal to 10 [Wh][2].
+///
+/// [1]: https://en.wiktionary.org/wiki/decawatt
+/// [2]: https://en.wiktionary.org/wiki/watt-hour
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct DecawattHours<T>(pub T);
 
 impl_new_type!(DecawattHours => u16);
+impl_new_type!(DecawattHours => u32);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Watts<T>(pub T);

@@ -56,7 +56,7 @@ pub struct RunArgs {
     #[clap(long = "quantum-watthours", env = "QUANTUM_WATTHOURS", default_value = "1")]
     quantum: WattHours,
 
-    #[clap(long, env = "ENERGY_PROFILE_HALF_LIFE", default_value = "7d")]
+    #[clap(long, env = "ENERGY_PROFILE_HALF_LIFE", default_value = "14d")]
     energy_profile_half_life: humantime::Duration,
 
     /// Do not push schedule to the device, dry run.

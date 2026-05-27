@@ -1,8 +1,8 @@
-use std::ops::{Add, Div, Index, Mul};
+use std::ops::{Add, Div, Mul};
 
 use derive_more::AddAssign;
 
-use crate::{prelude::*, quantity::Zero};
+use crate::quantity::Zero;
 
 #[must_use]
 #[derive(Copy, Clone, AddAssign)]
@@ -40,55 +40,5 @@ impl<W, V> Integrator<W, V> {
         W: Zero + PartialEq,
     {
         if self.weight == W::ZERO { None } else { Some(self.value / self.weight) }
-    }
-}
-
-#[must_use]
-pub struct BucketIntegrator<W, T> {
-    pub total: Integrator<W, T>,
-    pub buckets: Vec<Integrator<W, T>>,
-}
-
-impl<W, T> BucketIntegrator<W, T> {
-    pub fn new(max_bucket_index: usize) -> Self
-    where
-        T: Zero,
-        W: Zero,
-    {
-        Self {
-            total: Integrator::new(),
-            buckets: (0..=max_bucket_index).map(|_| Integrator::new()).collect(),
-        }
-    }
-}
-
-#[must_use]
-pub struct BucketMean<T> {
-    /// Global average across the samples.
-    total: T,
-
-    buckets: Vec<Option<T>>,
-}
-
-impl<W, V> TryFrom<BucketIntegrator<W, V>> for BucketMean<<V as Div<W>>::Output>
-where
-    V: Div<W>,
-    W: Zero + PartialEq,
-{
-    type Error = Error;
-
-    fn try_from(integrator: BucketIntegrator<W, V>) -> Result<Self> {
-        Ok(Self {
-            total: integrator.total.mean().context("no samples to calculate the total average")?,
-            buckets: integrator.buckets.into_iter().map(Integrator::mean).collect(),
-        })
-    }
-}
-
-impl<T> Index<usize> for BucketMean<T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.buckets[index].as_ref().unwrap_or(&self.total)
     }
 }

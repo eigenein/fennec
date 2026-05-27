@@ -73,22 +73,18 @@ impl Hunter {
             "battery state",
         );
 
-        let energy_profile = self
+        let battery_profile = self
             .energy_profile_cache
             .get_or_insert_with(async {
                 let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
-                energy::Profile::try_estimate(
-                    self.battery_args.power_limits,
-                    self.energy_provider.time_step(),
-                    power_logs,
-                )
-                .await
+                energy::Profile::try_estimate(power_logs).await
             })
             .await?;
+        let energy_profile = energy::NewProfile::read_or_default().await?;
 
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
-            .balance_profile(energy_profile)
+            .energy_profile(&energy_profile)
             .working_modes(self.working_modes)
             .min_residual_energy(
                 battery_state.actual_capacity() * self.battery_args.charge_limits.min,
@@ -99,11 +95,13 @@ impl Hunter {
                     .residual_energy()
                     .max(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
-            .battery_efficiency(energy_profile.battery_efficiency)
+            .battery_efficiency(battery_profile.battery_efficiency)
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(
-                self.battery_args.power_limits.max_effective_flow(energy_profile.average_eps_power),
+                self.battery_args
+                    .power_limits
+                    .max_effective_flow(energy_profile.eps_active_power()),
             )
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
@@ -138,12 +136,7 @@ impl Hunter {
                 .context("failed to push the schedule to the battery")?;
         }
 
-        Ok(state::Hunter {
-            steps,
-            metrics,
-            average_eps_power: energy_profile.average_eps_power,
-            battery_efficiency: energy_profile.battery_efficiency,
-        })
+        Ok(state::Hunter { steps, metrics, battery_efficiency: battery_profile.battery_efficiency })
     }
 
     /// Fetch energy prices for up to 2 days.

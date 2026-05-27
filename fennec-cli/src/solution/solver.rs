@@ -17,7 +17,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver<'a> {
     energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
-    balance_profile: &'a energy::Profile,
+    energy_profile: &'a energy::NewProfile,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -113,8 +113,7 @@ impl Solver<'_> {
     ) -> Step {
         let (interval, energy_price) = self.energy_prices[interval_index];
 
-        // TODO: this needs to be average over the interval now:
-        let average_balance = self.balance_profile.average_balance_on(interval.start().time());
+        let average_balance = self.energy_profile.mean_balance_over(interval);
 
         // Remember that the average flow represents theoretical possibility,
         // actual flow depends on the working mode:

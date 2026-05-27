@@ -20,6 +20,7 @@ use crate::{
 pub const PATH: &str = "/energy-profile";
 
 #[instrument(skip_all)]
+#[expect(clippy::too_many_lines)]
 #[expect(clippy::significant_drop_tightening)]
 pub async fn get(State(state): State<application::State>) -> Markup {
     info!("access");

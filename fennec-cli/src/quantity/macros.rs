@@ -1,3 +1,4 @@
+/// TODO: looks like quantity has got to become type-parametrized…
 #[rustfmt::skip]
 macro_rules! quantity {
     ($(#[$meta:meta])* $name:ident, via: $inner:tt, suffix: $suffix:literal, precision: $precision:literal) => {
@@ -48,6 +49,14 @@ macro_rules! implement_new_type {
     };
     ($(#[$meta:meta])* $name:ident, u16) => {
         new_type_struct!($(#[$meta])* $name, u16, #[
+            ::std::cmp::PartialEq,
+            ::std::cmp::Eq,
+            ::std::cmp::PartialOrd,
+            ::std::cmp::Ord
+        ]);
+    };
+    ($(#[$meta:meta])* $name:ident, u32) => {
+        new_type_struct!($(#[$meta])* $name, u32, #[
             ::std::cmp::PartialEq,
             ::std::cmp::Eq,
             ::std::cmp::PartialOrd,

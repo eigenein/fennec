@@ -100,6 +100,11 @@ impl Logger {
             battery.residual_energy = ?battery_measurement.residual_energy,
             "measurements",
         );
+        info!(
+            import = ?battery_state.total_grid_flow.import,
+            export = ?battery_state.total_grid_flow.export,
+            "total battery grid flow",
+        );
 
         Ok(state::Logger { battery: battery_state, energy_profile: self.energy_profile.clone() })
     }

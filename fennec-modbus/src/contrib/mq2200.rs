@@ -25,6 +25,14 @@ pub type ReadEpsActivePower = ReadHoldingRegisters<address::Const<39216>, Watts<
 /// Read the battery state-of-charge.
 pub type ReadStateOfCharge = ReadHoldingRegisters<address::Const<39424>, Percentage<u16>>;
 
+/// Read the battery total energy exported to grid.
+pub type ReadTotalGridExportEnergy =
+    ReadHoldingRegisters<address::Const<39621>, DecawattHours<u32>>;
+
+/// Read the battery total energy imported from grid.
+pub type ReadTotalGridImportEnergy =
+    ReadHoldingRegisters<address::Const<39625>, DecawattHours<u32>>;
+
 /// Read the system minimum allowed state-of-charge.
 ///
 /// Unlike the reserve state-of-charge, this an absolute minimum for any battery state.

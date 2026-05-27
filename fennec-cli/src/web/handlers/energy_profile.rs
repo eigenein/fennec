@@ -1,19 +1,15 @@
-use std::ops::Range;
-
 use axum::extract::State;
-use chrono::NaiveTime;
+use chrono::{Local, NaiveTime, TimeDelta, TimeZone};
 use itertools::Itertools;
 use maud::{Markup, PreEscaped, html};
-use plotters::{
-    backend::SVGBackend,
-    chart::ChartBuilder,
-    coord::{Shift, types::RangedCoordf64},
-    prelude::*,
-};
+use plotters::{backend::SVGBackend, chart::ChartBuilder, prelude::*};
 
 use crate::{
+    Interval,
     energy,
+    energy::Balance,
     prelude::*,
+    quantity::power::Watts,
     web::{application, partials},
 };
 
@@ -95,7 +91,20 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                     }
                     div.card-content {
                         figure.image.has-plotters-fix {
-                            (energy_balance_chart(&logger_state.energy_profile))
+                            (instant_balance_chart(&logger_state.energy_profile))
+                        }
+                    }
+                }
+            }
+
+            section.section.py-5 {
+                div.card {
+                    header.card-header {
+                        p.card-header-title { "Interval balance" }
+                    }
+                    div.card-content {
+                        figure.image.has-plotters-fix {
+                            (interval_balance_chart(&logger_state.energy_profile))
                         }
                     }
                 }
@@ -153,59 +162,30 @@ pub async fn get(State(state): State<application::State>) -> Markup {
 }
 
 #[must_use]
-fn new_chart(
-    buf: &mut Markup,
-    value_range: Range<f64>,
-) -> (
-    DrawingArea<SVGBackend<'_>, Shift>,
-    ChartContext<'_, SVGBackend<'_>, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
-) {
-    let drawing_area = SVGBackend::with_string(&mut buf.0, (1000, 250)).into_drawing_area();
-    let mut chart = ChartBuilder::on(&drawing_area)
-        .x_label_area_size(20)
-        .y_label_area_size(40)
-        .margin_top(10)
-        .build_cartesian_2d(0_f64..24_f64, value_range)
-        .unwrap();
-    chart
-        .configure_mesh()
-        .bold_line_style(full_palette::GREY_600.mix(0.75))
-        .light_line_style(full_palette::GREY_600.mix(0.25))
-        .label_style(&full_palette::GREY_600)
-        .y_max_light_lines(0)
-        .draw()
-        .unwrap();
-    (drawing_area, chart)
-}
-
-#[must_use]
-fn energy_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
-    let mut points = {
-        let mean_balance = energy_profile.mean_balance();
-        (0..24)
-            .cartesian_product([0, 10, 20, 30, 40, 50])
-            .map(|(hour, minute)| {
-                (
-                    f64::from(hour) + f64::from(minute) / 60.0,
-                    NaiveTime::from_hms_opt(hour % 24, minute, 0).unwrap(),
-                )
-            })
-            .map(|(x, naive_time)| (x, mean_balance + energy_profile.deviation_at(naive_time)))
-            .collect_vec()
-    };
-
-    let (min_y, max_y) = {
+fn render_chart(points: &[(f64, Balance<Watts>)]) -> Markup {
+    let value_range = {
         let values = points.iter().flat_map(|(_, balance)| *balance).map(|power| power.0);
-        (
-            values.clone().min_by(f64::total_cmp).unwrap_or_default(),
-            values.max_by(f64::total_cmp).unwrap_or_default(),
-        )
+        values.clone().min_by(f64::total_cmp).unwrap_or_default()
+            ..values.max_by(f64::total_cmp).unwrap_or_default()
     };
-    points.push((24.0, points[0].1));
 
-    let mut svg = PreEscaped(String::new());
+    let mut buf = PreEscaped(String::new());
     {
-        let (drawing_area, mut chart) = new_chart(&mut svg, min_y..max_y);
+        let drawing_area = SVGBackend::with_string(&mut buf.0, (1000, 250)).into_drawing_area();
+        let mut chart = ChartBuilder::on(&drawing_area)
+            .x_label_area_size(20)
+            .y_label_area_size(40)
+            .margin_top(10)
+            .build_cartesian_2d(0_f64..24_f64, value_range)
+            .unwrap();
+        chart
+            .configure_mesh()
+            .bold_line_style(full_palette::GREY_600.mix(0.75))
+            .light_line_style(full_palette::GREY_600.mix(0.25))
+            .label_style(&full_palette::GREY_600)
+            .y_max_light_lines(0)
+            .draw()
+            .unwrap();
         chart
             .draw_series(LineSeries::new(
                 points.iter().map(|(x, balance)| (*x, balance.grid.import.0)),
@@ -232,5 +212,38 @@ fn energy_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
             .unwrap();
         drawing_area.present().unwrap();
     }
-    svg
+    buf
+}
+
+#[must_use]
+fn instant_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
+    let mut points = {
+        let mean_balance = energy_profile.mean_balance();
+        (0..24)
+            .cartesian_product([0, 10, 20, 30, 40, 50])
+            .map(|(hour, minute)| {
+                (
+                    f64::from(hour) + f64::from(minute) / 60.0,
+                    NaiveTime::from_hms_opt(hour % 24, minute, 0).unwrap(),
+                )
+            })
+            .map(|(x, naive_time)| (x, mean_balance + energy_profile.deviation_at(naive_time)))
+            .collect_vec()
+    };
+    points.push((24.0, points[0].1));
+    render_chart(&points)
+}
+
+#[must_use]
+fn interval_balance_chart(energy_profile: &energy::NewProfile) -> Markup {
+    let points = {
+        (0..24)
+            .map(|hour| {
+                let start = Local.with_ymd_and_hms(2026, 1, 1, hour, 0, 0).unwrap();
+                let interval = Interval::new(start, start + TimeDelta::hours(1));
+                (f64::from(hour) + 0.5, energy_profile.mean_balance_over(interval))
+            })
+            .collect_vec()
+    };
+    render_chart(&points)
 }

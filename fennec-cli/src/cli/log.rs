@@ -21,7 +21,7 @@ use crate::{
 pub struct Logger {
     connections: Connections,
     battery_power_limits: battery::PowerLimits,
-    energy_profile: energy::NewProfile,
+    energy_profile: energy::Profile,
     energy_profile_half_life: HalfLife,
 }
 
@@ -33,7 +33,7 @@ impl Logger {
         battery_power_limits: battery::PowerLimits,
         energy_profile_half_life: HalfLife,
     ) -> Result<Self> {
-        let energy_profile = energy::NewProfile::read_or_default().await?;
+        let energy_profile = energy::Profile::read_or_default().await?;
         Ok(Self { connections, battery_power_limits, energy_profile, energy_profile_half_life })
     }
 

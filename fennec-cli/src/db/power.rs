@@ -19,18 +19,6 @@ pub struct Measurement {
     #[debug(skip)]
     pub timestamp: DateTime<Utc>,
 
-    /// Net power deficit on the main connection.
-    ///
-    /// Positive is net consumption, negative is net production.
-    ///
-    /// This is equal to «P1 net consumption plus battery net production»,
-    /// as we only need to track and compensate the net deficit, hence:
-    ///
-    /// - battery charging or discharging has no effect on it;
-    /// - PV production lowers it.
-    #[serde(rename = "netWatts")]
-    pub net_deficit: Watts,
-
     #[serde(rename = "batteryV4")]
     pub battery: BatteryMeasurement,
 }

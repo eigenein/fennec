@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, TimeDelta};
+use chrono::NaiveDate;
 
 use crate::{
     Schedule,
@@ -22,13 +22,6 @@ pub enum Provider {
 }
 
 impl Provider {
-    pub const fn time_step(self) -> TimeDelta {
-        match self {
-            Self::FrankEnergieHourly => TimeDelta::hours(1),
-            Self::FrankEnergieQuarterly => TimeDelta::minutes(15),
-        }
-    }
-
     pub async fn get_prices(self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         match self {
             Self::FrankEnergieQuarterly => {

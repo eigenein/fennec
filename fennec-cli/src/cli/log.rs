@@ -89,7 +89,6 @@ impl Logger {
             .eps_active_power(battery_state.eps_active_power)
             .build();
         power::Measurement::builder()
-            .net_deficit(net_deficit)
             .battery(battery_measurement)
             .build()
             .insert_into(&self.connections.db)

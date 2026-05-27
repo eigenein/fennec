@@ -3,7 +3,7 @@ use crate::{
     battery,
     energy,
     energy::Flow,
-    quantity::{power::Watts, price::KilowattHourPrice},
+    quantity::price::KilowattHourPrice,
     solution::{Metrics, Step},
 };
 
@@ -11,7 +11,6 @@ use crate::{
 pub struct Hunter {
     pub steps: Vec<((Interval, Flow<KilowattHourPrice>), Step)>,
     pub metrics: Metrics,
-    pub average_eps_power: Watts,
     pub battery_efficiency: battery::Efficiency,
 }
 

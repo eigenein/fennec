@@ -86,7 +86,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                                     }
                                 }
                                 span.tag {
-                                    (hunter_state.average_eps_power)
+                                    (logger_state.energy_profile.eps_active_power())
                                 }
                             }
                         }

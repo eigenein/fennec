@@ -24,12 +24,12 @@ macro_rules! new_type_struct {
             ::derive_more::Sub,
             ::derive_more::SubAssign,
             ::derive_more::Sum,
+            ::musli::Decode,
+            ::musli::Encode,
             ::serde::Deserialize,
             ::serde::Serialize,
             ::std::clone::Clone,
             ::std::marker::Copy,
-            ::musli::Encode,
-            ::musli::Decode,
             $($derive),*
         )]
         #[musli(transparent)]

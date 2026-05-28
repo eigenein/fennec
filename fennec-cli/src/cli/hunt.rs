@@ -92,8 +92,7 @@ impl Hunter {
             )
             .max_residual_energy(
                 // Current residual may be higher than the maximum SoC setting:
-                battery_state
-                    .residual_energy_watt_hours()
+                WattHours::from(battery_state.residual_energy())
                     .max(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
             .battery_efficiency(battery_efficiency)
@@ -107,7 +106,7 @@ impl Hunter {
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let solutions = solver.solve();
-        let initial_energy_level = self.quantum.index(battery_state.residual_energy_watt_hours());
+        let initial_energy_level = self.quantum.index(battery_state.residual_energy().into());
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
         let steps: Vec<_> = energy_prices.into_iter().zip_eq(steps).collect();
         info!(

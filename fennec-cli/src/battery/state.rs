@@ -36,12 +36,7 @@ impl State {
     }
 
     /// Residual energy corrected on the state of health.
-    pub fn residual_energy_watt_hours(&self) -> WattHours {
-        self.actual_capacity() * self.charge
-    }
-
-    /// Residual energy corrected on the state of health.
-    pub fn residual_energy_milliwatt_hours(&self) -> MilliwattHours {
+    pub fn residual_energy(&self) -> MilliwattHours {
         self.design_capacity * (self.health * self.charge)
     }
 }

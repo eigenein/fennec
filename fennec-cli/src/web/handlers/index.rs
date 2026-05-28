@@ -137,7 +137,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                         div.control {
                             div.tags.has-addons {
                                  @let state_of_charge = StateOfCharge {
-                                    residual_energy: logger_state.battery.residual_energy_watt_hours(),
+                                    residual_energy: logger_state.battery.residual_energy().into(),
                                     actual_capacity: logger_state.battery.actual_capacity(),
                                 };
                                 span.tag.(state_of_charge.class()) {
@@ -147,7 +147,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                                     }
                                 }
                                 span.tag { (logger_state.battery.charge) }
-                                span.tag { (logger_state.battery.residual_energy_watt_hours()) }
+                                span.tag { (WattHours::from(logger_state.battery.residual_energy())) }
                             }
                         }
                         div.control {

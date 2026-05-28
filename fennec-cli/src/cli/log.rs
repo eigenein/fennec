@@ -84,7 +84,7 @@ impl Logger {
         self.energy_profile.write().await?;
 
         let battery_measurement = power::BatteryMeasurement::builder()
-            .residual_energy(battery_state.residual_energy_watt_hours())
+            .residual_energy(battery_state.residual_energy().into())
             .active_power(battery_state.active_power)
             .eps_active_power(battery_state.eps_active_power)
             .build();

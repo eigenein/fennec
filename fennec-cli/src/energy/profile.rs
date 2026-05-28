@@ -14,9 +14,11 @@ use crate::{
     quantity::{Zero, power::Watts},
 };
 
+/// FIXME: [`Clone`] is now needed to display it on the web UI.
 #[must_use]
 #[derive(Clone, Encode, Decode)]
 pub struct Profile {
+    /// Timestamp of the last update to the moving exponentials.
     #[musli(Binary, name = 6)]
     #[musli(with = crate::ops::musli::chrono)]
     last_updated_at: DateTime<Local>,
@@ -29,6 +31,7 @@ pub struct Profile {
     #[musli(Binary, name = 8)]
     mean_balance: Exponential<Balance<Watts>>,
 
+    /// Energy balance harmonics (c₁ and so on).
     #[musli(Binary, name = 9)]
     balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
 }
@@ -112,6 +115,7 @@ impl Profile {
         }
     }
 
+    /// Calculate the balance deviation from the average at concrete moment in time.
     pub fn deviation_at(&self, naive_time: NaiveTime) -> Balance<Watts> {
         let day_phase = f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU;
         (1..)

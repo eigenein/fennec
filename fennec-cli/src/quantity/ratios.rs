@@ -2,7 +2,7 @@ use std::ops::Mul;
 
 use crate::prelude::*;
 
-quantity!(Percentage, via: u8, suffix: "%", precision: 1);
+quantity!(Percentage, via: u8, suffix: "%", precision: 0);
 quantity!(BasisPoints, via: u16, suffix: "‱", precision: 0);
 
 impl From<Percentage> for fennec_modbus::contrib::Percentage<u8> {

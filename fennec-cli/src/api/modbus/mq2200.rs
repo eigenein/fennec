@@ -2,6 +2,7 @@
 
 use std::array::from_fn;
 
+use chrono::Local;
 use fennec_modbus::{
     contrib::{
         mq2200,
@@ -72,6 +73,7 @@ impl MQ2200 {
             .into();
 
         Ok(battery::State {
+            timestamp: Local::now(),
             charge,
             health,
             design_capacity,

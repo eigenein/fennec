@@ -1,3 +1,6 @@
+use chrono::{DateTime, Local};
+use musli::{Decode, Encode};
+
 use crate::{
     energy::Flow,
     quantity::{
@@ -8,24 +11,36 @@ use crate::{
 };
 
 #[must_use]
+#[derive(Clone, Encode, Decode)]
 pub struct State {
+    /// Timestamp of the readings.
+    #[musli(Binary, name = 1)]
+    #[musli(with = crate::ops::musli::chrono)]
+    pub timestamp: DateTime<Local>,
+
     /// State-of-charge (SoC) percentage.
+    #[musli(Binary, name = 2)]
     pub charge: Percentage,
 
     /// State-of-health (SoH) percentage.
+    #[musli(Binary, name = 3)]
     pub health: Percentage,
 
     /// Design capacity – constant for the product lifetime.
+    #[musli(Binary, name = 4)]
     pub design_capacity: DecawattHours,
 
     /// Battery external active power.
     ///
     /// Positive means discharging, negative means charging.
+    #[musli(Binary, name = 5)]
     pub active_power: Watts,
 
     /// Active power on the EPS output.
+    #[musli(Binary, name = 6)]
     pub eps_active_power: Watts,
 
+    #[musli(Binary, name = 7)]
     pub total_grid_flow: Flow<DecawattHours>,
 }
 

@@ -1,7 +1,7 @@
-use std::{f64::consts::TAU, path::Path};
+use std::f64::consts::TAU;
 
 use chrono::{DateTime, Local, NaiveTime, Timelike};
-use musli::{Decode, Encode, wire};
+use musli::{Decode, Encode};
 
 use super::Balance;
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
         fourier::Harmonic,
         smoothing::{Exponential, HalfLife},
     },
-    prelude::*,
+    ops::musli::File,
     quantity::{Zero, power::Watts},
 };
 
@@ -49,35 +49,11 @@ impl Default for Profile {
     }
 }
 
-impl Profile {
+impl File for Profile {
     const PATH: &str = "energy-profile.musli";
+}
 
-    pub async fn read_or_default() -> Result<Self> {
-        let path = Path::new(Self::PATH);
-        if path.exists() {
-            info!(?path, "reading energy profile…");
-            Self::read().await
-        } else {
-            info!("creating new energy profile");
-            Ok(Self::default())
-        }
-    }
-
-    pub async fn read() -> Result<Self> {
-        let bytes =
-            tokio::fs::read(Self::PATH).await.context("failed to read the energy profile")?;
-        wire::decode(bytes.as_slice()).context("failed to decode the energy profile")
-    }
-
-    /// TODO: write to temporary file and rename for atomicity.
-    pub async fn write(&self) -> Result {
-        let bytes = wire::to_vec(&self).context("failed to encode the energy profile")?;
-        tokio::fs::write(Self::PATH, bytes.as_slice())
-            .await
-            .context("failed to write the energy profile")?;
-        Ok(())
-    }
-
+impl Profile {
     pub const fn eps_active_power(&self) -> Watts {
         *self.eps_active_power.value()
     }

@@ -34,7 +34,7 @@ impl Logger {
         battery_power_limits: battery::PowerLimits,
         energy_profile_half_life: HalfLife,
     ) -> Result<Self> {
-        let energy_profile = energy::Profile::read_or_default().await?;
+        let energy_profile = energy::Profile::read().await?.unwrap_or_default();
         Ok(Self { connections, battery_power_limits, energy_profile, energy_profile_half_life })
     }
 

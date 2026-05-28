@@ -81,7 +81,9 @@ impl Hunter {
                 battery::Efficiency::try_estimate(power_logs).await
             })
             .await?;
-        let energy_profile = energy::Profile::read_or_default().await?;
+
+        // FIXME: using default here is meh.
+        let energy_profile = energy::Profile::read().await?.unwrap_or_default();
 
         let solver = Solver::builder()
             .energy_prices(&energy_prices)

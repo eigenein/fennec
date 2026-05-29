@@ -12,7 +12,7 @@ pub trait File: Default + Encode<Binary> + for<'a> Decode<'a, Binary, Global> {
         let path = Path::new(Self::PATH);
         if path.exists() {
             let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
-            wire::decode(bytes.as_slice()).context("failed to decode the file")
+            wire::decode(bytes.as_slice()).context("failed to decode the file").map(Some)
         } else {
             Ok(None)
         }

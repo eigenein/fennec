@@ -4,7 +4,7 @@ use clap::Parser;
 use reqwest::Url;
 
 use crate::{
-    api::{homewizard, modbus::mq2200::MQ2200},
+    api::{battery, homewizard},
     db::Db,
     prelude::*,
 };
@@ -28,7 +28,7 @@ impl ConnectionArgs {
         Ok(Connections {
             grid_measurement: self.grid_measurement_url.client()?,
             db: Db::with_uri(self.db_uri).await?,
-            battery: Arc::new(MQ2200::new(self.battery_address)),
+            battery: Arc::new(battery::Client::new(self.battery_address)),
         })
     }
 }
@@ -37,5 +37,5 @@ impl ConnectionArgs {
 pub struct Connections {
     pub grid_measurement: homewizard::Client,
     pub db: Db,
-    pub battery: Arc<MQ2200>,
+    pub battery: Arc<battery::Client>,
 }

@@ -109,16 +109,14 @@ impl Runner {
             .await?;
 
         let mut energy_profile = self.energy_profile.write().await;
-        energy_profile
-            .update_energy_balance(
-                balance,
-                battery_metrics.eps_active_power,
-                Local::now(),
-                self.args.learning_half_life,
-            )
-            .update_battery_metrics(battery_metrics)
-            .write_to_file()
-            .await?;
+        energy_profile.update_energy_balance(
+            balance,
+            battery_metrics.eps_active_power,
+            Local::now(),
+            self.args.learning_half_life,
+        );
+        energy_profile.update_battery_metrics(battery_metrics);
+        energy_profile.write_to_file().await?;
         drop(energy_profile);
 
         Ok(())

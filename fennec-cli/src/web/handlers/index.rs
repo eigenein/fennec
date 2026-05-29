@@ -16,7 +16,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
     info!("access");
     let hunter_state = state.hunter.read().await;
     let energy_profile = state.logger_runner.energy_profile().await;
-    let battery_metrics = energy_profile.battery_metrics.as_ref();
+    let battery_metrics = energy_profile.battery_metrics();
 
     partials::page(
         "Fennec",

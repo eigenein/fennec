@@ -36,9 +36,10 @@ pub struct Profile {
     #[musli(Binary, name = 9)]
     balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
 
+    /// Battery metrics, updated if and only if when the residual charge changes.
     #[musli(Binary, name = 10)]
     #[musli(default)]
-    pub battery_metrics: Option<battery::Metrics>,
+    battery_metrics: Option<battery::Metrics>,
 }
 
 impl Default for Profile {
@@ -72,10 +73,18 @@ impl Profile {
         self.balance_harmonics.as_slice()
     }
 
-    pub const fn update_battery_metrics(&mut self, battery_metrics: battery::Metrics) -> &mut Self {
-        self.battery_metrics = Some(battery_metrics);
-        // TODO: learn battery parameters.
-        self
+    pub const fn battery_metrics(&self) -> Option<&battery::Metrics> {
+        self.battery_metrics.as_ref()
+    }
+
+    pub fn update_battery_metrics(&mut self, current_battery_metrics: battery::Metrics) {
+        if let Some(battery_metrics) = &self.battery_metrics {
+            if battery_metrics.residual_energy() == current_battery_metrics.residual_energy() {
+                return;
+            }
+            todo!();
+        }
+        self.battery_metrics = Some(current_battery_metrics);
     }
 
     pub fn update_energy_balance(
@@ -84,7 +93,7 @@ impl Profile {
         eps_active_power: Watts,
         at: DateTime<Local>,
         half_life: HalfLife,
-    ) -> &mut Self {
+    ) {
         let smoothing_factor = {
             let elapsed = at - std::mem::replace(&mut self.last_updated_at, at);
             half_life.smoothing_factor(elapsed)
@@ -101,8 +110,6 @@ impl Profile {
         for (k, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
             harmonic.update(Harmonic::project(deviation, base_phase, k), smoothing_factor);
         }
-
-        self
     }
 
     /// Calculate the balance deviation from the average at concrete moment in time.

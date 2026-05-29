@@ -1,20 +1,19 @@
-use std::{
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
 use enumset::EnumSet;
 use itertools::Itertools;
+use tokio::sync::RwLock;
 
 use crate::{
+    Interval,
     Schedule,
     api::modbus::schedule,
     battery,
     battery::WorkingMode,
-    cli::{battery::BatteryArgs, connection::Connections, state},
+    cli::{battery::BatteryArgs, connection::Connections},
     cron::CronSchedule,
     db::power,
     energy,
@@ -22,12 +21,13 @@ use crate::{
     ops::{cache, musli::File},
     prelude::*,
     quantity::{energy::WattHours, price::KilowattHourPrice},
-    solution::Solver,
+    solution,
+    solution::{Solver, Step},
 };
 
 #[must_use]
 #[derive(Builder)]
-pub struct Hunter {
+pub struct Runner {
     connections: Connections,
     battery_args: BatteryArgs,
     working_modes: EnumSet<WorkingMode>,
@@ -39,25 +39,25 @@ pub struct Hunter {
     battery_efficiency_cache: cache::Ttl<battery::Efficiency>,
 }
 
-impl Hunter {
+impl Runner {
     const BACKOFF: ExponentialBuilder =
         ExponentialBuilder::new().with_min_delay(Duration::from_secs(10));
 
     pub async fn run_forever(
         mut self,
         schedule: CronSchedule,
-        state: Arc<RwLock<state::Hunter>>,
+        state: Arc<RwLock<State>>,
     ) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
-            *state.write().unwrap() =
+            *state.write().await =
                 self.run_once().await.context("the hunter iteration has failed")?;
         }
     }
 
     #[instrument(skip_all)]
-    pub async fn run_once(&mut self) -> Result<state::Hunter> {
+    pub async fn run_once(&mut self) -> Result<State> {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices =
             (|| self.get_prices(now)).retry(Self::BACKOFF).notify(log_retried_error).await?;
@@ -83,7 +83,7 @@ impl Hunter {
             .await?;
 
         // FIXME: using default here is meh.
-        let energy_profile = energy::Profile::read().await?.unwrap_or_default();
+        let energy_profile = energy::Profile::read_from_file().await?.unwrap_or_default();
 
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
@@ -138,7 +138,7 @@ impl Hunter {
                 .context("failed to push the schedule to the battery")?;
         }
 
-        Ok(state::Hunter { steps, metrics, battery_efficiency })
+        Ok(State { steps, metrics, battery_efficiency })
     }
 
     /// Fetch energy prices for up to 2 days.
@@ -158,4 +158,11 @@ impl Hunter {
 
         Ok(prices)
     }
+}
+
+#[must_use]
+pub struct State {
+    pub steps: Vec<((Interval, Flow<KilowattHourPrice>), Step)>,
+    pub metrics: solution::Metrics,
+    pub battery_efficiency: battery::Efficiency,
 }

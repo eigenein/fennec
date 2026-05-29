@@ -1,17 +1,11 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use clap::Parser;
-use tokio::{spawn, try_join};
+use tokio::{spawn, sync::RwLock, try_join};
 
 use crate::{
     battery::WorkingMode,
-    cli::{
-        battery::BatteryArgs,
-        connection::ConnectionArgs,
-        hunt::Hunter,
-        log::Logger,
-        web::BindArgs,
-    },
+    cli::{battery::BatteryArgs, connection::ConnectionArgs, hunter, logger, web::BindArgs},
     cron::CronSchedule,
     db::power,
     energy,
@@ -73,13 +67,14 @@ impl RunArgs {
         let connections = self.connections.connect().await?;
         connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
 
-        let mut logger = Logger::new(
-            connections.clone(),
-            battery_power_limits,
-            HalfLife::new(self.learning_half_life.into()),
-        )
-        .await?;
-        let mut hunter = Hunter::builder()
+        let logger_runner = logger::Args::builder()
+            .connections(connections.clone())
+            .battery_power_limits(battery_power_limits)
+            .learning_half_life(HalfLife::new(self.learning_half_life))
+            .build()
+            .start()
+            .await?;
+        let mut hunter_runner = hunter::Runner::builder()
             .connections(connections.clone())
             .working_modes(self.working_modes.iter().copied().collect())
             .energy_provider(self.energy_provider)
@@ -88,15 +83,12 @@ impl RunArgs {
             .scout(self.dry_run)
             .build();
 
-        // Run the first iteration at startup immediately in a fallible manner:
-        let logger_state = Arc::new(RwLock::new(logger.run_once().await?));
-        let hunter_state = Arc::new(RwLock::new(hunter.run_once().await?));
+        let hunter_state = Arc::new(RwLock::new(hunter_runner.run_once().await?));
         let state =
-            web::application::State { logger: logger_state.clone(), hunter: hunter_state.clone() };
-
+            web::State { hunter: hunter_state.clone(), logger_runner: logger_runner.clone() };
         try_join!(
-            async { spawn(logger.run_forever(self.logger_cron, logger_state)).await? },
-            async { spawn(hunter.run_forever(self.optimizer_cron, hunter_state)).await? },
+            async { spawn(logger_runner.run_forever(self.logger_cron)).await? },
+            async { spawn(hunter_runner.run_forever(self.optimizer_cron, hunter_state)).await? },
             async { spawn(web::serve(self.bind.address, self.bind.port, state)).await? },
         )?;
 

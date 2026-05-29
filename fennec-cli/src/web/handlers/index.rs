@@ -5,20 +5,18 @@ use crate::{
     battery::WorkingMode,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours},
-    web::{application, battery::StateOfCharge, partials, working_mode::WorkingModeColor},
+    web,
+    web::{battery::StateOfCharge, partials, working_mode::WorkingModeColor},
 };
 
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
 #[expect(clippy::significant_drop_tightening)]
-pub async fn get(State(state): State<application::State>) -> Markup {
+pub async fn get(State(state): State<web::State>) -> Markup {
     info!("access");
-
-    let logger = state.logger.read().unwrap();
-    let logger_state = &logger;
-
-    let hunter = state.hunter.read().unwrap();
-    let hunter_state = &hunter;
+    let hunter_state = state.hunter.read().await;
+    let energy_profile = state.logger_runner.energy_profile().await;
+    let battery_metrics = energy_profile.battery_metrics.as_ref();
 
     partials::page(
         "Fennec",
@@ -61,16 +59,18 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                                 }
                             }
                         }
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-info {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-rotate {} }
-                                        span { "Cycles" }
+                        @if let Some(battery_metrics) = battery_metrics {
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-rotate {} }
+                                            span { "Cycles" }
+                                        }
                                     }
-                                }
-                                span.tag {
-                                    (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / logger_state.battery.actual_capacity() / 2.0))
+                                    span.tag {
+                                        (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / battery_metrics.actual_capacity() / 2.0))
+                                    }
                                 }
                             }
                         }
@@ -86,7 +86,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                                     }
                                 }
                                 span.tag {
-                                    (logger_state.energy_profile.eps_active_power())
+                                    (energy_profile.eps_active_power())
                                 }
                             }
                         }
@@ -133,33 +133,35 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                         }
                     }
 
-                    div.field.is-grouped.is-grouped-multiline {
-                        div.control {
-                            div.tags.has-addons {
-                                 @let state_of_charge = StateOfCharge {
-                                    residual_energy: logger_state.battery.residual_energy().into(),
-                                    actual_capacity: logger_state.battery.actual_capacity(),
-                                };
-                                span.tag.(state_of_charge.class()) {
-                                    span.icon-text {
-                                        (state_of_charge.icon())
-                                        span { "Charge" }
+                    @if let Some(battery_metrics) = battery_metrics {
+                        div.field.is-grouped.is-grouped-multiline {
+                            div.control {
+                                div.tags.has-addons {
+                                     @let state_of_charge = StateOfCharge {
+                                        residual_energy: battery_metrics.residual_energy().into(),
+                                        actual_capacity: battery_metrics.actual_capacity(),
+                                    };
+                                    span.tag.(state_of_charge.class()) {
+                                        span.icon-text {
+                                            (state_of_charge.icon())
+                                            span { "Charge" }
+                                        }
                                     }
+                                    span.tag { (battery_metrics.charge) }
+                                    span.tag { (WattHours::from(battery_metrics.residual_energy())) }
                                 }
-                                span.tag { (logger_state.battery.charge) }
-                                span.tag { (WattHours::from(logger_state.battery.residual_energy())) }
                             }
-                        }
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-info {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-star-of-life {} }
-                                        span { "Health" }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-star-of-life {} }
+                                            span { "Health" }
+                                        }
                                     }
+                                    span.tag { (battery_metrics.health) }
+                                    span.tag { (battery_metrics.actual_capacity()) }
                                 }
-                                span.tag { (logger_state.battery.health) }
-                                span.tag { (logger_state.battery.actual_capacity()) }
                             }
                         }
                     }
@@ -220,10 +222,12 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                                             td.has-text-right {
                                                 span.icon-text.is-flex-wrap-nowrap {
                                                     span { (step.residual_energy_after) }
-                                                    (StateOfCharge {
-                                                        residual_energy: step.residual_energy_after,
-                                                        actual_capacity: logger_state.battery.actual_capacity(),
-                                                    }.icon())
+                                                    @if let Some(battery_metrics) = battery_metrics {
+                                                        (StateOfCharge {
+                                                            residual_energy: step.residual_energy_after,
+                                                            actual_capacity: battery_metrics.actual_capacity(),
+                                                        }.icon())
+                                                    }
                                                 }
                                             }
                                             td.has-text-right.has-text-weight-medium[step.metrics.losses.grid >= Mills::TEN] {

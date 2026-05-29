@@ -8,7 +8,7 @@ pub trait File: Default + Encode<Binary> + for<'a> Decode<'a, Binary, Global> {
     const PATH: &str;
 
     #[instrument]
-    async fn read() -> Result<Option<Self>> {
+    async fn read_from_file() -> Result<Option<Self>> {
         let path = Path::new(Self::PATH);
         if path.exists() {
             let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
@@ -20,7 +20,7 @@ pub trait File: Default + Encode<Binary> + for<'a> Decode<'a, Binary, Global> {
 
     /// TODO: write to temporary file and rename for atomicity.
     #[instrument(skip_all, fields(path = Self::PATH))]
-    async fn write(&self) -> Result {
+    async fn write_to_file(&self) -> Result {
         let bytes = wire::to_vec(self).context("failed to encode the energy profile")?;
         tokio::fs::write(Self::PATH, bytes.as_slice())
             .await

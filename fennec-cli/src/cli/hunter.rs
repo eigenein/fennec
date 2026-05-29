@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use crate::{
     Interval,
     Schedule,
-    api::modbus::schedule,
+    api,
     battery,
     battery::WorkingMode,
     cli::{battery::BatteryArgs, connection::Connections},
@@ -121,7 +121,7 @@ impl Runner {
 
         let entries = {
             let schedule = steps.iter().map(|((interval, _), step)| (*interval, step.working_mode));
-            schedule::build(
+            api::battery::schedule::build(
                 schedule,
                 self.battery_args.charge_limits,
                 self.battery_args.power_limits,

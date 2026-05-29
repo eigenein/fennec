@@ -1,12 +1,14 @@
 //! FoxESS Modbus client.
 
+pub mod schedule;
+
 use std::array::from_fn;
 
 use chrono::Local;
 use fennec_modbus::{
     contrib::{
         mq2200,
-        mq2200::{ReadScheduleEntryBlock, WriteScheduleEntryBlock, schedule},
+        mq2200::{ReadScheduleEntryBlock, WriteScheduleEntryBlock},
     },
     protocol::{address, function::write_multiple},
     tcp::UnitId,
@@ -16,9 +18,9 @@ use crate::{battery, energy::Flow, prelude::*};
 
 /// FoxESS MQ2200 Modbus client.
 #[must_use]
-pub struct MQ2200(fennec_modbus::tcp::tokio::Client<String>);
+pub struct Client(fennec_modbus::tcp::tokio::Client<String>);
 
-impl MQ2200 {
+impl Client {
     const UNIT_ID: UnitId = UnitId::Significant(1);
 
     pub fn new(address: String) -> Self {
@@ -87,17 +89,17 @@ impl MQ2200 {
     }
 
     #[instrument(skip_all)]
-    pub async fn write_schedule(&self, schedule: &schedule::Full) -> Result {
-        let blocks: [[schedule::Entry; schedule::N_ENTRIES_PER_BLOCK]; schedule::N_BLOCKS] =
-            from_fn(|block_index| {
-                from_fn(|entry_index| {
-                    schedule[block_index * schedule::N_ENTRIES_PER_BLOCK + entry_index]
-                })
-            });
+    pub async fn write_schedule(&self, schedule: &mq2200::schedule::Full) -> Result {
+        let blocks: [[mq2200::schedule::Entry; mq2200::schedule::N_ENTRIES_PER_BLOCK];
+            mq2200::schedule::N_BLOCKS] = from_fn(|block_index| {
+            from_fn(|entry_index| {
+                schedule[block_index * mq2200::schedule::N_ENTRIES_PER_BLOCK + entry_index]
+            })
+        });
 
         for (i, block) in (0u16..).zip(blocks) {
             info!(i, "writing the schedule block…");
-            let address = schedule::BlockIndex(i);
+            let address = mq2200::schedule::BlockIndex(i);
 
             self.0
                 .call::<WriteScheduleEntryBlock>(

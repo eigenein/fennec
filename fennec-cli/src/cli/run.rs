@@ -56,8 +56,10 @@ pub struct RunArgs {
     #[clap(long = "quantum-watthours", env = "QUANTUM_WATTHOURS", default_value = "1")]
     quantum: WattHours,
 
-    #[clap(long, env = "ENERGY_PROFILE_HALF_LIFE", default_value = "14d")]
-    energy_profile_half_life: humantime::Duration,
+    /// Half-life for exponential moving average when learning
+    /// the energy balance and battery parameters.
+    #[clap(long, env = "LEARNING_HALF_LIFE", default_value = "14d")]
+    learning_half_life: humantime::Duration,
 
     /// Do not push schedule to the device, dry run.
     #[clap(long, alias = "scout", env = "DRY_RUN")]
@@ -74,7 +76,7 @@ impl RunArgs {
         let mut logger = Logger::new(
             connections.clone(),
             battery_power_limits,
-            HalfLife::new(self.energy_profile_half_life.into()),
+            HalfLife::new(self.learning_half_life.into()),
         )
         .await?;
         let mut hunter = Hunter::builder()

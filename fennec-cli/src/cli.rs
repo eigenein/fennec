@@ -1,10 +1,9 @@
 pub mod battery;
 mod connection;
-mod hunt;
-mod log;
+pub mod hunter;
+pub mod logger;
 mod run;
 mod sentry;
-pub mod state;
 mod web;
 
 use clap::{Parser, Subcommand};

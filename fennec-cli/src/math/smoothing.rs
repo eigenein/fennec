@@ -57,8 +57,8 @@ pub struct HalfLife(
 );
 
 impl HalfLife {
-    pub const fn new(half_life: Duration) -> Self {
-        Self(LN_2 / half_life.as_secs_f64())
+    pub fn new(half_life: impl Into<Duration>) -> Self {
+        Self(LN_2 / half_life.into().as_secs_f64())
     }
 
     /// Calculate the smoothing factor from the elapsed time.

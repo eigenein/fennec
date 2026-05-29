@@ -26,7 +26,7 @@ impl MQ2200 {
     }
 
     #[instrument(skip_all)]
-    pub async fn read_state(&self) -> Result<battery::State> {
+    pub async fn read_state(&self) -> Result<battery::Metrics> {
         let design_capacity = self
             .0
             .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
@@ -72,7 +72,7 @@ impl MQ2200 {
             .context("failed to read the total exported energy")?
             .into();
 
-        Ok(battery::State {
+        Ok(battery::Metrics {
             timestamp: Local::now(),
             charge,
             health,

@@ -69,10 +69,9 @@ impl From<MilliwattHours> for WattHours {
     }
 }
 
-impl From<MilliwattHours> for KilowattHours {
-    fn from(value: MilliwattHours) -> Self {
-        #[expect(clippy::cast_precision_loss)]
-        Self(value.0 as f64 * 0.000_001)
+impl From<WattHours> for KilowattHours {
+    fn from(value: WattHours) -> Self {
+        Self(value.0 * 0.001)
     }
 }
 
@@ -98,9 +97,9 @@ impl From<KilowattHours> for WattHours {
     }
 }
 
-impl From<WattHours> for KilowattHours {
-    fn from(watt_hours: WattHours) -> Self {
-        Self(watt_hours.0 * 0.001)
+impl From<DecawattHours> for KilowattHours {
+    fn from(decawatt_hours: DecawattHours) -> Self {
+        Self(f64::from(decawatt_hours.0) * 0.01)
     }
 }
 

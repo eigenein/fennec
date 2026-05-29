@@ -10,7 +10,8 @@ use crate::{
     energy::Balance,
     prelude::*,
     quantity::power::Watts,
-    web::{application, partials},
+    web,
+    web::partials,
 };
 
 pub const PATH: &str = "/energy-profile";
@@ -18,12 +19,11 @@ pub const PATH: &str = "/energy-profile";
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
 #[expect(clippy::significant_drop_tightening)]
-pub async fn get(State(state): State<application::State>) -> Markup {
+pub async fn get(State(state): State<web::State>) -> Markup {
     info!("access");
 
-    let logger = state.logger.read().unwrap();
-    let logger_state = &logger;
-    let mean_balance = logger_state.energy_profile.mean_balance();
+    let energy_profile = state.logger_runner.energy_profile().await;
+    let mean_balance = energy_profile.mean_balance();
 
     partials::page(
         "Energy profile",
@@ -91,7 +91,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                     }
                     div.card-content {
                         figure.image.has-plotters-fix {
-                            (instant_balance_chart(&logger_state.energy_profile))
+                            (instant_balance_chart(&energy_profile))
                         }
                     }
                 }
@@ -104,7 +104,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                     }
                     div.card-content {
                         figure.image.has-plotters-fix {
-                            (interval_balance_chart(&logger_state.energy_profile))
+                            (interval_balance_chart(&energy_profile))
                         }
                     }
                 }
@@ -138,7 +138,7 @@ pub async fn get(State(state): State<application::State>) -> Markup {
                                     }
                                 }
                                 tbody {
-                                    @for (mode_index, harmonic) in (1..).zip(logger_state.energy_profile.balance_harmonics()) {
+                                    @for (mode_index, harmonic) in (1..).zip(energy_profile.balance_harmonics()) {
                                         tr {
                                             th.has-text-right { "#" (mode_index) }
                                             td.has-text-right.has-text-success { (harmonic.value().cosine.battery.import) }

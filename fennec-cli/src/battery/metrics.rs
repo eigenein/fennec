@@ -10,9 +10,10 @@ use crate::{
     },
 };
 
+/// TODO: move under [`crate::api::modbus::mq2200`] like I do for HomeWizard.
 #[must_use]
 #[derive(Clone, Encode, Decode)]
-pub struct State {
+pub struct Metrics {
     /// Timestamp of the readings.
     #[musli(Binary, name = 1)]
     #[musli(with = crate::ops::musli::chrono)]
@@ -44,7 +45,7 @@ pub struct State {
     pub total_grid_flow: Flow<DecawattHours>,
 }
 
-impl State {
+impl Metrics {
     /// Battery capacity corrected on the state of health.
     pub fn actual_capacity(&self) -> WattHours {
         WattHours::from(self.design_capacity) * self.health

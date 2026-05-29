@@ -1,17 +1,26 @@
-pub mod application;
 mod battery;
 mod handlers;
 mod partials;
 mod plotters;
 mod working_mode;
 
-use std::net::IpAddr;
+use std::{net::IpAddr, sync::Arc};
 
 use axum::{Router, routing::get};
+use tokio::sync::RwLock;
 
-use crate::prelude::*;
+use crate::{
+    cli::{hunter, logger},
+    prelude::*,
+};
 
-pub async fn serve(address: IpAddr, port: u16, state: application::State) -> Result {
+#[derive(Clone)]
+pub struct State {
+    pub hunter: Arc<RwLock<hunter::State>>,
+    pub logger_runner: logger::Runner,
+}
+
+pub async fn serve(address: IpAddr, port: u16, state: State) -> Result {
     info!(%address, port, "serving web UI…");
     let app = Router::new()
         .route("/", get(handlers::index::get))

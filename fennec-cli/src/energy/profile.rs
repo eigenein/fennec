@@ -19,10 +19,14 @@ use crate::{
 #[must_use]
 #[derive(Encode, Decode)]
 pub struct Profile {
-    /// Timestamp of the last update to the moving exponentials.
+    /// Timestamp of the last update to the parameters.
+    ///
+    /// It does not apply to the battery metrics and parameters.
+    /// It would be nice to use something like `#[musli(flatten)]` and extract the structure,
+    /// but Musli does not support this at the moment.
     #[musli(Binary, name = 6)]
     #[musli(with = crate::ops::musli::chrono)]
-    last_updated_at: DateTime<Local>,
+    balance_updated_at: DateTime<Local>,
 
     /// Average EPS active power.
     #[musli(Binary, name = 7)]
@@ -36,7 +40,7 @@ pub struct Profile {
     #[musli(Binary, name = 9)]
     pub balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
 
-    /// Battery metrics, updated if and only if when the residual charge changes.
+    /// Battery metrics, updated if and only if the residual charge changes.
     #[musli(Binary, name = 10)]
     #[musli(default)]
     pub battery_metrics: Option<api::battery::Metrics>,
@@ -49,7 +53,7 @@ pub struct Profile {
 impl Default for Profile {
     fn default() -> Self {
         Self {
-            last_updated_at: Local::now(),
+            balance_updated_at: Local::now(),
             mean_balance: Exponential(Balance::ZERO),
             eps_active_power: Exponential(Watts::ZERO),
 
@@ -130,7 +134,7 @@ impl Profile {
         half_life: HalfLife,
     ) {
         let smoothing_factor = {
-            let elapsed = at - std::mem::replace(&mut self.last_updated_at, at);
+            let elapsed = at - std::mem::replace(&mut self.balance_updated_at, at);
             half_life.smoothing_factor(elapsed)
         };
 

@@ -1,9 +1,14 @@
 mod decawatt_hours;
 mod milliwatt_hours;
+mod watt_hours;
 
 use std::ops::{Div, Mul};
 
-pub use self::{decawatt_hours::DecawattHours, milliwatt_hours::MilliwattHours};
+pub use self::{
+    decawatt_hours::DecawattHours,
+    milliwatt_hours::MilliwattHours,
+    watt_hours::WattHours,
+};
 use crate::quantity::{
     Quantity,
     power::Watts,
@@ -11,7 +16,6 @@ use crate::quantity::{
     time::Hours,
 };
 
-quantity!(WattHours, via: f64, suffix: "Wh", precision: 0);
 quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 1);
 
 implement_mul!(Watts, Hours, WattHours);

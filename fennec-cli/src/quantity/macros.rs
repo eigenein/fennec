@@ -34,6 +34,12 @@ macro_rules! new_type_struct {
         )]
         #[musli(transparent)]
         pub struct $name(pub $inner);
+
+        impl $name {
+            pub const fn new(value: $inner) -> Self {
+                Self(value)
+            }
+        }
     };
 }
 
@@ -153,7 +159,7 @@ macro_rules! implement_mul {
             type Output = $output;
 
             fn mul(self, rhs: $rhs) -> Self::Output {
-                $output(self.0 * rhs.0)
+                <$output>::new(self.0 * rhs.0)
             }
         }
 
@@ -161,7 +167,7 @@ macro_rules! implement_mul {
             type Output = $output;
 
             fn mul(self, lhs: $lhs) -> Self::Output {
-                $output(lhs.0 * self.0)
+                <$output>::new(lhs.0 * self.0)
             }
         }
     };

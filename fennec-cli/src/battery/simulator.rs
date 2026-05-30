@@ -72,28 +72,29 @@ pub struct Flows {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::quantity::Quantity;
 
     /// Verify normal charging without overflowing.
     #[test]
     fn normal_operation() {
         let mut simulator = Simulator {
-            residual_energy: WattHours(5000.0),
-            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
+            residual_energy: Quantity(5000.0),
+            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts(700.0) }, Hours(1.0));
-        assert_eq!(flows.external.import, WattHours(1000.0));
-        assert_eq!(flows.external.export, WattHours(700.0));
-        assert_eq!(simulator.residual_energy, WattHours(5300.0));
+        assert_eq!(flows.external.import, Quantity(1000.0));
+        assert_eq!(flows.external.export, Quantity(700.0));
+        assert_eq!(simulator.residual_energy, Quantity(5300.0));
     }
 
     /// Verify efficiency corrections.
     #[test]
     fn efficiency() {
         let mut simulator = Simulator {
-            residual_energy: WattHours(5000.0),
-            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
+            residual_energy: Quantity(5000.0),
+            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
             efficiency: battery::Efficiency {
                 charging: 0.9,
                 discharging: 0.5,
@@ -102,14 +103,14 @@ mod tests {
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts(1000.0) }, Hours(1.0));
-        assert_eq!(flows.external.import, WattHours(1000.0));
-        assert_eq!(flows.external.export, WattHours(1000.0));
-        assert_eq!(flows.internal.import, WattHours(900.0));
-        assert_eq!(flows.internal.export, WattHours(2000.0));
+        assert_eq!(flows.external.import, Quantity(1000.0));
+        assert_eq!(flows.external.export, Quantity(1000.0));
+        assert_eq!(flows.internal.import, Quantity(900.0));
+        assert_eq!(flows.internal.export, Quantity(2000.0));
         assert_eq!(
             simulator.residual_energy,
-            WattHours(5000.0) + WattHours(1000.0) * simulator.efficiency.charging
-                - WattHours(1000.0) / simulator.efficiency.discharging
+            Quantity(5000.0) + Quantity(1000.0) * simulator.efficiency.charging
+                - Quantity(1000.0) / simulator.efficiency.discharging
                 - simulator.efficiency.parasitic_load * Hours(1.0)
         );
     }
@@ -118,59 +119,59 @@ mod tests {
     #[test]
     fn overflow() {
         let mut simulator = Simulator {
-            residual_energy: WattHours(9000.0),
-            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
+            residual_energy: Quantity(9000.0),
+            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(2000.0), export: Watts::ZERO }, Hours(1.0));
-        assert_eq!(flows.external.import, WattHours(1000.0));
-        assert_eq!(flows.external.export, WattHours::ZERO);
-        assert_eq!(simulator.residual_energy, WattHours(10000.0));
+        assert_eq!(flows.external.import, Quantity(1000.0));
+        assert_eq!(flows.external.export, Quantity::ZERO);
+        assert_eq!(simulator.residual_energy, Quantity(10000.0));
     }
 
     /// Verify capping at the minimum.
     #[test]
     fn underflow() {
         let mut simulator = Simulator {
-            residual_energy: WattHours(1000.0),
-            allowed_residual_energy: (WattHours(500.0)..=WattHours(10000.0)).into(),
+            residual_energy: Quantity(1000.0),
+            allowed_residual_energy: (Quantity(500.0)..=Quantity(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts::ZERO, export: Watts(1000.0) }, Hours(1.0));
-        assert_eq!(flows.external.import, WattHours::ZERO);
-        assert_eq!(flows.external.export, WattHours(500.0));
-        assert_eq!(simulator.residual_energy, WattHours(500.0));
+        assert_eq!(flows.external.import, Quantity::ZERO);
+        assert_eq!(flows.external.export, Quantity(500.0));
+        assert_eq!(simulator.residual_energy, Quantity(500.0));
     }
 
     /// Verify bidirectional operation at the minimum SoC.
     #[test]
     fn min_soc_bidirectional() {
         let mut simulator = Simulator {
-            residual_energy: WattHours(100.0),
-            allowed_residual_energy: (WattHours(100.0)..=WattHours(10000.0)).into(),
+            residual_energy: Quantity(100.0),
+            allowed_residual_energy: (Quantity(100.0)..=Quantity(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(500.0), export: Watts(1000.0) }, Hours(1.0));
-        assert_eq!(flows.external.import, WattHours(500.0));
-        assert_eq!(flows.external.export, WattHours(500.0));
-        assert_eq!(simulator.residual_energy, WattHours(100.0));
+        assert_eq!(flows.external.import, Quantity(500.0));
+        assert_eq!(flows.external.export, Quantity(500.0));
+        assert_eq!(simulator.residual_energy, Quantity(100.0));
     }
 
     /// Verify bidirectional operation at the maximum SoC.
     #[test]
     fn max_soc_bidirectional() {
         let mut simulator = Simulator {
-            residual_energy: WattHours(10000.0),
-            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
+            residual_energy: Quantity(10000.0),
+            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts(500.0) }, Hours(1.0));
-        assert_eq!(flows.external.import, WattHours(500.0));
-        assert_eq!(flows.external.export, WattHours(500.0));
-        assert_eq!(simulator.residual_energy, WattHours(10000.0));
+        assert_eq!(flows.external.import, Quantity(500.0));
+        assert_eq!(flows.external.export, Quantity(500.0));
+        assert_eq!(simulator.residual_energy, Quantity(10000.0));
     }
 }

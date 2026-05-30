@@ -10,7 +10,7 @@ pub mod ratios;
 pub mod time;
 mod zero;
 
-use std::ops::Mul;
+use std::ops::{Div, Mul};
 
 pub use self::{fmt::Format, zero::Zero};
 
@@ -20,26 +20,37 @@ pub use self::{fmt::Format, zero::Zero};
 #[must_use]
 #[repr(transparent)]
 #[derive(
-    ::derive_more::Add,
-    ::derive_more::AddAssign,
-    ::derive_more::FromStr,
-    ::derive_more::Neg,
-    ::derive_more::Sub,
-    ::derive_more::SubAssign,
-    ::derive_more::Sum,
-    ::musli::Decode,
-    ::musli::Encode,
-    ::serde::Deserialize,
-    ::serde::Serialize,
-    ::std::clone::Clone,
-    ::std::cmp::Eq,
-    ::std::cmp::Ord,
-    ::std::cmp::PartialEq,
-    ::std::cmp::PartialOrd,
-    ::std::marker::Copy,
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Constructor,
+    derive_more::FromStr,
+    derive_more::Neg,
+    derive_more::Sub,
+    derive_more::SubAssign,
+    derive_more::Sum,
+    musli::Decode,
+    musli::Encode,
+    serde::Deserialize,
+    serde::Serialize,
+    std::clone::Clone,
+    std::cmp::Eq,
+    std::cmp::Ord,
+    std::cmp::PartialEq,
+    std::cmp::PartialOrd,
+    std::marker::Copy,
 )]
 #[musli(transparent)]
-pub struct Quantity<V, const S: i8, const P: i8, const T: i8, const C: i8>(pub V);
+pub struct Quantity<V, const M: i8, const P: i8, const T: i8, const C: i8>(pub V);
+
+impl<const M: i8, const P: i8, const T: i8, const C: i8> Quantity<f64, M, P, T, C> {
+    pub const fn min(self, rhs: Self) -> Self {
+        Self(self.0.min(rhs.0))
+    }
+
+    pub const fn max(self, rhs: Self) -> Self {
+        Self(self.0.max(rhs.0))
+    }
+}
 
 impl<V, const M: i8, const P: i8, const T: i8, const C: i8> Mul<V> for Quantity<V, M, P, T, C>
 where
@@ -59,5 +70,27 @@ impl<const M: i8, const P: i8, const T: i8, const C: i8> Mul<Quantity<Self, M, P
     /// Multiply the bare scalar by a quantity.
     fn mul(self, rhs: Quantity<Self, M, P, T, C>) -> Self::Output {
         Quantity(self * rhs.0)
+    }
+}
+
+impl<V: Div, const M: i8, const P: i8, const T: i8, const C: i8> Div<Self>
+    for Quantity<V, M, P, T, C>
+{
+    type Output = <V as Div>::Output;
+
+    /// Divide the quantity by the same kind of quantity producing a bare scalar.
+    fn div(self, rhs: Self) -> Self::Output {
+        self.0 / rhs.0
+    }
+}
+
+impl<V: Div<Output = V>, const M: i8, const P: i8, const T: i8, const C: i8> Div<V>
+    for Quantity<V, M, P, T, C>
+{
+    type Output = Self;
+
+    /// Divide the quantity by a scalar.
+    fn div(self, rhs: V) -> Self::Output {
+        Self(self.0 / rhs)
     }
 }

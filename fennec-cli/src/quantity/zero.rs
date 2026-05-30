@@ -1,5 +1,6 @@
 use crate::quantity::Quantity;
 
+/// TODO: implement directly on [`Quantity`]?
 pub trait Zero {
     const ZERO: Self;
 }

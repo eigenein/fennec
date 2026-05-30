@@ -104,7 +104,7 @@ impl Runner {
             self.args.learning_half_life,
         );
         energy_profile.update_battery_metrics(battery_metrics, self.args.learning_half_life);
-        energy_profile.write_to_file().await?;
+        energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         drop(energy_profile);
 
         Ok(())

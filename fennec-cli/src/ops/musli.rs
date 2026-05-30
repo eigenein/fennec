@@ -18,13 +18,18 @@ pub trait File: Default + Encode<Binary> + for<'a> Decode<'a, Binary, Global> {
         }
     }
 
-    /// TODO: write to temporary file and rename for atomicity.
     #[instrument(skip_all, fields(path = Self::PATH))]
     async fn write_to_file(&self) -> Result {
+        let final_path = Path::new(Self::PATH);
+        let temporary_path = final_path.with_added_extension("temporary");
+
         let bytes = wire::to_vec(self).context("failed to encode the energy profile")?;
-        tokio::fs::write(Self::PATH, bytes.as_slice())
+        tokio::fs::write(&temporary_path, bytes.as_slice())
             .await
             .context("failed to write the energy profile")?;
+        tokio::fs::rename(&temporary_path, final_path)
+            .await
+            .context("failed to rename the temporary file")?;
         Ok(())
     }
 }

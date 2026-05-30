@@ -1,25 +1,20 @@
+use std::range::RangeInclusive;
+
 use crate::{
     battery,
     energy::Flow,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct Simulator {
     pub efficiency: battery::Efficiency,
 
-    /// Minimally allowed residual energy.
-    ///
-    /// This is normally calculated from the actual capacity and minimal state-of-charge setting.
-    pub min_residual_energy: WattHours,
+    /// Allowed residual energy range.
+    pub allowed_residual_energy: RangeInclusive<WattHours>,
 
     /// Current residual energy.
     pub residual_energy: WattHours,
-
-    /// Maximum allowed residual energy.
-    ///
-    /// TODO: use [`std::range::Range`].
-    pub max_residual_energy: WattHours,
 }
 
 impl Simulator {
@@ -27,13 +22,15 @@ impl Simulator {
     pub fn apply(&mut self, external_power: Flow<Watts>, for_: Hours) -> Flows {
         // Apply the efficiency corrections first – then, we can model everything in terms of residual energy:
         let internal_power = Flow {
-            import: external_power.import * self.efficiency.charging.0,
-            export: external_power.export / self.efficiency.discharging.0,
+            import: external_power.import * self.efficiency.charging,
+            export: external_power.export / self.efficiency.discharging,
         };
         let requested_flow = internal_power * for_;
         let capacity = Flow {
-            import: self.residual_energy.max(self.max_residual_energy) - self.residual_energy,
-            export: self.residual_energy - self.residual_energy.min(self.min_residual_energy),
+            import: self.residual_energy.max(self.allowed_residual_energy.last)
+                - self.residual_energy,
+            export: self.residual_energy
+                - self.residual_energy.min(self.allowed_residual_energy.start),
         };
         let mut actual_flow = Flow {
             import: requested_flow.import.min(capacity.import),
@@ -51,7 +48,7 @@ impl Simulator {
         // Apply the net flow and correct on the parasitic load:
         self.residual_energy = self.residual_energy + actual_flow.import
             - actual_flow.export
-            - self.efficiency.parasitic_load.0 * for_;
+            - self.efficiency.parasitic_load * for_;
 
         // Parasitic load may drain to the ground:
         self.residual_energy = self.residual_energy.max(WattHours::ZERO);
@@ -59,8 +56,8 @@ impl Simulator {
         Flows {
             external: Flow {
                 // Convert the actual flow back to the external billable energy:
-                import: actual_flow.import / self.efficiency.charging.0,
-                export: actual_flow.export * self.efficiency.discharging.0,
+                import: actual_flow.import / self.efficiency.charging,
+                export: actual_flow.export * self.efficiency.discharging,
             },
             internal: actual_flow,
         }
@@ -75,15 +72,13 @@ pub struct Flows {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::math::smoothing::Exponential;
 
     /// Verify normal charging without overflowing.
     #[test]
     fn normal_operation() {
         let mut simulator = Simulator {
             residual_energy: WattHours(5000.0),
-            min_residual_energy: WattHours::ZERO,
-            max_residual_energy: WattHours(10000.0),
+            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
@@ -98,12 +93,11 @@ mod tests {
     fn efficiency() {
         let mut simulator = Simulator {
             residual_energy: WattHours(5000.0),
-            min_residual_energy: WattHours::ZERO,
-            max_residual_energy: WattHours(10000.0),
+            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
             efficiency: battery::Efficiency {
-                charging: Exponential(0.9),
-                discharging: Exponential(0.5),
-                parasitic_load: Exponential(Watts(50.0)),
+                charging: 0.9,
+                discharging: 0.5,
+                parasitic_load: Watts(50.0),
             },
         };
         let flows =
@@ -114,9 +108,9 @@ mod tests {
         assert_eq!(flows.internal.export, WattHours(2000.0));
         assert_eq!(
             simulator.residual_energy,
-            WattHours(5000.0) + WattHours(1000.0) * simulator.efficiency.charging.0
-                - WattHours(1000.0) / simulator.efficiency.discharging.0
-                - simulator.efficiency.parasitic_load.0 * Hours(1.0)
+            WattHours(5000.0) + WattHours(1000.0) * simulator.efficiency.charging
+                - WattHours(1000.0) / simulator.efficiency.discharging
+                - simulator.efficiency.parasitic_load * Hours(1.0)
         );
     }
 
@@ -125,8 +119,7 @@ mod tests {
     fn overflow() {
         let mut simulator = Simulator {
             residual_energy: WattHours(9000.0),
-            min_residual_energy: WattHours::ZERO,
-            max_residual_energy: WattHours(10000.0),
+            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
@@ -141,8 +134,7 @@ mod tests {
     fn underflow() {
         let mut simulator = Simulator {
             residual_energy: WattHours(1000.0),
-            min_residual_energy: WattHours(500.0),
-            max_residual_energy: WattHours(10000.0),
+            allowed_residual_energy: (WattHours(500.0)..=WattHours(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
@@ -157,8 +149,7 @@ mod tests {
     fn min_soc_bidirectional() {
         let mut simulator = Simulator {
             residual_energy: WattHours(100.0),
-            min_residual_energy: WattHours(100.0),
-            max_residual_energy: WattHours(10000.0),
+            allowed_residual_energy: (WattHours(100.0)..=WattHours(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
@@ -173,8 +164,7 @@ mod tests {
     fn max_soc_bidirectional() {
         let mut simulator = Simulator {
             residual_energy: WattHours(10000.0),
-            min_residual_energy: WattHours(0.0),
-            max_residual_energy: WattHours(10000.0),
+            allowed_residual_energy: (Zero::ZERO..=WattHours(10000.0)).into(),
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =

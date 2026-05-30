@@ -40,14 +40,16 @@ pub struct Profile {
     #[musli(Binary, name = 9)]
     pub balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
 
-    /// Battery metrics, updated if and only if the residual charge changes.
+    /// Battery metrics as read from the device.
+    ///
+    /// This attribute is updated if and only if the residual charge changes.
     #[musli(Binary, name = 10)]
     #[musli(default)]
     pub battery_metrics: Option<api::battery::Metrics>,
 
     #[musli(Binary, name = 11)]
     #[musli(default)]
-    pub battery_efficiency: crate::battery::Efficiency,
+    pub battery_efficiency_estimator: crate::battery::efficiency::Estimator,
 }
 
 impl Default for Profile {
@@ -61,7 +63,7 @@ impl Default for Profile {
             balance_harmonics: vec![Exponential(Harmonic::ZERO); 8],
 
             battery_metrics: None,
-            battery_efficiency: crate::battery::Efficiency::default(),
+            battery_efficiency_estimator: crate::battery::efficiency::Estimator::default(),
         }
     }
 }
@@ -95,27 +97,29 @@ impl Profile {
         let elapsed = current_metrics.timestamp - last_metrics.timestamp;
         let smoothing_factor = half_life.smoothing_factor(elapsed);
         let elapsed = Hours::from(elapsed);
-        let parasitic_loss = self.battery_efficiency.parasitic_load.0 * elapsed;
+        let parasitic_loss = self.battery_efficiency_estimator.parasitic_load.0 * elapsed;
         info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, %elapsed, ?smoothing_factor, "residual energy changed");
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
             (true, true) => {
                 let parasitic_load = -residual_energy_change / elapsed;
-                self.battery_efficiency.parasitic_load.update(parasitic_load, smoothing_factor);
+                self.battery_efficiency_estimator
+                    .parasitic_load
+                    .update(parasitic_load, smoothing_factor);
                 info!(?parasitic_load, "idling");
             }
             (true, false) => {
                 let efficiency =
                     // Residual energy also includes the parasitic loss:
                     (WattHours::from(grid_flow.export) + parasitic_loss) / -residual_energy_change;
-                self.battery_efficiency.discharging.update(efficiency, smoothing_factor);
+                self.battery_efficiency_estimator.discharging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "discharging");
             }
             (false, true) => {
                 let efficiency =
                     // Imported energy also includes the parasitic loss:
                     residual_energy_change / (WattHours::from(grid_flow.import) - parasitic_loss);
-                self.battery_efficiency.charging.update(efficiency, smoothing_factor);
+                self.battery_efficiency_estimator.charging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "charging");
             }
             (false, false) => {

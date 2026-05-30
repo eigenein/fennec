@@ -72,15 +72,11 @@ impl Runner {
             .energy_prices(&energy_prices)
             .energy_profile(&energy_profile)
             .working_modes(self.working_modes)
-            .min_residual_energy(
-                battery_state.actual_capacity() * self.battery_args.charge_limits.min,
+            .allowed_residual_energy(
+                (battery_state.actual_capacity() * self.battery_args.charge_limits.min)
+                    ..=(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
-            .max_residual_energy(
-                // Current residual may be higher than the maximum SoC setting:
-                WattHours::from(battery_state.residual_energy())
-                    .max(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
-            )
-            .battery_efficiency(energy_profile.battery_efficiency.clone())
+            .battery_efficiency(energy_profile.battery_efficiency_estimator.as_efficiency())
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(

@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{range::RangeInclusive, time::Instant};
 
 use bon::Builder;
 use chrono::{DateTime, Local};
@@ -23,18 +23,20 @@ pub struct Solver<'a> {
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
 
+    /// Incurred cost of the residual energy change per kilowatt-hour.
     battery_degradation_cost: KilowattHourPrice,
+
+    /// Maximum power flow that the battery supports.
     max_battery_flow: energy::Flow<Watts>,
-    now: DateTime<Local>,
+
+    /// Energy level step.
     quantum: WattHours,
 
-    /// Minimum allowed residual energy.
-    ///
-    /// TODO: use [`std::range::Range`].
-    min_residual_energy: WattHours,
+    /// Allowed residual energy range.
+    #[builder(into)]
+    allowed_residual_energy: RangeInclusive<WattHours>,
 
-    /// Maximum allowed residual energy.
-    max_residual_energy: WattHours,
+    now: DateTime<Local>,
 }
 
 impl Solver<'_> {
@@ -55,8 +57,8 @@ impl Solver<'_> {
     pub fn solve(self) -> Space {
         let start_instant = Instant::now();
 
-        let min_energy_level = self.quantum.index(self.min_residual_energy);
-        let max_energy_level = self.quantum.index(self.max_residual_energy);
+        let min_energy_level = self.quantum.index(self.allowed_residual_energy.start);
+        let max_energy_level = self.quantum.index(self.allowed_residual_energy.last);
         info!(?self.quantum, min_energy_level, max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
 
         let mut solutions =
@@ -87,17 +89,15 @@ impl Solver<'_> {
         initial_residual_energy: WattHours,
         solutions: &Space,
     ) -> Option<Solution> {
-        let battery = battery::Simulator {
+        let battery_simulator = battery::Simulator {
             residual_energy: initial_residual_energy,
-            // TODO: extract these parameters into a `struct`:
-            min_residual_energy: self.min_residual_energy,
-            max_residual_energy: self.max_residual_energy,
-            efficiency: self.battery_efficiency.clone(),
+            allowed_residual_energy: self.allowed_residual_energy,
+            efficiency: self.battery_efficiency,
         };
         self.working_modes
             .iter()
             .filter_map(|working_mode| {
-                let step = self.simulate_step(battery.clone(), interval_index, working_mode);
+                let step = self.simulate_step(battery_simulator, interval_index, working_mode);
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after, working_mode)?;

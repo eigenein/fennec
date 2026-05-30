@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, iter::from_fn, ops::RangeInclusive};
+use std::{cmp::Ordering, iter::from_fn, range::RangeInclusive};
 
 use grid::Grid;
 
@@ -23,11 +23,12 @@ pub struct Space {
 }
 
 impl Space {
-    pub fn new(n_intervals: usize, allowed_energy_levels: RangeInclusive<usize>) -> Self {
-        Self {
-            grid: Grid::new(n_intervals, allowed_energy_levels.end() + 1),
-            allowed_energy_levels,
-        }
+    pub fn new(
+        n_intervals: usize,
+        allowed_energy_levels: impl Into<RangeInclusive<usize>>,
+    ) -> Self {
+        let allowed_energy_levels = allowed_energy_levels.into();
+        Self { grid: Grid::new(n_intervals, allowed_energy_levels.last + 1), allowed_energy_levels }
     }
 
     pub const fn size(&self) -> usize {
@@ -49,11 +50,10 @@ impl Space {
                     self.allowed_energy_levels.contains(&energy_level)
                 ) || (
                     // From under the allowed energy levels, only allow charging:
-                    (energy_level < *self.allowed_energy_levels.start())
-                        && working_mode.is_charging()
+                    (energy_level < self.allowed_energy_levels.start) && working_mode.is_charging()
                 ) || (
                     // From above the allowed energy levels, only allow discharging:
-                    (energy_level > *self.allowed_energy_levels.end())
+                    (energy_level > self.allowed_energy_levels.last)
                         && working_mode.is_discharging()
                 ) {
                     self.grid[(interval_index, energy_level)].as_ref()

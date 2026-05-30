@@ -6,8 +6,6 @@ use derive_more::{Deref, IntoIterator};
 use crate::{prelude::*, quantity::time::Hours};
 
 /// Half-open time interval.
-///
-/// TODO: switch to [`std::range::Range`].
 #[must_use]
 #[derive(Copy, Clone, PartialEq, Eq, derive_more::Debug)]
 #[debug("{start:?}..{end:?}")]

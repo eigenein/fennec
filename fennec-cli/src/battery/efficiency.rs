@@ -1,14 +1,15 @@
 use musli::{Decode, Encode};
 
 use crate::{
+    battery::Efficiency,
     math::smoothing::Exponential,
     quantity::{Zero, power::Watts},
 };
 
 /// Battery efficiency estimator.
 #[must_use]
-#[derive(Clone, Encode, Decode)]
-pub struct Efficiency {
+#[derive(Encode, Decode)]
+pub struct Estimator {
     #[musli(Binary, name = 1)]
     pub charging: Exponential<f64>,
 
@@ -19,7 +20,7 @@ pub struct Efficiency {
     pub parasitic_load: Exponential<Watts>,
 }
 
-impl Default for Efficiency {
+impl Default for Estimator {
     fn default() -> Self {
         Self {
             charging: Exponential(0.95),
@@ -29,15 +30,12 @@ impl Default for Efficiency {
     }
 }
 
-impl Efficiency {
-    #[cfg(test)]
-    pub const IDEAL: Self = Self {
-        charging: Exponential(1.0),
-        discharging: Exponential(1.0),
-        parasitic_load: Exponential(Watts::ZERO),
-    };
-
-    pub const fn round_trip(&self) -> f64 {
-        self.charging.0 * self.discharging.0
+impl Estimator {
+    pub const fn as_efficiency(&self) -> Efficiency {
+        Efficiency {
+            charging: self.charging.0,
+            discharging: self.discharging.0,
+            parasitic_load: self.parasitic_load.0,
+        }
     }
 }

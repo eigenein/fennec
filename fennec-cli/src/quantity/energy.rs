@@ -1,4 +1,5 @@
 mod decawatt_hours;
+mod kilowatt_hours;
 mod milliwatt_hours;
 mod watt_hours;
 
@@ -6,6 +7,7 @@ use std::ops::{Div, Mul};
 
 pub use self::{
     decawatt_hours::DecawattHours,
+    kilowatt_hours::KilowattHours,
     milliwatt_hours::MilliwattHours,
     watt_hours::WattHours,
 };
@@ -15,8 +17,6 @@ use crate::quantity::{
     ratios::{BasisPoints, Percentage},
     time::Hours,
 };
-
-quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 1);
 
 implement_mul!(Watts, Hours, WattHours);
 
@@ -59,22 +59,10 @@ impl Mul<BasisPoints> for DecawattHours {
     }
 }
 
-impl From<DecawattHours> for WattHours {
-    fn from(value: DecawattHours) -> Self {
-        Self(f64::from(value.0) * 10.0)
-    }
-}
-
 impl From<MilliwattHours> for WattHours {
     #[expect(clippy::cast_precision_loss)]
     fn from(value: MilliwattHours) -> Self {
         Self((value.0 as f64) * 0.001)
-    }
-}
-
-impl From<WattHours> for KilowattHours {
-    fn from(value: WattHours) -> Self {
-        Self(value.0 * 0.001)
     }
 }
 
@@ -91,17 +79,5 @@ impl Div<Hours> for WattHours {
 
     fn div(self, hours: Hours) -> Self::Output {
         Watts(self.0 / hours.0)
-    }
-}
-
-impl From<KilowattHours> for WattHours {
-    fn from(kilowatt_hours: KilowattHours) -> Self {
-        Self(kilowatt_hours.0 * 1000.0)
-    }
-}
-
-impl From<DecawattHours> for KilowattHours {
-    fn from(decawatt_hours: DecawattHours) -> Self {
-        Self(f64::from(decawatt_hours.0) * 0.01)
     }
 }

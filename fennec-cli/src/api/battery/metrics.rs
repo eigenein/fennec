@@ -47,7 +47,7 @@ pub struct Metrics {
 impl Metrics {
     /// Battery capacity corrected on the state of health.
     pub fn actual_capacity(&self) -> WattHours {
-        WattHours::from(self.design_capacity) * self.health
+        self.design_capacity.rescale() * self.health
     }
 
     /// Residual energy corrected on the state of health.

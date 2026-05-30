@@ -11,7 +11,6 @@ use tokio::{
 use crate::{
     cli::{battery, connection::Connections},
     cron::CronSchedule,
-    db::{Measurement, power},
     energy,
     energy::Balance,
     math::smoothing::HalfLife,
@@ -97,17 +96,6 @@ impl Runner {
             "total battery grid flow",
         );
 
-        let battery_measurement = power::BatteryMeasurement::builder()
-            .residual_energy(battery_metrics.residual_energy().into())
-            .active_power(battery_metrics.active_power)
-            .eps_active_power(battery_metrics.eps_active_power)
-            .build();
-        power::Measurement::builder()
-            .battery(battery_measurement)
-            .build()
-            .insert_into(&self.args.connections.db)
-            .await?;
-
         let mut energy_profile = self.energy_profile.write().await;
         energy_profile.update_energy_balance(
             balance,
@@ -115,7 +103,7 @@ impl Runner {
             Local::now(),
             self.args.learning_half_life,
         );
-        energy_profile.update_battery_metrics(battery_metrics);
+        energy_profile.update_battery_metrics(battery_metrics, self.args.learning_half_life);
         energy_profile.write_to_file().await?;
         drop(energy_profile);
 

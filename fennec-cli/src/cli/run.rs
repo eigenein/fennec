@@ -7,7 +7,6 @@ use crate::{
     battery::WorkingMode,
     cli::{battery::BatteryArgs, connection::ConnectionArgs, hunter, logger, web::BindArgs},
     cron::CronSchedule,
-    db::power,
     energy,
     math::smoothing::HalfLife,
     prelude::*,
@@ -63,9 +62,7 @@ pub struct RunArgs {
 impl RunArgs {
     pub async fn run(self) -> Result {
         let battery_power_limits = self.battery.power_limits;
-
-        let connections = self.connections.connect().await?;
-        connections.db.set_expiration_time::<power::Measurement>(self.power_log_ttl.into()).await?;
+        let connections = self.connections.connect()?;
 
         let logger_runner = logger::Args::builder()
             .connections(connections.clone())
@@ -74,7 +71,7 @@ impl RunArgs {
             .build()
             .start()
             .await?;
-        let mut hunter_runner = hunter::Runner::builder()
+        let hunter_runner = hunter::Runner::builder()
             .connections(connections.clone())
             .working_modes(self.working_modes.iter().copied().collect())
             .energy_provider(self.energy_provider)
@@ -92,7 +89,6 @@ impl RunArgs {
             async { spawn(web::serve(self.bind.address, self.bind.port, state)).await? },
         )?;
 
-        connections.db.shutdown().await;
         Ok(())
     }
 }

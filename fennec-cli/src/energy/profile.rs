@@ -12,12 +12,12 @@ use crate::{
         smoothing::{Exponential, HalfLife},
     },
     ops::musli::File,
-    quantity::{Zero, power::Watts},
+    prelude::*,
+    quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };
 
-/// FIXME: [`Clone`] is now needed to display it on the web UI.
 #[must_use]
-#[derive(Clone, Encode, Decode)]
+#[derive(Encode, Decode)]
 pub struct Profile {
     /// Timestamp of the last update to the moving exponentials.
     #[musli(Binary, name = 6)]
@@ -40,6 +40,10 @@ pub struct Profile {
     #[musli(Binary, name = 10)]
     #[musli(default)]
     battery_metrics: Option<battery::Metrics>,
+
+    #[musli(Binary, name = 11)]
+    #[musli(default)]
+    battery_efficiency: battery::Efficiency,
 }
 
 impl Default for Profile {
@@ -51,7 +55,9 @@ impl Default for Profile {
 
             // TODO: make number of harmonics configurable?
             balance_harmonics: vec![Exponential::new(Harmonic::ZERO); 8],
+
             battery_metrics: None,
+            battery_efficiency: battery::Efficiency::default(),
         }
     }
 }
@@ -77,12 +83,59 @@ impl Profile {
         self.battery_metrics.as_ref()
     }
 
-    pub fn update_battery_metrics(&mut self, current_battery_metrics: battery::Metrics) {
-        if let Some(battery_metrics) = &self.battery_metrics {
-            if battery_metrics.residual_energy() == current_battery_metrics.residual_energy() {
+    pub const fn battery_charging_efficiency(&self) -> f64 {
+        *self.battery_efficiency.charging.value()
+    }
+
+    pub const fn battery_discharging_efficiency(&self) -> f64 {
+        *self.battery_efficiency.discharging.value()
+    }
+
+    pub const fn battery_round_trip_efficiency(&self) -> f64 {
+        self.battery_charging_efficiency() * self.battery_discharging_efficiency()
+    }
+
+    pub const fn battery_parasitic_load(&self) -> Watts {
+        *self.battery_efficiency.parasitic_load.value()
+    }
+
+    #[instrument(skip_all)]
+    pub fn update_battery_metrics(
+        &mut self,
+        current_battery_metrics: battery::Metrics,
+        half_life: HalfLife,
+    ) {
+        if let Some(last_battery_metrics) = &self.battery_metrics {
+            let residual_energy_change = WattHours::from(
+                current_battery_metrics.residual_energy() - last_battery_metrics.residual_energy(),
+            );
+            if residual_energy_change == Zero::ZERO {
                 return;
             }
-            todo!();
+
+            let grid_flow =
+                current_battery_metrics.total_grid_flow - last_battery_metrics.total_grid_flow;
+            let elapsed = current_battery_metrics.timestamp - last_battery_metrics.timestamp;
+            let smoothing_factor = half_life.smoothing_factor(elapsed);
+            info!(%elapsed, ?smoothing_factor, "updating battery efficiency");
+
+            if grid_flow.import == Zero::ZERO {
+                if grid_flow.export == Zero::ZERO {
+                    self.battery_efficiency
+                        .parasitic_load
+                        .update(-residual_energy_change / Hours::from(elapsed), smoothing_factor);
+                } else {
+                    self.battery_efficiency.discharging.update(
+                        WattHours::from(grid_flow.export) / -residual_energy_change,
+                        smoothing_factor,
+                    );
+                }
+            } else if grid_flow.export == Zero::ZERO {
+                self.battery_efficiency.charging.update(
+                    residual_energy_change / WattHours::from(grid_flow.import),
+                    smoothing_factor,
+                );
+            }
         }
         self.battery_metrics = Some(current_battery_metrics);
     }

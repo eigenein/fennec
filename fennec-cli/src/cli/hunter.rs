@@ -11,14 +11,12 @@ use crate::{
     Interval,
     Schedule,
     api,
-    battery,
     battery::WorkingMode,
     cli::{battery::BatteryArgs, connection::Connections},
     cron::CronSchedule,
-    db::power,
     energy,
     energy::Flow,
-    ops::{cache, musli::File},
+    ops::musli::File,
     prelude::*,
     quantity::{energy::WattHours, price::KilowattHourPrice},
     solution,
@@ -34,20 +32,13 @@ pub struct Runner {
     energy_provider: energy::Provider,
     quantum: WattHours,
     scout: bool,
-
-    #[builder(skip = cache::Ttl::new(Duration::from_hours(1)))]
-    battery_efficiency_cache: cache::Ttl<battery::Efficiency>,
 }
 
 impl Runner {
     const BACKOFF: ExponentialBuilder =
         ExponentialBuilder::new().with_min_delay(Duration::from_secs(10));
 
-    pub async fn run_forever(
-        mut self,
-        schedule: CronSchedule,
-        state: Arc<RwLock<State>>,
-    ) -> Result {
+    pub async fn run_forever(self, schedule: CronSchedule, state: Arc<RwLock<State>>) -> Result {
         let mut cron = schedule.start();
         loop {
             cron.wait_until_next().await?;
@@ -57,7 +48,7 @@ impl Runner {
     }
 
     #[instrument(skip_all)]
-    pub async fn run_once(&mut self) -> Result<State> {
+    pub async fn run_once(&self) -> Result<State> {
         let now = Local::now().with_nanosecond(0).unwrap();
         let energy_prices =
             (|| self.get_prices(now)).retry(Self::BACKOFF).notify(log_retried_error).await?;
@@ -74,14 +65,6 @@ impl Runner {
             "battery state",
         );
 
-        let battery_efficiency = *self
-            .battery_efficiency_cache
-            .get_or_insert_with(async {
-                let power_logs = self.connections.db.measurements::<power::Measurement>().await?;
-                battery::Efficiency::try_estimate(power_logs).await
-            })
-            .await?;
-
         // FIXME: using default here is meh.
         let energy_profile = energy::Profile::read_from_file().await?.unwrap_or_default();
 
@@ -97,7 +80,9 @@ impl Runner {
                 WattHours::from(battery_state.residual_energy())
                     .max(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
-            .battery_efficiency(battery_efficiency)
+            .battery_charging_efficiency(energy_profile.battery_charging_efficiency())
+            .battery_discharging_efficiency(energy_profile.battery_discharging_efficiency())
+            .battery_parasitic_load(energy_profile.battery_parasitic_load())
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(
@@ -138,7 +123,7 @@ impl Runner {
                 .context("failed to push the schedule to the battery")?;
         }
 
-        Ok(State { steps, metrics, battery_efficiency })
+        Ok(State { steps, metrics })
     }
 
     /// Fetch energy prices for up to 2 days.
@@ -164,5 +149,4 @@ impl Runner {
 pub struct State {
     pub steps: Vec<((Interval, Flow<KilowattHourPrice>), Step)>,
     pub metrics: solution::Metrics,
-    pub battery_efficiency: battery::Efficiency,
 }

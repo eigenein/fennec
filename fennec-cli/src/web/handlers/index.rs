@@ -101,19 +101,19 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-rotate {} }
-                                        span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.round_trip())) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_round_trip_efficiency())) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-down {} }
-                                        span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.charging)) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_charging_efficiency())) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-up {} }
-                                        span { (format!("{:.1}%", 100.0 * hunter_state.battery_efficiency.discharging)) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_discharging_efficiency())) }
                                     }
                                 }
                             }
@@ -127,7 +127,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                     }
                                 }
                                 span.tag {
-                                    (hunter_state.battery_efficiency.parasitic_load)
+                                    (energy_profile.battery_parasitic_load())
                                 }
                             }
                         }

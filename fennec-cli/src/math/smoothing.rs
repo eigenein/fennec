@@ -43,7 +43,8 @@ impl<V> Exponential<V> {
 ///
 /// [1]: https://en.wikipedia.org/wiki/Exponential_smoothing#:~:text=available.%20The%20term-,smoothing%20factor,-applied%20to
 #[must_use]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, derive_more::Debug)]
+#[debug("{_0}")]
 pub struct SmoothingFactor(f64);
 
 /// Half-life-parameterized exponential decay.

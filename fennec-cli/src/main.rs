@@ -6,7 +6,6 @@ mod api;
 mod battery;
 mod cli;
 mod cron;
-mod db;
 mod energy;
 mod math;
 mod ops;

@@ -22,17 +22,22 @@ pub struct Solver<'a> {
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
 
+    battery_degradation_cost: KilowattHourPrice,
+    max_battery_flow: energy::Flow<Watts>,
+    now: DateTime<Local>,
+    quantum: WattHours,
+
     /// Minimum allowed residual energy.
+    ///
+    /// TODO: use [`std::range::Range`].
     min_residual_energy: WattHours,
 
     /// Maximum allowed residual energy.
     max_residual_energy: WattHours,
 
-    battery_degradation_cost: KilowattHourPrice,
-    max_battery_flow: energy::Flow<Watts>,
-    battery_efficiency: battery::Efficiency,
-    now: DateTime<Local>,
-    quantum: WattHours,
+    battery_charging_efficiency: f64,
+    battery_discharging_efficiency: f64,
+    battery_parasitic_load: Watts,
 }
 
 impl Solver<'_> {
@@ -87,9 +92,12 @@ impl Solver<'_> {
     ) -> Option<Solution> {
         let battery = battery::Simulator {
             residual_energy: initial_residual_energy,
+            // TODO: extract these parameters into a `struct`:
             min_residual_energy: self.min_residual_energy,
             max_residual_energy: self.max_residual_energy,
-            efficiency: self.battery_efficiency,
+            charging_efficiency: self.battery_charging_efficiency,
+            discharging_efficiency: self.battery_discharging_efficiency,
+            parasitic_load: self.battery_parasitic_load,
         };
         self.working_modes
             .iter()

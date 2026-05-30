@@ -16,7 +16,7 @@ use crate::{
     math::smoothing::HalfLife,
     ops::musli::File,
     prelude::*,
-    quantity::energy::{KilowattHours, WattHours},
+    quantity::energy::WattHours,
 };
 
 #[must_use]

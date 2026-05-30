@@ -80,18 +80,19 @@ impl Profile {
         };
 
         let residual_energy_change =
-            WattHours::from(current_metrics.residual_energy() - last_metrics.residual_energy());
+            current_metrics.residual_energy() - last_metrics.residual_energy();
         if residual_energy_change == Zero::ZERO {
             // No change in the residual energy: do not update the parameters and keep accumulating.
             return;
         }
 
+        let residual_energy_change = WattHours::from(residual_energy_change);
         let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
         let elapsed = current_metrics.timestamp - last_metrics.timestamp;
         let smoothing_factor = half_life.smoothing_factor(elapsed);
-        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, %elapsed, ?smoothing_factor, "residual energy changed");
         let elapsed = Hours::from(elapsed);
         let parasitic_loss = self.battery_efficiency.parasitic_load.0 * elapsed;
+        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, %elapsed, ?smoothing_factor, "residual energy changed");
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
             (true, true) => {
@@ -101,12 +102,14 @@ impl Profile {
             }
             (true, false) => {
                 let efficiency =
+                    // Residual energy also includes the parasitic loss:
                     (WattHours::from(grid_flow.export) + parasitic_loss) / -residual_energy_change;
                 self.battery_efficiency.discharging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "discharging");
             }
             (false, true) => {
                 let efficiency =
+                    // Imported energy also includes the parasitic loss:
                     residual_energy_change / (WattHours::from(grid_flow.import) - parasitic_loss);
                 self.battery_efficiency.charging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "charging");

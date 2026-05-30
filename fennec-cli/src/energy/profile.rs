@@ -118,23 +118,27 @@ impl Profile {
             let elapsed = current_battery_metrics.timestamp - last_battery_metrics.timestamp;
             let smoothing_factor = half_life.smoothing_factor(elapsed);
             info!(%elapsed, ?smoothing_factor, "updating battery efficiency");
+            let elapsed = Hours::from(elapsed);
 
             if grid_flow.import == Zero::ZERO {
                 if grid_flow.export == Zero::ZERO {
-                    self.battery_efficiency
-                        .parasitic_load
-                        .update(-residual_energy_change / Hours::from(elapsed), smoothing_factor);
+                    let parasitic_load = -residual_energy_change / elapsed;
+                    self.battery_efficiency.parasitic_load.update(parasitic_load, smoothing_factor);
+                    info!(?parasitic_load);
                 } else {
-                    self.battery_efficiency.discharging.update(
-                        WattHours::from(grid_flow.export) / -residual_energy_change,
-                        smoothing_factor,
-                    );
+                    let parasitic_energy =
+                        *self.battery_efficiency.parasitic_load.value() * elapsed;
+                    let efficiency = (WattHours::from(grid_flow.export) + parasitic_energy)
+                        / -residual_energy_change;
+                    self.battery_efficiency.discharging.update(efficiency, smoothing_factor);
+                    info!(?efficiency, "discharging");
                 }
             } else if grid_flow.export == Zero::ZERO {
-                self.battery_efficiency.charging.update(
-                    residual_energy_change / WattHours::from(grid_flow.import),
-                    smoothing_factor,
-                );
+                let parasitic_energy = *self.battery_efficiency.parasitic_load.value() * elapsed;
+                let efficiency =
+                    residual_energy_change / (WattHours::from(grid_flow.import) - parasitic_energy);
+                self.battery_efficiency.charging.update(efficiency, smoothing_factor);
+                info!(?efficiency, "charging");
             }
         }
         self.battery_metrics = Some(current_battery_metrics);

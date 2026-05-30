@@ -1,12 +1,15 @@
 use std::ops::{Div, Mul};
 
 use crate::quantity::{
+    Format,
+    Quantity,
     power::Watts,
     ratios::{BasisPoints, Percentage},
     time::Hours,
 };
 
-quantity!(MilliwattHours, via: i64, suffix: "mWh", precision: 0);
+pub type MilliwattHours<V = i64> = Quantity<V, -3, 1, 1, 0>;
+
 quantity!(WattHours, via: f64, suffix: "Wh", precision: 0);
 quantity!(DecawattHours, via: u32, suffix: "daWh", precision: 1);
 quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 1);
@@ -67,7 +70,7 @@ impl Mul<BasisPoints> for DecawattHours {
     type Output = MilliwattHours;
 
     fn mul(self, rhs: BasisPoints) -> Self::Output {
-        MilliwattHours(i64::from(self.0) * i64::from(rhs.0))
+        Quantity(i64::from(self.0) * i64::from(rhs.0))
     }
 }
 

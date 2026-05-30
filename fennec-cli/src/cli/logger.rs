@@ -90,11 +90,6 @@ impl Runner {
             battery.residual_energy = ?WattHours::from(battery_metrics.residual_energy()),
             "measurements",
         );
-        info!(
-            import = ?KilowattHours::from(battery_metrics.total_grid_flow.import),
-            export = ?KilowattHours::from(battery_metrics.total_grid_flow.export),
-            "total battery grid flow",
-        );
 
         let mut energy_profile = self.energy_profile.write().await;
         energy_profile.update_energy_balance(

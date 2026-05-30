@@ -89,7 +89,7 @@ impl Profile {
         let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
         let elapsed = current_metrics.timestamp - last_metrics.timestamp;
         let smoothing_factor = half_life.smoothing_factor(elapsed);
-        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, %elapsed, ?smoothing_factor, "updating battery efficiency");
+        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, %elapsed, ?smoothing_factor, "residual energy changed");
         let elapsed = Hours::from(elapsed);
         let parasitic_loss = self.battery_efficiency.parasitic_load.0 * elapsed;
 

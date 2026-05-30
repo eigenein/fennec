@@ -111,14 +111,14 @@ impl Profile {
             (true, false) => {
                 let efficiency =
                     // Residual energy also includes the parasitic loss:
-                    (WattHours::from(grid_flow.export) + parasitic_loss) / -residual_energy_change;
+                    (grid_flow.export.rescale() + parasitic_loss) / -residual_energy_change;
                 self.battery_efficiency_estimator.discharging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "discharging");
             }
             (false, true) => {
                 let efficiency =
                     // Imported energy also includes the parasitic loss:
-                    residual_energy_change / (WattHours::from(grid_flow.import) - parasitic_loss);
+                    residual_energy_change / (grid_flow.import.rescale() - parasitic_loss);
                 self.battery_efficiency_estimator.charging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "charging");
             }

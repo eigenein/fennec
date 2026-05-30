@@ -1,17 +1,17 @@
+mod decawatt_hours;
+mod milliwatt_hours;
+
 use std::ops::{Div, Mul};
 
+pub use self::{decawatt_hours::DecawattHours, milliwatt_hours::MilliwattHours};
 use crate::quantity::{
-    Format,
     Quantity,
     power::Watts,
     ratios::{BasisPoints, Percentage},
     time::Hours,
 };
 
-pub type MilliwattHours<V = i64> = Quantity<V, -3, 1, 1, 0>;
-
 quantity!(WattHours, via: f64, suffix: "Wh", precision: 0);
-quantity!(DecawattHours, via: u32, suffix: "daWh", precision: 1);
 quantity!(KilowattHours, via: f64, suffix: "kWh", precision: 1);
 
 implement_mul!(Watts, Hours, WattHours);

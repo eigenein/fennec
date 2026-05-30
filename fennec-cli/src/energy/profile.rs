@@ -102,46 +102,53 @@ impl Profile {
     #[instrument(skip_all)]
     pub fn update_battery_metrics(
         &mut self,
-        current_battery_metrics: battery::Metrics,
+        current_metrics: battery::Metrics,
         half_life: HalfLife,
     ) {
-        if let Some(last_battery_metrics) = &self.battery_metrics {
-            let residual_energy_change = WattHours::from(
-                current_battery_metrics.residual_energy() - last_battery_metrics.residual_energy(),
-            );
-            if residual_energy_change == Zero::ZERO {
-                return;
+        let Some(last_metrics) = &self.battery_metrics else {
+            // First initialization:
+            self.battery_metrics = Some(current_metrics);
+            return;
+        };
+
+        let residual_energy_change =
+            WattHours::from(current_metrics.residual_energy() - last_metrics.residual_energy());
+        if residual_energy_change == Zero::ZERO {
+            // No change in the residual energy: do not update the parameters and keep accumulating.
+            return;
+        }
+
+        let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
+        let elapsed = current_metrics.timestamp - last_metrics.timestamp;
+        let smoothing_factor = half_life.smoothing_factor(elapsed);
+        info!(%elapsed, ?smoothing_factor, "updating battery efficiency");
+        let elapsed = Hours::from(elapsed);
+        let parasitic_loss = *self.battery_efficiency.parasitic_load.value() * elapsed;
+
+        match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
+            (true, true) => {
+                let parasitic_load = -residual_energy_change / elapsed;
+                self.battery_efficiency.parasitic_load.update(parasitic_load, smoothing_factor);
+                info!(?parasitic_load, "idling");
             }
-
-            let grid_flow =
-                current_battery_metrics.total_grid_flow - last_battery_metrics.total_grid_flow;
-            let elapsed = current_battery_metrics.timestamp - last_battery_metrics.timestamp;
-            let smoothing_factor = half_life.smoothing_factor(elapsed);
-            info!(%elapsed, ?smoothing_factor, "updating battery efficiency");
-            let elapsed = Hours::from(elapsed);
-
-            if grid_flow.import == Zero::ZERO {
-                if grid_flow.export == Zero::ZERO {
-                    let parasitic_load = -residual_energy_change / elapsed;
-                    self.battery_efficiency.parasitic_load.update(parasitic_load, smoothing_factor);
-                    info!(?parasitic_load);
-                } else {
-                    let parasitic_energy =
-                        *self.battery_efficiency.parasitic_load.value() * elapsed;
-                    let efficiency = (WattHours::from(grid_flow.export) + parasitic_energy)
-                        / -residual_energy_change;
-                    self.battery_efficiency.discharging.update(efficiency, smoothing_factor);
-                    info!(?efficiency, "discharging");
-                }
-            } else if grid_flow.export == Zero::ZERO {
-                let parasitic_energy = *self.battery_efficiency.parasitic_load.value() * elapsed;
+            (true, false) => {
                 let efficiency =
-                    residual_energy_change / (WattHours::from(grid_flow.import) - parasitic_energy);
+                    (WattHours::from(grid_flow.export) + parasitic_loss) / -residual_energy_change;
+                self.battery_efficiency.discharging.update(efficiency, smoothing_factor);
+                info!(?efficiency, "discharging");
+            }
+            (false, true) => {
+                let efficiency =
+                    residual_energy_change / (WattHours::from(grid_flow.import) - parasitic_loss);
                 self.battery_efficiency.charging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "charging");
             }
+            (false, false) => {
+                // Mixed regime is not good enough for updating the parameters.
+            }
         }
-        self.battery_metrics = Some(current_battery_metrics);
+
+        self.battery_metrics = Some(current_metrics);
     }
 
     pub fn update_energy_balance(

@@ -26,35 +26,35 @@ pub struct Profile {
 
     /// Average EPS active power.
     #[musli(Binary, name = 7)]
-    eps_active_power: Exponential<Watts>,
+    pub eps_active_power: Exponential<Watts>,
 
     /// Global average energy balance (constant term of the Fourier decomposition).
     #[musli(Binary, name = 8)]
-    mean_balance: Exponential<Balance<Watts>>,
+    pub mean_balance: Exponential<Balance<Watts>>,
 
     /// Energy balance harmonics (c₁ and so on).
     #[musli(Binary, name = 9)]
-    balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
+    pub balance_harmonics: Vec<Exponential<Harmonic<Balance<Watts>>>>,
 
     /// Battery metrics, updated if and only if when the residual charge changes.
     #[musli(Binary, name = 10)]
     #[musli(default)]
-    battery_metrics: Option<api::battery::Metrics>,
+    pub battery_metrics: Option<api::battery::Metrics>,
 
     #[musli(Binary, name = 11)]
     #[musli(default)]
-    battery_efficiency: crate::battery::Efficiency,
+    pub battery_efficiency: crate::battery::Efficiency,
 }
 
 impl Default for Profile {
     fn default() -> Self {
         Self {
             last_updated_at: Local::now(),
-            mean_balance: Exponential::new(Balance::ZERO),
-            eps_active_power: Exponential::new(Watts::ZERO),
+            mean_balance: Exponential(Balance::ZERO),
+            eps_active_power: Exponential(Watts::ZERO),
 
             // TODO: make number of harmonics configurable?
-            balance_harmonics: vec![Exponential::new(Harmonic::ZERO); 8],
+            balance_harmonics: vec![Exponential(Harmonic::ZERO); 8],
 
             battery_metrics: None,
             battery_efficiency: crate::battery::Efficiency::default(),
@@ -67,38 +67,6 @@ impl File for Profile {
 }
 
 impl Profile {
-    pub const fn eps_active_power(&self) -> Watts {
-        *self.eps_active_power.value()
-    }
-
-    pub const fn mean_balance(&self) -> Balance<Watts> {
-        *self.mean_balance.value()
-    }
-
-    pub const fn balance_harmonics(&self) -> &[Exponential<Harmonic<Balance<Watts>>>] {
-        self.balance_harmonics.as_slice()
-    }
-
-    pub const fn battery_metrics(&self) -> Option<&api::battery::Metrics> {
-        self.battery_metrics.as_ref()
-    }
-
-    pub const fn battery_charging_efficiency(&self) -> f64 {
-        *self.battery_efficiency.charging.value()
-    }
-
-    pub const fn battery_discharging_efficiency(&self) -> f64 {
-        *self.battery_efficiency.discharging.value()
-    }
-
-    pub const fn battery_round_trip_efficiency(&self) -> f64 {
-        self.battery_charging_efficiency() * self.battery_discharging_efficiency()
-    }
-
-    pub const fn battery_parasitic_load(&self) -> Watts {
-        *self.battery_efficiency.parasitic_load.value()
-    }
-
     #[instrument(skip_all)]
     pub fn update_battery_metrics(
         &mut self,
@@ -121,9 +89,9 @@ impl Profile {
         let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
         let elapsed = current_metrics.timestamp - last_metrics.timestamp;
         let smoothing_factor = half_life.smoothing_factor(elapsed);
-        info!(%elapsed, ?smoothing_factor, "updating battery efficiency");
+        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, %elapsed, ?smoothing_factor, "updating battery efficiency");
         let elapsed = Hours::from(elapsed);
-        let parasitic_loss = *self.battery_efficiency.parasitic_load.value() * elapsed;
+        let parasitic_loss = self.battery_efficiency.parasitic_load.0 * elapsed;
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
             (true, true) => {
@@ -166,7 +134,7 @@ impl Profile {
         self.eps_active_power.update(eps_active_power, smoothing_factor);
 
         // Deviation is calculated before the mean update eats the signal:
-        let deviation = balance - *self.mean_balance.value();
+        let deviation = balance - self.mean_balance.0;
         self.mean_balance.update(balance, smoothing_factor);
 
         // Capture daily periodicity, hence one full day is τ radians:
@@ -183,13 +151,13 @@ impl Profile {
             .zip(self.balance_harmonics.iter())
             .map(|(k, harmonic)| {
                 let phase = day_phase * f64::from(k);
-                harmonic.value().cosine * phase.cos() + harmonic.value().sine * phase.sin()
+                harmonic.0.cosine * phase.cos() + harmonic.0.sine * phase.sin()
             })
             .fold(Balance::ZERO, |sum, item| sum + item)
     }
 
     pub fn mean_balance_over(&self, interval: Interval) -> Balance<Watts> {
-        let balance = *self.mean_balance.value() + self.mean_deviation_over(interval);
+        let balance = self.mean_balance.0 + self.mean_deviation_over(interval);
         Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
     }
 
@@ -206,7 +174,6 @@ impl Profile {
             .zip(self.balance_harmonics.iter())
             .map(|(k, harmonic)| {
                 let angular_frequency = TAU * f64::from(k);
-                let harmonic = harmonic.value();
                 let cosine_mean = ((angular_frequency * end_time).sin()
                     - (angular_frequency * start_time).sin())
                     / angular_frequency
@@ -215,7 +182,7 @@ impl Profile {
                     - (angular_frequency * end_time).cos())
                     / angular_frequency
                     / n_days;
-                harmonic.cosine * cosine_mean + harmonic.sine * sine_mean
+                harmonic.0.cosine * cosine_mean + harmonic.0.sine * sine_mean
             })
             .fold(Balance::ZERO, |sum, item| sum + item)
     }

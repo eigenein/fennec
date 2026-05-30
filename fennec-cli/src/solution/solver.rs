@@ -18,6 +18,7 @@ use crate::{
 pub struct Solver<'a> {
     energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
     energy_profile: &'a energy::Profile,
+    battery_efficiency: battery::Efficiency,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -34,10 +35,6 @@ pub struct Solver<'a> {
 
     /// Maximum allowed residual energy.
     max_residual_energy: WattHours,
-
-    battery_charging_efficiency: f64,
-    battery_discharging_efficiency: f64,
-    battery_parasitic_load: Watts,
 }
 
 impl Solver<'_> {
@@ -95,14 +92,12 @@ impl Solver<'_> {
             // TODO: extract these parameters into a `struct`:
             min_residual_energy: self.min_residual_energy,
             max_residual_energy: self.max_residual_energy,
-            charging_efficiency: self.battery_charging_efficiency,
-            discharging_efficiency: self.battery_discharging_efficiency,
-            parasitic_load: self.battery_parasitic_load,
+            efficiency: self.battery_efficiency.clone(),
         };
         self.working_modes
             .iter()
             .filter_map(|working_mode| {
-                let step = self.simulate_step(battery, interval_index, working_mode);
+                let step = self.simulate_step(battery.clone(), interval_index, working_mode);
                 let next_solution =
                     // Note that the next solution may not exist, hence the question mark:
                     solutions.get(interval_index + 1, step.energy_level_after, working_mode)?;

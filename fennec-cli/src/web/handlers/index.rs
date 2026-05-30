@@ -16,7 +16,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
     info!("access");
     let hunter_state = state.hunter.read().await;
     let energy_profile = state.logger_runner.energy_profile().await;
-    let battery_metrics = energy_profile.battery_metrics();
+    let battery_metrics = energy_profile.battery_metrics.as_ref();
 
     partials::page(
         "Fennec",
@@ -86,7 +86,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                     }
                                 }
                                 span.tag {
-                                    (energy_profile.eps_active_power())
+                                    (energy_profile.eps_active_power.0)
                                 }
                             }
                         }
@@ -101,19 +101,19 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-rotate {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_round_trip_efficiency())) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.round_trip())) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-down {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_charging_efficiency())) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.charging.0)) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-up {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_discharging_efficiency())) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.discharging.0)) }
                                     }
                                 }
                             }
@@ -127,7 +127,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                     }
                                 }
                                 span.tag {
-                                    (energy_profile.battery_parasitic_load())
+                                    (energy_profile.battery_efficiency.parasitic_load.0)
                                 }
                             }
                         }

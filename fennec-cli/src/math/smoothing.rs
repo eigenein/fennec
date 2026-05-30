@@ -13,21 +13,12 @@ use musli::{Decode, Encode};
 #[must_use]
 #[derive(Clone, Encode, Decode)]
 pub struct Exponential<V>(
-    /// Smoothed value.
+    /// The underlying smoothed value.
     #[musli(name = 1)]
-    V,
+    pub V,
 );
 
 impl<V> Exponential<V> {
-    pub const fn new(initial_value: V) -> Self {
-        Self(initial_value)
-    }
-
-    /// Get the smoothed value.
-    pub const fn value(&self) -> &V {
-        &self.0
-    }
-
     /// Update the value.
     pub fn update(&mut self, value: V, smoothing_factor: SmoothingFactor)
     where

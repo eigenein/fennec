@@ -1,10 +1,13 @@
 use crate::{
+    battery,
     energy::Flow,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Simulator {
+    pub efficiency: battery::Efficiency,
+
     /// Minimally allowed residual energy.
     ///
     /// This is normally calculated from the actual capacity and minimal state-of-charge setting.
@@ -17,12 +20,6 @@ pub struct Simulator {
     ///
     /// TODO: use [`std::range::Range`].
     pub max_residual_energy: WattHours,
-
-    pub charging_efficiency: f64,
-
-    pub discharging_efficiency: f64,
-
-    pub parasitic_load: Watts,
 }
 
 impl Simulator {
@@ -30,8 +27,8 @@ impl Simulator {
     pub fn apply(&mut self, external_power: Flow<Watts>, for_: Hours) -> Flows {
         // Apply the efficiency corrections first – then, we can model everything in terms of residual energy:
         let internal_power = Flow {
-            import: external_power.import * self.charging_efficiency,
-            export: external_power.export / self.discharging_efficiency,
+            import: external_power.import * self.efficiency.charging.0,
+            export: external_power.export / self.efficiency.discharging.0,
         };
         let requested_flow = internal_power * for_;
         let capacity = Flow {
@@ -54,7 +51,7 @@ impl Simulator {
         // Apply the net flow and correct on the parasitic load:
         self.residual_energy = self.residual_energy + actual_flow.import
             - actual_flow.export
-            - self.parasitic_load * for_;
+            - self.efficiency.parasitic_load.0 * for_;
 
         // Parasitic load may drain to the ground:
         self.residual_energy = self.residual_energy.max(WattHours::ZERO);
@@ -62,8 +59,8 @@ impl Simulator {
         Flows {
             external: Flow {
                 // Convert the actual flow back to the external billable energy:
-                import: actual_flow.import / self.charging_efficiency,
-                export: actual_flow.export * self.discharging_efficiency,
+                import: actual_flow.import / self.efficiency.charging.0,
+                export: actual_flow.export * self.efficiency.discharging.0,
             },
             internal: actual_flow,
         }
@@ -78,6 +75,7 @@ pub struct Flows {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::math::smoothing::Exponential;
 
     /// Verify normal charging without overflowing.
     #[test]
@@ -86,9 +84,7 @@ mod tests {
             residual_energy: WattHours(5000.0),
             min_residual_energy: WattHours::ZERO,
             max_residual_energy: WattHours(10000.0),
-            charging_efficiency: 1.0,
-            discharging_efficiency: 1.0,
-            parasitic_load: Watts::ZERO,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts(700.0) }, Hours(1.0));
@@ -104,9 +100,11 @@ mod tests {
             residual_energy: WattHours(5000.0),
             min_residual_energy: WattHours::ZERO,
             max_residual_energy: WattHours(10000.0),
-            charging_efficiency: 0.9,
-            discharging_efficiency: 0.5,
-            parasitic_load: Watts(50.0),
+            efficiency: battery::Efficiency {
+                charging: Exponential(0.9),
+                discharging: Exponential(0.5),
+                parasitic_load: Exponential(Watts(50.0)),
+            },
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts(1000.0) }, Hours(1.0));
@@ -116,9 +114,9 @@ mod tests {
         assert_eq!(flows.internal.export, WattHours(2000.0));
         assert_eq!(
             simulator.residual_energy,
-            WattHours(5000.0) + WattHours(1000.0) * simulator.charging_efficiency
-                - WattHours(1000.0) / simulator.discharging_efficiency
-                - simulator.parasitic_load * Hours(1.0)
+            WattHours(5000.0) + WattHours(1000.0) * simulator.efficiency.charging.0
+                - WattHours(1000.0) / simulator.efficiency.discharging.0
+                - simulator.efficiency.parasitic_load.0 * Hours(1.0)
         );
     }
 
@@ -129,9 +127,7 @@ mod tests {
             residual_energy: WattHours(9000.0),
             min_residual_energy: WattHours::ZERO,
             max_residual_energy: WattHours(10000.0),
-            charging_efficiency: 1.0,
-            discharging_efficiency: 1.0,
-            parasitic_load: Watts::ZERO,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(2000.0), export: Watts::ZERO }, Hours(1.0));
@@ -147,9 +143,7 @@ mod tests {
             residual_energy: WattHours(1000.0),
             min_residual_energy: WattHours(500.0),
             max_residual_energy: WattHours(10000.0),
-            charging_efficiency: 1.0,
-            discharging_efficiency: 1.0,
-            parasitic_load: Watts::ZERO,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts::ZERO, export: Watts(1000.0) }, Hours(1.0));
@@ -165,9 +159,7 @@ mod tests {
             residual_energy: WattHours(100.0),
             min_residual_energy: WattHours(100.0),
             max_residual_energy: WattHours(10000.0),
-            charging_efficiency: 1.0,
-            discharging_efficiency: 1.0,
-            parasitic_load: Watts::ZERO,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(500.0), export: Watts(1000.0) }, Hours(1.0));
@@ -183,9 +175,7 @@ mod tests {
             residual_energy: WattHours(10000.0),
             min_residual_energy: WattHours(0.0),
             max_residual_energy: WattHours(10000.0),
-            charging_efficiency: 1.0,
-            discharging_efficiency: 1.0,
-            parasitic_load: Watts::ZERO,
+            efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
             simulator.apply(Flow { import: Watts(1000.0), export: Watts(500.0) }, Hours(1.0));

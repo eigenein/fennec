@@ -23,7 +23,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
     info!("access");
 
     let energy_profile = state.logger_runner.energy_profile().await;
-    let mean_balance = energy_profile.mean_balance();
+    let mean_balance = energy_profile.mean_balance.0;
 
     partials::page(
         "Energy profile",
@@ -138,17 +138,17 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                     }
                                 }
                                 tbody {
-                                    @for (mode_index, harmonic) in (1..).zip(energy_profile.balance_harmonics()) {
+                                    @for (mode_index, harmonic) in (1..).zip(&energy_profile.balance_harmonics) {
                                         tr {
                                             th.has-text-right { "#" (mode_index) }
-                                            td.has-text-right.has-text-success { (harmonic.value().cosine.battery.import) }
-                                            td.has-text-right.has-text-success { (harmonic.value().sine.battery.import) }
-                                            td.has-text-right.has-text-warning { (harmonic.value().cosine.battery.export) }
-                                            td.has-text-right.has-text-warning { (harmonic.value().sine.battery.export) }
-                                            td.has-text-right.has-text-danger { (harmonic.value().cosine.grid.import) }
-                                            td.has-text-right.has-text-danger { (harmonic.value().sine.grid.import) }
-                                            td.has-text-right.has-text-link { (harmonic.value().cosine.grid.export) }
-                                            td.has-text-right.has-text-link { (harmonic.value().sine.grid.export) }
+                                            td.has-text-right.has-text-success { (harmonic.0.cosine.battery.import) }
+                                            td.has-text-right.has-text-success { (harmonic.0.sine.battery.import) }
+                                            td.has-text-right.has-text-warning { (harmonic.0.cosine.battery.export) }
+                                            td.has-text-right.has-text-warning { (harmonic.0.sine.battery.export) }
+                                            td.has-text-right.has-text-danger { (harmonic.0.cosine.grid.import) }
+                                            td.has-text-right.has-text-danger { (harmonic.0.sine.grid.import) }
+                                            td.has-text-right.has-text-link { (harmonic.0.cosine.grid.export) }
+                                            td.has-text-right.has-text-link { (harmonic.0.sine.grid.export) }
                                         }
                                     }
                                 }
@@ -218,7 +218,7 @@ fn render_chart(points: &[(f64, Balance<Watts>)]) -> Markup {
 #[must_use]
 fn instant_balance_chart(energy_profile: &energy::Profile) -> Markup {
     let mut points = {
-        let mean_balance = energy_profile.mean_balance();
+        let mean_balance = energy_profile.mean_balance.0;
         (0..24)
             .cartesian_product([0, 10, 20, 30, 40, 50])
             .map(|(hour, minute)| {

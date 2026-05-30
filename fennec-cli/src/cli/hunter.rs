@@ -80,15 +80,13 @@ impl Runner {
                 WattHours::from(battery_state.residual_energy())
                     .max(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
-            .battery_charging_efficiency(energy_profile.battery_charging_efficiency())
-            .battery_discharging_efficiency(energy_profile.battery_discharging_efficiency())
-            .battery_parasitic_load(energy_profile.battery_parasitic_load())
+            .battery_efficiency(energy_profile.battery_efficiency.clone())
             .now(now)
             .quantum(self.quantum)
             .max_battery_flow(
                 self.battery_args
                     .power_limits
-                    .max_effective_flow(energy_profile.eps_active_power()),
+                    .max_effective_flow(energy_profile.eps_active_power.0),
             )
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();

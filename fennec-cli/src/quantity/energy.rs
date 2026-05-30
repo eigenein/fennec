@@ -36,6 +36,21 @@ impl WattHours {
     }
 }
 
+impl From<usize> for WattHours {
+    fn from(value: usize) -> Self {
+        #[expect(clippy::cast_precision_loss)]
+        Self(value as f64)
+    }
+}
+
+impl From<WattHours> for usize {
+    #[expect(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_sign_loss)]
+    fn from(value: WattHours) -> Self {
+        value.0 as Self
+    }
+}
+
 impl From<fennec_modbus::contrib::DecawattHours<u16>> for DecawattHours {
     fn from(value: fennec_modbus::contrib::DecawattHours<u16>) -> Self {
         Self(value.0.into())

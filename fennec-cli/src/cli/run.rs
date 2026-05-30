@@ -10,7 +10,6 @@ use crate::{
     energy,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::energy::WattHours,
     web,
 };
 
@@ -46,9 +45,6 @@ pub struct RunArgs {
     #[clap(long, env = "ENERGY_PROVIDER")]
     energy_provider: energy::Provider,
 
-    #[clap(long = "quantum-watthours", env = "QUANTUM_WATTHOURS", default_value = "1")]
-    quantum: WattHours,
-
     /// Half-life for exponential moving average when learning
     /// the energy balance and battery parameters.
     #[clap(long, env = "LEARNING_HALF_LIFE", default_value = "14d")]
@@ -76,7 +72,6 @@ impl RunArgs {
             .working_modes(self.working_modes.iter().copied().collect())
             .energy_provider(self.energy_provider)
             .battery_args(self.battery)
-            .quantum(self.quantum)
             .scout(self.dry_run)
             .build();
 

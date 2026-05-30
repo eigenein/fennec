@@ -29,9 +29,6 @@ pub struct Solver<'a> {
     /// Maximum power flow that the battery supports.
     max_battery_flow: energy::Flow<Watts>,
 
-    /// Energy level step.
-    quantum: WattHours,
-
     /// Allowed residual energy range.
     #[builder(into)]
     allowed_residual_energy: RangeInclusive<WattHours>,
@@ -57,9 +54,14 @@ impl Solver<'_> {
     pub fn solve(self) -> Space {
         let start_instant = Instant::now();
 
-        let min_energy_level = self.quantum.index(self.allowed_residual_energy.start);
-        let max_energy_level = self.quantum.index(self.allowed_residual_energy.last);
-        info!(?self.quantum, min_energy_level, max_energy_level, n_intervals = self.energy_prices.len(), "optimizing…");
+        let min_energy_level = usize::from(self.allowed_residual_energy.start);
+        let max_energy_level = usize::from(self.allowed_residual_energy.last);
+        info!(
+            min_energy_level,
+            max_energy_level,
+            n_intervals = self.energy_prices.len(),
+            "optimizing…"
+        );
 
         let mut solutions =
             Space::new(self.energy_prices.len(), min_energy_level..=max_energy_level);
@@ -70,7 +72,7 @@ impl Solver<'_> {
             // Calculate partial solutions for the current time interval:
             for energy_level in 0..=max_energy_level {
                 *solutions.get_mut(interval_index, energy_level) = self
-                    .optimize_step(interval_index, self.quantum.midpoint(energy_level), &solutions)
+                    .optimize_step(interval_index, energy_level.into(), &solutions)
                     .inspect(|_| n_some += 1);
             }
         }
@@ -136,7 +138,7 @@ impl Solver<'_> {
                 battery: battery_flows.external,
             },
             residual_energy_after: battery.residual_energy,
-            energy_level_after: self.quantum.index(battery.residual_energy),
+            energy_level_after: battery.residual_energy.into(),
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {

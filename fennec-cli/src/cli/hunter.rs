@@ -30,7 +30,6 @@ pub struct Runner {
     battery_args: BatteryArgs,
     working_modes: EnumSet<WorkingMode>,
     energy_provider: energy::Provider,
-    quantum: WattHours,
     scout: bool,
 }
 
@@ -78,7 +77,6 @@ impl Runner {
             )
             .battery_efficiency(energy_profile.battery_efficiency_estimator.as_efficiency())
             .now(now)
-            .quantum(self.quantum)
             .max_battery_flow(
                 self.battery_args
                     .power_limits
@@ -87,7 +85,7 @@ impl Runner {
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let solutions = solver.solve();
-        let initial_energy_level = self.quantum.index(battery_state.residual_energy().into());
+        let initial_energy_level = WattHours::from(battery_state.residual_energy()).into();
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
         let steps: Vec<_> = energy_prices.into_iter().zip_eq(steps).collect();
         info!(

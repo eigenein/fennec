@@ -1,3 +1,5 @@
+use crate::quantity::Quantity;
+
 pub trait Zero {
     const ZERO: Self;
 }
@@ -20,4 +22,8 @@ impl Zero for i64 {
 
 impl Zero for f64 {
     const ZERO: Self = 0.0;
+}
+
+impl<V: Zero, const P: i8, const T: i8, const C: i8> Zero for Quantity<V, P, T, C> {
+    const ZERO: Self = Self(V::ZERO);
 }

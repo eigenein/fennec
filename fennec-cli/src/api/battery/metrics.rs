@@ -10,7 +10,6 @@ use crate::{
     },
 };
 
-/// TODO: move under [`crate::api::modbus::mq2200`] like I do for HomeWizard.
 #[must_use]
 #[derive(Encode, Decode)]
 pub struct Metrics {

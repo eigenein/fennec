@@ -6,7 +6,7 @@ use musli::{Decode, Encode};
 use super::Balance;
 use crate::{
     Interval,
-    battery,
+    api,
     math::{
         fourier::Harmonic,
         smoothing::{Exponential, HalfLife},
@@ -39,11 +39,11 @@ pub struct Profile {
     /// Battery metrics, updated if and only if when the residual charge changes.
     #[musli(Binary, name = 10)]
     #[musli(default)]
-    battery_metrics: Option<battery::Metrics>,
+    battery_metrics: Option<api::battery::Metrics>,
 
     #[musli(Binary, name = 11)]
     #[musli(default)]
-    battery_efficiency: battery::Efficiency,
+    battery_efficiency: crate::battery::Efficiency,
 }
 
 impl Default for Profile {
@@ -57,7 +57,7 @@ impl Default for Profile {
             balance_harmonics: vec![Exponential::new(Harmonic::ZERO); 8],
 
             battery_metrics: None,
-            battery_efficiency: battery::Efficiency::default(),
+            battery_efficiency: crate::battery::Efficiency::default(),
         }
     }
 }
@@ -79,7 +79,7 @@ impl Profile {
         self.balance_harmonics.as_slice()
     }
 
-    pub const fn battery_metrics(&self) -> Option<&battery::Metrics> {
+    pub const fn battery_metrics(&self) -> Option<&api::battery::Metrics> {
         self.battery_metrics.as_ref()
     }
 
@@ -102,7 +102,7 @@ impl Profile {
     #[instrument(skip_all)]
     pub fn update_battery_metrics(
         &mut self,
-        current_metrics: battery::Metrics,
+        current_metrics: api::battery::Metrics,
         half_life: HalfLife,
     ) {
         let Some(last_metrics) = &self.battery_metrics else {

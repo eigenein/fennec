@@ -1,5 +1,6 @@
 //! FoxESS Modbus client.
 
+mod metrics;
 pub mod schedule;
 
 use std::array::from_fn;
@@ -14,7 +15,8 @@ use fennec_modbus::{
     tcp::UnitId,
 };
 
-use crate::{battery, energy::Flow, prelude::*};
+pub use self::metrics::Metrics;
+use crate::{energy::Flow, prelude::*};
 
 /// FoxESS MQ2200 Modbus client.
 #[must_use]
@@ -28,7 +30,7 @@ impl Client {
     }
 
     #[instrument(skip_all)]
-    pub async fn read_state(&self) -> Result<battery::Metrics> {
+    pub async fn read_state(&self) -> Result<Metrics> {
         let design_capacity = self
             .0
             .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
@@ -74,7 +76,7 @@ impl Client {
             .context("failed to read the total exported energy")?
             .into();
 
-        Ok(battery::Metrics {
+        Ok(Metrics {
             timestamp: Local::now(),
             charge,
             health,

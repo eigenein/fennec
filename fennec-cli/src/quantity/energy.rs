@@ -78,6 +78,6 @@ impl Div<Hours> for WattHours {
     type Output = Watts;
 
     fn div(self, hours: Hours) -> Self::Output {
-        Watts(self.0 / hours.0)
+        Quantity(self.0 / hours.0)
     }
 }

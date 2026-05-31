@@ -1,6 +1,13 @@
 use chrono::TimeDelta;
 
-quantity!(Hours, via: f64, suffix: "h", precision: 2);
+use crate::quantity::{Format, Quantity};
+
+pub type Hours<V = f64> = Quantity<V, 1, 0, 1, 0>;
+
+impl<V> Format for Hours<V> {
+    const SUFFIX: &str = "h";
+    const PRECISION: usize = 2;
+}
 
 impl From<TimeDelta> for Hours {
     fn from(time_delta: TimeDelta) -> Self {

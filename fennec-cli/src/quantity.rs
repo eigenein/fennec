@@ -59,6 +59,11 @@ impl<const M: i8, const P: i8, const T: i8, const C: i8> Quantity<f64, M, P, T, 
     pub const fn max(self, rhs: Self) -> Self {
         Self(self.0.max(rhs.0))
     }
+
+    /// Restrict a value to a certain interval.
+    pub const fn clamp(self, min: Self, max: Self) -> Self {
+        Self(self.0.clamp(min.0, max.0))
+    }
 }
 
 impl<V, const M: i8, const P: i8, const T: i8, const C: i8> Mul<V> for Quantity<V, M, P, T, C>

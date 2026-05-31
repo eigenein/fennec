@@ -83,7 +83,7 @@ mod tests {
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
-            simulator.apply(Flow { import: Watts(1000.0), export: Watts(700.0) }, Hours(1.0));
+            simulator.apply(Flow { import: Quantity(1000.0), export: Quantity(700.0) }, Hours(1.0));
         assert_eq!(flows.external.import, Quantity(1000.0));
         assert_eq!(flows.external.export, Quantity(700.0));
         assert_eq!(simulator.residual_energy, Quantity(5300.0));
@@ -98,11 +98,11 @@ mod tests {
             efficiency: battery::Efficiency {
                 charging: 0.9,
                 discharging: 0.5,
-                parasitic_load: Watts(50.0),
+                parasitic_load: Quantity(50.0),
             },
         };
-        let flows =
-            simulator.apply(Flow { import: Watts(1000.0), export: Watts(1000.0) }, Hours(1.0));
+        let flows = simulator
+            .apply(Flow { import: Quantity(1000.0), export: Quantity(1000.0) }, Hours(1.0));
         assert_eq!(flows.external.import, Quantity(1000.0));
         assert_eq!(flows.external.export, Quantity(1000.0));
         assert_eq!(flows.internal.import, Quantity(900.0));
@@ -124,7 +124,7 @@ mod tests {
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
-            simulator.apply(Flow { import: Watts(2000.0), export: Watts::ZERO }, Hours(1.0));
+            simulator.apply(Flow { import: Quantity(2000.0), export: Watts::ZERO }, Hours(1.0));
         assert_eq!(flows.external.import, Quantity(1000.0));
         assert_eq!(flows.external.export, Quantity::ZERO);
         assert_eq!(simulator.residual_energy, Quantity(10000.0));
@@ -139,7 +139,7 @@ mod tests {
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
-            simulator.apply(Flow { import: Watts::ZERO, export: Watts(1000.0) }, Hours(1.0));
+            simulator.apply(Flow { import: Watts::ZERO, export: Quantity(1000.0) }, Hours(1.0));
         assert_eq!(flows.external.import, Quantity::ZERO);
         assert_eq!(flows.external.export, Quantity(500.0));
         assert_eq!(simulator.residual_energy, Quantity(500.0));
@@ -154,7 +154,7 @@ mod tests {
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
-            simulator.apply(Flow { import: Watts(500.0), export: Watts(1000.0) }, Hours(1.0));
+            simulator.apply(Flow { import: Quantity(500.0), export: Quantity(1000.0) }, Hours(1.0));
         assert_eq!(flows.external.import, Quantity(500.0));
         assert_eq!(flows.external.export, Quantity(500.0));
         assert_eq!(simulator.residual_energy, Quantity(100.0));
@@ -169,7 +169,7 @@ mod tests {
             efficiency: battery::Efficiency::IDEAL,
         };
         let flows =
-            simulator.apply(Flow { import: Watts(1000.0), export: Watts(500.0) }, Hours(1.0));
+            simulator.apply(Flow { import: Quantity(1000.0), export: Quantity(500.0) }, Hours(1.0));
         assert_eq!(flows.external.import, Quantity(500.0));
         assert_eq!(flows.external.export, Quantity(500.0));
         assert_eq!(simulator.residual_energy, Quantity(10000.0));

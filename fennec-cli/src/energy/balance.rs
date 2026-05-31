@@ -114,19 +114,20 @@ impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for Balance<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::quantity::Quantity;
 
     #[test]
     fn with_zero_battery_flow() {
-        let initial = Balance {
-            grid: Flow { import: Watts(100.0), export: Watts(50.0) },
-            battery: Flow { import: Watts(10.0), export: Watts(20.0) },
+        let initial = Balance::<Watts> {
+            grid: Flow { import: Quantity(100.0), export: Quantity(50.0) },
+            battery: Flow { import: Quantity(10.0), export: Quantity(20.0) },
         };
-        let expected = Balance {
+        let expected = Balance::<Watts> {
             grid: Flow {
                 // Battery used to power the household at 20W, but now the grid has to take over.
-                import: Watts(120.0),
+                import: Quantity(120.0),
                 // Battery used to get 10W worth of free PV power, but now that has to go to the grid.
-                export: Watts(60.0),
+                export: Quantity(60.0),
             },
             battery: Flow::ZERO,
         };
@@ -136,15 +137,15 @@ mod tests {
 
     #[test]
     fn with_partial_battery_flow_reduction() {
-        let initial = Balance {
-            battery: Flow { import: Watts(50.0), export: Watts(500.0) },
-            grid: Flow { import: Watts(100.0), export: Watts(200.0) },
+        let initial = Balance::<Watts> {
+            battery: Flow { import: Quantity(50.0), export: Quantity(500.0) },
+            grid: Flow { import: Quantity(100.0), export: Quantity(200.0) },
         };
-        let expected = Balance {
+        let expected = Balance::<Watts> {
             // The battery is exporting 300W less:
-            battery: Flow { import: Watts(50.0), export: Watts(200.0) },
+            battery: Flow { import: Quantity(50.0), export: Quantity(200.0) },
             // Hence, we have to import these:
-            grid: Flow { import: Watts(400.0), export: Watts(200.0) },
+            grid: Flow { import: Quantity(400.0), export: Quantity(200.0) },
         };
         assert_eq!(initial.invariant(), expected.invariant());
         assert_eq!(initial.with_battery_flow(expected.battery), expected);
@@ -152,17 +153,17 @@ mod tests {
 
     #[test]
     fn battery_import_beyond_grid_export() {
-        let initial = Balance {
+        let initial = Balance::<Watts> {
             // Battery discharges 50W into the house:
-            battery: Flow { import: Watts::ZERO, export: Watts(50.0) },
+            battery: Flow { import: Watts::ZERO, export: Quantity(50.0) },
             // Grid covers the remaining 100W:
-            grid: Flow { import: Watts(100.0), export: Watts::ZERO },
+            grid: Flow { import: Quantity(100.0), export: Watts::ZERO },
         };
-        let expected = Balance {
+        let expected = Balance::<Watts> {
             // Now we force 300W discharge – 250W more than before:
-            battery: Flow { import: Watts::ZERO, export: Watts(300.0) },
+            battery: Flow { import: Watts::ZERO, export: Quantity(300.0) },
             // That's 150W beyond what the grid was importing, so it flips to export:
-            grid: Flow { import: Watts::ZERO, export: Watts(150.0) },
+            grid: Flow { import: Watts::ZERO, export: Quantity(150.0) },
         };
         assert_eq!(initial.invariant(), expected.invariant());
         assert_eq!(initial.with_battery_flow(expected.battery), expected);
@@ -170,16 +171,16 @@ mod tests {
 
     #[test]
     fn battery_export_beyond_grid_import() {
-        let initial = Balance {
+        let initial = Balance::<Watts> {
             battery: Flow::ZERO,
             // Grid has a small export surplus:
-            grid: Flow { import: Watts(200.0), export: Watts(100.0) },
+            grid: Flow { import: Quantity(200.0), export: Quantity(100.0) },
         };
         let expected = Balance {
             // Force 200W charging – that's 100W beyond grid export:
-            battery: Flow { import: Watts(200.0), export: Watts::ZERO },
+            battery: Flow { import: Quantity(200.0), export: Watts::ZERO },
             // Grid export goes to 100 - 200 = -100, normalize flips to extra import:
-            grid: Flow { import: Watts(300.0), export: Watts::ZERO },
+            grid: Flow { import: Quantity(300.0), export: Watts::ZERO },
         };
         assert_eq!(initial.invariant(), expected.invariant());
         assert_eq!(initial.with_battery_flow(expected.battery), expected);

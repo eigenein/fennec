@@ -14,7 +14,6 @@ use crate::{
     energy,
     energy::Balance,
     math::smoothing::HalfLife,
-    ops::musli::File,
     prelude::*,
     quantity::energy::WattHours,
 };
@@ -25,12 +24,13 @@ pub struct Args {
     connections: Connections,
     battery_power_limits: battery::PowerLimits,
     learning_half_life: HalfLife,
+    n_balance_harmonics: usize,
 }
 
 impl Args {
     #[instrument(skip_all)]
     pub async fn start(self) -> Result<Runner> {
-        let energy_profile = energy::Profile::read_from_file().await?.unwrap_or_default();
+        let energy_profile = energy::Profile::read_from_file(self.n_balance_harmonics).await?;
         Ok(Runner { args: self, energy_profile: Arc::new(RwLock::new(energy_profile)) })
     }
 }

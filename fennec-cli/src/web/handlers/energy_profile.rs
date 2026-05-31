@@ -120,7 +120,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                             table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
                                 thead {
                                     tr {
-                                        th.has-text-right rowspan="2" { "Mode" }
+                                        th.has-text-centered rowspan="2" { "Fourier" (PreEscaped("<br>")) "mode" }
                                         th.has-text-success align="center" colspan="2" { "Battery import" }
                                         th.has-text-warning align="center" colspan="2" { "Battery export" }
                                         th.has-text-danger align="center" colspan="2" { "Grid import" }

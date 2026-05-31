@@ -1,39 +1,3 @@
-use std::path::Path;
-
-use musli::{Decode, Encode, alloc::Global, mode::Binary, wire};
-
-use crate::prelude::*;
-
-pub trait File: Default + Encode<Binary> + for<'a> Decode<'a, Binary, Global> {
-    const PATH: &str;
-
-    #[instrument]
-    async fn read_from_file() -> Result<Option<Self>> {
-        let path = Path::new(Self::PATH);
-        if path.exists() {
-            let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
-            wire::decode(bytes.as_slice()).context("failed to decode the file").map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
-    #[instrument(skip_all, fields(path = Self::PATH))]
-    async fn write_to_file(&self) -> Result {
-        let final_path = Path::new(Self::PATH);
-        let temporary_path = final_path.with_added_extension("temporary");
-
-        let bytes = wire::to_vec(self).context("failed to encode the energy profile")?;
-        tokio::fs::write(&temporary_path, bytes.as_slice())
-            .await
-            .context("failed to write the energy profile")?;
-        tokio::fs::rename(&temporary_path, final_path)
-            .await
-            .context("failed to rename the temporary file")?;
-        Ok(())
-    }
-}
-
 pub mod chrono {
     use chrono::{DateTime, Local, TimeZone};
     use musli::{Decoder, Encoder};

@@ -1,7 +1,7 @@
-use std::f64::consts::TAU;
+use std::{f64::consts::TAU, path::Path};
 
 use chrono::{DateTime, Local, NaiveTime, Timelike};
-use musli::{Decode, Encode};
+use musli::{Decode, Encode, wire};
 
 use super::Balance;
 use crate::{
@@ -11,7 +11,6 @@ use crate::{
         fourier::Harmonic,
         smoothing::{Exponential, HalfLife},
     },
-    ops::musli::File,
     prelude::*,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };
@@ -52,27 +51,46 @@ pub struct Profile {
     pub battery_efficiency_estimator: crate::battery::efficiency::Estimator,
 }
 
-impl Default for Profile {
-    fn default() -> Self {
-        Self {
-            balance_updated_at: Local::now(),
-            mean_balance: Exponential(Balance::ZERO),
-            eps_active_power: Exponential(Watts::ZERO),
-
-            // TODO: make number of harmonics configurable?
-            balance_harmonics: vec![Exponential(Harmonic::ZERO); 8],
-
-            battery_metrics: None,
-            battery_efficiency_estimator: crate::battery::efficiency::Estimator::default(),
-        }
-    }
-}
-
-impl File for Profile {
-    const PATH: &str = "energy-profile.musli";
-}
-
 impl Profile {
+    const PATH: &str = "energy-profile.musli";
+    const DEFAULT_HARMONIC: Exponential<Harmonic<Balance<Watts>>> = Exponential(Harmonic::ZERO);
+
+    #[instrument]
+    pub async fn read_from_file(n_balance_harmonics: usize) -> Result<Self> {
+        let path = Path::new(Self::PATH);
+        Ok(if path.exists() {
+            let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
+            let mut this: Self =
+                wire::decode(bytes.as_slice()).context("failed to decode the file")?;
+            this.balance_harmonics.resize(n_balance_harmonics, Self::DEFAULT_HARMONIC);
+            this
+        } else {
+            Self {
+                balance_updated_at: Local::now(),
+                mean_balance: Exponential(Balance::ZERO),
+                eps_active_power: Exponential(Watts::ZERO),
+                balance_harmonics: vec![Self::DEFAULT_HARMONIC; n_balance_harmonics],
+                battery_metrics: None,
+                battery_efficiency_estimator: crate::battery::efficiency::Estimator::default(),
+            }
+        })
+    }
+
+    #[instrument(skip_all, fields(path = Self::PATH))]
+    pub async fn write_to_file(&self) -> Result {
+        let final_path = Path::new(Self::PATH);
+        let temporary_path = final_path.with_added_extension("temporary");
+
+        let bytes = wire::to_vec(self).context("failed to encode the energy profile")?;
+        tokio::fs::write(&temporary_path, bytes.as_slice())
+            .await
+            .context("failed to write the energy profile")?;
+        tokio::fs::rename(&temporary_path, final_path)
+            .await
+            .context("failed to rename the temporary file")?;
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     pub fn update_battery_metrics(
         &mut self,

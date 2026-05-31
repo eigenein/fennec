@@ -16,7 +16,6 @@ use crate::{
     cron::CronSchedule,
     energy,
     energy::Flow,
-    ops::musli::File,
     prelude::*,
     quantity::{energy::WattHours, price::KilowattHourPrice},
     solution,
@@ -30,6 +29,7 @@ pub struct Runner {
     battery_args: BatteryArgs,
     working_modes: EnumSet<WorkingMode>,
     energy_provider: energy::Provider,
+    n_balance_harmonics: usize,
     scout: bool,
 }
 
@@ -64,8 +64,8 @@ impl Runner {
             "battery state",
         );
 
-        // FIXME: using default here is meh.
-        let energy_profile = energy::Profile::read_from_file().await?.unwrap_or_default();
+        // FIXME: reading it on every iteration is meh.
+        let energy_profile = energy::Profile::read_from_file(self.n_balance_harmonics).await?;
 
         let solver = Solver::builder()
             .energy_prices(&energy_prices)

@@ -53,6 +53,9 @@ pub struct RunArgs {
     /// Do not push schedule to the device, dry run.
     #[clap(long, alias = "scout", env = "DRY_RUN")]
     dry_run: bool,
+
+    #[clap(long, env = "N_BALANCE_HARMONICS", default_value = "10")]
+    n_balance_harmonics: usize,
 }
 
 impl RunArgs {
@@ -64,6 +67,7 @@ impl RunArgs {
             .connections(connections.clone())
             .battery_power_limits(battery_power_limits)
             .learning_half_life(HalfLife::new(self.learning_half_life))
+            .n_balance_harmonics(self.n_balance_harmonics)
             .build()
             .start()
             .await?;
@@ -72,6 +76,7 @@ impl RunArgs {
             .working_modes(self.working_modes.iter().copied().collect())
             .energy_provider(self.energy_provider)
             .battery_args(self.battery)
+            .n_balance_harmonics(self.n_balance_harmonics)
             .scout(self.dry_run)
             .build();
 

@@ -1,6 +1,6 @@
 ---
 paths:
-  - "fennec-cli/**"
+  - "fennec-cli/**/*"
 ---
 
 This is a pet project hence:

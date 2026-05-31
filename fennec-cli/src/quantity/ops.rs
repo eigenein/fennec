@@ -1,4 +1,8 @@
-macro_rules! implement_mul {
+#![allow(clippy::wildcard_imports)]
+
+use crate::quantity::{currency::*, energy::*, power::*, price::*, time::*};
+
+macro_rules! mul {
     ($lhs:path, $rhs:path, $output:path) => {
         impl ::std::ops::Mul<$rhs> for $lhs {
             type Output = $output;
@@ -17,3 +21,6 @@ macro_rules! implement_mul {
         }
     };
 }
+
+mul!(KilowattHourPrice, WattHours, Mills);
+mul!(Watts, Hours, WattHours);

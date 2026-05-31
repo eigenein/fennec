@@ -1,9 +1,7 @@
-#[macro_use]
-pub mod macros;
-
 pub mod currency;
 pub mod energy;
 mod fmt;
+pub mod ops;
 pub mod power;
 pub mod price;
 pub mod ratios;

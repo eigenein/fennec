@@ -1,9 +1,21 @@
 use std::ops::Mul;
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    quantity::{Format, Quantity},
+};
 
-quantity!(Percentage, via: u8, suffix: "%", precision: 0);
-quantity!(BasisPoints, via: u16, suffix: "‱", precision: 0);
+pub type Percentage<V = u8> = Quantity<V, 2, 0, 0, 0>;
+
+impl<V> Format for Percentage<V> {
+    const SUFFIX: &str = "%";
+}
+
+pub type BasisPoints<V = u16> = Quantity<V, 3, 0, 0, 0>;
+
+impl<V> Format for BasisPoints<V> {
+    const SUFFIX: &str = "‱";
+}
 
 impl From<Percentage> for fennec_modbus::contrib::Percentage<u8> {
     fn from(percentage: Percentage) -> Self {
@@ -36,6 +48,6 @@ impl Mul<Self> for Percentage {
     type Output = BasisPoints;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        BasisPoints(u16::from(self.0) * u16::from(rhs.0))
+        Quantity(u16::from(self.0) * u16::from(rhs.0))
     }
 }

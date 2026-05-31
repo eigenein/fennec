@@ -2,7 +2,7 @@ use crate::quantity::{Format, Quantity};
 
 pub type Watts<V = f64> = Quantity<V, 0, 1, 0, 0>;
 
-impl Format for Watts {
+impl<V> Format for Watts<V> {
     const SUFFIX: &str = "W";
 }
 

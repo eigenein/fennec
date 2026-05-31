@@ -1,5 +1,3 @@
-use std::ops::Mul;
-
 use crate::{
     prelude::*,
     quantity::{Format, Quantity},
@@ -41,13 +39,5 @@ impl Percentage {
     /// Convert the percentage into `0.0..=1.0`.
     pub const fn to_ratio(self) -> f64 {
         0.01 * self.0 as f64
-    }
-}
-
-impl Mul<Self> for Percentage {
-    type Output = BasisPoints;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        Quantity(u16::from(self.0) * u16::from(rhs.0))
     }
 }

@@ -1,0 +1,2 @@
+- Numerical stability is important.
+- The best code is never written one.

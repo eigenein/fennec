@@ -3,7 +3,13 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
-use crate::{Interval, Schedule, energy::Flow, prelude::*, quantity::price::KilowattHourPrice};
+use crate::{
+    Interval,
+    Schedule,
+    energy::Flow,
+    prelude::*,
+    quantity::{Quantity, price::KilowattHourPrice},
+};
 
 pub struct Api {
     client: reqwest::Client,
@@ -12,7 +18,7 @@ pub struct Api {
 
 impl Api {
     /// See <https://www.frankenergie.nl/nl/kennisbank/zonnepanelen/terugleververgoeding#terugleververgoeding-bij-frank>.
-    const PURCHASE_FEE: KilowattHourPrice = KilowattHourPrice(0.0182);
+    const PURCHASE_FEE: KilowattHourPrice = Quantity(0.0182);
 
     const VAT: f64 = 1.21;
 

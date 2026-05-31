@@ -1,4 +1,4 @@
-use crate::quantity::{Format, Quantity, energy::WattHours, price::KilowattHourPrice};
+use crate::quantity::{Format, Quantity};
 
 /// [Mill][1], one-thousandth of the base unit.
 ///
@@ -8,8 +8,6 @@ pub type Mills<V = f64> = Quantity<V, -3, 0, 0, 1>;
 impl<V> Format for Mills<V> {
     const SUFFIX: &str = "₥";
 }
-
-implement_mul!(KilowattHourPrice, WattHours, Mills);
 
 impl Mills<f64> {
     /// One cent.

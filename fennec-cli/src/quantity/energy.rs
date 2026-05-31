@@ -18,8 +18,6 @@ use crate::quantity::{
     time::Hours,
 };
 
-implement_mul!(Watts, Hours, WattHours);
-
 impl WattHours {
     pub const ONE: Self = Self(1.0);
 }

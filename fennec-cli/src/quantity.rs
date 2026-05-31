@@ -51,6 +51,7 @@ impl<V, const M: i8, const P: i8, const T: i8, const C: i8> Quantity<V, M, P, T,
     }
 }
 
+/// Specialized implementation for [`f64`].
 impl<const M: i8, const P: i8, const T: i8, const C: i8> Quantity<f64, M, P, T, C> {
     pub const fn min(self, rhs: Self) -> Self {
         Self(self.0.min(rhs.0))

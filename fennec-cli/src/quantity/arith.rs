@@ -16,6 +16,15 @@ use crate::quantity::{
 
 macro_rules! mul {
     ($lhs:path, $rhs:path, $output:path) => {
+        const _: () = {
+            assert!(<$lhs>::MAGNITUDE + <$rhs>::MAGNITUDE == <$output>::MAGNITUDE);
+            assert!(
+                <$lhs>::POWER_DIMENSION + <$rhs>::POWER_DIMENSION == <$output>::POWER_DIMENSION
+            );
+            assert!(<$lhs>::TIME_DIMENSION + <$rhs>::TIME_DIMENSION == <$output>::TIME_DIMENSION);
+            assert!(<$lhs>::COST_DIMENSION + <$rhs>::COST_DIMENSION == <$output>::COST_DIMENSION);
+        };
+
         impl Mul<$rhs> for $lhs {
             type Output = $output;
 

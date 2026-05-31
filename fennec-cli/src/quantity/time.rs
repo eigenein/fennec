@@ -2,7 +2,7 @@ use chrono::TimeDelta;
 
 use crate::quantity::{Format, Quantity};
 
-pub type Hours<V = f64> = Quantity<V, 1, 0, 1, 0>;
+pub type Hours<V = f64> = Quantity<V, 0, 0, 1, 0>;
 
 impl<V> Format for Hours<V> {
     const SUFFIX: &str = "h";

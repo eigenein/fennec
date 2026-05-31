@@ -41,6 +41,11 @@ pub use self::{fmt::Format, zero::Zero};
 pub struct Quantity<V, const M: i8, const P: i8, const T: i8, const C: i8>(pub V);
 
 impl<V, const M: i8, const P: i8, const T: i8, const C: i8> Quantity<V, M, P, T, C> {
+    pub const MAGNITUDE: i8 = M;
+    pub const POWER_DIMENSION: i8 = P;
+    pub const TIME_DIMENSION: i8 = T;
+    pub const COST_DIMENSION: i8 = C;
+
     pub fn rescale<const TM: i8>(self) -> Quantity<f64, TM, P, T, C>
     where
         V: Into<f64>,

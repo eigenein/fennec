@@ -1,2 +1,4 @@
 - Numerical stability is important.
-- The best code is never written one.
+- The best code is code that never needs to be written.
+- Do not verify that the code compiles.
+- Do not verify that the tests pass.

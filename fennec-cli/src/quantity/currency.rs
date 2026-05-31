@@ -1,11 +1,13 @@
-use crate::quantity::{energy::WattHours, price::KilowattHourPrice};
+use crate::quantity::{Format, Quantity, energy::WattHours, price::KilowattHourPrice};
 
-quantity!(
-    /// [Mill][1], one-thousandth of the base unit.
-    ///
-    /// [1]: https://en.wikipedia.org/wiki/Mill_(currency)
-    Mills, via: f64, suffix: "₥", precision: 0
-);
+/// [Mill][1], one-thousandth of the base unit.
+///
+/// [1]: https://en.wikipedia.org/wiki/Mill_(currency)
+pub type Mills<V = f64> = Quantity<V, -3, 0, 0, 1>;
+
+impl Format for Mills {
+    const SUFFIX: &str = "₥";
+}
 
 implement_mul!(KilowattHourPrice, WattHours, Mills);
 

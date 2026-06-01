@@ -18,7 +18,7 @@ use crate::{
 pub struct Solver<'a> {
     energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
     energy_profile: &'a energy::Profile,
-    battery_efficiency: battery::Efficiency,
+    battery_efficiency: energy::Flow<f64>,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,

@@ -69,6 +69,13 @@ impl<T: Div<Rhs>, Rhs: Copy> Div<Rhs> for Flow<T> {
     }
 }
 
+impl Flow<f64> {
+    /// Calculate the round-trip efficiency assuming each direction represents efficiency in that direction.
+    pub const fn round_trip(self) -> f64 {
+        self.import * self.export
+    }
+}
+
 impl Flow<KilowattHourPrice> {
     /// Calculate the grid consumption loss minus production revenue.
     pub fn loss(self, energy: Flow<WattHours>) -> Mills {

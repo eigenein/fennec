@@ -3,7 +3,7 @@ use std::{f64::consts::TAU, path::Path};
 use chrono::{DateTime, Local, NaiveTime, Timelike};
 use musli::{Decode, Encode, wire};
 
-use super::Balance;
+use super::{Balance, Flow};
 use crate::{
     Interval,
     api,
@@ -42,13 +42,14 @@ pub struct Profile {
     /// Battery metrics as read from the device.
     ///
     /// This attribute is updated if and only if the residual charge changes.
+    /// Hence, it has its own timestamp.
     #[musli(Binary, name = 10)]
     #[musli(default)]
     pub battery_metrics: Option<api::battery::Metrics>,
 
-    #[musli(Binary, name = 11)]
-    #[musli(default)]
-    pub battery_efficiency_estimator: crate::battery::efficiency::Estimator,
+    #[musli(Binary, name = 12)]
+    #[musli(default = Self::default_battery_efficiency)]
+    pub battery_efficiency: Flow<f64>,
 }
 
 impl Profile {
@@ -71,7 +72,7 @@ impl Profile {
                 eps_active_power: Exponential(Watts::ZERO),
                 balance_harmonics: vec![Self::DEFAULT_HARMONIC; n_balance_harmonics],
                 battery_metrics: None,
-                battery_efficiency_estimator: crate::battery::efficiency::Estimator::default(),
+                battery_efficiency: Self::default_battery_efficiency(),
             }
         })
     }
@@ -119,12 +120,16 @@ impl Profile {
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
             (true, false) => {
                 let efficiency = grid_flow.export.rescale() / residual_energy_change;
-                self.battery_efficiency_estimator.discharging.update(efficiency, smoothing_factor);
+                self.battery_efficiency.export = Exponential(self.battery_efficiency.export)
+                    .update(efficiency, smoothing_factor)
+                    .0;
                 info!(?efficiency, "discharging");
             }
             (false, true) => {
                 let efficiency = residual_energy_change / grid_flow.import.rescale();
-                self.battery_efficiency_estimator.charging.update(efficiency, smoothing_factor);
+                self.battery_efficiency.import = Exponential(self.battery_efficiency.import)
+                    .update(efficiency, smoothing_factor)
+                    .0;
                 info!(?efficiency, "charging");
             }
             (false, false) | (true, true) => {
@@ -201,5 +206,9 @@ impl Profile {
                 harmonic.0.cosine * cosine_mean + harmonic.0.sine * sine_mean
             })
             .fold(Balance::ZERO, |sum, item| sum + item)
+    }
+
+    const fn default_battery_efficiency() -> Flow<f64> {
+        Flow { import: 0.95, export: 0.95 }
     }
 }

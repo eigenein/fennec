@@ -101,19 +101,19 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-rotate {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency_estimator.as_efficiency().round_trip())) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.round_trip())) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-down {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency_estimator.charging.0)) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.import)) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-up {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency_estimator.discharging.0)) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.export)) }
                                     }
                                 }
                             }

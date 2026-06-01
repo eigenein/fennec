@@ -118,19 +118,6 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                 }
                             }
                         }
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-info {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-plug-circle-minus {} }
-                                        span { "Parasitic load" }
-                                    }
-                                }
-                                span.tag {
-                                    (energy_profile.battery_efficiency_estimator.parasitic_load.0)
-                                }
-                            }
-                        }
                     }
 
                     @if let Some(battery_metrics) = battery_metrics {

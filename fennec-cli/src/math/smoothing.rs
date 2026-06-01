@@ -34,10 +34,10 @@ pub struct HalfLife<V>(pub V);
 
 impl<V> HalfLife<V> {
     /// Calculate the smoothing factor from the quantity delta.
-    pub fn smoothing_factor(self, delta: V) -> f64
+    pub fn smoothing_factor(self, delta: impl Into<V>) -> f64
     where
         V: Div<V, Output = f64>,
     {
-        -(-LN_2 * (delta / self.0)).exp_m1()
+        -(-LN_2 * (delta.into() / self.0)).exp_m1()
     }
 }

@@ -46,7 +46,7 @@ pub struct RunArgs {
     energy_provider: energy::Provider,
 
     /// Half-life for exponential moving average when learning the energy balance.
-    #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "14d")]
+    #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "1d")]
     energy_balance_half_life: humantime::Duration,
 
     /// Half-life for exponential moving average when learning the battery parameters.

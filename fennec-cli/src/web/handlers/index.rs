@@ -77,16 +77,33 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                     }
 
                     div.field.is-grouped.is-grouped-multiline {
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-info {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-plug-circle-bolt {} }
-                                        span { "EPS" }
+                        @if let Some(battery_metrics) = battery_metrics {
+                            div.control {
+                                div.tags.has-addons {
+                                     @let state_of_charge = StateOfCharge {
+                                        residual_energy: battery_metrics.residual_energy().into(),
+                                        actual_capacity: battery_metrics.actual_capacity(),
+                                    };
+                                    span.tag.(state_of_charge.class()) {
+                                        span.icon-text {
+                                            (state_of_charge.icon())
+                                            span { "Charge" }
+                                        }
                                     }
+                                    span.tag { (battery_metrics.charge) }
+                                    span.tag { (WattHours::from(battery_metrics.residual_energy())) }
                                 }
-                                span.tag {
-                                    (energy_profile.eps_active_power.0)
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-star-of-life {} }
+                                            span { "Health" }
+                                        }
+                                    }
+                                    span.tag { (battery_metrics.health) }
+                                    span.tag { (battery_metrics.actual_capacity()) }
                                 }
                             }
                         }
@@ -118,36 +135,16 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                 }
                             }
                         }
-                    }
-
-                    @if let Some(battery_metrics) = battery_metrics {
-                        div.field.is-grouped.is-grouped-multiline {
-                            div.control {
-                                div.tags.has-addons {
-                                     @let state_of_charge = StateOfCharge {
-                                        residual_energy: battery_metrics.residual_energy().into(),
-                                        actual_capacity: battery_metrics.actual_capacity(),
-                                    };
-                                    span.tag.(state_of_charge.class()) {
-                                        span.icon-text {
-                                            (state_of_charge.icon())
-                                            span { "Charge" }
-                                        }
+                        div.control {
+                            div.tags.has-addons {
+                                span.tag.is-info {
+                                    span.icon-text {
+                                        span.icon { i.fas.fa-plug-circle-bolt {} }
+                                        span { "EPS" }
                                     }
-                                    span.tag { (battery_metrics.charge) }
-                                    span.tag { (WattHours::from(battery_metrics.residual_energy())) }
                                 }
-                            }
-                            div.control {
-                                div.tags.has-addons {
-                                    span.tag.is-info {
-                                        span.icon-text {
-                                            span.icon { i.fas.fa-star-of-life {} }
-                                            span { "Health" }
-                                        }
-                                    }
-                                    span.tag { (battery_metrics.health) }
-                                    span.tag { (battery_metrics.actual_capacity()) }
+                                span.tag {
+                                    (energy_profile.eps_active_power.0)
                                 }
                             }
                         }

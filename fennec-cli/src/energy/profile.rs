@@ -183,7 +183,19 @@ impl Profile {
 
     pub fn mean_balance_over(&self, interval: Interval) -> Balance<Watts> {
         let balance = self.mean_balance.0 + self.mean_deviation_over(interval);
-        Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
+
+        // TODO: the more correct way is to do `.normalized()` to preserve the integrals,
+        //       but that creates unrealistic expectations from under zero.
+        Balance {
+            grid: Flow {
+                import: balance.grid.import.max(Zero::ZERO),
+                export: balance.grid.export.max(Zero::ZERO),
+            },
+            battery: Flow {
+                import: balance.battery.import.max(Zero::ZERO),
+                export: balance.battery.export.max(Zero::ZERO),
+            },
+        }
     }
 
     /// Calculate the mean deviation of the balance over the interval.

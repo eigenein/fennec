@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::TimeDelta;
 
 use crate::quantity::{Format, Quantity};
@@ -7,6 +9,12 @@ pub type Hours<V = f64> = Quantity<V, 0, 0, 1, 0>;
 impl<V> Format for Hours<V> {
     const SUFFIX: &str = "h";
     const PRECISION: usize = 2;
+}
+
+impl From<Duration> for Hours {
+    fn from(duration: Duration) -> Self {
+        Self(duration.as_secs_f64() / 3600.0)
+    }
 }
 
 impl From<TimeDelta> for Hours {

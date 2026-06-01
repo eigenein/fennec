@@ -114,34 +114,21 @@ impl Profile {
         let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
         let smoothing_factor = HalfLife(current_metrics.actual_capacity() * half_life_factor)
             .smoothing_factor(residual_energy_change);
-        let elapsed = Hours::from(current_metrics.timestamp - last_metrics.timestamp);
-        let parasitic_loss = self.battery_efficiency_estimator.parasitic_load.0 * elapsed;
         info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, ?smoothing_factor, "residual energy changed");
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
-            (true, true) => {
-                let parasitic_load = residual_energy_change / elapsed;
-                self.battery_efficiency_estimator
-                    .parasitic_load
-                    .update(parasitic_load, smoothing_factor);
-                info!(?parasitic_load, "idling");
-            }
             (true, false) => {
-                let efficiency =
-                    // Residual energy also includes the parasitic loss:
-                    (grid_flow.export.rescale() + parasitic_loss) / residual_energy_change;
+                let efficiency = grid_flow.export.rescale() / residual_energy_change;
                 self.battery_efficiency_estimator.discharging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "discharging");
             }
             (false, true) => {
-                let efficiency =
-                    // Imported energy also includes the parasitic loss:
-                    residual_energy_change / (grid_flow.import.rescale() - parasitic_loss);
+                let efficiency = residual_energy_change / grid_flow.import.rescale();
                 self.battery_efficiency_estimator.charging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "charging");
             }
-            (false, false) => {
-                // Mixed regime is not good enough for updating the parameters.
+            (false, false) | (true, true) => {
+                // Idle or mixed regime is not good enough for updating the parameters.
             }
         }
 

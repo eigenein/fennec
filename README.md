@@ -10,7 +10,7 @@
 
 - Current battery charge
 - [Frank Energie](https://www.frankenergie.nl/nl/dynamisch-energiecontract/dynamische-energieprijzen) real-time electricity prices
-- Automatically estimated charging and discharging efficiency, and BMS' parasitic load
+- Automatically estimated charging and discharging efficiency.
 - Automatically estimated household consumption per price interval
 
 ![Screenshot](screenshot.png)

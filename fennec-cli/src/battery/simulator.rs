@@ -45,10 +45,8 @@ impl Simulator {
             actual_flow.export += declined_flow.export.min(actual_flow.import);
         }
 
-        // Apply the net flow and correct on the parasitic load:
-        self.residual_energy = self.residual_energy + actual_flow.import
-            - actual_flow.export
-            - self.efficiency.parasitic_load * for_;
+        // Apply the net flow:
+        self.residual_energy += actual_flow.import - actual_flow.export;
 
         // Parasitic load may drain to the ground:
         self.residual_energy = self.residual_energy.max(WattHours::ZERO);
@@ -95,11 +93,7 @@ mod tests {
         let mut simulator = Simulator {
             residual_energy: Quantity(5000.0),
             allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
-            efficiency: battery::Efficiency {
-                charging: 0.9,
-                discharging: 0.5,
-                parasitic_load: Quantity(50.0),
-            },
+            efficiency: battery::Efficiency { charging: 0.9, discharging: 0.5 },
         };
         let flows = simulator
             .apply(Flow { import: Quantity(1000.0), export: Quantity(1000.0) }, Quantity(1.0));
@@ -111,7 +105,6 @@ mod tests {
             simulator.residual_energy,
             Quantity(5000.0) + Quantity(1000.0) * simulator.efficiency.charging
                 - Quantity(1000.0) / simulator.efficiency.discharging
-                - simulator.efficiency.parasitic_load * Quantity(1.0)
         );
     }
 

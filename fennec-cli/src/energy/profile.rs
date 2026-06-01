@@ -95,7 +95,7 @@ impl Profile {
     pub fn update_battery_metrics(
         &mut self,
         current_metrics: api::battery::Metrics,
-        half_life: HalfLife,
+        half_life_factor: f64,
     ) {
         let Some(last_metrics) = &self.battery_metrics else {
             // First initialization:
@@ -110,17 +110,17 @@ impl Profile {
             return;
         }
 
-        let residual_energy_change = WattHours::from(residual_energy_change);
+        let residual_energy_change = WattHours::from(residual_energy_change).abs();
         let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
-        let elapsed = current_metrics.timestamp - last_metrics.timestamp;
-        let smoothing_factor = half_life.smoothing_factor(elapsed);
-        let elapsed = Hours::from(elapsed);
+        let smoothing_factor = HalfLife(current_metrics.actual_capacity() * half_life_factor)
+            .smoothing_factor(residual_energy_change);
+        let elapsed = Hours::from(current_metrics.timestamp - last_metrics.timestamp);
         let parasitic_loss = self.battery_efficiency_estimator.parasitic_load.0 * elapsed;
-        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, %elapsed, ?smoothing_factor, "residual energy changed");
+        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, ?smoothing_factor, "residual energy changed");
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
             (true, true) => {
-                let parasitic_load = -residual_energy_change / elapsed;
+                let parasitic_load = residual_energy_change / elapsed;
                 self.battery_efficiency_estimator
                     .parasitic_load
                     .update(parasitic_load, smoothing_factor);
@@ -129,7 +129,7 @@ impl Profile {
             (true, false) => {
                 let efficiency =
                     // Residual energy also includes the parasitic loss:
-                    (grid_flow.export.rescale() + parasitic_loss) / -residual_energy_change;
+                    (grid_flow.export.rescale() + parasitic_loss) / residual_energy_change;
                 self.battery_efficiency_estimator.discharging.update(efficiency, smoothing_factor);
                 info!(?efficiency, "discharging");
             }
@@ -153,11 +153,11 @@ impl Profile {
         balance: Balance<Watts>,
         eps_active_power: Watts,
         at: DateTime<Local>,
-        half_life: HalfLife,
+        half_life: HalfLife<Hours>,
     ) {
         let smoothing_factor = {
             let elapsed = at - std::mem::replace(&mut self.balance_updated_at, at);
-            half_life.smoothing_factor(elapsed)
+            half_life.smoothing_factor(elapsed.into())
         };
 
         self.eps_active_power.update(eps_active_power, smoothing_factor);

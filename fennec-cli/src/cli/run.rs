@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use clap::Parser;
 use tokio::{spawn, sync::RwLock, try_join};
@@ -45,10 +45,13 @@ pub struct RunArgs {
     #[clap(long, env = "ENERGY_PROVIDER")]
     energy_provider: energy::Provider,
 
-    /// Half-life for exponential moving average when learning
-    /// the energy balance and battery parameters.
-    #[clap(long, env = "LEARNING_HALF_LIFE", default_value = "14d")]
-    learning_half_life: humantime::Duration,
+    /// Half-life for exponential moving average when learning the energy balance.
+    #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "14d")]
+    energy_balance_half_life: humantime::Duration,
+
+    /// Half-life for exponential moving average when learning the battery parameters.
+    #[clap(long, env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR", default_value = "10")]
+    battery_efficiency_half_life_factor: f64,
 
     /// Do not push schedule to the device, dry run.
     #[clap(long, alias = "scout", env = "DRY_RUN")]
@@ -66,7 +69,10 @@ impl RunArgs {
         let logger_runner = logger::Args::builder()
             .connections(connections.clone())
             .battery_power_limits(battery_power_limits)
-            .learning_half_life(HalfLife::new(self.learning_half_life))
+            .energy_balance_half_life(HalfLife(
+                Duration::from(self.energy_balance_half_life).into(),
+            ))
+            .battery_efficiency_half_life_factor(self.battery_efficiency_half_life_factor)
             .n_balance_harmonics(self.n_balance_harmonics)
             .build()
             .start()

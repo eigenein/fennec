@@ -1,10 +1,8 @@
 use std::{
     f64::consts::LN_2,
-    ops::{AddAssign, Mul, Sub},
-    time::Duration,
+    ops::{AddAssign, Div, Mul, Sub},
 };
 
-use chrono::TimeDelta;
 use musli::{Decode, Encode};
 
 /// Raw [exponential moving average][1] with explicit smoothing factor per update.
@@ -41,30 +39,14 @@ pub struct SmoothingFactor(f64);
 /// Half-life-parameterized exponential decay.
 #[must_use]
 #[derive(Copy, Clone)]
-pub struct HalfLife(
-    /// Lambda of the exponential decay, [`LN_2`] divided by the half-time – in [nepers][1] per second, Nps⁻¹.
-    ///
-    /// [1]: https://en.wikipedia.org/wiki/Neper
-    f64,
-);
+pub struct HalfLife<V>(pub V);
 
-impl HalfLife {
-    pub fn new(half_life: impl Into<Duration>) -> Self {
-        Self(LN_2 / half_life.into().as_secs_f64())
-    }
-
-    /// Calculate the smoothing factor from the elapsed time.
-    ///
-    /// Algebraically, this is equivalent to one minus [`Self::decay_factor`], but more stable.
-    pub fn smoothing_factor(self, elapsed: TimeDelta) -> SmoothingFactor {
-        SmoothingFactor(-(-self.decay(elapsed)).exp_m1())
-    }
-
-    /// λΔt measured in [nepers][1].
-    ///
-    /// [1]: https://en.wikipedia.org/wiki/Neper
-    fn decay(self, elapsed: TimeDelta) -> f64 {
-        assert!(elapsed >= TimeDelta::zero(), "elapsed time must be non-negative");
-        elapsed.as_seconds_f64() * self.0
+impl<V> HalfLife<V> {
+    /// Calculate the smoothing factor from the quantity delta.
+    pub fn smoothing_factor(self, delta: V) -> SmoothingFactor
+    where
+        V: Div<V, Output = f64>,
+    {
+        SmoothingFactor(-(-LN_2 * (delta / self.0)).exp_m1())
     }
 }

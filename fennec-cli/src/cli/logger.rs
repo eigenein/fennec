@@ -15,7 +15,7 @@ use crate::{
     energy::Balance,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::energy::WattHours,
+    quantity::{energy::WattHours, time::Hours},
 };
 
 #[must_use]
@@ -23,7 +23,8 @@ use crate::{
 pub struct Args {
     connections: Connections,
     battery_power_limits: battery::PowerLimits,
-    learning_half_life: HalfLife,
+    energy_balance_half_life: HalfLife<Hours>,
+    battery_efficiency_half_life_factor: f64,
     n_balance_harmonics: usize,
 }
 
@@ -96,9 +97,10 @@ impl Runner {
             balance,
             battery_metrics.eps_active_power,
             Local::now(),
-            self.args.learning_half_life,
+            self.args.energy_balance_half_life,
         );
-        energy_profile.update_battery_metrics(battery_metrics, self.args.learning_half_life);
+        energy_profile
+            .update_battery_metrics(battery_metrics, self.args.battery_efficiency_half_life_factor);
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         drop(energy_profile);
 

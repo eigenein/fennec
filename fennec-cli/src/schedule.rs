@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use chrono::{DateTime, Local};
-use derive_more::{Deref, IntoIterator};
+use derive_more::IntoIterator;
 
 use crate::{prelude::*, quantity::time::Hours};
 
@@ -53,7 +53,7 @@ impl Interval {
 }
 
 #[must_use]
-#[derive(Deref, IntoIterator)]
+#[derive(IntoIterator)]
 pub struct Schedule<V>(VecDeque<(Interval, V)>);
 
 impl<V> Schedule<V> {
@@ -70,6 +70,31 @@ impl<V> Schedule<V> {
             ensure!(lhs.end() == rhs.start(), "the schedule is non-continuous");
         }
         Ok(Self(slots))
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn get_unchecked(&self, index: usize) -> (Interval, &V) {
+        let (interval, value) = &self.0[index];
+        (*interval, value)
+    }
+
+    #[must_use]
+    pub fn get_mut_unchecked(&mut self, index: usize) -> &mut V {
+        &mut self.0[index].1
+    }
+
+    /// Construct new schedule by mapping the schedule values.
+    pub fn map<T>(&self, mapper: impl Fn(&V) -> T) -> Schedule<T> {
+        Schedule(self.0.iter().map(|(interval, value)| (*interval, mapper(value))).collect())
     }
 
     /// Retain the schedule slots since the given moment in time.
@@ -126,6 +151,6 @@ mod tests {
 
         schedule.retain(second.start());
         assert_eq!(schedule.len(), 1);
-        assert_eq!(schedule[0], (second, 2));
+        assert_eq!(schedule.get_unchecked(0), (second, &2));
     }
 }

@@ -133,9 +133,8 @@ mod tests {
         let series = Api::new(Resolution::Quarterly)?.get_prices(Local::now().date_naive()).await?;
         assert!(!series.is_empty());
         assert!(series.len() <= 24 * 4);
-        let (time_range, _) = &series[0];
+        let (time_range, _) = &series.get_unchecked(0);
         assert_eq!(time_range.start().hour(), 0);
-        assert!(series.iter().is_sorted_by_key(|(time_range, _)| time_range.start()));
         Ok(())
     }
 

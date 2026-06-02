@@ -56,8 +56,8 @@ impl Solver<'_> {
         let start_instant = Instant::now();
 
         info!(
-            ?self.allowed_energy_levels.start,
-            ?self.allowed_energy_levels.last,
+            allowed_energy_levels =
+                ?self.allowed_energy_levels.start..=self.allowed_energy_levels.last,
             n_intervals = self.energy_prices.len(),
             "optimizing…"
         );

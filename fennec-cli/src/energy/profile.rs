@@ -147,13 +147,9 @@ impl Profile {
         at: DateTime<Local>,
         half_life: HalfLife<Hours>,
     ) {
-        #[expect(clippy::cast_precision_loss)]
         let smoothing_factor = {
             let elapsed = at - std::mem::replace(&mut self.balance_updated_at, at);
-
-            // Normalize for N independently updated parameters sharing a single observation,
-            // per the NLMS stability condition.
-            half_life.smoothing_factor(elapsed) / self.balance_harmonics.len() as f64
+            half_life.smoothing_factor(elapsed)
         };
 
         self.eps_active_power.update(eps_active_power, smoothing_factor);

@@ -134,13 +134,13 @@ mod tests {
             efficiency: IDEAL_EFFICIENCY,
         };
         let flows =
-            simulator.apply(Flow { import: Watts::ZERO, export: Quantity(1000.0) }, Quantity(1.0));
+            simulator.apply(Flow { import: Watts::ZERO, export: Quantity(2000.0) }, Quantity(1.0));
         assert_eq!(flows.external.import, Quantity::ZERO);
-        assert_eq!(flows.external.export, Quantity(500.0));
-        assert_eq!(simulator.residual_energy, Quantity(500.0));
+        assert_eq!(flows.external.export, Quantity(1000.0));
+        assert_eq!(simulator.residual_energy, Quantity(0.0));
     }
 
-    /// Verify bidirectional operation at the minimum SoC.
+    /// Verify bidirectional operation near zero state-of-charge.
     #[test]
     fn min_soc_bidirectional() {
         let mut simulator = Simulator {
@@ -151,8 +151,8 @@ mod tests {
         let flows = simulator
             .apply(Flow { import: Quantity(500.0), export: Quantity(1000.0) }, Quantity(1.0));
         assert_eq!(flows.external.import, Quantity(500.0));
-        assert_eq!(flows.external.export, Quantity(500.0));
-        assert_eq!(simulator.residual_energy, Quantity(100.0));
+        assert_eq!(flows.external.export, Quantity(600.0));
+        assert_eq!(simulator.residual_energy, Quantity(0.0));
     }
 
     /// Verify bidirectional operation at the maximum SoC.

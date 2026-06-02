@@ -10,12 +10,7 @@ use crate::{
     battery::WorkingMode,
     energy,
     prelude::*,
-    quantity::{
-        Quantity,
-        energy::{EnergyLevel, WattHours},
-        power::Watts,
-        price::KilowattHourPrice,
-    },
+    quantity::{Quantity, energy::WattHours, power::Watts, price::KilowattHourPrice},
     solution::{Losses, Metrics, Solution, Space, Step},
 };
 
@@ -37,7 +32,7 @@ pub struct Solver<'a> {
 
     /// Allowed energy level range.
     #[builder(into)]
-    allowed_residual_energy: RangeInclusive<WattHours>,
+    allowed_energy_levels: RangeInclusive<WattHours<usize>>,
 
     now: DateTime<Local>,
 }
@@ -60,22 +55,20 @@ impl Solver<'_> {
     pub fn solve(self) -> Space {
         let start_instant = Instant::now();
 
-        let min_energy_level = EnergyLevel::from(self.allowed_residual_energy.start);
-        let max_energy_level = EnergyLevel::from(self.allowed_residual_energy.last);
         info!(
-            ?min_energy_level,
-            ?max_energy_level,
+            ?self.allowed_energy_levels.start,
+            ?self.allowed_energy_levels.last,
             n_intervals = self.energy_prices.len(),
             "optimizing…"
         );
 
-        let mut solutions = Space::new(self.energy_prices, max_energy_level);
+        let mut solutions = Space::new(self.energy_prices, self.allowed_energy_levels.last);
         let mut n_some: usize = 0;
 
         // Going backwards:
         for interval_index in (0..self.energy_prices.len()).rev() {
             // Calculate partial solutions for the current time interval:
-            for energy_level in 0..=max_energy_level.0 {
+            for energy_level in 0..=self.allowed_energy_levels.last.0 {
                 let energy_level = Quantity(energy_level);
                 *solutions.get_mut(interval_index, energy_level) = self
                     .optimize_step(interval_index, energy_level, &solutions)
@@ -106,14 +99,13 @@ impl Solver<'_> {
             .iter()
             .filter_map(|working_mode| {
                 let step = self.simulate_step(battery_simulator, interval_index, working_mode);
-                // FIXME: `allowed_residual_energy` should become `allowed_energy_level`.
-                if (step.energy_level_after < self.allowed_residual_energy.start.into())
+                if (step.energy_level_after < self.allowed_energy_levels.start)
                     && !working_mode.is_charging()
                 {
                     // Under the minimum allowed energy level disallow anything but charging:
                     return None;
                 }
-                if (step.energy_level_after > self.allowed_residual_energy.last.into())
+                if (step.energy_level_after > self.allowed_energy_levels.last)
                     && !working_mode.is_discharging()
                 {
                     // Above the maximum allowed energy level disallow anything but discharging:

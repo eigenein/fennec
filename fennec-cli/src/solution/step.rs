@@ -1,7 +1,10 @@
 use crate::{
     battery::WorkingMode,
     energy,
-    quantity::{energy::WattHours, time::Hours},
+    quantity::{
+        energy::{EnergyLevel, WattHours},
+        time::Hours,
+    },
     solution,
 };
 
@@ -12,6 +15,6 @@ pub struct Step {
     pub energy_balance: energy::Balance<WattHours>,
     pub working_mode: WorkingMode,
     pub residual_energy_after: WattHours,
-    pub energy_level_after: usize,
+    pub energy_level_after: EnergyLevel,
     pub metrics: solution::Metrics,
 }

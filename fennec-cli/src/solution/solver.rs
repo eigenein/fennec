@@ -10,7 +10,11 @@ use crate::{
     battery::WorkingMode,
     energy,
     prelude::*,
-    quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice},
+    quantity::{
+        energy::{EnergyLevel, WattHours},
+        power::Watts,
+        price::KilowattHourPrice,
+    },
     solution::{Losses, Metrics, Solution, Space, Step},
 };
 
@@ -54,11 +58,11 @@ impl Solver<'_> {
     pub fn solve(self) -> Space {
         let start_instant = Instant::now();
 
-        let min_energy_level = usize::from(self.allowed_residual_energy.start);
-        let max_energy_level = usize::from(self.allowed_residual_energy.last);
+        let min_energy_level = EnergyLevel::from(self.allowed_residual_energy.start);
+        let max_energy_level = EnergyLevel::from(self.allowed_residual_energy.last);
         info!(
-            min_energy_level,
-            max_energy_level,
+            ?min_energy_level,
+            ?max_energy_level,
             n_intervals = self.energy_prices.len(),
             "optimizing…"
         );
@@ -70,9 +74,9 @@ impl Solver<'_> {
         // Going backwards:
         for interval_index in (0..self.energy_prices.len()).rev() {
             // Calculate partial solutions for the current time interval:
-            for energy_level in 0..=max_energy_level {
+            for energy_level in 0..=max_energy_level.0 {
                 *solutions.get_mut(interval_index, energy_level) = self
-                    .optimize_step(interval_index, energy_level.into(), &solutions)
+                    .optimize_step(interval_index, EnergyLevel::new(energy_level), &solutions)
                     .inspect(|_| n_some += 1);
             }
         }
@@ -88,11 +92,11 @@ impl Solver<'_> {
     fn optimize_step(
         &self,
         interval_index: usize,
-        initial_residual_energy: WattHours,
+        initial_residual_energy: impl Into<WattHours>,
         solutions: &Space,
     ) -> Option<Solution> {
         let battery_simulator = battery::Simulator {
-            residual_energy: initial_residual_energy,
+            residual_energy: initial_residual_energy.into(),
             allowed_residual_energy: self.allowed_residual_energy,
             efficiency: self.battery_efficiency,
         };

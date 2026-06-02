@@ -5,6 +5,7 @@ use grid::Grid;
 use crate::{
     battery::WorkingMode,
     prelude::*,
+    quantity::energy::EnergyLevel,
     solution::{Metrics, Solution, Step},
 };
 
@@ -14,7 +15,7 @@ pub struct Space {
     ///
     /// Note, that the solution space itself does not care about what these energy levels
     /// represent.
-    allowed_energy_levels: RangeInclusive<usize>,
+    allowed_energy_levels: RangeInclusive<EnergyLevel>,
 
     /// [DP][1] solution space: rows are time intervals and columns are quantized energy levels.
     ///
@@ -25,10 +26,13 @@ pub struct Space {
 impl Space {
     pub fn new(
         n_intervals: usize,
-        allowed_energy_levels: impl Into<RangeInclusive<usize>>,
+        allowed_energy_levels: impl Into<RangeInclusive<EnergyLevel>>,
     ) -> Self {
         let allowed_energy_levels = allowed_energy_levels.into();
-        Self { grid: Grid::new(n_intervals, allowed_energy_levels.last + 1), allowed_energy_levels }
+        Self {
+            grid: Grid::new(n_intervals, allowed_energy_levels.last.0 + 1),
+            allowed_energy_levels,
+        }
     }
 
     pub const fn size(&self) -> usize {
@@ -40,7 +44,7 @@ impl Space {
     pub fn get(
         &self,
         interval_index: usize,
-        energy_level: usize,
+        energy_level: EnergyLevel,
         working_mode: WorkingMode,
     ) -> Option<&Solution> {
         match interval_index.cmp(&self.grid.rows()) {
@@ -56,7 +60,7 @@ impl Space {
                     (energy_level > self.allowed_energy_levels.last)
                         && working_mode.is_discharging()
                 ) {
-                    self.grid[(interval_index, energy_level)].as_ref()
+                    self.grid[(interval_index, energy_level.0)].as_ref()
                 } else {
                     // Invalid energy level.
                     None
@@ -86,9 +90,9 @@ impl Space {
 
     pub fn backtrack(
         &self,
-        initial_energy_level: usize,
+        initial_energy_level: EnergyLevel,
     ) -> Result<(Metrics, impl Iterator<Item = Step>)> {
-        let solution = self.grid[(0, initial_energy_level)].with_context(|| {
+        let solution = self.grid[(0, initial_energy_level.0)].with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
 
@@ -106,7 +110,7 @@ impl Space {
             interval_index += 1;
             if interval_index < self.grid.rows() {
                 // Retrieve the related step if we are not the boundary:
-                next_step = self.grid[(interval_index, current_step.energy_level_after)]
+                next_step = self.grid[(interval_index, current_step.energy_level_after.0)]
                     .expect("next energy level must point to an existing solution")
                     .step;
             }

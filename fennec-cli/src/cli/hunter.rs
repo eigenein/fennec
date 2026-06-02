@@ -17,7 +17,10 @@ use crate::{
     energy,
     energy::Flow,
     prelude::*,
-    quantity::{energy::WattHours, price::KilowattHourPrice},
+    quantity::{
+        energy::{EnergyLevel, WattHours},
+        price::KilowattHourPrice,
+    },
     solution,
     solution::{Solver, Step},
 };
@@ -67,14 +70,17 @@ impl Runner {
         // FIXME: reading it on every iteration is meh.
         let energy_profile = energy::Profile::read_from_file(self.n_balance_harmonics).await?;
 
+        let min_energy_level = EnergyLevel::from(
+            battery_state.actual_capacity() * self.battery_args.charge_limits.min,
+        );
+        let max_energy_level = EnergyLevel::from(
+            battery_state.actual_capacity() * self.battery_args.charge_limits.max,
+        );
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
             .energy_profile(&energy_profile)
             .working_modes(self.working_modes)
-            .allowed_residual_energy(
-                (battery_state.actual_capacity() * self.battery_args.charge_limits.min)
-                    ..=(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
-            )
+            .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_efficiency(energy_profile.battery_efficiency)
             .battery_capacity(battery_state.actual_capacity())
             .now(now)

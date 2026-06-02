@@ -23,6 +23,7 @@ pub struct Solver<'a> {
     energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
     energy_profile: &'a energy::Profile,
     battery_efficiency: energy::Flow<f64>,
+    battery_capacity: WattHours,
 
     /// Enabled working modes.
     working_modes: EnumSet<WorkingMode>,
@@ -97,7 +98,7 @@ impl Solver<'_> {
     ) -> Option<Solution> {
         let battery_simulator = battery::Simulator {
             residual_energy: initial_residual_energy.into(),
-            allowed_residual_energy: self.allowed_residual_energy,
+            capacity: self.battery_capacity,
             efficiency: self.battery_efficiency,
         };
         self.working_modes

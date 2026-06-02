@@ -76,6 +76,7 @@ impl Runner {
                     ..=(battery_state.actual_capacity() * self.battery_args.charge_limits.max),
             )
             .battery_efficiency(energy_profile.battery_efficiency)
+            .battery_capacity(battery_state.actual_capacity())
             .now(now)
             .max_battery_flow(
                 self.battery_args

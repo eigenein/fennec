@@ -1,5 +1,3 @@
-use std::range::RangeInclusive;
-
 use crate::{
     energy::Flow,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
@@ -9,8 +7,13 @@ use crate::{
 pub struct Simulator {
     pub efficiency: Flow<f64>,
 
-    /// Allowed residual energy range.
-    pub allowed_residual_energy: RangeInclusive<WattHours>,
+    /// Battery capacity.
+    ///
+    /// This used to be range between minimum SoC and maximum SoC.
+    /// But the battery rendered that moot since it did not always follow the limits.
+    /// Hence, the simulator is just simulating.
+    /// All the checks must be done at the solution space level.
+    pub capacity: WattHours,
 
     /// Current residual energy.
     pub residual_energy: WattHours,
@@ -26,10 +29,8 @@ impl Simulator {
         };
         let requested_flow = internal_power * for_;
         let capacity = Flow {
-            import: self.residual_energy.max(self.allowed_residual_energy.last)
-                - self.residual_energy,
-            export: self.residual_energy
-                - self.residual_energy.min(self.allowed_residual_energy.start),
+            import: self.residual_energy.max(self.capacity) - self.residual_energy,
+            export: self.residual_energy,
         };
         let mut actual_flow = Flow {
             import: requested_flow.import.min(capacity.import),
@@ -78,7 +79,7 @@ mod tests {
     fn normal_operation() {
         let mut simulator = Simulator {
             residual_energy: Quantity(5000.0),
-            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
+            capacity: Quantity(10000.0),
             efficiency: IDEAL_EFFICIENCY,
         };
         let flows = simulator
@@ -93,7 +94,7 @@ mod tests {
     fn efficiency() {
         let mut simulator = Simulator {
             residual_energy: Quantity(5000.0),
-            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
+            capacity: Quantity(10000.0),
             efficiency: Flow { import: 0.9, export: 0.5 },
         };
         let flows = simulator
@@ -114,7 +115,7 @@ mod tests {
     fn overflow() {
         let mut simulator = Simulator {
             residual_energy: Quantity(9000.0),
-            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
+            capacity: Quantity(10000.0),
             efficiency: IDEAL_EFFICIENCY,
         };
         let flows =
@@ -129,7 +130,7 @@ mod tests {
     fn underflow() {
         let mut simulator = Simulator {
             residual_energy: Quantity(1000.0),
-            allowed_residual_energy: (Quantity(500.0)..=Quantity(10000.0)).into(),
+            capacity: Quantity(10000.0),
             efficiency: IDEAL_EFFICIENCY,
         };
         let flows =
@@ -144,7 +145,7 @@ mod tests {
     fn min_soc_bidirectional() {
         let mut simulator = Simulator {
             residual_energy: Quantity(100.0),
-            allowed_residual_energy: (Quantity(100.0)..=Quantity(10000.0)).into(),
+            capacity: Quantity(10000.0),
             efficiency: IDEAL_EFFICIENCY,
         };
         let flows = simulator
@@ -159,7 +160,7 @@ mod tests {
     fn max_soc_bidirectional() {
         let mut simulator = Simulator {
             residual_energy: Quantity(10000.0),
-            allowed_residual_energy: (Zero::ZERO..=Quantity(10000.0)).into(),
+            capacity: Quantity(10000.0),
             efficiency: IDEAL_EFFICIENCY,
         };
         let flows = simulator

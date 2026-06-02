@@ -33,7 +33,6 @@ enumset = "1.1.10"
 fennec-modbus = { path = "../fennec-modbus", features = ["tracing", "tokio"] }
 futures-core = "0.3.32"
 futures-util = "0.3.32"
-grid = "1.0.1"
 http = "1.4.0"
 itertools = "0.14.0"
 humantime = "2.3.0"

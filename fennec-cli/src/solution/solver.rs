@@ -11,6 +11,7 @@ use crate::{
     energy,
     prelude::*,
     quantity::{
+        Quantity,
         energy::{EnergyLevel, WattHours},
         power::Watts,
         price::KilowattHourPrice,
@@ -34,7 +35,7 @@ pub struct Solver<'a> {
     /// Maximum power flow that the battery supports.
     max_battery_flow: energy::Flow<Watts>,
 
-    /// Allowed residual energy range.
+    /// Allowed energy level range.
     #[builder(into)]
     allowed_residual_energy: RangeInclusive<WattHours>,
 
@@ -68,21 +69,21 @@ impl Solver<'_> {
             "optimizing…"
         );
 
-        let mut solutions =
-            Space::new(self.energy_prices.len(), min_energy_level..=max_energy_level);
+        let mut solutions = Space::new(self.energy_prices, max_energy_level);
         let mut n_some: usize = 0;
 
         // Going backwards:
         for interval_index in (0..self.energy_prices.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in 0..=max_energy_level.0 {
+                let energy_level = Quantity(energy_level);
                 *solutions.get_mut(interval_index, energy_level) = self
-                    .optimize_step(interval_index, EnergyLevel::new(energy_level), &solutions)
+                    .optimize_step(interval_index, energy_level, &solutions)
                     .inspect(|_| n_some += 1);
             }
         }
 
-        info!(elapsed = ?start_instant.elapsed(), space_size = solutions.size(), n_some, "optimized");
+        info!(elapsed = ?start_instant.elapsed(), n_some, "optimized");
         solutions
     }
 
@@ -105,9 +106,22 @@ impl Solver<'_> {
             .iter()
             .filter_map(|working_mode| {
                 let step = self.simulate_step(battery_simulator, interval_index, working_mode);
-                let next_solution =
-                    // Note that the next solution may not exist, hence the question mark:
-                    solutions.get(interval_index + 1, step.energy_level_after, working_mode)?;
+                // FIXME: `allowed_residual_energy` should become `allowed_energy_level`.
+                if (step.energy_level_after < self.allowed_residual_energy.start.into())
+                    && !working_mode.is_charging()
+                {
+                    // Under the minimum allowed energy level disallow anything but charging:
+                    return None;
+                }
+                if (step.energy_level_after > self.allowed_residual_energy.last.into())
+                    && !working_mode.is_discharging()
+                {
+                    // Above the maximum allowed energy level disallow anything but discharging:
+                    // FIXME: buuuut… `step.energy_level_after` may still be out of the space – this was always incorrect.
+                    return None;
+                }
+                // Note that the next solution may not exist, hence the question mark:
+                let next_solution = solutions.get(interval_index + 1, step.energy_level_after)?;
                 Some(Solution { metrics: step.metrics + next_solution.metrics, step: Some(step) })
             })
             .min()
@@ -121,7 +135,7 @@ impl Solver<'_> {
         interval_index: usize,
         working_mode: WorkingMode,
     ) -> Step {
-        let (interval, energy_price) = self.energy_prices[interval_index];
+        let (interval, energy_price) = self.energy_prices.get_unchecked(interval_index);
 
         let average_balance = self.energy_profile.mean_balance_over(interval);
 

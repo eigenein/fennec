@@ -137,7 +137,7 @@ impl Runner {
         let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
         prices.extend(self.energy_provider.get_prices(tomorrow).await?)?;
 
-        prices.retain_since(now);
+        prices.pop_before(now);
         info!(len = prices.len(), "fetched energy prices");
 
         Ok(prices)

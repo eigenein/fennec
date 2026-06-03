@@ -103,10 +103,9 @@ impl<V> Schedule<V> {
         Schedule(self.0.iter().map(|(interval, value)| (*interval, mapper(value))).collect())
     }
 
-    /// Retain the schedule slots since the given moment in time.
-    pub fn retain_since(&mut self, timestamp: DateTime<Local>) {
-        let remove_count = self.0.partition_point(|(interval, _)| interval.end <= timestamp);
-        self.0.drain(..remove_count);
+    /// Pop schedule slots that ended before the given timestamp.
+    pub fn pop_before(&mut self, timestamp: DateTime<Local>) {
+        while self.0.pop_front_if(|(interval, _)| interval.end <= timestamp).is_some() {}
     }
 
     /// Extend the schedule with the other schedule.
@@ -145,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn schedule_retain() {
+    fn schedule_pop_before() {
         let first = Interval::new(
             Local.with_ymd_and_hms(2026, 5, 15, 16, 10, 0).unwrap(),
             Local.with_ymd_and_hms(2026, 5, 15, 16, 20, 0).unwrap(),
@@ -155,7 +154,7 @@ mod tests {
 
         let mut schedule = Schedule::try_from_iter([(first, 1), (second, 2)]).unwrap();
 
-        schedule.retain_since(second.start());
+        schedule.pop_before(second.start());
         assert_eq!(schedule.len(), 1);
         assert_eq!(schedule.get(0), (second, &2));
     }

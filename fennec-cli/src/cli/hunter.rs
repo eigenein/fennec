@@ -8,7 +8,6 @@ use itertools::Itertools;
 use tokio::sync::RwLock;
 
 use crate::{
-    Interval,
     Schedule,
     api,
     battery::WorkingMode,
@@ -16,6 +15,7 @@ use crate::{
     cron::CronSchedule,
     energy,
     energy::Flow,
+    ops::chrono::Interval,
     prelude::*,
     quantity::{
         energy::{EnergyLevel, WattHours},

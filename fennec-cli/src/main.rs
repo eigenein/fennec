@@ -20,7 +20,7 @@ use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-pub use self::schedule::{Interval, Schedule};
+pub use self::schedule::Schedule;
 use crate::{
     cli::{Args, Command},
     prelude::*,

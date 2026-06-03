@@ -4,9 +4,9 @@ use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Interval,
     Schedule,
     energy::Flow,
+    ops::chrono::Interval,
     prelude::*,
     quantity::{Quantity, price::KilowattHourPrice},
 };

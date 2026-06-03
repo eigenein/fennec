@@ -5,9 +5,9 @@ use maud::{Markup, PreEscaped, html};
 use plotters::{backend::SVGBackend, chart::ChartBuilder, prelude::*};
 
 use crate::{
-    Interval,
     energy,
     energy::Balance,
+    ops::chrono::Interval,
     prelude::*,
     quantity::power::Watts,
     web,

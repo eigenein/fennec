@@ -5,12 +5,12 @@ use musli::{Decode, Encode, wire};
 
 use super::{Balance, Flow};
 use crate::{
-    Interval,
     api,
     math::{
         fourier::Harmonic,
         smoothing::{Exponential, HalfLife},
     },
+    ops::chrono::Interval,
     prelude::*,
     quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
 };

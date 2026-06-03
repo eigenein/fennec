@@ -37,11 +37,11 @@ impl Interval {
     }
 
     /// Restrict the interval start to the specified timestamp.
-    pub fn clamp_start(mut self, to: DateTime<Local>) -> Self {
-        if to > self.end {
+    pub fn clamp_start_to(mut self, timestamp: DateTime<Local>) -> Self {
+        if timestamp > self.end {
             self.start = self.end;
-        } else if to > self.start {
-            self.start = to;
+        } else if timestamp > self.start {
+            self.start = timestamp;
         }
         self
     }
@@ -82,13 +82,19 @@ impl<V> Schedule<V> {
         self.0.is_empty()
     }
 
-    pub fn get_unchecked(&self, index: usize) -> (Interval, &V) {
+    /// Retrieve the interval and value at the given index.
+    ///
+    /// Panics outside the bounds.
+    pub fn get(&self, index: usize) -> (Interval, &V) {
         let (interval, value) = &self.0[index];
         (*interval, value)
     }
 
+    /// Retrieve the mutable reference at the given index.
+    ///
+    /// Panics outside the bounds.
     #[must_use]
-    pub fn get_mut_unchecked(&mut self, index: usize) -> &mut V {
+    pub fn get_mut(&mut self, index: usize) -> &mut V {
         &mut self.0[index].1
     }
 
@@ -98,8 +104,8 @@ impl<V> Schedule<V> {
     }
 
     /// Retain the schedule slots since the given moment in time.
-    pub fn retain(&mut self, since: DateTime<Local>) {
-        let remove_count = self.0.partition_point(|(interval, _)| interval.end <= since);
+    pub fn retain_since(&mut self, timestamp: DateTime<Local>) {
+        let remove_count = self.0.partition_point(|(interval, _)| interval.end <= timestamp);
         self.0.drain(..remove_count);
     }
 
@@ -127,15 +133,15 @@ mod tests {
 
         // Target before the interval does not change the interval:
         let to = Local.with_ymd_and_hms(2026, 5, 15, 14, 30, 0).unwrap();
-        assert_eq!(interval.clamp_start(to).start, start);
+        assert_eq!(interval.clamp_start_to(to).start, start);
 
         // Target within the interval clamps to the target:
         let to = Local.with_ymd_and_hms(2026, 5, 15, 14, 45, 0).unwrap();
-        assert_eq!(interval.clamp_start(to).start, to);
+        assert_eq!(interval.clamp_start_to(to).start, to);
 
         // Target after the interval clamps to the end:
         let to = Local.with_ymd_and_hms(2026, 5, 15, 14, 55, 0).unwrap();
-        assert_eq!(interval.clamp_start(to).start, end);
+        assert_eq!(interval.clamp_start_to(to).start, end);
     }
 
     #[test]
@@ -149,8 +155,8 @@ mod tests {
 
         let mut schedule = Schedule::try_from_iter([(first, 1), (second, 2)]).unwrap();
 
-        schedule.retain(second.start());
+        schedule.retain_since(second.start());
         assert_eq!(schedule.len(), 1);
-        assert_eq!(schedule.get_unchecked(0), (second, &2));
+        assert_eq!(schedule.get(0), (second, &2));
     }
 }

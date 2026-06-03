@@ -127,7 +127,7 @@ impl Solver<'_> {
         interval_index: usize,
         working_mode: WorkingMode,
     ) -> Step {
-        let (interval, energy_price) = self.energy_prices.get_unchecked(interval_index);
+        let (interval, energy_price) = self.energy_prices.get(interval_index);
 
         let average_balance = self.energy_profile.mean_balance_over(interval);
 
@@ -136,7 +136,7 @@ impl Solver<'_> {
         let balance_request =
             average_balance.with_working_mode(working_mode, self.max_battery_flow);
 
-        let duration = interval.clamp_start(self.now).duration();
+        let duration = interval.clamp_start_to(self.now).duration();
         let battery_flows = battery.apply(balance_request.battery, duration);
         let requested_battery = balance_request.battery * duration;
         let battery_shortage = requested_battery - battery_flows.external;

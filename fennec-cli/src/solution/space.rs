@@ -22,7 +22,7 @@ impl Space {
     #[must_use]
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
         match interval_index.cmp(&self.0.len()) {
-            Ordering::Less => self.0.get_unchecked(interval_index).1[energy_level.0].as_ref(),
+            Ordering::Less => self.0.get(interval_index).1[energy_level.0].as_ref(),
             Ordering::Equal => Some(&Solution::BOUNDARY),
             Ordering::Greater => panic!("interval index is out of bounds ({interval_index})"),
         }
@@ -37,14 +37,14 @@ impl Space {
         interval_index: usize,
         energy_level: EnergyLevel,
     ) -> &mut Option<Solution> {
-        &mut self.0.get_mut_unchecked(interval_index)[energy_level.0]
+        &mut self.0.get_mut(interval_index)[energy_level.0]
     }
 
     pub fn backtrack(
         &self,
         initial_energy_level: EnergyLevel,
     ) -> Result<(Metrics, impl Iterator<Item = Step>)> {
-        let solution = self.0.get_unchecked(0).1[initial_energy_level.0].with_context(|| {
+        let solution = self.0.get(0).1[initial_energy_level.0].with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
 
@@ -62,8 +62,7 @@ impl Space {
             interval_index += 1;
             if interval_index < self.0.len() {
                 // Retrieve the related step if we are not the boundary:
-                next_step = self.0.get_unchecked(interval_index).1
-                    [current_step.energy_level_after.0]
+                next_step = self.0.get(interval_index).1[current_step.energy_level_after.0]
                     .expect("next energy level must point to an existing solution")
                     .step;
             }

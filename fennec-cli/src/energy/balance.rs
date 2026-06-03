@@ -86,8 +86,9 @@ impl<T> Balance<T> {
         self
     }
 
+    /// The invariant represents the quantity that stays constant under any re-balancing.
     #[cfg(test)]
-    pub fn invariant(self) -> T
+    fn invariant(self) -> T
     where
         T: Add<Output = T> + Sub<Output = T>,
     {

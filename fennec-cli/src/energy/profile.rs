@@ -154,14 +154,33 @@ impl Profile {
 
         self.eps_active_power.update(eps_active_power, smoothing_factor);
 
-        // Deviation is calculated before the mean update eats the signal:
-        let deviation = balance - self.mean_balance.0;
+        // Deviation must be taken before the mean update eats the signal:
+        let innovation = {
+            let deviation = balance - self.mean_balance.0;
+            let reconstruction = self.deviation_at(at.time());
+            deviation - reconstruction
+        };
+
         self.mean_balance.update(balance, smoothing_factor);
 
         // Capture daily periodicity, hence one full day is τ radians:
         let base_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
-        for (k, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
-            harmonic.update(Harmonic::project(deviation, base_phase, k), smoothing_factor);
+
+        #[expect(clippy::cast_precision_loss)]
+        let n_harmonics = self.balance_harmonics.len() as f64;
+
+        for (mode_index, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
+            let target = {
+                // Apply gradient-based approach rather than correlation-based one
+                // (the latter is susceptible to big spikes in harmonics when a strong signal comes in).
+                //
+                // [1]: <https://en.wikipedia.org/wiki/Least_mean_squares_filter#Normalized_least_mean_squares_filter_(NLMS)>
+                // [2]: <https://www.intechopen.com/chapters/41709>
+                let phase = base_phase * f64::from(mode_index);
+                let correction = Harmonic::scale(innovation, phase) / n_harmonics;
+                harmonic.0 + correction
+            };
+            harmonic.update(target, smoothing_factor);
         }
     }
 

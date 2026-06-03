@@ -1,6 +1,6 @@
-use std::ops::Mul;
+use std::ops::{Div, Mul};
 
-use derive_more::{AddAssign, Sub};
+use derive_more::{Add, AddAssign, Sub};
 use musli::{Decode, Encode};
 
 use crate::quantity::Zero;
@@ -9,7 +9,7 @@ use crate::quantity::Zero;
 ///
 /// [1]: https://en.wikipedia.org/wiki/Harmonic
 /// [2]: https://en.wikipedia.org/wiki/Harmonic_spectrum
-#[derive(Copy, Clone, AddAssign, Sub, Encode, Decode)]
+#[derive(Copy, Clone, Add, AddAssign, Sub, Encode, Decode)]
 pub struct Harmonic<T> {
     /// Fourier cosine coefficient.
     #[musli(Binary, name = 1)]
@@ -32,19 +32,20 @@ impl<T: Mul<f64>> Mul<f64> for Harmonic<T> {
     }
 }
 
+impl<T: Div<f64>> Div<f64> for Harmonic<T> {
+    type Output = Harmonic<<T as Div<f64>>::Output>;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Harmonic { cosine: self.cosine / rhs, sine: self.sine / rhs }
+    }
+}
+
 impl<T> Harmonic<T> {
-    /// Project the signal onto the harmonic.
-    pub fn project(
-        signal: T,
-        base_phase: f64,
-        mode_index: impl Into<f64>,
-    ) -> Harmonic<<T as Mul<f64>>::Output>
+    /// Scale `signal` by the harmonic basis vector (cos φ, sin φ) at the given `phase`.
+    pub fn scale(signal: T, phase: f64) -> Harmonic<<T as Mul<f64>>::Output>
     where
         T: Copy + Mul<f64>,
     {
-        let phase = base_phase * mode_index.into();
-
-        // Multiplication by 2 comes from the scale factor: https://en.wikipedia.org/wiki/Fourier_series#Analysis.
-        Harmonic { cosine: signal * (2.0 * phase.cos()), sine: signal * (2.0 * phase.sin()) }
+        Harmonic { cosine: signal * phase.cos(), sine: signal * phase.sin() }
     }
 }

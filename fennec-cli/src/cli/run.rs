@@ -45,11 +45,16 @@ pub struct RunArgs {
     #[clap(long, env = "ENERGY_PROVIDER")]
     energy_provider: energy::Provider,
 
-    /// Half-life for exponential moving average when learning the energy balance.
+    /// Half-life for exponential moving average when learning the energy balance:
+    /// - after τ: the energy profile is 50% adapted to the new routine;
+    /// - after 2τ: 75% adapted;
+    /// - after 3τ: 87.5% adapted.
     #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "1d")]
     energy_balance_half_life: humantime::Duration,
 
-    /// Half-life for exponential moving average when learning the battery parameters.
+    /// Battery parameters are learned with exponential moving average.
+    /// This factor multiplied by the battery capacity defines the half-life in the units of energy.
+    /// The residual energy change is then used to calculate smoothing at each parameter update.
     #[clap(long, env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR", default_value = "10")]
     battery_efficiency_half_life_factor: f64,
 

@@ -18,11 +18,11 @@ pub struct Exponential<V>(
 
 impl<V> Exponential<V> {
     /// Update the value.
-    pub fn update(&mut self, value: V, smoothing_factor: f64) -> &mut Self
+    pub fn update(&mut self, target: V, smoothing_factor: f64) -> &mut Self
     where
         V: Clone + AddAssign + Sub<Output = V> + Mul<f64, Output = V>,
     {
-        self.0 += (value - self.0.clone()) * smoothing_factor;
+        self.0 += (target - self.0.clone()) * smoothing_factor;
         self
     }
 }

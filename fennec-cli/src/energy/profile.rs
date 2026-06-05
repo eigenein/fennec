@@ -147,24 +147,32 @@ impl Profile {
         at: DateTime<Local>,
         half_life: HalfLife<Hours>,
     ) {
-        let smoothing_factor = {
+        let mean_smoothing_factor = {
             // Smoothing factor based on the configured half-life and elapsed time:
             let elapsed = at - std::mem::replace(&mut self.balance_updated_at, at);
             half_life.smoothing_factor(elapsed)
         };
 
-        self.eps_active_power.update(eps_active_power, smoothing_factor);
+        self.eps_active_power.update(eps_active_power, mean_smoothing_factor);
 
         // Calculate the deviation before the mean update eats the signal:
         let deviation = balance - self.mean_balance.0;
 
-        self.mean_balance.update(balance, smoothing_factor);
+        self.mean_balance.update(balance, mean_smoothing_factor);
 
         // Capture daily periodicity, hence one full day is τ radians:
         let base_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
+
+        // After long gaps, the smoothing factor jumps through the roof, and
+        // each harmonic would then pick up the full signal – effectively amplifying it by N.
+        // The following ensures that α × 2N ≤ 1 and the spike is constrained:
+        #[expect(clippy::cast_precision_loss)]
+        let harmonic_smoothing_factor =
+            mean_smoothing_factor.min(0.5 / self.balance_harmonics.len() as f64);
+
         for (mode_index, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
             let target = Harmonic::project(deviation, base_phase, mode_index);
-            harmonic.update(target, smoothing_factor);
+            harmonic.update(target, harmonic_smoothing_factor);
         }
     }
 

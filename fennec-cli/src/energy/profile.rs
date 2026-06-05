@@ -113,24 +113,29 @@ impl Profile {
 
         let residual_energy_change = WattHours::from(residual_energy_change).abs();
         let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
-        let smoothing_factor = HalfLife(current_metrics.actual_capacity() * half_life_factor)
-            .smoothing_factor(residual_energy_change);
-        info!(?residual_energy_change, ?grid_flow.import, ?grid_flow.export, ?smoothing_factor, "residual energy changed");
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
             (true, false) => {
-                let efficiency = grid_flow.export.rescale() / residual_energy_change;
+                let grid_export = grid_flow.export.rescale();
+                let efficiency = grid_export / residual_energy_change;
+                let smoothing_factor =
+                    HalfLife(current_metrics.actual_capacity() * half_life_factor)
+                        .smoothing_factor(grid_export);
                 self.battery_efficiency.export = Exponential(self.battery_efficiency.export)
                     .update(efficiency, smoothing_factor)
                     .0;
-                info!(?efficiency, "discharging");
+                info!(?residual_energy_change, ?efficiency, ?smoothing_factor, "discharging");
             }
             (false, true) => {
-                let efficiency = residual_energy_change / grid_flow.import.rescale();
+                let grid_import = grid_flow.import.rescale();
+                let efficiency = residual_energy_change / grid_import;
+                let smoothing_factor =
+                    HalfLife(current_metrics.actual_capacity() * half_life_factor)
+                        .smoothing_factor(grid_import);
                 self.battery_efficiency.import = Exponential(self.battery_efficiency.import)
                     .update(efficiency, smoothing_factor)
                     .0;
-                info!(?efficiency, "charging");
+                info!(?residual_energy_change, ?efficiency, ?smoothing_factor, "charging");
             }
             (false, false) | (true, true) => {
                 // Idle or mixed regime is not good enough for updating the parameters.

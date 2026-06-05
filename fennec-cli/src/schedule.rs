@@ -7,39 +7,41 @@ use crate::{ops::chrono::Interval, prelude::*};
 
 #[must_use]
 #[derive(IntoIterator)]
-pub struct Schedule<V>(VecDeque<(Interval, V)>);
+pub struct Schedule<V> {
+    start: DateTime<Local>,
+
+    /// TODO: only store the interval end points.
+    #[into_iterator]
+    slots: VecDeque<(Interval, V)>,
+}
 
 impl<V> Schedule<V> {
     /// Create new empty schedule.
-    #[expect(clippy::new_without_default)]
-    pub const fn new() -> Self {
-        Self(VecDeque::new())
-    }
-
-    /// Build schedule from an iterable of slots.
-    pub fn try_from_iter(iterable: impl IntoIterator<Item = (Interval, V)>) -> Result<Self> {
-        let mut slots: VecDeque<_> = iterable.into_iter().collect();
-        for [(lhs, _), (rhs, _)] in slots.make_contiguous().array_windows() {
-            ensure!(lhs.end() == rhs.start(), "the schedule is non-continuous");
-        }
-        Ok(Self(slots))
+    pub const fn new(start: DateTime<Local>) -> Self {
+        Self { start, slots: VecDeque::new() }
     }
 
     #[must_use]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.slots.len()
     }
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.slots.is_empty()
+    }
+
+    /// The schedule ends when the last interval ends, or at the start if empty.
+    #[must_use]
+    pub fn end(&self) -> DateTime<Local> {
+        self.slots.back().map_or(self.start, |(interval, _)| interval.end())
     }
 
     /// Retrieve the interval and value at the given index.
     ///
     /// Panics outside the bounds.
     pub fn get(&self, index: usize) -> (Interval, &V) {
-        let (interval, value) = &self.0[index];
+        let (interval, value) = &self.slots[index];
         (*interval, value)
     }
 
@@ -48,25 +50,32 @@ impl<V> Schedule<V> {
     /// Panics outside the bounds.
     #[must_use]
     pub fn get_mut(&mut self, index: usize) -> &mut V {
-        &mut self.0[index].1
+        &mut self.slots[index].1
     }
 
     /// Construct new schedule by mapping the schedule values.
     pub fn map<T>(&self, mapper: impl Fn(&V) -> T) -> Schedule<T> {
-        Schedule(self.0.iter().map(|(interval, value)| (*interval, mapper(value))).collect())
+        Schedule {
+            start: self.start,
+            slots: self.slots.iter().map(|(interval, value)| (*interval, mapper(value))).collect(),
+        }
     }
 
     /// Pop schedule slots that ended before the given timestamp.
     pub fn pop_before(&mut self, timestamp: DateTime<Local>) {
-        while self.0.pop_front_if(|(interval, _)| interval.end() <= timestamp).is_some() {}
+        while self.slots.pop_front_if(|(interval, _)| interval.end() <= timestamp).is_some() {}
     }
 
     /// Extend the schedule with the other schedule.
-    pub fn extend(&mut self, other: Self) -> Result {
-        if let Some(((lhs, _), (rhs, _))) = self.0.back().zip(other.0.front()) {
-            ensure!(lhs.end() == rhs.start(), "schedule gap: `{:?}..{:?}`", lhs.end(), rhs.start());
+    pub fn extend(&mut self, other: impl IntoIterator<Item = (Interval, V)>) -> Result {
+        for (interval, value) in other {
+            let current_end = self.end();
+            ensure!(
+                interval.start() == current_end,
+                "trying to push `{interval:?}` on top of `{current_end:?}`",
+            );
+            self.slots.push_back((interval, value));
         }
-        self.0.extend(other.0);
         Ok(())
     }
 }
@@ -86,7 +95,8 @@ mod tests {
         let second =
             Interval::new(first.end(), Local.with_ymd_and_hms(2026, 5, 15, 16, 30, 0).unwrap());
 
-        let mut schedule = Schedule::try_from_iter([(first, 1), (second, 2)]).unwrap();
+        let mut schedule = Schedule::new(first.start());
+        schedule.extend([(first, 1), (second, 2)]).unwrap();
 
         schedule.pop_before(second.start());
         assert_eq!(schedule.len(), 1);

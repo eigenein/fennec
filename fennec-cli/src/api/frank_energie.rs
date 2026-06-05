@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use chrono::{DateTime, Local, NaiveDate};
+use chrono::{DateTime, Local, NaiveDate, NaiveTime};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -30,7 +30,9 @@ impl Api {
     #[instrument(skip_all, fields(on = ?on))]
     pub async fn get_prices(&self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         debug!(?on, "fetching…");
-        let Some(data) = self
+        let mut schedule =
+            Schedule::new(on.and_time(NaiveTime::MIN).and_local_timezone(Local).unwrap());
+        if let Some(data) = self
             .client
             .post("https://www.frankenergie.nl/graphql")
             .json(&Request::new(on, self.resolution))
@@ -39,20 +41,18 @@ impl Api {
             .json::<Response>()
             .await?
             .data
-        else {
-            return Ok(Schedule::new());
-        };
-        let slots = data.market_prices.electricity.into_iter().map(|item| {
-            (
-                Interval::new(item.from, item.till),
-                Flow {
+        {
+            let slots = data.market_prices.electricity.into_iter().map(|item| {
+                let flow = Flow {
                     import: item.all_in,
                     // TODO: from 2027, this becomes just `item.market + Self::PURCHASE_FEE`:
                     export: (item.market + Self::PURCHASE_FEE) * Self::VAT,
-                },
-            )
-        });
-        Schedule::try_from_iter(slots)
+                };
+                (Interval::new(item.from, item.till), flow)
+            });
+            schedule.extend(slots)?;
+        }
+        Ok(schedule)
     }
 }
 
@@ -133,8 +133,9 @@ mod tests {
         let series = Api::new(Resolution::Quarterly)?.get_prices(Local::now().date_naive()).await?;
         assert!(!series.is_empty());
         assert!(series.len() <= 24 * 4);
-        let (time_range, _) = &series.get(0);
-        assert_eq!(time_range.start().hour(), 0);
+        let (first_interval, _) = &series.get(0);
+        assert_eq!(first_interval.start().hour(), 0);
+        assert_eq!(first_interval.end().minute(), 15);
         Ok(())
     }
 

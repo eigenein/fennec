@@ -20,7 +20,7 @@ pub const PATH: &str = "/energy-profile";
 #[expect(clippy::too_many_lines)]
 #[expect(clippy::significant_drop_tightening)]
 pub async fn get(State(state): State<web::State>) -> Markup {
-    info!("access");
+    debug!("access");
 
     let energy_profile = state.logger_runner.energy_profile().await;
     let mean_balance = energy_profile.mean_balance.0;

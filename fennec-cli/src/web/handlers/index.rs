@@ -13,7 +13,7 @@ use crate::{
 #[expect(clippy::too_many_lines)]
 #[expect(clippy::significant_drop_tightening)]
 pub async fn get(State(state): State<web::State>) -> Markup {
-    info!("access");
+    debug!("access");
     let hunter_state = state.hunter.read().await;
     let energy_profile = state.logger_runner.energy_profile().await;
     let battery_metrics = energy_profile.battery_metrics.as_ref();

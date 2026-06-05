@@ -6,13 +6,10 @@ use musli::{Decode, Encode, wire};
 use super::{Balance, Flow};
 use crate::{
     api,
-    math::{
-        fourier::Harmonic,
-        smoothing::{Exponential, HalfLife},
-    },
+    math::smoothing::{Exponential, HalfLife},
     ops::chrono::Interval,
     prelude::*,
-    quantity::{Zero, energy::WattHours, power::Watts, time::Hours},
+    quantity::{Zero, angle::Harmonic, energy::WattHours, power::Watts, time::Hours},
 };
 
 #[must_use]

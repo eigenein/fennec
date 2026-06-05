@@ -1,3 +1,4 @@
+pub mod angle;
 pub mod arith;
 pub mod currency;
 pub mod energy;

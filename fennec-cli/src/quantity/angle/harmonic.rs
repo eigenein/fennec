@@ -1,9 +1,9 @@
-use std::ops::Mul;
+use std::ops::{Add, Mul};
 
 use derive_more::{Add, AddAssign, Sub};
 use musli::{Decode, Encode};
 
-use crate::quantity::Zero;
+use crate::quantity::{Zero, angle::Radians};
 
 /// As single [harmonic][1] from a [harmonic spectrum][2].
 ///
@@ -32,19 +32,19 @@ impl<T: Mul<S>, S: Copy> Mul<S> for Harmonic<T> {
     }
 }
 
-impl<T> Harmonic<T> {
-    /// Project the signal onto the harmonic.
-    pub fn project(
-        signal: T,
-        base_phase: f64,
-        mode_index: impl Into<f64>,
-    ) -> Harmonic<<T as Mul<f64>>::Output>
-    where
-        T: Copy + Mul<f64, Output = T>,
-    {
-        let phase = base_phase * mode_index.into();
+impl Harmonic<f64> {
+    /// Construct harmonic from the phase.
+    pub fn from_phase(phase: Radians) -> Self {
+        Self { cosine: phase.0.cos(), sine: phase.0.sin() }
+    }
+}
 
-        // Multiplication by 2 comes from the scale factor: https://en.wikipedia.org/wiki/Fourier_series#Analysis.
-        Self { cosine: signal * (2.0 * phase.cos()), sine: signal * (2.0 * phase.sin()) }
+impl<T> Harmonic<T> {
+    pub fn dot<S>(self, other: Harmonic<S>) -> <<T as Mul<S>>::Output as Add>::Output
+    where
+        T: Mul<S>,
+        <T as Mul<S>>::Output: Add,
+    {
+        self.cosine * other.cosine + self.sine * other.sine
     }
 }

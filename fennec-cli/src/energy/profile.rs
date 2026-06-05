@@ -1,4 +1,7 @@
-use std::{f64::consts::TAU, path::Path};
+use std::{
+    f64::consts::{PI, TAU},
+    path::Path,
+};
 
 use chrono::{DateTime, Local, NaiveTime, Timelike};
 use musli::{Decode, Encode, wire};
@@ -9,7 +12,14 @@ use crate::{
     math::smoothing::{Exponential, HalfLife},
     ops::chrono::Interval,
     prelude::*,
-    quantity::{Zero, angle::Harmonic, energy::WattHours, power::Watts, time::Hours},
+    quantity::{
+        Quantity,
+        Zero,
+        angle::{Harmonic, Radians},
+        energy::WattHours,
+        power::Watts,
+        time::Hours,
+    },
 };
 
 #[must_use]
@@ -175,7 +185,8 @@ impl Profile {
         self.mean_balance.update(balance, mean_smoothing_factor);
 
         // Capture daily periodicity, hence one full day is τ radians:
-        let base_phase = f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU;
+        let base_phase: Radians =
+            Quantity(f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU);
 
         // After long gaps, the smoothing factor jumps through the roof, and
         // each harmonic would then pick up the full signal – effectively amplifying it by N.
@@ -184,20 +195,27 @@ impl Profile {
         let harmonic_smoothing_factor =
             mean_smoothing_factor.min(0.5 / self.balance_harmonics.len() as f64);
 
-        for (mode_index, harmonic) in (1..).zip(self.balance_harmonics.iter_mut()) {
-            let target = Harmonic::project(deviation, base_phase, mode_index);
+        for (mode_index, harmonic) in (1..).map(f64::from).zip(self.balance_harmonics.iter_mut()) {
+            let basis = Harmonic::from_phase(base_phase * mode_index);
+            let target = Harmonic {
+                // Multiplication by 2 comes from the scale factor:
+                // <https://en.wikipedia.org/wiki/Fourier_series#Analysis>.
+                cosine: deviation * (2.0 * basis.cosine),
+                sine: deviation * (2.0 * basis.sine),
+            };
             harmonic.update(target, harmonic_smoothing_factor);
         }
     }
 
     /// Calculate the balance deviation from the average at concrete moment in time.
     pub fn deviation_at(&self, naive_time: NaiveTime) -> Balance<Watts> {
-        let day_phase = f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU;
+        let day_phase: Radians =
+            Quantity(f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU);
         (1..)
+            .map(f64::from)
             .zip(self.balance_harmonics.iter())
-            .map(|(k, harmonic)| {
-                let phase = day_phase * f64::from(k);
-                harmonic.0.cosine * phase.cos() + harmonic.0.sine * phase.sin()
+            .map(|(mode_index, harmonic)| {
+                harmonic.0.dot(Harmonic::from_phase(day_phase * mode_index))
             })
             .fold(Balance::ZERO, |sum, item| sum + item)
     }
@@ -211,29 +229,35 @@ impl Profile {
     fn mean_deviation_over(&self, interval: Interval) -> Balance<Watts> {
         assert!(interval.start() < interval.end());
 
-        // The harmonics are periodic over 24 hours, so we only care about the naive time:
-        let start_time = f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0;
-        let end_time = f64::from(interval.end().time().num_seconds_from_midnight()) / 86400.0;
         let n_days = interval.duration().days();
+        let middle_phase: Radians = {
+            let start =
+                f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0 * TAU;
+            Quantity((n_days / 2.0).mul_add(TAU, start))
+        };
 
         (1..)
+            .map(f64::from)
             .zip(self.balance_harmonics.iter())
-            .map(|(k, harmonic)| {
-                let angular_frequency = TAU * f64::from(k);
-                let cosine_mean = ((angular_frequency * end_time).sin()
-                    - (angular_frequency * start_time).sin())
-                    / angular_frequency
-                    / n_days;
-                let sine_mean = ((angular_frequency * start_time).cos()
-                    - (angular_frequency * end_time).cos())
-                    / angular_frequency
-                    / n_days;
-                harmonic.0.cosine * cosine_mean + harmonic.0.sine * sine_mean
+            .map(|(mode_index, harmonic)| {
+                // (1/Δt) ∫ cos(2πk·t) dt = cos(2πk·middle_phase) · sinc(k·Δt)
+                let weight = sinc(mode_index * n_days);
+                harmonic.0.dot(Harmonic::from_phase(middle_phase * mode_index)) * weight
             })
             .fold(Balance::ZERO, |sum, item| sum + item)
     }
 
     const fn default_battery_efficiency() -> Flow<f64> {
         Flow { import: 0.95, export: 0.95 }
+    }
+}
+
+/// Normalized [sinc function](https://en.wikipedia.org/wiki/Sinc_function): sin(πx)÷(πx).
+fn sinc(x: f64) -> f64 {
+    if x == 0.0 {
+        1.0
+    } else {
+        let pi_x = PI * x;
+        pi_x.sin() / pi_x
     }
 }

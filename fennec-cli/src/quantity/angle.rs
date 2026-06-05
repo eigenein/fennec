@@ -1,3 +1,4 @@
 mod harmonic;
+mod radians;
 
-pub use self::harmonic::Harmonic;
+pub use self::{harmonic::Harmonic, radians::Radians};

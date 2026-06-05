@@ -49,7 +49,7 @@ pub struct RunArgs {
     /// - after τ: the energy profile is 50% adapted to the new routine;
     /// - after 2τ: 75% adapted;
     /// - after 3τ: 87.5% adapted.
-    #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "1d")]
+    #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "7d")]
     energy_balance_half_life: humantime::Duration,
 
     /// Battery parameters are learned with exponential moving average.
@@ -62,7 +62,7 @@ pub struct RunArgs {
     #[clap(long, alias = "scout", env = "DRY_RUN")]
     dry_run: bool,
 
-    #[clap(long, env = "N_BALANCE_HARMONICS", default_value = "10")]
+    #[clap(long, env = "N_BALANCE_HARMONICS", default_value = "12")]
     n_balance_harmonics: usize,
 }
 

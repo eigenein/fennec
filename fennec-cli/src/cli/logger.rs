@@ -15,7 +15,7 @@ use crate::{
     energy::Balance,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::{energy::WattHours, time::Hours},
+    quantity::time::Hours,
 };
 
 #[must_use]
@@ -77,18 +77,15 @@ impl Runner {
 
         let net_deficit = grid_metrics.active_power + battery_metrics.active_power;
         let balance = Balance::new(self.args.battery_power_limits, net_deficit);
-        info!(
-            grid.import = ?balance.grid.import,
-            grid.export = ?balance.grid.export,
-            battery.import = ?balance.battery.import,
-            battery.export = ?balance.battery.export,
-            "energy balance",
-        );
-        info!(
-            grid.net_deficit = ?net_deficit,
-            battery.active_power = ?battery_metrics.active_power,
-            battery.eps_active_power = ?battery_metrics.eps_active_power,
-            battery.residual_energy = ?WattHours::from(battery_metrics.residual_energy()),
+        debug!(
+            ?battery_metrics.active_power,
+            ?battery_metrics.eps_active_power,
+            ?balance.battery.export,
+            ?balance.battery.import,
+            battery_metrics.residual_energy = ?battery_metrics.residual_energy(),
+            ?balance.grid.export,
+            ?balance.grid.import,
+            ?net_deficit,
             "measurements",
         );
 

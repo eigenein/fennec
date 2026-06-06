@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use chrono::{DateTime, Local, NaiveDate, NaiveTime};
+use chrono::{DateTime, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -30,8 +30,7 @@ impl Api {
     #[instrument(skip_all, fields(on = ?on))]
     pub async fn get_prices(&self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         debug!(?on, "fetching…");
-        let mut schedule =
-            Schedule::new(on.and_time(NaiveTime::MIN).and_local_timezone(Local).unwrap());
+        let mut schedule = Schedule::new();
         if let Some(data) = self
             .client
             .post("https://www.frankenergie.nl/graphql")
@@ -50,7 +49,7 @@ impl Api {
                 };
                 (Interval::new(item.from, item.till), flow)
             });
-            schedule.extend(slots)?;
+            schedule.extend_from_iter(slots)?;
         }
         Ok(schedule)
     }
@@ -131,7 +130,7 @@ mod tests {
     #[ignore = "makes the API request"]
     async fn get_prices_ok() -> Result {
         let series = Api::new(Resolution::Quarterly)?.get_prices(Local::now().date_naive()).await?;
-        assert!(!series.is_empty());
+        assert!(series.len() != 0);
         assert!(series.len() <= 24 * 4);
         let (first_interval, _) = &series.get(0);
         assert_eq!(first_interval.start().hour(), 0);

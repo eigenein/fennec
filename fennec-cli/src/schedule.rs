@@ -7,41 +7,38 @@ use crate::{ops::chrono::Interval, prelude::*};
 
 #[must_use]
 #[derive(IntoIterator)]
-pub struct Schedule<V> {
-    start: DateTime<Local>,
-
-    /// TODO: only store the interval end points.
-    #[into_iterator]
-    slots: VecDeque<(Interval, V)>,
-}
+pub struct Schedule<V>(VecDeque<(Interval, V)>);
 
 impl<V> Schedule<V> {
     /// Create new empty schedule.
-    pub const fn new(start: DateTime<Local>) -> Self {
-        Self { start, slots: VecDeque::new() }
+    #[expect(clippy::new_without_default)]
+    pub const fn new() -> Self {
+        Self(VecDeque::new())
     }
 
     #[must_use]
+    #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
-        self.slots.len()
+        self.0.len()
     }
 
+    /// Get the first slot starting timestamp.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.slots.is_empty()
+    pub fn start(&self) -> Option<DateTime<Local>> {
+        self.0.front().map(|(interval, _)| interval.start())
     }
 
-    /// The schedule ends when the last interval ends, or at the start if empty.
+    /// Get the last slot end timestamp, exclusive.
     #[must_use]
-    pub fn end(&self) -> DateTime<Local> {
-        self.slots.back().map_or(self.start, |(interval, _)| interval.end())
+    pub fn end(&self) -> Option<DateTime<Local>> {
+        self.0.back().map(|(interval, _)| interval.end())
     }
 
     /// Retrieve the interval and value at the given index.
     ///
     /// Panics outside the bounds.
     pub fn get(&self, index: usize) -> (Interval, &V) {
-        let (interval, value) = &self.slots[index];
+        let (interval, value) = &self.0[index];
         (*interval, value)
     }
 
@@ -50,31 +47,37 @@ impl<V> Schedule<V> {
     /// Panics outside the bounds.
     #[must_use]
     pub fn get_mut(&mut self, index: usize) -> &mut V {
-        &mut self.slots[index].1
+        &mut self.0[index].1
     }
 
     /// Construct new schedule by mapping the schedule values.
     pub fn map<T>(&self, mapper: impl Fn(&V) -> T) -> Schedule<T> {
-        Schedule {
-            start: self.start,
-            slots: self.slots.iter().map(|(interval, value)| (*interval, mapper(value))).collect(),
-        }
+        Schedule(self.0.iter().map(|(interval, value)| (*interval, mapper(value))).collect())
     }
 
     /// Pop schedule slots that ended before the given timestamp.
     pub fn pop_before(&mut self, timestamp: DateTime<Local>) {
-        while self.slots.pop_front_if(|(interval, _)| interval.end() <= timestamp).is_some() {}
+        while self.0.pop_front_if(|(interval, _)| interval.end() <= timestamp).is_some() {}
     }
 
-    /// Extend the schedule with the other schedule.
-    pub fn extend(&mut self, other: impl IntoIterator<Item = (Interval, V)>) -> Result {
+    pub fn extend(&mut self, other: Self) -> Result {
+        ensure!(
+            self.end().zip(other.start()).is_none_or(|(end, start)| end == start),
+            "the other schedule must start at this schedule end",
+        );
+        self.0.extend(other.0);
+        Ok(())
+    }
+
+    /// Extend the schedule from an iterator over slots.
+    pub fn extend_from_iter(&mut self, other: impl IntoIterator<Item = (Interval, V)>) -> Result {
         for (interval, value) in other {
             let current_end = self.end();
             ensure!(
-                interval.start() == current_end,
+                current_end.is_none_or(|current_end| current_end == interval.start()),
                 "trying to push `{interval:?}` on top of `{current_end:?}`",
             );
-            self.slots.push_back((interval, value));
+            self.0.push_back((interval, value));
         }
         Ok(())
     }
@@ -95,8 +98,8 @@ mod tests {
         let second =
             Interval::new(first.end(), Local.with_ymd_and_hms(2026, 5, 15, 16, 30, 0).unwrap());
 
-        let mut schedule = Schedule::new(first.start());
-        schedule.extend([(first, 1), (second, 2)]).unwrap();
+        let mut schedule = Schedule::new();
+        schedule.extend_from_iter([(first, 1), (second, 2)]).unwrap();
 
         schedule.pop_before(second.start());
         assert_eq!(schedule.len(), 1);

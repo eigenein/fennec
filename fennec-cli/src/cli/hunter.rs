@@ -132,7 +132,7 @@ impl Runner {
 
         let today = now.date_naive();
         let mut prices = self.energy_provider.get_prices(today).await?;
-        ensure!(!prices.is_empty());
+        ensure!(prices.len() != 0, "received empty price schedule");
 
         let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
         prices.extend(self.energy_provider.get_prices(tomorrow).await?)?;

@@ -7,11 +7,14 @@ use crate::{
     solution::{Metrics, Solution, Step},
 };
 
-/// [Dynamic programming][1] solution space.
+/// [Solution space][1] that associates a [`Solution`] with every time interval and [`EnergyLevel`].
 ///
 /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
 #[must_use]
-pub struct Space(Schedule<Vec<Option<Solution>>>);
+pub struct Space(
+    /// Inner [`Vec`] is a mapping from [`EnergyLevel`] to a [`Solution`].
+    Schedule<Vec<Option<Solution>>>,
+);
 
 impl Space {
     pub fn new<V>(schedule: &Schedule<V>, max_energy_level: EnergyLevel) -> Self {

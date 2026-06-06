@@ -11,7 +11,7 @@ use crate::quantity::{
 
 pub type WattHours<V = f64> = Quantity<V, 0, 1, 1, 0>;
 
-/// Watt-hours in [`usize`] that can be used in dynamic programming.
+/// Thin wrapper around watt-hours as [`usize`] that can be used as index in dynamic programming.
 pub type EnergyLevel = WattHours<usize>;
 
 impl<V> Format for WattHours<V> {

@@ -55,12 +55,7 @@ impl Solver<'_> {
     pub fn solve(self) -> Space {
         let start_instant = Instant::now();
 
-        info!(
-            allowed_energy_levels =
-                ?self.allowed_energy_levels.start..=self.allowed_energy_levels.last,
-            n_intervals = self.energy_prices.len(),
-            "optimizing…"
-        );
+        info!(?self.allowed_energy_levels, n_intervals = self.energy_prices.len(), "optimizing…");
 
         let mut solutions = Space::new(self.energy_prices, self.allowed_energy_levels.last);
         let mut n_some: usize = 0;

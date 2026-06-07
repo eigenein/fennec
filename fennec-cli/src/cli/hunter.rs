@@ -78,7 +78,6 @@ impl Runner {
         );
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
-            .energy_profile(&energy_profile)
             .working_modes(self.working_modes)
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_efficiency(energy_profile.battery_efficiency)
@@ -89,6 +88,7 @@ impl Runner {
                     .power_limits
                     .max_effective_flow(energy_profile.eps_active_power.0),
             )
+            .energy_profile(energy_profile)
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let solutions = solver.solve();

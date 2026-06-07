@@ -17,7 +17,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver<'a> {
     energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
-    energy_profile: &'a energy::Profile,
+    energy_profile: energy::Profile,
     battery_efficiency: energy::Flow<f64>,
     battery_capacity: WattHours,
 

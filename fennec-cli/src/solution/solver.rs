@@ -64,19 +64,22 @@ impl Solver<'_> {
 
         let mut solutions = Space::new(self.energy_prices, self.allowed_energy_levels.last);
         let mut n_some: usize = 0;
+        let mut n_none: usize = 0;
 
         // Going backwards:
         for interval_index in (0..self.energy_prices.len()).rev() {
             // Calculate partial solutions for the current time interval:
-            for energy_level in 0..=self.allowed_energy_levels.last.0 {
-                let energy_level = Quantity(energy_level);
-                *solutions.get_mut(interval_index, energy_level) = self
-                    .optimize_step(interval_index, energy_level, &solutions)
-                    .inspect(|_| n_some += 1);
+            for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
+                let solution = self.optimize_step(interval_index, energy_level, &solutions);
+                match solution {
+                    Some(_) => n_some += 1,
+                    None => n_none += 1,
+                }
+                *solutions.get_mut(interval_index, energy_level) = solution;
             }
         }
 
-        info!(elapsed = ?start_instant.elapsed(), n_some, "optimized");
+        info!(elapsed = ?start_instant.elapsed(), n_some, n_none, "optimized");
         solutions
     }
 

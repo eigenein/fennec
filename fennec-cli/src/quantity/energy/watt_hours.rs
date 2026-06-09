@@ -22,18 +22,21 @@ impl WattHours {
     pub const ONE: Self = Self(1.0);
 }
 
-impl From<EnergyLevel> for WattHours {
+/// TODO: generic implementation for any [`Quantity`]:
+impl From<EnergyLevel> for WattHours<f64> {
     fn from(energy_level: EnergyLevel) -> Self {
+        // `+ 0.5` gives the mid-point:
         #[expect(clippy::cast_precision_loss)]
-        Self(energy_level.0 as f64)
+        Self(energy_level.0 as f64 + 0.5)
     }
 }
 
+/// TODO: generic implementation for any [`Quantity`]:
 impl From<WattHours<f64>> for EnergyLevel {
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     fn from(value: WattHours) -> Self {
-        Self(value.0 as usize)
+        Self(value.0.round() as usize)
     }
 }
 

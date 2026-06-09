@@ -9,7 +9,7 @@ use musli::{Decode, Encode};
 use super::Flow;
 use crate::{
     battery::WorkingMode,
-    cli::battery::PowerLimits,
+    cli::BatteryPowerLimits,
     quantity::{Zero, power::Watts},
 };
 
@@ -45,7 +45,7 @@ impl Balance<Watts> {
     /// compensate or absorb.
     ///
     /// See also: <https://en.wikipedia.org/wiki/Jensen%27s_inequality>.
-    pub fn new(battery_power_limits: PowerLimits, net_deficit: Watts) -> Self {
+    pub fn new(battery_power_limits: BatteryPowerLimits, net_deficit: Watts) -> Self {
         let battery_net_import =
             (-net_deficit).clamp(-battery_power_limits.discharging, battery_power_limits.charging);
         let grid_net_import = net_deficit + battery_net_import;

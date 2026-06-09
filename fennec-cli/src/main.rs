@@ -21,10 +21,7 @@ use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 pub use self::schedule::Schedule;
-use crate::{
-    cli::{Args, Command},
-    prelude::*,
-};
+use crate::{cli::Args, prelude::*};
 
 fn main() -> Result {
     let env_filter = EnvFilter::builder()
@@ -48,14 +45,8 @@ fn main() -> Result {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?
-        .block_on(async_main(args))
+        .block_on(Box::pin(args.run()))
         .inspect_err(|error| {
             capture_anyhow(error);
         })
-}
-
-async fn async_main(args: Args) -> Result {
-    match args.command {
-        Command::Run(args) => Box::pin(args.run()).await,
-    }
 }

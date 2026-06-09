@@ -3,15 +3,13 @@ use std::{sync::Arc, time::Duration};
 use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
-use enumset::EnumSet;
 use itertools::Itertools;
 use tokio::sync::RwLock;
 
 use crate::{
     Schedule,
     api,
-    battery::WorkingMode,
-    cli::{battery::BatteryArgs, connection::Connections},
+    cli::{BatteryArgs, Connections},
     cron::CronSchedule,
     energy,
     energy::Flow,
@@ -30,10 +28,9 @@ use crate::{
 pub struct Runner {
     connections: Connections,
     battery_args: BatteryArgs,
-    working_modes: EnumSet<WorkingMode>,
     energy_provider: energy::Provider,
     n_balance_harmonics: usize,
-    scout: bool,
+    dry_run: bool,
 }
 
 impl Runner {
@@ -78,7 +75,7 @@ impl Runner {
         );
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
-            .working_modes(self.working_modes)
+            .working_modes(self.battery_args.working_modes.iter().copied().collect())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_efficiency(energy_profile.battery_efficiency)
             .battery_capacity(battery_state.actual_capacity())
@@ -112,7 +109,7 @@ impl Runner {
             )
         };
 
-        if self.scout {
+        if self.dry_run {
             warn!("not pushing the schedule to the battery, just scouting");
         } else {
             (async || self.connections.battery.write_schedule(&entries).await)

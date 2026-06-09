@@ -8,7 +8,7 @@ use fennec_modbus::{
 
 use crate::{
     battery,
-    cli,
+    cli::{BatteryChargeLimits, BatteryPowerLimits},
     ops::chrono::Interval,
     prelude::*,
     quantity::{Zero, power::Watts},
@@ -17,8 +17,8 @@ use crate::{
 #[instrument(skip_all)]
 pub fn build(
     schedule: impl IntoIterator<Item = (Interval, battery::WorkingMode)>,
-    charge_limits: cli::battery::ChargeLimits,
-    power_limits: cli::battery::PowerLimits,
+    charge_limits: BatteryChargeLimits,
+    power_limits: BatteryPowerLimits,
 ) -> schedule::Full {
     info!("building a Fox ESS schedule…");
     let mut schedule: Vec<_> = schedule

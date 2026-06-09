@@ -9,7 +9,7 @@ use tokio::{
 };
 
 use crate::{
-    cli::{battery, connection::Connections},
+    cli::{BatteryPowerLimits, Connections},
     cron::CronSchedule,
     energy,
     energy::Balance,
@@ -22,7 +22,7 @@ use crate::{
 #[derive(Clone, Builder)]
 pub struct Args {
     connections: Connections,
-    battery_power_limits: battery::PowerLimits,
+    battery_power_limits: BatteryPowerLimits,
     energy_balance_half_life: HalfLife<Hours>,
     battery_efficiency_half_life_factor: f64,
     n_balance_harmonics: usize,

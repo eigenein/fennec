@@ -52,7 +52,7 @@ pub struct Profile {
     /// Hence, it has its own timestamp.
     #[musli(Binary, name = 10)]
     #[musli(default)]
-    pub battery_metrics: Option<api::battery::Metrics>,
+    pub battery_metrics: Option<api::battery::TrackedMetrics>,
 
     #[musli(Binary, name = 12)]
     #[musli(default = Self::default_battery_efficiency)]
@@ -102,7 +102,7 @@ impl Profile {
     #[instrument(skip_all)]
     pub fn update_battery_metrics(
         &mut self,
-        current_metrics: api::battery::Metrics,
+        current_metrics: api::battery::TrackedMetrics,
         half_life_factor: f64,
     ) {
         let Some(last_metrics) = &self.battery_metrics else {

@@ -52,33 +52,29 @@ impl Runner {
         let energy_prices =
             (|| self.get_prices(now)).retry(Self::BACKOFF).notify(log_retried_error).await?;
 
-        let battery_state = (async || self.connections.battery.read_state().await)
+        let battery_state = (async || self.connections.battery.read_metrics().await)
             .retry(Self::BACKOFF)
             .notify(log_retried_error)
             .await
             .context("failed to read the battery state")?;
         info!(
-            charge = ?battery_state.charge,
-            health = ?battery_state.health,
-            actual_capacity = ?battery_state.actual_capacity(),
+            charge = ?battery_state.tracked.charge,
+            health = ?battery_state.tracked.health,
+            actual_capacity = ?battery_state.tracked.actual_capacity(),
             "battery state",
         );
 
-        // FIXME: reading it on every iteration is meh.
+        // FIXME: do not re-read it when the hunter and logger would be combined.
         let energy_profile = energy::Profile::read_from_file(self.n_balance_harmonics).await?;
 
-        let min_energy_level = EnergyLevel::from(
-            battery_state.actual_capacity() * self.battery_args.charge_limits.min,
-        );
-        let max_energy_level = EnergyLevel::from(
-            battery_state.actual_capacity() * self.battery_args.charge_limits.max,
-        );
+        let min_energy_level = EnergyLevel::from(battery_state.min_residual_charge());
+        let max_energy_level = EnergyLevel::from(battery_state.max_residual_charge());
         let solver = Solver::builder()
             .energy_prices(&energy_prices)
             .working_modes(self.battery_args.working_modes.iter().copied().collect())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_efficiency(energy_profile.battery_efficiency)
-            .battery_capacity(battery_state.actual_capacity())
+            .battery_capacity(battery_state.tracked.actual_capacity())
             .now(now)
             .max_battery_flow(
                 self.battery_args
@@ -89,7 +85,7 @@ impl Runner {
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let solutions = solver.solve();
-        let initial_energy_level = WattHours::from(battery_state.residual_energy()).into();
+        let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
         let steps: Vec<_> = energy_prices.into_iter().zip_eq(steps).collect();
         info!(
@@ -104,7 +100,7 @@ impl Runner {
             let schedule = steps.iter().map(|((interval, _), step)| (*interval, step.working_mode));
             api::battery::schedule::build(
                 schedule,
-                self.battery_args.charge_limits,
+                battery_state.untracked.allowed_charge,
                 self.battery_args.power_limits,
             )
         };

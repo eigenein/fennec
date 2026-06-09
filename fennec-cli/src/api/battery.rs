@@ -15,7 +15,7 @@ use fennec_modbus::{
     tcp::UnitId,
 };
 
-pub use self::metrics::Metrics;
+pub use self::metrics::{Metrics, Tracked as TrackedMetrics, Untracked as UntrackedMetrics};
 use crate::{energy::Flow, prelude::*};
 
 /// FoxESS MQ2200 Modbus client.
@@ -29,8 +29,15 @@ impl Client {
         Self(fennec_modbus::tcp::tokio::Client::new(address))
     }
 
+    pub async fn read_metrics(&self) -> Result<Metrics> {
+        Ok(Metrics {
+            tracked: self.read_tracked_metrics().await?,
+            untracked: self.read_untracked_metrics().await?,
+        })
+    }
+
     #[instrument(skip_all)]
-    pub async fn read_state(&self) -> Result<Metrics> {
+    async fn read_tracked_metrics(&self) -> Result<TrackedMetrics> {
         let design_capacity = self
             .0
             .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
@@ -43,26 +50,12 @@ impl Client {
             .await
             .context("failed to read the SoH")?
             .try_into()?;
-
-        // Fast-changing values should be read next to each other with minimum delays:
         let charge = self
             .0
             .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoC")?
             .try_into()?;
-        let active_power = self
-            .0
-            .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the active power")?
-            .into();
-        let eps_active_power = self
-            .0
-            .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the EPS active power")?
-            .into();
         let total_grid_export_energy = self
             .0
             .call::<mq2200::ReadTotalGridExportEnergy>(Self::UNIT_ID, address::Const)
@@ -76,17 +69,51 @@ impl Client {
             .context("failed to read the total exported energy")?
             .into();
 
-        Ok(Metrics {
+        Ok(TrackedMetrics {
             timestamp: Local::now(),
             charge,
             health,
             design_capacity,
-            active_power,
-            eps_active_power,
             total_grid_flow: Flow {
                 import: total_grid_import_energy,
                 export: total_grid_export_energy,
             },
+        })
+    }
+
+    #[instrument(skip_all)]
+    async fn read_untracked_metrics(&self) -> Result<UntrackedMetrics> {
+        // TODO: these two are only needed when optimizing:
+        let min_charge = self
+            .0
+            .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the min SoC")?
+            .try_into()?;
+        let max_charge = self
+            .0
+            .call::<mq2200::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the max SoC")?
+            .try_into()?;
+
+        let active_power = self
+            .0
+            .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the active power")?
+            .into();
+        let eps_active_power = self
+            .0
+            .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the EPS active power")?
+            .into();
+
+        Ok(UntrackedMetrics {
+            allowed_charge: (min_charge..=max_charge).into(),
+            active_power,
+            eps_active_power,
         })
     }
 

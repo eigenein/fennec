@@ -15,7 +15,7 @@ use crate::{
     energy,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::{power::Watts, price::KilowattHourPrice, ratios::Percentage},
+    quantity::{power::Watts, price::KilowattHourPrice},
     web,
 };
 
@@ -159,27 +159,6 @@ impl BatteryPowerLimits {
     }
 }
 
-/// TODO: read from the battery.
-#[must_use]
-#[derive(Copy, Clone, Parser)]
-pub struct BatteryChargeLimits {
-    /// Minimum allowed state-of-charge in percents.
-    #[clap(
-        long = "battery-min-state-of-charge",
-        env = "BATTERY_MIN_STATE_OF_CHARGE",
-        default_value = "10"
-    )]
-    pub min: Percentage,
-
-    /// Maximum allowed state-of-charge in percents.
-    #[clap(
-        long = "battery-max-state-of-charge",
-        env = "BATTERY_MAX_STATE_OF_CHARGE",
-        default_value = "100"
-    )]
-    pub max: Percentage,
-}
-
 #[derive(Parser)]
 pub struct BatteryArgs {
     #[clap(
@@ -193,9 +172,6 @@ pub struct BatteryArgs {
 
     #[clap(flatten)]
     pub power_limits: BatteryPowerLimits,
-
-    #[clap(flatten)]
-    pub charge_limits: BatteryChargeLimits,
 
     /// Battery health costs lost to the cycling, in ¤/kWh.
     #[clap(

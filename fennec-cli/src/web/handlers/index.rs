@@ -107,6 +107,9 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                 }
                             }
                         }
+                    }
+
+                    div.field.is-grouped.is-grouped-multiline {
                         div.control {
                             div.tags.has-addons {
                                 span.tag.is-info {

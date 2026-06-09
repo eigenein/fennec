@@ -1,3 +1,5 @@
+use std::range::RangeInclusive;
+
 use chrono::{DateTime, Local};
 use musli::{Decode, Encode};
 
@@ -11,8 +13,42 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Encode, Decode)]
 pub struct Metrics {
+    pub tracked: Tracked,
+    pub untracked: Untracked,
+}
+
+impl Metrics {
+    /// Minimum allowed residual charge.
+    pub fn min_residual_charge(&self) -> WattHours {
+        self.tracked.design_capacity.rescale() * self.untracked.allowed_charge.start
+    }
+
+    /// Maximum allowed residual charge.
+    pub fn max_residual_charge(&self) -> WattHours {
+        self.tracked.design_capacity.rescale() * self.untracked.allowed_charge.last
+    }
+}
+
+/// Untracked metrics are throw away directly after processing.
+#[must_use]
+pub struct Untracked {
+    /// Allowed state-of-charge.
+    pub allowed_charge: RangeInclusive<Percentage>,
+
+    /// Battery external active power.
+    ///
+    /// Positive means discharging, negative means charging.
+    pub active_power: Watts,
+
+    /// Active power on the EPS output.
+    pub eps_active_power: Watts,
+}
+
+/// Tracked metrics are persisted in order to estimate the battery parameters.
+#[must_use]
+#[derive(Encode, Decode)]
+pub struct Tracked {
     /// Timestamp of the readings.
     #[musli(Binary, name = 1)]
     #[musli(with = crate::ops::musli::chrono)]
@@ -26,25 +62,14 @@ pub struct Metrics {
     #[musli(Binary, name = 3)]
     pub health: Percentage,
 
-    /// Design capacity – constant for the product lifetime.
     #[musli(Binary, name = 4)]
     pub design_capacity: DecawattHours,
-
-    /// Battery external active power.
-    ///
-    /// Positive means discharging, negative means charging.
-    #[musli(Binary, name = 5)]
-    pub active_power: Watts,
-
-    /// Active power on the EPS output.
-    #[musli(Binary, name = 6)]
-    pub eps_active_power: Watts,
 
     #[musli(Binary, name = 7)]
     pub total_grid_flow: Flow<DecawattHours>,
 }
 
-impl Metrics {
+impl Tracked {
     /// Battery capacity corrected on the state of health.
     pub fn actual_capacity(&self) -> WattHours {
         self.design_capacity.rescale() * self.health

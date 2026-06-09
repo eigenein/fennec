@@ -1,4 +1,4 @@
-use std::iter::once;
+use std::{iter::once, range::RangeInclusive};
 
 use chrono::Timelike;
 use fennec_modbus::{
@@ -8,16 +8,16 @@ use fennec_modbus::{
 
 use crate::{
     battery,
-    cli::{BatteryChargeLimits, BatteryPowerLimits},
+    cli::BatteryPowerLimits,
     ops::chrono::Interval,
     prelude::*,
-    quantity::{Zero, power::Watts},
+    quantity::{Zero, power::Watts, ratios::Percentage},
 };
 
 #[instrument(skip_all)]
 pub fn build(
     schedule: impl IntoIterator<Item = (Interval, battery::WorkingMode)>,
-    charge_limits: BatteryChargeLimits,
+    charge_limits: RangeInclusive<Percentage>,
     power_limits: BatteryPowerLimits,
 ) -> schedule::Full {
     info!("building a Fox ESS schedule…");
@@ -33,25 +33,25 @@ pub fn build(
             let (working_mode, target_charge, feed_power) = match working_mode {
                 battery::WorkingMode::Idle => {
                     // Forced charging at 0W is effectively idling:
-                    (schedule::WorkingMode::ForceCharge, charge_limits.max, Watts::ZERO)
+                    (schedule::WorkingMode::ForceCharge, charge_limits.last, Watts::ZERO)
                 }
                 battery::WorkingMode::Harness => {
-                    (schedule::WorkingMode::BackUp, charge_limits.max, power_limits.charging)
+                    (schedule::WorkingMode::BackUp, charge_limits.last, power_limits.charging)
                 }
                 battery::WorkingMode::Charge => {
-                    (schedule::WorkingMode::ForceCharge, charge_limits.max, power_limits.charging)
+                    (schedule::WorkingMode::ForceCharge, charge_limits.last, power_limits.charging)
                 }
                 battery::WorkingMode::SelfUse => {
-                    (schedule::WorkingMode::SelfUse, charge_limits.min, power_limits.discharging)
+                    (schedule::WorkingMode::SelfUse, charge_limits.start, power_limits.discharging)
                 }
                 battery::WorkingMode::Discharge => (
                     schedule::WorkingMode::ForceDischarge,
-                    charge_limits.min,
+                    charge_limits.start,
                     power_limits.discharging,
                 ),
                 battery::WorkingMode::Compensate => (
                     schedule::WorkingMode::FeedInPriority,
-                    charge_limits.min,
+                    charge_limits.start,
                     power_limits.discharging,
                 ),
             };
@@ -63,8 +63,8 @@ pub fn build(
                 start_time,
                 end_time,
                 working_mode,
-                maximum_state_of_charge: charge_limits.max.into(),
-                minimum_state_of_charge: charge_limits.min.into(),
+                maximum_state_of_charge: charge_limits.last.into(),
+                minimum_state_of_charge: charge_limits.start.into(),
                 target_state_of_charge: target_charge.into(),
                 power: contrib::Watts(feed_power.0 as u16),
                 reserved_1: 0,
@@ -80,8 +80,8 @@ pub fn build(
         start_time: NaiveTime::MIN,
         end_time: NaiveTime::MIN,
         working_mode: schedule::WorkingMode::SelfUse,
-        maximum_state_of_charge: contrib::Percentage(charge_limits.max.0),
-        minimum_state_of_charge: contrib::Percentage(charge_limits.min.0),
+        maximum_state_of_charge: contrib::Percentage(charge_limits.last.0),
+        minimum_state_of_charge: contrib::Percentage(charge_limits.start.0),
         target_state_of_charge: contrib::Percentage(100),
         power: contrib::Watts(0),
         reserved_1: 0,

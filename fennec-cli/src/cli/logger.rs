@@ -62,42 +62,56 @@ impl Runner {
     }
 
     pub async fn run_once(&self) -> Result {
-        let read_state = || async {
-            // Retry them together to ensure the measurements are in sync.
-            try_join!(
-                async { self.args.connections.battery.read_state().await },
-                self.args.connections.grid_measurement.get_measurement()
-            )
+        let (battery_metrics, grid_metrics) = {
+            let read_metrics = || async {
+                // Retry them together to ensure the measurements are in sync.
+                try_join!(
+                    async {
+                        self.args
+                            .connections
+                            .battery
+                            .read_metrics()
+                            .await
+                            .context("failed to read the battery metrics")
+                    },
+                    async {
+                        self.args
+                            .connections
+                            .grid_measurement
+                            .get_measurement()
+                            .await
+                            .context("failed to retrieve the grid measurement")
+                    }
+                )
+            };
+            read_metrics.retry(Self::BACKOFF).notify(log_retried_error).await?
         };
-        let (battery_metrics, grid_metrics) = read_state
-            .retry(Self::BACKOFF)
-            .notify(log_retried_error)
-            .await
-            .context("failed to read the energy state")?;
 
-        let net_deficit = grid_metrics.active_power + battery_metrics.active_power;
+        let net_deficit = grid_metrics.active_power + battery_metrics.untracked.active_power;
         let balance = Balance::new(self.args.battery_power_limits, net_deficit);
         debug!(
-            ?battery_metrics.active_power,
-            ?battery_metrics.eps_active_power,
+            ?net_deficit,
+            battery.active_power = ?battery_metrics.untracked.active_power,
+            battery.eps_active_power = ?battery_metrics.untracked.eps_active_power,
+            battery.residual_energy = ?battery_metrics.tracked.residual_energy(),
             ?balance.battery.export,
             ?balance.battery.import,
-            battery_metrics.residual_energy = ?battery_metrics.residual_energy(),
             ?balance.grid.export,
             ?balance.grid.import,
-            ?net_deficit,
             "measurements",
         );
 
         let mut energy_profile = self.energy_profile.write().await;
         energy_profile.update_energy_balance(
             balance,
-            battery_metrics.eps_active_power,
+            battery_metrics.untracked.eps_active_power,
             Local::now(),
             self.args.energy_balance_half_life,
         );
-        energy_profile
-            .update_battery_metrics(battery_metrics, self.args.battery_efficiency_half_life_factor);
+        energy_profile.update_battery_metrics(
+            battery_metrics.tracked,
+            self.args.battery_efficiency_half_life_factor,
+        );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         drop(energy_profile);
 

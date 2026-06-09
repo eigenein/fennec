@@ -86,7 +86,7 @@ impl Args {
             .energy_provider(self.energy_provider)
             .battery_args(self.battery)
             .n_balance_harmonics(self.n_balance_harmonics)
-            .scout(self.dry_run)
+            .dry_run(self.dry_run)
             .build();
 
         let hunter_state = Arc::new(RwLock::new(hunter_runner.run_once().await?));

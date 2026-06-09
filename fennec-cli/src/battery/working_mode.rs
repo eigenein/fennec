@@ -36,13 +36,3 @@ impl Display for WorkingMode {
         text.fmt(f)
     }
 }
-
-impl WorkingMode {
-    pub fn is_charging(self) -> bool {
-        self == Self::Charge
-    }
-
-    pub fn is_discharging(self) -> bool {
-        (self == Self::Discharge) || (self == Self::Compensate) || (self == Self::Idle)
-    }
-}

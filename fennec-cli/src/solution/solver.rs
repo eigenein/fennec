@@ -10,7 +10,12 @@ use crate::{
     battery::WorkingMode,
     energy,
     prelude::*,
-    quantity::{Quantity, energy::WattHours, power::Watts, price::KilowattHourPrice},
+    quantity::{
+        Quantity,
+        energy::{EnergyLevel, WattHours},
+        power::Watts,
+        price::KilowattHourPrice,
+    },
     solution::{Losses, Metrics, Solution, Space, Step},
 };
 
@@ -22,6 +27,8 @@ pub struct Solver<'a> {
     battery_capacity: WattHours,
 
     /// Enabled working modes.
+    ///
+    /// TODO: do we need [`EnumSet`]?
     working_modes: EnumSet<WorkingMode>,
 
     /// Incurred cost of the residual energy change per kilowatt-hour.
@@ -64,6 +71,7 @@ impl Solver<'_> {
         // Going backwards:
         for interval_index in (0..self.energy_prices.len()).rev() {
             // Calculate partial solutions for the current time interval:
+            // FIXME: calculate up to the capacity:
             for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
                 let solution = self.optimize_step(interval_index, energy_level, &solutions);
                 match solution {
@@ -85,11 +93,11 @@ impl Solver<'_> {
     fn optimize_step(
         &self,
         interval_index: usize,
-        initial_residual_energy: impl Into<WattHours>,
+        initial_energy_level: EnergyLevel,
         solutions: &Space,
     ) -> Option<Solution> {
         let battery_simulator = battery::Simulator {
-            residual_energy: initial_residual_energy.into(),
+            residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
             efficiency: self.battery_efficiency,
         };
@@ -97,17 +105,16 @@ impl Solver<'_> {
             .iter()
             .filter_map(|working_mode| {
                 let step = self.simulate_step(battery_simulator, interval_index, working_mode);
-                if (step.energy_level_after < self.allowed_energy_levels.start)
-                    && !working_mode.is_charging()
+                if (step.energy_level_after < initial_energy_level)
+                    && (initial_energy_level <= self.allowed_energy_levels.start)
                 {
-                    // Under the minimum allowed energy level disallow anything but charging:
+                    // At or under the minimum allowed energy level, forbid going lower:
                     return None;
                 }
-                if (step.energy_level_after > self.allowed_energy_levels.last)
-                    && !working_mode.is_discharging()
+                if (step.energy_level_after > initial_energy_level)
+                    && (initial_energy_level >= self.allowed_energy_levels.last)
                 {
-                    // Above the maximum allowed energy level disallow anything but discharging:
-                    // FIXME: buuuut… `step.energy_level_after` may still be out of the space – this was always incorrect.
+                    // At or above the maximum allowed energy level, forbid going higher:
                     return None;
                 }
                 // Note that the next solution may not exist, hence the question mark:

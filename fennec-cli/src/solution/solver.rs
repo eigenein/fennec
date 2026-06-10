@@ -16,6 +16,7 @@ use crate::{
         power::Watts,
         price::KilowattHourPrice,
     },
+    schedule::Slot,
     solution::{Losses, Metrics, Solution, Space, Step},
 };
 
@@ -132,7 +133,7 @@ impl Solver<'_> {
         interval_index: usize,
         working_mode: WorkingMode,
     ) -> Step {
-        let (interval, energy_price) = self.energy_prices.get(interval_index);
+        let Slot { interval, value: energy_price } = self.energy_prices.get(interval_index);
         let interval = interval.clamp_start_to(self.now);
 
         let average_balance = self.energy_profile.mean_balance_over(interval);

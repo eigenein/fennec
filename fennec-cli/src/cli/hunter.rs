@@ -3,7 +3,6 @@ use std::{sync::Arc, time::Duration};
 use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
-use itertools::Itertools;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -13,7 +12,6 @@ use crate::{
     cron::CronSchedule,
     energy,
     energy::Flow,
-    ops::chrono::Interval,
     prelude::*,
     quantity::{
         energy::{EnergyLevel, WattHours},
@@ -87,7 +85,7 @@ impl Runner {
         let solutions = solver.solve();
         let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
-        let steps: Vec<_> = energy_prices.into_iter().zip_eq(steps).collect();
+        let steps = energy_prices.zip_eq(steps);
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,
@@ -97,7 +95,7 @@ impl Runner {
         );
 
         let entries = {
-            let schedule = steps.iter().map(|((interval, _), step)| (*interval, step.working_mode));
+            let schedule = steps.iter().map(|slot| (slot.interval, slot.value.1.working_mode));
             api::battery::schedule::build(
                 schedule,
                 battery_state.untracked.allowed_charge,
@@ -139,6 +137,6 @@ impl Runner {
 
 #[must_use]
 pub struct State {
-    pub steps: Vec<((Interval, Flow<KilowattHourPrice>), Step)>,
+    pub steps: Schedule<(Flow<KilowattHourPrice>, Step)>,
     pub metrics: solution::Metrics,
 }

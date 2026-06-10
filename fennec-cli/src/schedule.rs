@@ -2,12 +2,13 @@ use std::collections::VecDeque;
 
 use chrono::{DateTime, Local};
 use derive_more::IntoIterator;
+use itertools::Itertools;
 
 use crate::{ops::chrono::Interval, prelude::*};
 
 #[must_use]
 #[derive(IntoIterator)]
-pub struct Schedule<V>(VecDeque<(Interval, V)>);
+pub struct Schedule<V>(VecDeque<Slot<V>>);
 
 impl<V> Schedule<V> {
     /// Create new empty schedule.
@@ -25,21 +26,20 @@ impl<V> Schedule<V> {
     /// Get the first slot starting timestamp.
     #[must_use]
     pub fn start(&self) -> Option<DateTime<Local>> {
-        self.0.front().map(|(interval, _)| interval.start())
+        self.0.front().map(|slot| slot.interval.start())
     }
 
     /// Get the last slot end timestamp, exclusive.
     #[must_use]
     pub fn end(&self) -> Option<DateTime<Local>> {
-        self.0.back().map(|(interval, _)| interval.end())
+        self.0.back().map(|slot| slot.interval.end())
     }
 
     /// Retrieve the interval and value at the given index.
     ///
     /// Panics outside the bounds.
-    pub fn get(&self, index: usize) -> (Interval, &V) {
-        let (interval, value) = &self.0[index];
-        (*interval, value)
+    pub fn get(&self, index: usize) -> Slot<&V> {
+        self.0[index].as_ref()
     }
 
     /// Retrieve the mutable reference at the given index.
@@ -47,17 +47,31 @@ impl<V> Schedule<V> {
     /// Panics outside the bounds.
     #[must_use]
     pub fn get_mut(&mut self, index: usize) -> &mut V {
-        &mut self.0[index].1
+        &mut self.0[index].value
     }
 
     /// Construct new schedule by mapping the schedule values.
     pub fn map<T>(&self, mapper: impl Fn(&V) -> T) -> Schedule<T> {
-        Schedule(self.0.iter().map(|(interval, value)| (*interval, mapper(value))).collect())
+        Schedule(self.0.iter().map(|slot| slot.map(&mapper)).collect())
+    }
+
+    pub fn zip_eq<T>(self, iterable: impl IntoIterator<Item = T>) -> Schedule<(V, T)> {
+        Schedule(
+            self.0
+                .into_iter()
+                .zip_eq(iterable)
+                .map(|(lhs, rhs)| Slot { interval: lhs.interval, value: (lhs.value, rhs) })
+                .collect(),
+        )
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Slot<&V>> {
+        self.0.iter().map(Slot::as_ref)
     }
 
     /// Pop schedule slots that ended before the given timestamp.
     pub fn pop_before(&mut self, timestamp: DateTime<Local>) {
-        while self.0.pop_front_if(|(interval, _)| interval.end() <= timestamp).is_some() {}
+        while self.0.pop_front_if(|slot| slot.interval.end() <= timestamp).is_some() {}
     }
 
     pub fn extend(&mut self, other: Self) -> Result {
@@ -77,9 +91,26 @@ impl<V> Schedule<V> {
                 current_end.is_none_or(|current_end| current_end == interval.start()),
                 "trying to push `{interval:?}` on top of `{current_end:?}`",
             );
-            self.0.push_back((interval, value));
+            self.0.push_back(Slot { interval, value });
         }
         Ok(())
+    }
+}
+
+#[must_use]
+#[derive(Debug, Eq, PartialEq)]
+pub struct Slot<V> {
+    pub interval: Interval,
+    pub value: V,
+}
+
+impl<V> Slot<V> {
+    pub fn map<T>(&self, mapper: impl FnOnce(&V) -> T) -> Slot<T> {
+        Slot { interval: self.interval, value: mapper(&self.value) }
+    }
+
+    pub const fn as_ref(&self) -> Slot<&V> {
+        Slot { interval: self.interval, value: &self.value }
     }
 }
 
@@ -103,6 +134,6 @@ mod tests {
 
         schedule.pop_before(second.start());
         assert_eq!(schedule.len(), 1);
-        assert_eq!(schedule.get(0), (second, &2));
+        assert_eq!(schedule.get(0), Slot { interval: second, value: &2 });
     }
 }

@@ -132,9 +132,9 @@ mod tests {
         let series = Api::new(Resolution::Quarterly)?.get_prices(Local::now().date_naive()).await?;
         assert!(series.len() != 0);
         assert!(series.len() <= 24 * 4);
-        let (first_interval, _) = &series.get(0);
-        assert_eq!(first_interval.start().hour(), 0);
-        assert_eq!(first_interval.end().minute(), 15);
+        let first_slot = &series.get(0);
+        assert_eq!(first_slot.interval.start().hour(), 0);
+        assert_eq!(first_slot.interval.end().minute(), 15);
         Ok(())
     }
 

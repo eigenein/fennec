@@ -17,7 +17,7 @@ pub struct Solution {
     /// First step associated with this solution.
     ///
     /// Boundary solutions have [`None`] here.
-    pub step: Option<Step>,
+    pub step: Step,
 }
 
 impl Eq for Solution {}

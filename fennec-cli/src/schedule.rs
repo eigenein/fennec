@@ -57,6 +57,15 @@ impl<V> Schedule<V> {
         Schedule(self.0.iter().map(|slot| slot.map(&mapper)).collect())
     }
 
+    /// Construct a new schedule by mapping the values, stopping at the first error.
+    pub fn try_map<T>(&self, mut mapper: impl FnMut(&V) -> Result<T>) -> Result<Schedule<T>> {
+        self.0
+            .iter()
+            .map(|slot| Ok(Slot { interval: slot.interval, value: mapper(&slot.value)? }))
+            .collect::<Result<_>>()
+            .map(Schedule)
+    }
+
     pub fn zip_eq<T>(self, iterable: impl IntoIterator<Item = T>) -> Schedule<(V, T)> {
         Schedule(
             self.0

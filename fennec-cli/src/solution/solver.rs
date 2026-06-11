@@ -129,7 +129,7 @@ impl Solver<'_> {
                         solutions.get(next_interval_index).value[step.energy_level_after]?.metrics;
                 }
 
-                Some(Solution { metrics, step: Some(step) })
+                Some(Solution { metrics, step })
             })
             .min()
     }

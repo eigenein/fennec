@@ -1,14 +1,10 @@
-use std::{
-    iter::from_fn,
-    ops::{Index, IndexMut},
-};
+use std::ops::{Index, IndexMut};
 
 use derive_more::{Deref, DerefMut};
 
 use crate::{
     Schedule,
     energy::Flow,
-    ops::chrono::Interval,
     prelude::*,
     quantity::{energy::EnergyLevel, price::KilowattHourPrice},
     solution::{Metrics, Solution, Step},
@@ -30,43 +26,25 @@ impl Space {
         Self(schedule.map(|price| Stage::new(*price, max_energy_level)))
     }
 
-    #[expect(clippy::type_complexity)]
     pub fn backtrack(
         &self,
         initial_energy_level: EnergyLevel,
-    ) -> Result<(Metrics, impl Iterator<Item = (Interval, (Flow<KilowattHourPrice>, Step))>)> {
-        let solution = self.0.get(0).value[initial_energy_level].with_context(|| {
-            format!("there is no solution starting at energy level {initial_energy_level}")
+    ) -> Result<(Metrics, Schedule<(Flow<KilowattHourPrice>, Step)>)> {
+        let mut energy_level = initial_energy_level;
+        let mut summary = None;
+
+        let steps = self.0.try_map(|stage| {
+            let solution = stage[energy_level]
+                .with_context(|| format!("there is no solution at energy level {energy_level}"))?;
+
+            // The first solution carries the cumulative metrics for the entire plan:
+            summary.get_or_insert(solution.metrics);
+
+            energy_level = solution.step.energy_level_after;
+            Ok((stage.price, solution.step))
         })?;
 
-        // First solution in the chain contains all the cumulative metrics we need:
-        let summary = solution.metrics;
-
-        // Unrolling the solution steps:
-        let mut next_step = solution.step;
-        let mut interval_index = 0;
-        let steps = from_fn(move || {
-            // Finish when current step is that of the boundary condition:
-            let current_step = next_step.take()?;
-            // FIXME: we're repeating the 0th iteration:
-            let slot = self.0.get(interval_index);
-            let current_interval = slot.interval;
-            let current_price = slot.value.price;
-
-            // Hop to the next state:
-            interval_index += 1;
-            if interval_index < self.0.len() {
-                // Retrieve the related step if we are not the boundary:
-                next_step =
-                    // TODO: safety is guaranteed by the algorithm, but can we make it better?
-                    self.0.get(interval_index).value[current_step.energy_level_after].unwrap().step;
-            }
-
-            // Still yield current step:
-            Some((current_interval, (current_price, current_step)))
-        });
-
-        Ok((summary, steps))
+        summary.context("the solution space is empty").map(|summary| (summary, steps))
     }
 }
 

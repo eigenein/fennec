@@ -163,7 +163,6 @@ impl Solver<'_> {
                 grid: grid_flow.normalized(), // Normalize rare tiny negative values.
                 battery: battery_flows.external,
             },
-            residual_energy_after: battery.residual_energy,
             energy_level_after: battery.residual_energy.into(),
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,

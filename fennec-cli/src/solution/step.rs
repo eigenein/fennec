@@ -23,9 +23,6 @@ pub struct Step {
     /// Battery working mode taken by the optimizer.
     pub working_mode: WorkingMode,
 
-    /// TODO: I could just display `energy_level_after`.
-    pub residual_energy_after: WattHours,
-
     /// Target state at the next stage.
     pub energy_level_after: EnergyLevel,
 

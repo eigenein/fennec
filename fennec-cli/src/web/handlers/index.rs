@@ -208,10 +208,10 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                                             }
                                             td.has-text-right {
                                                 span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (slot.value.1.residual_energy_after) }
+                                                    span { (slot.value.1.energy_level_after) }
                                                     @if let Some(battery_metrics) = battery_metrics {
                                                         (StateOfCharge {
-                                                            residual_energy: slot.value.1.residual_energy_after,
+                                                            residual_energy: slot.value.1.energy_level_after.into(),
                                                             actual_capacity: battery_metrics.actual_capacity(),
                                                         }.icon())
                                                     }

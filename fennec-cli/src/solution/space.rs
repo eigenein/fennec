@@ -51,9 +51,9 @@ impl Space {
             interval_index += 1;
             if interval_index < self.0.len() {
                 // Retrieve the related step if we are not the boundary:
-                next_step = self.0.get(interval_index).value[current_step.energy_level_after]
-                    .expect("next energy level must point to an existing solution")
-                    .step;
+                next_step =
+                    // TODO: safety is guaranteed by the algorithm, but can we make it better?
+                    self.0.get(interval_index).value[current_step.energy_level_after].unwrap().step;
             }
 
             // Still yield current step:

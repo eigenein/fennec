@@ -83,6 +83,7 @@ impl Solver<'_> {
             }
         }
 
+        // TODO: may wanna warn if `n_none` is non-zero.
         info!(elapsed = ?start_instant.elapsed(), n_some, n_none, "optimized");
         solutions
     }

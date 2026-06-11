@@ -3,6 +3,8 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use derive_more::{Deref, DerefMut};
+
 use crate::{
     Schedule,
     energy::Flow,
@@ -15,6 +17,7 @@ use crate::{
 ///
 /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
 #[must_use]
+#[derive(Deref, DerefMut)]
 pub struct Space(Schedule<Stage>);
 
 impl Space {
@@ -24,24 +27,6 @@ impl Space {
         max_energy_level: EnergyLevel,
     ) -> Self {
         Self(schedule.map(|price| Stage::new(*price, max_energy_level)))
-    }
-
-    /// Get the solution at the given time slot index and energy.
-    #[must_use]
-    pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
-        self.0.get(interval_index).value[energy_level].as_ref()
-    }
-
-    /// Get the mutable solution at the given time slot index and energy.
-    ///
-    /// Panics outside the bounds.
-    #[must_use]
-    pub fn get_mut(
-        &mut self,
-        interval_index: usize,
-        energy_level: EnergyLevel,
-    ) -> &mut Option<Solution> {
-        &mut self.0.get_mut(interval_index)[energy_level]
     }
 
     pub fn backtrack(

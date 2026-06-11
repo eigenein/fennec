@@ -79,7 +79,7 @@ impl Solver<'_> {
                     Some(_) => n_some += 1,
                     None => n_none += 1,
                 }
-                *solutions.get_mut(interval_index, energy_level) = solution;
+                solutions.get_mut(interval_index)[energy_level] = solution;
             }
         }
 
@@ -124,7 +124,8 @@ impl Solver<'_> {
 
                 if next_interval_index < self.energy_prices.len() {
                     // For non-boundary solutions, accumulate the target optimization metrics:
-                    metrics += solutions.get(next_interval_index, step.energy_level_after)?.metrics;
+                    metrics +=
+                        solutions.get(next_interval_index).value[step.energy_level_after]?.metrics;
                 }
 
                 Some(Solution { metrics, step: Some(step) })

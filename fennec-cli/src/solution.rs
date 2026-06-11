@@ -11,6 +11,7 @@ pub use self::{losses::Losses, metrics::Metrics, solver::Solver, space::Space, s
 #[must_use]
 #[derive(Copy, Clone)]
 pub struct Solution {
+    /// Cumulative metrics across all stages of the solution.
     pub metrics: Metrics,
 
     /// First step associated with this solution.

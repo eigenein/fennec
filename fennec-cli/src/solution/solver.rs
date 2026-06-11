@@ -74,7 +74,7 @@ impl Solver<'_> {
             // Calculate partial solutions for the current time interval:
             // FIXME: calculate up to the capacity:
             for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
-                let solution = self.optimize_step(interval_index, energy_level, &solutions);
+                let solution = self.optimize_state(interval_index, energy_level, &solutions);
                 match solution {
                     Some(_) => n_some += 1,
                     None => n_none += 1,
@@ -91,7 +91,7 @@ impl Solver<'_> {
     ///
     /// - [`Some`] [`PartialSolution`], if a solution exists.
     /// - [`None`], if there is no solution.
-    fn optimize_step(
+    fn optimize_state(
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,

@@ -51,7 +51,7 @@ pub struct Args {
     #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "7d")]
     energy_balance_half_life: humantime::Duration,
 
-    #[clap(long, env = "N_BALANCE_HARMONICS", default_value = "6")]
+    #[clap(long, env = "N_BALANCE_HARMONICS", default_value = "12")]
     n_balance_harmonics: usize,
 
     /// Battery parameters are learned with exponential moving average.

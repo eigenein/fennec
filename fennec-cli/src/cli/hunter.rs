@@ -85,7 +85,12 @@ impl Runner {
         let solutions = solver.solve();
         let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
-        let steps = energy_prices.zip_eq(steps);
+        let steps = {
+            // FIXME: return `Schedule` directly from `backtrack`?
+            let mut temp = Schedule::new();
+            temp.extend_from_iter(steps)?;
+            temp
+        };
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,

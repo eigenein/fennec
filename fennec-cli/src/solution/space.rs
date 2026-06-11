@@ -8,6 +8,7 @@ use derive_more::{Deref, DerefMut};
 use crate::{
     Schedule,
     energy::Flow,
+    ops::chrono::Interval,
     prelude::*,
     quantity::{energy::EnergyLevel, price::KilowattHourPrice},
     solution::{Metrics, Solution, Step},
@@ -29,10 +30,11 @@ impl Space {
         Self(schedule.map(|price| Stage::new(*price, max_energy_level)))
     }
 
+    #[expect(clippy::type_complexity)]
     pub fn backtrack(
         &self,
         initial_energy_level: EnergyLevel,
-    ) -> Result<(Metrics, impl Iterator<Item = Step>)> {
+    ) -> Result<(Metrics, impl Iterator<Item = (Interval, (Flow<KilowattHourPrice>, Step))>)> {
         let solution = self.0.get(0).value[initial_energy_level].with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
@@ -46,6 +48,10 @@ impl Space {
         let steps = from_fn(move || {
             // Finish when current step is that of the boundary condition:
             let current_step = next_step.take()?;
+            // FIXME: we're repeating the 0th iteration:
+            let slot = self.0.get(interval_index);
+            let current_interval = slot.interval;
+            let current_price = slot.value.price;
 
             // Hop to the next state:
             interval_index += 1;
@@ -53,11 +59,11 @@ impl Space {
                 // Retrieve the related step if we are not the boundary:
                 next_step =
                     // TODO: safety is guaranteed by the algorithm, but can we make it better?
-                    self.0.get(interval_index).value[current_step.energy_level_after].unwrap().step;
+                    slot.value[current_step.energy_level_after].unwrap().step;
             }
 
             // Still yield current step:
-            Some(current_step)
+            Some((current_interval, (current_price, current_step)))
         });
 
         Ok((summary, steps))

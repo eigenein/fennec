@@ -5,8 +5,9 @@ use std::{
 
 use crate::{
     Schedule,
+    energy::Flow,
     prelude::*,
-    quantity::energy::EnergyLevel,
+    quantity::{energy::EnergyLevel, price::KilowattHourPrice},
     solution::{Metrics, Solution, Step},
 };
 
@@ -17,8 +18,12 @@ use crate::{
 pub struct Space(Schedule<Stage>);
 
 impl Space {
-    pub fn new<V>(schedule: &Schedule<V>, max_energy_level: EnergyLevel) -> Self {
-        Self(schedule.map(|_| Stage::new(max_energy_level)))
+    /// TODO: consume `schedule`.
+    pub fn new(
+        schedule: &Schedule<Flow<KilowattHourPrice>>,
+        max_energy_level: EnergyLevel,
+    ) -> Self {
+        Self(schedule.map(|price| Stage::new(*price, max_energy_level)))
     }
 
     /// Get the solution at the given time slot index and energy.
@@ -78,6 +83,8 @@ impl Space {
 /// and the partial solutions for every energy level.
 #[must_use]
 pub struct Stage {
+    price: Flow<KilowattHourPrice>,
+
     /// Mapping from [`EnergyLevel`] to a [`Solution`].
     solutions: Vec<Option<Solution>>,
 }
@@ -99,7 +106,7 @@ impl IndexMut<EnergyLevel> for Stage {
 }
 
 impl Stage {
-    pub fn new(max_energy_level: EnergyLevel) -> Self {
-        Self { solutions: vec![None; max_energy_level.0 + 1] }
+    pub fn new(price: Flow<KilowattHourPrice>, max_energy_level: EnergyLevel) -> Self {
+        Self { price, solutions: vec![None; max_energy_level.0 + 1] }
     }
 }

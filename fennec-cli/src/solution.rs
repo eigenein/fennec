@@ -7,7 +7,6 @@ mod step;
 use std::cmp::Ordering;
 
 pub use self::{losses::Losses, metrics::Metrics, solver::Solver, space::Space, step::Step};
-use crate::quantity::Zero;
 
 #[must_use]
 #[derive(Copy, Clone)]
@@ -18,11 +17,6 @@ pub struct Solution {
     ///
     /// Boundary solutions have [`None`] here.
     pub step: Option<Step>,
-}
-
-impl Solution {
-    /// Empty solution that is returned for the time interval beyond the forecast horizon.
-    pub const BOUNDARY: Self = Self { metrics: Metrics::ZERO, step: None };
 }
 
 impl Eq for Solution {}

@@ -51,6 +51,8 @@ impl<V> Schedule<V> {
     }
 
     /// Construct new schedule by mapping the schedule values.
+    ///
+    /// TODO: consume `self`.
     pub fn map<T>(&self, mapper: impl Fn(&V) -> T) -> Schedule<T> {
         Schedule(self.0.iter().map(|slot| slot.map(&mapper)).collect())
     }
@@ -105,6 +107,7 @@ pub struct Slot<V> {
 }
 
 impl<V> Slot<V> {
+    /// TODO: consume `self`.
     pub fn map<T>(&self, mapper: impl FnOnce(&V) -> T) -> Slot<T> {
         Slot { interval: self.interval, value: mapper(&self.value) }
     }

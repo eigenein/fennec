@@ -1,9 +1,9 @@
-use derive_more::Add;
+use derive_more::{Add, AddAssign};
 
 use crate::quantity::{Zero, currency::Mills};
 
 #[must_use]
-#[derive(Copy, Clone, Add)]
+#[derive(Copy, Clone, Add, AddAssign)]
 pub struct Losses {
     /// Cumulative loss to the grid till the end of the forecast period.
     pub grid: Mills,

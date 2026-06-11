@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, iter::from_fn};
+use std::iter::from_fn;
 
 use crate::{
     Schedule,
@@ -24,11 +24,7 @@ impl Space {
     /// Get the solution at the given time slot index and energy.
     #[must_use]
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
-        match interval_index.cmp(&self.0.len()) {
-            Ordering::Less => self.0.get(interval_index).value[energy_level.0].as_ref(),
-            Ordering::Equal => Some(&Solution::BOUNDARY),
-            Ordering::Greater => panic!("interval index is out of bounds ({interval_index})"),
-        }
+        self.0.get(interval_index).value[energy_level.0].as_ref()
     }
 
     /// Get the mutable solution at the given time slot index and energy.

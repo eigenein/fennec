@@ -1,4 +1,4 @@
-use derive_more::Add;
+use derive_more::{Add, AddAssign};
 
 use crate::{
     energy::Flow,
@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone, Add)]
+#[derive(Copy, Clone, Add, AddAssign)]
 pub struct Metrics {
     pub internal_battery_flow: Flow<WattHours>,
     pub losses: Losses,

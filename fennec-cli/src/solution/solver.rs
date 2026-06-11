@@ -118,9 +118,16 @@ impl Solver<'_> {
                     // At or above the maximum allowed energy level, forbid going higher:
                     return None;
                 }
-                // Note that the next solution may not exist, hence the question mark:
-                let next_solution = solutions.get(interval_index + 1, step.energy_level_after)?;
-                Some(Solution { metrics: step.metrics + next_solution.metrics, step: Some(step) })
+
+                let mut metrics = step.metrics;
+                let next_interval_index = interval_index + 1;
+
+                if next_interval_index < self.energy_prices.len() {
+                    // For non-boundary solutions, accumulate the target optimization metrics:
+                    metrics += solutions.get(next_interval_index, step.energy_level_after)?.metrics;
+                }
+
+                Some(Solution { metrics, step: Some(step) })
             })
             .min()
     }

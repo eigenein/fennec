@@ -59,7 +59,7 @@ impl Space {
                 // Retrieve the related step if we are not the boundary:
                 next_step =
                     // TODO: safety is guaranteed by the algorithm, but can we make it better?
-                    slot.value[current_step.energy_level_after].unwrap().step;
+                    self.0.get(interval_index).value[current_step.energy_level_after].unwrap().step;
             }
 
             // Still yield current step:

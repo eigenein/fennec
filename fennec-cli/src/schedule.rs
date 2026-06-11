@@ -103,6 +103,8 @@ impl<V> Schedule<V> {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Slot<V> {
     pub interval: Interval,
+
+    /// Payload of this schedule slot.
     pub value: V,
 }
 

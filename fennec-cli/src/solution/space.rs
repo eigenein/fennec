@@ -1,4 +1,7 @@
-use std::iter::from_fn;
+use std::{
+    iter::from_fn,
+    ops::{Index, IndexMut},
+};
 
 use crate::{
     Schedule,
@@ -11,20 +14,17 @@ use crate::{
 ///
 /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
 #[must_use]
-pub struct Space(
-    /// Inner [`Vec`] is a mapping from [`EnergyLevel`] to a [`Solution`].
-    Schedule<Vec<Option<Solution>>>,
-);
+pub struct Space(Schedule<Stage>);
 
 impl Space {
     pub fn new<V>(schedule: &Schedule<V>, max_energy_level: EnergyLevel) -> Self {
-        Self(schedule.map(|_| vec![None; max_energy_level.0 + 1]))
+        Self(schedule.map(|_| Stage::new(max_energy_level)))
     }
 
     /// Get the solution at the given time slot index and energy.
     #[must_use]
     pub fn get(&self, interval_index: usize, energy_level: EnergyLevel) -> Option<&Solution> {
-        self.0.get(interval_index).value[energy_level.0].as_ref()
+        self.0.get(interval_index).value[energy_level].as_ref()
     }
 
     /// Get the mutable solution at the given time slot index and energy.
@@ -36,14 +36,14 @@ impl Space {
         interval_index: usize,
         energy_level: EnergyLevel,
     ) -> &mut Option<Solution> {
-        &mut self.0.get_mut(interval_index)[energy_level.0]
+        &mut self.0.get_mut(interval_index)[energy_level]
     }
 
     pub fn backtrack(
         &self,
         initial_energy_level: EnergyLevel,
     ) -> Result<(Metrics, impl Iterator<Item = Step>)> {
-        let solution = self.0.get(0).value[initial_energy_level.0].with_context(|| {
+        let solution = self.0.get(0).value[initial_energy_level].with_context(|| {
             format!("there is no solution starting at energy level {initial_energy_level}")
         })?;
 
@@ -61,7 +61,7 @@ impl Space {
             interval_index += 1;
             if interval_index < self.0.len() {
                 // Retrieve the related step if we are not the boundary:
-                next_step = self.0.get(interval_index).value[current_step.energy_level_after.0]
+                next_step = self.0.get(interval_index).value[current_step.energy_level_after]
                     .expect("next energy level must point to an existing solution")
                     .step;
             }
@@ -71,5 +71,35 @@ impl Space {
         });
 
         Ok((summary, steps))
+    }
+}
+
+/// Single stage of the dynamic program: energy price for the time slot
+/// and the partial solutions for every energy level.
+#[must_use]
+pub struct Stage {
+    /// Mapping from [`EnergyLevel`] to a [`Solution`].
+    solutions: Vec<Option<Solution>>,
+}
+
+impl Index<EnergyLevel> for Stage {
+    type Output = Option<Solution>;
+
+    /// Get a reference to the solution at the specified energy level.
+    fn index(&self, energy_level: EnergyLevel) -> &Self::Output {
+        &self.solutions[energy_level.0]
+    }
+}
+
+impl IndexMut<EnergyLevel> for Stage {
+    /// Get a mutable reference to the solution at the specified energy level.
+    fn index_mut(&mut self, energy_level: EnergyLevel) -> &mut Self::Output {
+        &mut self.solutions[energy_level.0]
+    }
+}
+
+impl Stage {
+    pub fn new(max_energy_level: EnergyLevel) -> Self {
+        Self { solutions: vec![None; max_energy_level.0 + 1] }
     }
 }

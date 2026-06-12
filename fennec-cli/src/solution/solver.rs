@@ -125,8 +125,9 @@ impl Solver<'_> {
 
                 if next_interval_index < self.energy_prices.len() {
                     // For non-boundary solutions, accumulate the target optimization metrics:
-                    metrics +=
-                        solutions.get(next_interval_index).value[step.energy_level_after]?.metrics;
+                    metrics += solutions.get(next_interval_index).value[step.energy_level_after]
+                        .as_ref()?
+                        .metrics;
                 }
 
                 Some(Solution { metrics, step })

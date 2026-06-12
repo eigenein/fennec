@@ -26,6 +26,7 @@ impl Space {
         Self(schedule.map(|price| Stage::new(*price, max_energy_level)))
     }
 
+    #[expect(clippy::type_complexity)]
     pub fn backtrack(
         &self,
         initial_energy_level: EnergyLevel,
@@ -35,6 +36,7 @@ impl Space {
 
         let steps = self.0.try_map(|stage| {
             let solution = stage[energy_level]
+                .as_ref()
                 .with_context(|| format!("there is no solution at energy level {energy_level}"))?;
 
             // The first solution carries the cumulative metrics for the entire plan:

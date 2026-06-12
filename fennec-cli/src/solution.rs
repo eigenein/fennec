@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 pub use self::{losses::Losses, metrics::Metrics, solver::Solver, space::Space, step::Step};
 
 #[must_use]
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Solution {
     /// Cumulative metrics across all stages of the solution.
     pub metrics: Metrics,

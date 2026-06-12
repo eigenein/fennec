@@ -51,10 +51,8 @@ impl<V> Schedule<V> {
     }
 
     /// Construct new schedule by mapping the schedule values.
-    ///
-    /// TODO: consume `self`.
-    pub fn map<T>(&self, mapper: impl Fn(&V) -> T) -> Schedule<T> {
-        Schedule(self.0.iter().map(|slot| slot.map(&mapper)).collect())
+    pub fn map<T>(&self, mut mapper: impl FnMut(&V) -> T) -> Schedule<T> {
+        Schedule(self.0.iter().map(|slot| slot.map(&mut mapper)).collect())
     }
 
     /// Construct a new schedule by mapping the values, stopping at the first error.

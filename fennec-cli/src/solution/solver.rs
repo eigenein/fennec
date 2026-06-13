@@ -25,7 +25,7 @@ use crate::{
 #[derive(Builder)]
 pub struct Solver {
     energy_profile: energy::Profile,
-    battery_efficiency: energy::Flow<f64>,
+    battery_efficiency: Flow<f64>,
     battery_capacity: WattHours,
 
     /// Enabled working modes.
@@ -37,13 +37,11 @@ pub struct Solver {
     battery_degradation_cost: KilowattHourPrice,
 
     /// Maximum power flow that the battery supports.
-    max_battery_flow: energy::Flow<Watts>,
+    max_battery_flow: Flow<Watts>,
 
     /// Allowed energy level range.
     #[builder(into)]
     allowed_energy_levels: RangeInclusive<WattHours<usize>>,
-
-    now: DateTime<Local>,
 }
 
 impl Solver {
@@ -61,7 +59,11 @@ impl Solver {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(self, energy_prices: Schedule<energy::Flow<KilowattHourPrice>>) -> Space {
+    pub fn solve(
+        self,
+        now: DateTime<Local>,
+        energy_prices: Schedule<Flow<KilowattHourPrice>>,
+    ) -> Space {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -75,8 +77,7 @@ impl Solver {
             // Calculate partial solutions for the current time interval:
             // FIXME: calculate up to the capacity:
             for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
-                let solution =
-                    self.optimize_state(self.now, interval_index, energy_level, &solutions);
+                let solution = self.optimize_state(now, interval_index, energy_level, &solutions);
                 match solution {
                     Some(_) => n_some += 1,
                     None => n_none += 1,

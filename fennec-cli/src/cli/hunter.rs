@@ -72,7 +72,6 @@ impl Runner {
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_efficiency(energy_profile.battery_efficiency)
             .battery_capacity(battery_state.tracked.actual_capacity())
-            .now(now)
             .max_battery_flow(
                 self.battery_args
                     .power_limits
@@ -81,7 +80,7 @@ impl Runner {
             .energy_profile(energy_profile)
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
-        let solutions = solver.solve(energy_prices);
+        let solutions = solver.solve(now, energy_prices);
         let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
         let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
         info!(

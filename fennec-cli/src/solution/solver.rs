@@ -75,7 +75,8 @@ impl Solver {
             // Calculate partial solutions for the current time interval:
             // FIXME: calculate up to the capacity:
             for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
-                let solution = self.optimize_state(interval_index, energy_level, &solutions);
+                let solution =
+                    self.optimize_state(self.now, interval_index, energy_level, &solutions);
                 match solution {
                     Some(_) => n_some += 1,
                     None => n_none += 1,
@@ -95,11 +96,13 @@ impl Solver {
     /// - [`None`], if there is no solution.
     fn optimize_state(
         &self,
+        now: DateTime<Local>,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
         solutions: &Space,
     ) -> Option<Solution> {
         let Slot { interval, value: stage } = solutions.get(interval_index);
+        let interval = interval.clamp_start_to(now);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
@@ -146,8 +149,6 @@ impl Solver {
         energy_price: Flow<KilowattHourPrice>,
         working_mode: WorkingMode,
     ) -> Step {
-        let interval = interval.clamp_start_to(self.now);
-
         let average_balance = self.energy_profile.mean_balance_over(interval);
 
         // Remember that the average flow represents theoretical possibility,

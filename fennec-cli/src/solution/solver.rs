@@ -9,6 +9,8 @@ use crate::{
     battery,
     battery::WorkingMode,
     energy,
+    energy::Flow,
+    ops::chrono::Interval,
     prelude::*,
     quantity::{
         Quantity,
@@ -22,7 +24,6 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Solver {
-    energy_prices: Schedule<energy::Flow<KilowattHourPrice>>,
     energy_profile: energy::Profile,
     battery_efficiency: energy::Flow<f64>,
     battery_capacity: WattHours,
@@ -60,17 +61,17 @@ impl Solver {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(self) -> Space {
+    pub fn solve(self, energy_prices: Schedule<energy::Flow<KilowattHourPrice>>) -> Space {
         let start_instant = Instant::now();
 
-        info!(?self.allowed_energy_levels, n_intervals = self.energy_prices.len(), "optimizing…");
+        info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
 
-        let mut solutions = Space::new(&self.energy_prices, self.allowed_energy_levels.last);
+        let mut solutions = Space::new(energy_prices, self.allowed_energy_levels.last);
         let mut n_some: usize = 0;
         let mut n_none: usize = 0;
 
         // Going backwards:
-        for interval_index in (0..self.energy_prices.len()).rev() {
+        for interval_index in (0..solutions.len()).rev() {
             // Calculate partial solutions for the current time interval:
             // FIXME: calculate up to the capacity:
             for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
@@ -98,6 +99,7 @@ impl Solver {
         initial_energy_level: EnergyLevel,
         solutions: &Space,
     ) -> Option<Solution> {
+        let Slot { interval, value: stage } = solutions.get(interval_index);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
@@ -106,7 +108,8 @@ impl Solver {
         self.working_modes
             .iter()
             .filter_map(|working_mode| {
-                let step = self.simulate_step(battery_simulator, interval_index, working_mode);
+                let step =
+                    self.simulate_step(battery_simulator, interval, stage.price(), working_mode);
                 if (step.energy_level_after < initial_energy_level)
                     && (initial_energy_level <= self.allowed_energy_levels.start)
                 {
@@ -123,7 +126,7 @@ impl Solver {
                 let mut metrics = step.metrics;
                 let next_interval_index = interval_index + 1;
 
-                if next_interval_index < self.energy_prices.len() {
+                if next_interval_index < solutions.len() {
                     // For non-boundary solutions, accumulate the target optimization metrics:
                     metrics += solutions.get(next_interval_index).value[step.energy_level_after]
                         .as_ref()?
@@ -140,10 +143,10 @@ impl Solver {
     fn simulate_step(
         &self,
         mut battery: battery::Simulator,
-        interval_index: usize,
+        interval: Interval,
+        price: Flow<KilowattHourPrice>,
         working_mode: WorkingMode,
     ) -> Step {
-        let Slot { interval, value: energy_price } = self.energy_prices.get(interval_index);
         let interval = interval.clamp_start_to(self.now);
 
         let average_balance = self.energy_profile.mean_balance_over(interval);
@@ -169,7 +172,7 @@ impl Solver {
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {
-                    grid: energy_price.loss(grid_flow),
+                    grid: price.loss(grid_flow),
                     battery: (battery_flows.internal.import + battery_flows.internal.export)
                         * self.battery_degradation_cost,
                 },

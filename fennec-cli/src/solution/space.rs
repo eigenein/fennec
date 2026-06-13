@@ -18,12 +18,8 @@ use crate::{
 pub struct Space(Schedule<Stage>);
 
 impl Space {
-    /// TODO: consume `schedule`.
-    pub fn new(
-        schedule: &Schedule<Flow<KilowattHourPrice>>,
-        max_energy_level: EnergyLevel,
-    ) -> Self {
-        Self(schedule.map(|price| Stage::new(*price, max_energy_level)))
+    pub fn new(schedule: Schedule<Flow<KilowattHourPrice>>, max_energy_level: EnergyLevel) -> Self {
+        Self(schedule.map(|price| Stage::new(price, max_energy_level)))
     }
 
     #[expect(clippy::type_complexity)]
@@ -79,5 +75,9 @@ impl IndexMut<EnergyLevel> for Stage {
 impl Stage {
     pub fn new(price: Flow<KilowattHourPrice>, max_energy_level: EnergyLevel) -> Self {
         Self { price, solutions: vec![None; max_energy_level.0 + 1] }
+    }
+
+    pub const fn price(&self) -> Flow<KilowattHourPrice> {
+        self.price
     }
 }

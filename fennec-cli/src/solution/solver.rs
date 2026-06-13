@@ -138,13 +138,12 @@ impl Solver {
             .min()
     }
 
-    /// Simulate the battery working in the specified mode given the initial conditions,
-    /// and return the loss and new residual energy.
+    /// Simulate the battery working in the specified mode given the initial conditions.
     fn simulate_step(
         &self,
         mut battery: battery::Simulator,
         interval: Interval,
-        price: Flow<KilowattHourPrice>,
+        energy_price: Flow<KilowattHourPrice>,
         working_mode: WorkingMode,
     ) -> Step {
         let interval = interval.clamp_start_to(self.now);
@@ -172,7 +171,7 @@ impl Solver {
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {
-                    grid: price.loss(grid_flow),
+                    grid: energy_price.loss(grid_flow),
                     battery: (battery_flows.internal.import + battery_flows.internal.export)
                         * self.battery_degradation_cost,
                 },

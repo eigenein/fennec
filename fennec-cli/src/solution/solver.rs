@@ -21,8 +21,8 @@ use crate::{
 };
 
 #[derive(Builder)]
-pub struct Solver<'a> {
-    energy_prices: &'a Schedule<energy::Flow<KilowattHourPrice>>,
+pub struct Solver {
+    energy_prices: Schedule<energy::Flow<KilowattHourPrice>>,
     energy_profile: energy::Profile,
     battery_efficiency: energy::Flow<f64>,
     battery_capacity: WattHours,
@@ -45,7 +45,7 @@ pub struct Solver<'a> {
     now: DateTime<Local>,
 }
 
-impl Solver<'_> {
+impl Solver {
     /// Find the optimal battery schedule.
     ///
     /// Works backwards from future to present, computing the minimum cost at each
@@ -65,7 +65,7 @@ impl Solver<'_> {
 
         info!(?self.allowed_energy_levels, n_intervals = self.energy_prices.len(), "optimizing…");
 
-        let mut solutions = Space::new(self.energy_prices, self.allowed_energy_levels.last);
+        let mut solutions = Space::new(&self.energy_prices, self.allowed_energy_levels.last);
         let mut n_some: usize = 0;
         let mut n_none: usize = 0;
 

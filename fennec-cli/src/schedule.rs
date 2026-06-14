@@ -78,11 +78,6 @@ impl<V> Schedule<V> {
         self.0.iter().map(Slot::as_ref)
     }
 
-    /// Pop schedule slots that ended before the given timestamp.
-    pub fn pop_before(&mut self, timestamp: DateTime<Local>) {
-        while self.0.pop_front_if(|slot| slot.interval.end() <= timestamp).is_some() {}
-    }
-
     pub fn extend(&mut self, other: Self) -> Result {
         ensure!(
             self.end().zip(other.start()).is_none_or(|(end, start)| end == start),
@@ -111,6 +106,11 @@ impl<V> Schedule<V> {
         if let Some(first) = self.0.front_mut() {
             first.interval = first.interval.clamp_start_to(timestamp);
         }
+    }
+
+    /// Pop schedule slots that ended before the given timestamp.
+    fn pop_before(&mut self, timestamp: DateTime<Local>) {
+        while self.0.pop_front_if(|slot| slot.interval.end() <= timestamp).is_some() {}
     }
 }
 

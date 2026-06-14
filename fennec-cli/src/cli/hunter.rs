@@ -18,7 +18,7 @@ use crate::{
         price::KilowattHourPrice,
     },
     solution,
-    solution::{Solver, Step},
+    solution::{Optimizer, Step},
 };
 
 #[must_use]
@@ -67,7 +67,8 @@ impl Runner {
 
         let min_energy_level = EnergyLevel::from(battery_state.min_residual_charge());
         let max_energy_level = EnergyLevel::from(battery_state.max_residual_charge());
-        let solver = Solver::builder()
+        let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
+        let (metrics, steps) = Optimizer::builder()
             .working_modes(self.battery_args.working_modes.iter().copied().collect())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_efficiency(energy_profile.battery_efficiency)
@@ -79,9 +80,10 @@ impl Runner {
             )
             .energy_profile(energy_profile)
             .battery_degradation_cost(self.battery_args.degradation_cost)
-            .build();
-        let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
-        let (metrics, steps) = solver.solve(energy_prices).space.backtrack(initial_energy_level)?;
+            .build()
+            .solve(energy_prices)
+            .solutions
+            .backtrack(initial_energy_level)?;
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,

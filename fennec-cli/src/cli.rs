@@ -115,6 +115,8 @@ pub struct BindArgs {
 }
 
 /// Battery power limits.
+///
+/// TODO: we could use `Watts<u16>` here.
 #[must_use]
 #[derive(Copy, Clone, Parser)]
 pub struct BatteryPowerLimits {

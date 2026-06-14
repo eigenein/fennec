@@ -95,7 +95,7 @@ impl Solver {
     ///
     /// - [`Some`] [`PartialSolution`], if a solution exists.
     /// - [`None`], if there is no solution.
-    fn optimize_state(
+    pub fn optimize_state(
         &self,
         now: DateTime<Local>,
         interval_index: usize,

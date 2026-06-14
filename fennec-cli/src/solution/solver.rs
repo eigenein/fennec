@@ -18,7 +18,7 @@ use crate::{
         price::KilowattHourPrice,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Solution, Solved, Space, Step},
+    solution::{Losses, Metrics, Solution, Solved, Step, solved::Stage},
 };
 
 #[derive(Builder)]
@@ -63,7 +63,8 @@ impl Solver {
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
 
-        let mut solutions = Space::new(energy_prices, self.allowed_energy_levels.last);
+        let mut solutions =
+            energy_prices.map(|price| Stage::new(price, self.allowed_energy_levels.last));
         let mut n_some: usize = 0;
         let mut n_none: usize = 0;
 
@@ -94,7 +95,7 @@ impl Solver {
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
-        solutions: &Space,
+        solutions: &Schedule<Stage>,
     ) -> Option<Solution> {
         let Slot { interval, value: stage } = solutions.get(interval_index);
         let battery_simulator = battery::Simulator {

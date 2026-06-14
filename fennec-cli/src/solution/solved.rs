@@ -1,8 +1,6 @@
-use chrono::{DateTime, Local};
-
 use crate::{
     quantity::energy::EnergyLevel,
-    solution::{Solution, Solver, Space},
+    solution::{Solver, Space},
 };
 
 pub struct Solved {
@@ -11,20 +9,11 @@ pub struct Solved {
 }
 
 impl Solved {
-    /// Re-optimize the state according to the current time and energy level.
+    /// Re-optimize the solution space at the specified energy level.
     ///
-    /// This strips the solution space off the past intervals and re-optimizes starting
-    /// with the currently running interval.
-    pub fn reoptimize(
-        &mut self,
-        now: DateTime<Local>,
-        initial_energy_level: EnergyLevel,
-    ) -> Option<Solution> {
-        self.space.pop_before(now);
-        if self.space.len() == 0 {
-            // TODO: we may need enum since empty space is not the same as missing solution.
-            return None;
-        }
-        self.solver.optimize_state(now, 0, initial_energy_level, &self.space)
+    /// Make sure to the space to the current timestamp.
+    pub fn reoptimize_state(&mut self, initial_energy_level: EnergyLevel) {
+        self.space.get_mut(0)[initial_energy_level] =
+            self.solver.optimize_state(0, initial_energy_level, &self.space);
     }
 }

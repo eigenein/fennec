@@ -1,7 +1,6 @@
 use std::{range::RangeInclusive, time::Instant};
 
 use bon::Builder;
-use chrono::{DateTime, Local};
 use enumset::EnumSet;
 
 use crate::{
@@ -59,11 +58,7 @@ impl Solver {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(
-        self,
-        now: DateTime<Local>,
-        energy_prices: Schedule<Flow<KilowattHourPrice>>,
-    ) -> Solved {
+    pub fn solve(self, energy_prices: Schedule<Flow<KilowattHourPrice>>) -> Solved {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -77,7 +72,7 @@ impl Solver {
             // Calculate partial solutions for the current time interval:
             // FIXME: calculate up to the capacity:
             for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
-                let solution = self.optimize_state(now, interval_index, energy_level, &solutions);
+                let solution = self.optimize_state(interval_index, energy_level, &solutions);
                 match solution {
                     Some(_) => n_some += 1,
                     None => n_none += 1,
@@ -97,13 +92,11 @@ impl Solver {
     /// - [`None`], if there is no solution.
     pub fn optimize_state(
         &self,
-        now: DateTime<Local>,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
         solutions: &Space,
     ) -> Option<Solution> {
         let Slot { interval, value: stage } = solutions.get(interval_index);
-        let interval = interval.clamp_start_to(now);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,

@@ -81,8 +81,7 @@ impl Runner {
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
         let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
-        let (metrics, steps) =
-            solver.solve(now, energy_prices).space.backtrack(initial_energy_level)?;
+        let (metrics, steps) = solver.solve(energy_prices).space.backtrack(initial_energy_level)?;
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,
@@ -125,9 +124,8 @@ impl Runner {
         let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
         prices.extend(self.energy_provider.get_prices(tomorrow).await?)?;
 
-        prices.pop_before(now);
         info!(len = prices.len(), "fetched energy prices");
-
+        prices.advance_to(now);
         Ok(prices)
     }
 }

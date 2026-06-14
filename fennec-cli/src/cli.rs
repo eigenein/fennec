@@ -136,14 +136,14 @@ pub struct BatteryPowerLimits {
     )]
     pub discharging: Watts,
 
-    /// Inverter output power limit in watts – limits the summed grid and EPS output when discharging.
+    /// Inverter power limit in watts – limits the summed grid and EPS output when discharging.
     #[clap(
-        name = "max_inverter_output_watts",
-        long = "max-inverter-output-watts",
+        name = "max_inverter_power_watts",
+        long = "max-inverter-power-watts",
         default_value = "1200",
-        env = "MAX_INVERTER_OUTPUT_WATTS"
+        env = "MAX_INVERTER_POWER_WATTS"
     )]
-    pub max_inverter_output: Watts,
+    pub max_inverter_power: Watts,
 }
 
 impl BatteryPowerLimits {
@@ -154,7 +154,7 @@ impl BatteryPowerLimits {
 
             // EPS power does not compete with the grid output, hence adding it on top.
             // The total discharging power, however, is limited by the maximum inverter output.
-            export: (self.discharging + average_eps_power).min(self.max_inverter_output),
+            export: (self.discharging + average_eps_power).min(self.max_inverter_power),
         }
     }
 }

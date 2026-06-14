@@ -75,15 +75,17 @@ pub fn build(
         .collect();
 
     // Actual contents should not matter, but set them to something reasonable anyway:
+    #[expect(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_sign_loss)]
     let disabled_entry = schedule::Entry {
         is_enabled: false,
         start_time: NaiveTime::MIN,
         end_time: NaiveTime::MIN,
-        working_mode: schedule::WorkingMode::SelfUse,
+        working_mode: schedule::WorkingMode::SelfUse, // TODO: make configurable by user.
         maximum_state_of_charge: contrib::Percentage(charge_limits.last.0),
         minimum_state_of_charge: contrib::Percentage(charge_limits.start.0),
         target_state_of_charge: contrib::Percentage(100),
-        power: contrib::Watts(0),
+        power: contrib::Watts(power_limits.max_inverter_power.0 as u16),
         reserved_1: 0,
         reserved_2: 0,
         reserved_3: 0,

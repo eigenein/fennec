@@ -103,6 +103,9 @@ impl Runner {
 
         if self.dry_run {
             warn!("not pushing the schedule to the battery, just scouting");
+            for entry in entries {
+                info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
+            }
         } else {
             (async || self.connections.battery.write_schedule(&entries).await)
                 .retry(Self::BACKOFF)

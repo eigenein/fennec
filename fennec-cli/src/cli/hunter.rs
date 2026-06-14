@@ -80,9 +80,9 @@ impl Runner {
             .energy_profile(energy_profile)
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build();
-        let solutions = solver.solve(now, energy_prices);
         let initial_energy_level = WattHours::from(battery_state.tracked.residual_energy()).into();
-        let (metrics, steps) = solutions.backtrack(initial_energy_level)?;
+        let (metrics, steps) =
+            solver.solve(now, energy_prices).space.backtrack(initial_energy_level)?;
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,

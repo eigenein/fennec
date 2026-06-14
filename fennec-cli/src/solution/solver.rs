@@ -19,7 +19,7 @@ use crate::{
         price::KilowattHourPrice,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Solution, Space, Step},
+    solution::{Losses, Metrics, Solution, Solved, Space, Step},
 };
 
 #[derive(Builder)]
@@ -63,7 +63,7 @@ impl Solver {
         self,
         now: DateTime<Local>,
         energy_prices: Schedule<Flow<KilowattHourPrice>>,
-    ) -> Space {
+    ) -> Solved {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -88,7 +88,7 @@ impl Solver {
 
         // TODO: may wanna warn if `n_none` is non-zero.
         info!(elapsed = ?start_instant.elapsed(), n_some, n_none, "optimized");
-        solutions
+        Solved { space: solutions, solver: self }
     }
 
     /// # Returns

@@ -1,12 +1,20 @@
 mod losses;
 mod metrics;
+mod solved;
 mod solver;
 mod space;
 mod step;
 
 use std::cmp::Ordering;
 
-pub use self::{losses::Losses, metrics::Metrics, solver::Solver, space::Space, step::Step};
+pub use self::{
+    losses::Losses,
+    metrics::Metrics,
+    solved::Solved,
+    solver::Solver,
+    space::Space,
+    step::Step,
+};
 
 #[must_use]
 #[derive(Clone)]

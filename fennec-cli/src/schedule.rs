@@ -104,6 +104,14 @@ impl<V> Schedule<V> {
         }
         Ok(())
     }
+
+    /// Remove intervals that ended before `now` and clamp the first remaining interval's start to `now`.
+    pub fn advance_to(&mut self, timestamp: DateTime<Local>) {
+        self.pop_before(timestamp);
+        if let Some(first) = self.0.front_mut() {
+            first.interval = first.interval.clamp_start_to(timestamp);
+        }
+    }
 }
 
 #[must_use]

@@ -36,11 +36,17 @@ macro_rules! impl_for {
 
 impl_for!(u8, 8);
 impl_for!(i8, 8);
+
 impl_for!(u16, 16);
 impl_for!(i16, 16);
+
 impl_for!(u32, 32);
 impl_for!(i32, 32);
+impl_for!(f32, 32);
+
 impl_for!(u64, 64);
 impl_for!(i64, 64);
+impl_for!(f64, 64);
+
 impl_for!(u128, 128);
 impl_for!(i128, 128);

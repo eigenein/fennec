@@ -9,7 +9,7 @@ use crate::{
     protocol::{
         Address,
         codec::{BitSize, Decode, Encode},
-        function::{IntoValue, size_argument},
+        function::{IntoValue, size_argument::SizeArgument},
     },
 };
 
@@ -18,10 +18,13 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// use fennec_modbus::protocol::{codec::Encode, function::write_multiple::Args};
+/// use fennec_modbus::protocol::{
+///     codec::Encode,
+///     function::{size_argument, write_multiple::Args},
+/// };
 ///
 /// assert_eq!(
-///     Args::new(1_u16, [0x000A_u16, 0x0102]).to_bytes(),
+///     Args::<_, _, size_argument::Words>::new(1_u16, [0x000A_u16, 0x0102]).to_bytes(),
 ///     [
 ///         0x00, 0x01, // starting address
 ///         0x00, 0x02, // register count
@@ -46,11 +49,11 @@ impl<A, V, S> Args<A, V, S> {
     }
 }
 
-impl<A: Address, V: BitSize + Encode> Encode for Args<A, V, size_argument::Words> {
+impl<A: Address, V: BitSize + Encode, S: SizeArgument> Encode for Args<A, V, S> {
     fn encode(&self, to: &mut impl BufMut) {
-        V::assert_valid_size::<246>();
+        S::assert_valid_size::<V, 246>();
         self.0.encode(to);
-        to.put_u16(V::N_WORDS);
+        to.put_u16(S::quantity_for::<V>());
         to.put_u8(V::N_BYTES);
         self.1.encode(to);
     }

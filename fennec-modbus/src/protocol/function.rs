@@ -6,7 +6,7 @@ use crate::protocol::{
 };
 
 pub mod read_multiple;
-mod size_argument;
+pub mod size_argument;
 pub mod write_multiple;
 
 /// Associates function code with function type.

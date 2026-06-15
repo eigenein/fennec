@@ -10,11 +10,29 @@ use crate::{
         Address,
         codec::{BitSize, Decode, Encode, adapters::DropRemaining},
         function,
-        function::size_argument,
+        function::size_argument::SizeArgument,
     },
 };
 
 /// Address range for reading operations.
+///
+/// # Example
+///
+/// ```rust
+/// use fennec_modbus::protocol::{
+///     codec::Encode,
+///     function::{read_multiple::Args, size_argument},
+/// };
+///
+/// // Read holding registers 108–110 (Modbus spec §6.3 example).
+/// assert_eq!(
+///     Args::<_, [u16; 3], size_argument::Words>::new(0x006B_u16).to_bytes(),
+///     [
+///         0x00, 0x6B, // starting address
+///         0x00, 0x03, // quantity of registers
+///     ]
+/// );
+/// ```
 #[must_use]
 pub struct Args<A, V, S>(
     /// Bare starting address.
@@ -39,21 +57,12 @@ impl<A, V: BitSize, S> Args<A, V, S> {
     }
 }
 
-impl<A: Address, V: BitSize> Encode for Args<A, V, size_argument::Bits> {
+impl<A: Address, V: BitSize, S: SizeArgument> Encode for Args<A, V, S> {
     /// Encode the address and number of bits to read.
     fn encode(&self, to: &mut impl BufMut) {
-        V::assert_valid_size::<246>();
+        S::assert_valid_size::<V, 250>();
         self.0.encode(to);
-        to.put_u16(V::N_BITS);
-    }
-}
-
-impl<A: Address, V: BitSize> Encode for Args<A, V, size_argument::Words> {
-    /// Encode the address and number of registers to read.
-    fn encode(&self, to: &mut impl BufMut) {
-        V::assert_valid_size::<250>();
-        self.0.encode(to);
-        to.put_u16(V::N_WORDS);
+        to.put_u16(S::quantity_for::<V>());
     }
 }
 

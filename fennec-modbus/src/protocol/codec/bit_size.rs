@@ -12,16 +12,6 @@ pub trait BitSize {
 
     /// Number of whole words occupied by the value.
     const N_WORDS: u16 = Self::N_BITS.div_ceil(16);
-
-    /// Assert that the number of bytes in the payload is valid.
-    ///
-    /// If the value type is too big, the assertion would fire at compile time.
-    fn assert_valid_size<const N_MAX_BYTES: u8>() {
-        const {
-            assert!(Self::N_BYTES >= 1, "value type must be non-empty");
-            assert!(Self::N_BYTES <= N_MAX_BYTES, "value is too large");
-        };
-    }
 }
 
 impl<T: BitSize, const N: usize> BitSize for &[T; N] {

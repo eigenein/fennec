@@ -42,7 +42,7 @@ impl<A, V: BitSize, S> Args<A, V, S> {
 impl<A: Address, V: BitSize> Encode for Args<A, V, size_argument::Bits> {
     /// Encode the address and number of bits to read.
     fn encode(&self, to: &mut impl BufMut) {
-        V::assert_valid::<246>();
+        V::assert_valid_size::<246>();
         self.0.encode(to);
         to.put_u16(V::N_BITS);
     }
@@ -51,7 +51,7 @@ impl<A: Address, V: BitSize> Encode for Args<A, V, size_argument::Bits> {
 impl<A: Address, V: BitSize> Encode for Args<A, V, size_argument::Words> {
     /// Encode the address and number of registers to read.
     fn encode(&self, to: &mut impl BufMut) {
-        V::assert_valid::<250>();
+        V::assert_valid_size::<250>();
         self.0.encode(to);
         to.put_u16(V::N_WORDS);
     }

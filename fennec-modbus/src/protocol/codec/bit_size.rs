@@ -16,7 +16,7 @@ pub trait BitSize {
     /// Assert that the number of bytes in the payload is valid.
     ///
     /// If the value type is too big, the assertion would fire at compile time.
-    fn assert_valid<const N_MAX_BYTES: u8>() {
+    fn assert_valid_size<const N_MAX_BYTES: u8>() {
         const {
             assert!(Self::N_BYTES >= 1, "value type must be non-empty");
             assert!(Self::N_BYTES <= N_MAX_BYTES, "value is too large");

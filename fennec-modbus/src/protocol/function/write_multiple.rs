@@ -48,7 +48,7 @@ impl<A, V, S> Args<A, V, S> {
 
 impl<A: Address, V: BitSize + Encode> Encode for Args<A, V, size_argument::Words> {
     fn encode(&self, to: &mut impl BufMut) {
-        V::assert_valid::<246>();
+        V::assert_valid_size::<246>();
         self.0.encode(to);
         to.put_u16(V::N_WORDS);
         to.put_u8(V::N_BYTES);

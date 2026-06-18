@@ -15,18 +15,23 @@ mod schedule;
 mod solution;
 mod web;
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use clap::{Parser, crate_name, crate_version};
 use sentry::{
     SessionMode,
     integrations::{anyhow::capture_anyhow, tracing::EventFilter},
 };
+use tokio::{spawn, sync::RwLock, try_join};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 pub use self::schedule::Schedule;
-use crate::{cli::Args, prelude::*};
+use crate::{
+    cli::{Args, hunter, logger},
+    math::smoothing::HalfLife,
+    prelude::*,
+};
 
 fn main() -> Result {
     init_tracing()?;
@@ -39,7 +44,7 @@ fn main() -> Result {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?
-        .block_on(Box::pin(args.run()))
+        .block_on(Box::pin(run(args)))
         .inspect_err(|error| {
             capture_anyhow(error);
         })
@@ -79,4 +84,36 @@ fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
         warn!("Sentry is disabled");
     }
     guard
+}
+
+async fn run(args: Args) -> Result {
+    let battery_power_limits = args.battery.power_limits;
+    let connections = args.connections.connect()?;
+
+    let logger_runner = logger::Args::builder()
+        .connections(connections.clone())
+        .battery_power_limits(battery_power_limits)
+        .energy_balance_half_life(HalfLife(Duration::from(args.energy_balance_half_life).into()))
+        .battery_efficiency_half_life_factor(args.battery_efficiency_half_life_factor)
+        .n_balance_harmonics(args.n_balance_harmonics)
+        .build()
+        .start()
+        .await?;
+    let hunter_runner = hunter::Runner::builder()
+        .connections(connections.clone())
+        .energy_provider(args.energy_provider)
+        .battery_args(args.battery)
+        .n_balance_harmonics(args.n_balance_harmonics)
+        .dry_run(args.dry_run)
+        .build();
+
+    let hunter_state = Arc::new(RwLock::new(hunter_runner.run_once().await?));
+    let state = web::State { hunter: hunter_state.clone(), logger_runner: logger_runner.clone() };
+    try_join!(
+        async { spawn(logger_runner.run_forever(args.logger_cron)).await? },
+        async { spawn(hunter_runner.run_forever(args.optimizer_cron, hunter_state)).await? },
+        async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? },
+    )?;
+
+    Ok(())
 }

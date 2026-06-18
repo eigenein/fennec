@@ -1,6 +1,5 @@
 pub mod hunter;
 pub mod logger;
-mod sentry;
 
 use std::{net::IpAddr, sync::Arc, time::Duration};
 
@@ -10,7 +9,6 @@ use tokio::{spawn, sync::RwLock, try_join};
 use crate::{
     api::{battery, homewizard},
     battery::WorkingMode,
-    cli::sentry::SentryArgs,
     cron::CronSchedule,
     energy,
     math::smoothing::HalfLife,
@@ -23,8 +21,8 @@ use crate::{
 #[command(author, version, about, propagate_version = true)]
 #[must_use]
 pub struct Args {
-    #[clap(flatten)]
-    pub sentry: SentryArgs,
+    #[clap(long = "sentry-dsn", env = "SENTRY_DSN")]
+    pub sentry_dsn: Option<String>,
 
     #[clap(flatten)]
     connections: ConnectionArgs,
@@ -66,6 +64,7 @@ pub struct Args {
 }
 
 impl Args {
+    /// TODO: move to `main`.
     pub async fn run(self) -> Result {
         let battery_power_limits = self.battery.power_limits;
         let connections = self.connections.connect()?;

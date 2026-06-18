@@ -15,8 +15,13 @@ mod schedule;
 mod solution;
 mod web;
 
-use clap::{Parser, crate_version};
-use sentry::integrations::{anyhow::capture_anyhow, tracing::EventFilter};
+use std::borrow::Cow;
+
+use clap::{Parser, crate_name, crate_version};
+use sentry::{
+    SessionMode,
+    integrations::{anyhow::capture_anyhow, tracing::EventFilter},
+};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -24,6 +29,23 @@ pub use self::schedule::Schedule;
 use crate::{cli::Args, prelude::*};
 
 fn main() -> Result {
+    init_tracing()?;
+
+    info!(version = crate_version!(), "starting…");
+    let _ = dotenvy::dotenv();
+    let args = Args::parse();
+    let _sentry_guard = init_sentry(args.sentry_dsn.as_deref());
+
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?
+        .block_on(Box::pin(args.run()))
+        .inspect_err(|error| {
+            capture_anyhow(error);
+        })
+}
+
+fn init_tracing() -> Result {
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
         .from_env()?
@@ -37,16 +59,24 @@ fn main() -> Result {
             },
         ))
         .init();
+    Ok(())
+}
 
-    info!(version = crate_version!(), "starting…");
-    let _ = dotenvy::dotenv();
-    let args = Args::parse();
-    let _sentry_guard = args.sentry.init();
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?
-        .block_on(Box::pin(args.run()))
-        .inspect_err(|error| {
-            capture_anyhow(error);
-        })
+fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
+    let options = sentry::ClientOptions {
+        traces_sample_rate: 1.0,
+        sample_rate: 1.0,
+        send_default_pii: true,
+        attach_stacktrace: true,
+        in_app_include: vec![crate_name!()],
+        release: Some(Cow::Borrowed(crate_version!())),
+        auto_session_tracking: true,
+        session_mode: SessionMode::Application,
+        ..Default::default()
+    };
+    let guard = sentry::init((dsn, options));
+    if !guard.is_enabled() {
+        warn!("Sentry is disabled");
+    }
+    guard
 }

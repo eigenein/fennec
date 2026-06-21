@@ -24,7 +24,7 @@ use sentry::{
     SessionMode,
     integrations::{anyhow::capture_anyhow, tracing::EventFilter},
 };
-use tokio::{spawn, sync::RwLock, try_join};
+use tokio::{spawn, sync::RwLock, time::MissedTickBehavior, try_join};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -125,6 +125,7 @@ async fn run(args: Args) -> Result {
 }
 
 struct Runner {
+    interval: tokio::time::Interval,
     grid_measurement_client: homewizard::Client,
     battery_client: mini_qube::Client,
     battery_args: BatteryArgs,
@@ -149,7 +150,11 @@ impl Runner {
         ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
     async fn start(args: Args) -> Result<Self> {
+        let mut interval = tokio::time::interval(args.logger_interval.into());
+        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
         let this = Self {
+            interval,
             grid_measurement_client: args.connections.grid_measurement_url.client()?,
             battery_client: mini_qube::Client::new(args.connections.battery_address),
             battery_args: args.battery,
@@ -163,6 +168,17 @@ impl Runner {
             energy_profile: energy::Profile::read_from_file(args.n_balance_harmonics).await?,
         };
         Ok(this)
+    }
+
+    async fn run_forever(mut self) -> Result {
+        loop {
+            self.interval.tick().await;
+            self.run_once().await?;
+        }
+    }
+
+    async fn run_once(&mut self) -> Result {
+        todo!()
     }
 
     /// Fetch energy prices for up to 2 days.

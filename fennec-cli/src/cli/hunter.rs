@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
-use fennec_modbus::contrib::mq2200::schedule;
+use fennec_modbus::contrib::mini_qube::schedule;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -93,12 +93,12 @@ impl Runner {
             "solution summary",
         );
 
-        let schedule = api::battery::schedule::build(
+        let schedule = api::mini_qube::schedule::build(
             steps.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
             battery_state.untracked.allowed_charge,
             self.battery_args.power_limits,
         );
-        self.write_schedule(schedule).await?;
+        self.write_schedule(&schedule).await?;
 
         Ok(State { steps, metrics })
     }
@@ -120,14 +120,14 @@ impl Runner {
         Ok(prices)
     }
 
-    async fn write_schedule(&self, schedule: schedule::Full) -> Result {
+    async fn write_schedule(&self, schedule: &schedule::Full) -> Result {
         if self.dry_run {
             warn!("not writing the schedule to the battery, just scouting");
             for entry in schedule {
                 info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
             }
         } else {
-            (async || self.connections.battery.write_schedule(&schedule).await)
+            (async || self.connections.battery.write_schedule(schedule).await)
                 .retry(Self::BACKOFF)
                 .notify(log_retried_error)
                 .await

@@ -7,7 +7,7 @@ use crate::{
     protocol::codec::{BitSize, Decode, Encode},
 };
 
-pub mod mq2200;
+pub mod mini_qube;
 
 // TODO: make endianness a type parameter.
 macro_rules! impl_new_type {

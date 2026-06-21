@@ -8,8 +8,8 @@ use std::array::from_fn;
 use chrono::Local;
 use fennec_modbus::{
     contrib::{
-        mq2200,
-        mq2200::{ReadScheduleEntryBlock, WriteScheduleEntryBlock},
+        mini_qube,
+        mini_qube::{ReadScheduleEntryBlock, WriteScheduleEntryBlock},
     },
     protocol::{address, function::write_multiple},
     tcp::UnitId,
@@ -40,31 +40,31 @@ impl Client {
     async fn read_tracked_metrics(&self) -> Result<TrackedMetrics> {
         let design_capacity = self
             .0
-            .call::<mq2200::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the design capacity")?
             .into();
         let health = self
             .0
-            .call::<mq2200::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoH")?
             .try_into()?;
         let charge = self
             .0
-            .call::<mq2200::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoC")?
             .try_into()?;
         let total_grid_export_energy = self
             .0
-            .call::<mq2200::ReadTotalGridExportEnergy>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadTotalGridExportEnergy>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the total exported energy")?
             .into();
         let total_grid_import_energy = self
             .0
-            .call::<mq2200::ReadTotalGridImportEnergy>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadTotalGridImportEnergy>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the total exported energy")?
             .into();
@@ -86,26 +86,26 @@ impl Client {
         // TODO: these two are only needed when optimizing:
         let min_charge = self
             .0
-            .call::<mq2200::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the min SoC")?
             .try_into()?;
         let max_charge = self
             .0
-            .call::<mq2200::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the max SoC")?
             .try_into()?;
 
         let active_power = self
             .0
-            .call::<mq2200::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the active power")?
             .into();
         let eps_active_power = self
             .0
-            .call::<mq2200::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the EPS active power")?
             .into();
@@ -118,17 +118,17 @@ impl Client {
     }
 
     #[instrument(skip_all)]
-    pub async fn write_schedule(&self, schedule: &mq2200::schedule::Full) -> Result {
-        let blocks: [[mq2200::schedule::Entry; mq2200::schedule::N_ENTRIES_PER_BLOCK];
-            mq2200::schedule::N_BLOCKS] = from_fn(|block_index| {
+    pub async fn write_schedule(&self, schedule: &mini_qube::schedule::Full) -> Result {
+        let blocks: [[mini_qube::schedule::Entry; mini_qube::schedule::N_ENTRIES_PER_BLOCK];
+            mini_qube::schedule::N_BLOCKS] = from_fn(|block_index| {
             from_fn(|entry_index| {
-                schedule[block_index * mq2200::schedule::N_ENTRIES_PER_BLOCK + entry_index]
+                schedule[block_index * mini_qube::schedule::N_ENTRIES_PER_BLOCK + entry_index]
             })
         });
 
         for (i, block) in (0u16..).zip(blocks) {
             info!(i, "writing the schedule block…");
-            let address = mq2200::schedule::BlockIndex(i);
+            let address = mini_qube::schedule::BlockIndex(i);
 
             self.0
                 .call::<WriteScheduleEntryBlock>(

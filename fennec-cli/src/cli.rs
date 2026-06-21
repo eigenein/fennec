@@ -6,7 +6,7 @@ use std::{net::IpAddr, sync::Arc};
 use clap::Parser;
 
 use crate::{
-    api::{battery, homewizard},
+    api::{homewizard, mini_qube},
     battery::WorkingMode,
     cron::CronSchedule,
     energy,
@@ -158,7 +158,7 @@ impl ConnectionArgs {
     pub fn connect(self) -> Result<Connections> {
         Ok(Connections {
             grid_measurement: self.grid_measurement_url.client()?,
-            battery: Arc::new(battery::Client::new(self.battery_address)),
+            battery: Arc::new(mini_qube::Client::new(self.battery_address)),
         })
     }
 }
@@ -166,5 +166,5 @@ impl ConnectionArgs {
 #[derive(Clone)]
 pub struct Connections {
     pub grid_measurement: homewizard::Client,
-    pub battery: Arc<battery::Client>,
+    pub battery: Arc<mini_qube::Client>,
 }

@@ -3,7 +3,7 @@ use std::{iter::once, range::RangeInclusive};
 use chrono::Timelike;
 use fennec_modbus::{
     contrib,
-    contrib::mq2200::{schedule, schedule::NaiveTime},
+    contrib::mini_qube::{schedule, schedule::NaiveTime},
 };
 
 use crate::{

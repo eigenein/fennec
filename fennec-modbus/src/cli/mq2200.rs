@@ -1,5 +1,5 @@
 use fennec_modbus::{
-    contrib::mq2200,
+    contrib::mini_qube,
     protocol::address,
     tcp::{UnitId, tokio::Client},
 };
@@ -7,39 +7,39 @@ use fennec_modbus::{
 pub async fn read(client: Client<String>, unit_id: UnitId) -> anyhow::Result<()> {
     println!(
         "State-of-health: {:?}",
-        client.call::<mq2200::ReadStateOfHealth>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadStateOfHealth>(unit_id, address::Const).await?
     );
     println!(
         "Design capacity: {:?}",
-        client.call::<mq2200::ReadDesignCapacity>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadDesignCapacity>(unit_id, address::Const).await?
     );
     println!(
         "Total active power: {:?}",
-        client.call::<mq2200::ReadTotalActivePower>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadTotalActivePower>(unit_id, address::Const).await?
     );
     println!(
         "Total EPS active power: {:?}",
-        client.call::<mq2200::ReadEpsActivePower>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadEpsActivePower>(unit_id, address::Const).await?
     );
     println!(
         "State-of-charge: {:?}",
-        client.call::<mq2200::ReadStateOfCharge>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadStateOfCharge>(unit_id, address::Const).await?
     );
     println!(
         "Minimum system SoC: {:?}",
-        client.call::<mq2200::ReadMinimumSystemStateOfCharge>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadMinimumSystemStateOfCharge>(unit_id, address::Const).await?
     );
     println!(
         "Maximum SoC: {:?}",
-        client.call::<mq2200::ReadMaximumStateOfCharge>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadMaximumStateOfCharge>(unit_id, address::Const).await?
     );
     println!(
         "Minimum SoC on grid: {:?}",
-        client.call::<mq2200::ReadMinimumStateOfChargeOnGrid>(unit_id, address::Const).await?
+        client.call::<mini_qube::ReadMinimumStateOfChargeOnGrid>(unit_id, address::Const).await?
     );
-    for i in 0..mq2200::schedule::BlockIndex::MAX {
+    for i in 0..mini_qube::schedule::BlockIndex::MAX {
         let schedule_block = client
-            .call::<mq2200::ReadScheduleEntryBlock>(unit_id, mq2200::schedule::BlockIndex(i))
+            .call::<mini_qube::ReadScheduleEntryBlock>(unit_id, mini_qube::schedule::BlockIndex(i))
             .await?;
         for entry in schedule_block {
             println!(

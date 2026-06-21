@@ -17,6 +17,8 @@ mod web;
 
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
+use backon::{ConstantBuilder, Retryable};
+use chrono::{DateTime, Days, Local};
 use clap::{Parser, crate_name, crate_version};
 use sentry::{
     SessionMode,
@@ -30,9 +32,10 @@ pub use self::schedule::Schedule;
 use crate::{
     api::{homewizard, mini_qube},
     cli::{Args, BatteryArgs, hunter, logger},
+    energy::Flow,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::time::Hours,
+    quantity::{price::KilowattHourPrice, time::Hours},
 };
 
 fn main() -> Result {
@@ -136,12 +139,15 @@ struct Runner {
 
     // Current solution metrics.
     // pub metrics: solution::Metrics,
-
-    // Current energy profile.
-    // pub energy_profile: Arc<RwLock<energy::Profile>>,
+    //
+    /// Current energy profile.
+    pub energy_profile: energy::Profile,
 }
 
 impl Runner {
+    const MINI_QUBE_BACKOFF: ConstantBuilder =
+        ConstantBuilder::new().with_delay(Duration::from_secs(1));
+
     async fn start(args: Args) -> Result<Self> {
         let this = Self {
             grid_measurement_client: args.connections.grid_measurement_url.client()?,
@@ -154,7 +160,44 @@ impl Runner {
                 Duration::from(args.energy_balance_half_life).into(),
             ),
             battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
+            energy_profile: energy::Profile::read_from_file(args.n_balance_harmonics).await?,
         };
         Ok(this)
+    }
+
+    /// Fetch energy prices for up to 2 days.
+    #[instrument(skip_all, fields(now = ?now))]
+    async fn get_prices(&self, now: DateTime<Local>) -> Result<Schedule<Flow<KilowattHourPrice>>> {
+        const ONE_DAY: Days = Days::new(1);
+
+        let today = now.date_naive();
+        let mut prices = self.energy_provider.get_prices(today).await?;
+        ensure!(prices.len() != 0, "received empty price schedule");
+
+        let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
+        prices.extend(self.energy_provider.get_prices(tomorrow).await?)?;
+
+        info!(len = prices.len(), "fetched energy prices");
+        prices.advance_to(now);
+        Ok(prices)
+    }
+
+    async fn write_schedule(
+        &self,
+        schedule: &fennec_modbus::contrib::mini_qube::schedule::Full,
+    ) -> Result {
+        if self.dry_run {
+            warn!("not writing the schedule to the battery, just scouting");
+            for entry in schedule {
+                info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
+            }
+        } else {
+            (async || self.battery_client.write_schedule(schedule).await)
+                .retry(Self::MINI_QUBE_BACKOFF)
+                .notify(log_retried_error)
+                .await
+                .context("failed to push the schedule to the battery")?;
+        }
+        Ok(())
     }
 }

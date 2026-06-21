@@ -146,11 +146,11 @@ pub struct BatteryArgs {
 pub struct ConnectionArgs {
     /// P1 meter measurement URL.
     #[clap(long, env = "GRID_MEASUREMENT_URL")]
-    grid_measurement_url: homewizard::Url,
+    pub grid_measurement_url: homewizard::Url,
 
-    /// Battery Modbus address. Currently, only FoxESS MQ2200 is supported.
+    /// Battery Modbus address. Only Fox ESS MiniQube is supported.
     #[clap(long = "battery-address", env = "BATTERY_ADDRESS")]
-    battery_address: String,
+    pub battery_address: String,
 }
 
 impl ConnectionArgs {

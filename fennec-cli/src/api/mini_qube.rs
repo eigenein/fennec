@@ -1,4 +1,6 @@
-//! FoxESS Modbus client.
+//! FoxESS [MiniQube][1] Modbus client.
+//!
+//! [1]: https://fox-ess.uk/miniqube/
 
 mod metrics;
 pub mod schedule;

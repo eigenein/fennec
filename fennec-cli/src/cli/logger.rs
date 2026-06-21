@@ -9,6 +9,7 @@ use tokio::{
 };
 
 use crate::{
+    api::{homewizard, mini_qube},
     cli::{BatteryPowerLimits, Connections},
     cron::CronSchedule,
     energy,
@@ -62,30 +63,10 @@ impl Runner {
     }
 
     pub async fn run_once(&self) -> Result {
-        let (battery_metrics, grid_metrics) = {
-            let read_metrics = || async {
-                // Retry them together to ensure the measurements are in sync.
-                try_join!(
-                    async {
-                        self.args
-                            .connections
-                            .battery
-                            .read_metrics()
-                            .await
-                            .context("failed to read the battery metrics")
-                    },
-                    async {
-                        self.args
-                            .connections
-                            .grid_measurement
-                            .get_measurement()
-                            .await
-                            .context("failed to retrieve the grid measurement")
-                    }
-                )
-            };
-            read_metrics.retry(Self::BACKOFF).notify(log_retried_error).await?
-        };
+        let (battery_metrics, grid_metrics) = (async || self.read_metrics().await)
+            .retry(Self::BACKOFF)
+            .notify(log_retried_error)
+            .await?;
 
         let net_deficit = grid_metrics.active_power + battery_metrics.untracked.active_power;
         let balance = Balance::new(self.args.battery_power_limits, net_deficit);
@@ -116,5 +97,27 @@ impl Runner {
         drop(energy_profile);
 
         Ok(())
+    }
+
+    /// Read the MiniQube and HomeWizard P1 metrics simultaneously.
+    async fn read_metrics(&self) -> Result<(mini_qube::Metrics, homewizard::EnergyMetrics)> {
+        try_join!(
+            async {
+                self.args
+                    .connections
+                    .battery
+                    .read_metrics()
+                    .await
+                    .context("failed to read the battery metrics")
+            },
+            async {
+                self.args
+                    .connections
+                    .grid_measurement
+                    .get_measurement()
+                    .await
+                    .context("failed to retrieve the grid measurement")
+            }
+        )
     }
 }

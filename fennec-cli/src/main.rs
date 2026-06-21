@@ -28,9 +28,11 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 
 pub use self::schedule::Schedule;
 use crate::{
-    cli::{Args, hunter, logger},
+    api::{homewizard, mini_qube},
+    cli::{Args, BatteryArgs, hunter, logger},
     math::smoothing::HalfLife,
     prelude::*,
+    quantity::time::Hours,
 };
 
 fn main() -> Result {
@@ -119,8 +121,40 @@ async fn run(args: Args) -> Result {
     Ok(())
 }
 
-impl Args {
-    async fn run(self) -> Result {
-        Ok(())
+struct Runner {
+    grid_measurement_client: homewizard::Client,
+    battery_client: mini_qube::Client,
+    battery_args: BatteryArgs,
+    energy_provider: energy::Provider,
+    n_balance_harmonics: usize,
+    dry_run: bool,
+    energy_balance_half_life: HalfLife<Hours>,
+    battery_efficiency_half_life_factor: f64,
+    //
+    // Current price and battery steering schedule.
+    // pub schedule: Schedule<(Flow<KilowattHourPrice>, Step)>,
+
+    // Current solution metrics.
+    // pub metrics: solution::Metrics,
+
+    // Current energy profile.
+    // pub energy_profile: Arc<RwLock<energy::Profile>>,
+}
+
+impl Runner {
+    async fn start(args: Args) -> Result<Self> {
+        let this = Self {
+            grid_measurement_client: args.connections.grid_measurement_url.client()?,
+            battery_client: mini_qube::Client::new(args.connections.battery_address),
+            battery_args: args.battery,
+            energy_provider: args.energy_provider,
+            n_balance_harmonics: args.n_balance_harmonics,
+            dry_run: args.dry_run,
+            energy_balance_half_life: HalfLife(
+                Duration::from(args.energy_balance_half_life).into(),
+            ),
+            battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
+        };
+        Ok(this)
     }
 }

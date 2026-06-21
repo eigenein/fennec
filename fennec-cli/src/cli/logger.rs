@@ -3,12 +3,11 @@ use std::{sync::Arc, time::Duration};
 use backon::{ConstantBuilder, Retryable};
 use bon::Builder;
 use chrono::Local;
-use tokio::{sync::RwLock, try_join};
+use tokio::{sync::RwLock, time::MissedTickBehavior, try_join};
 
 use crate::{
     api::{homewizard, mini_qube},
     cli::{BatteryPowerLimits, Connections},
-    cron::CronSchedule,
     energy,
     energy::Balance,
     math::smoothing::HalfLife,
@@ -45,10 +44,11 @@ pub struct Runner {
 impl Runner {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
-    pub async fn run_forever(self, schedule: CronSchedule) -> Result {
-        let mut cron = schedule.start();
+    pub async fn run_forever(self, interval: Duration) -> Result {
+        let mut interval = tokio::time::interval(interval);
+        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
-            cron.wait_until_next().await?;
+            interval.tick().await;
             self.run_once().await.context("the logger iteration has failed")?;
         }
     }

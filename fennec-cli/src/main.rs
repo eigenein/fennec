@@ -116,7 +116,7 @@ async fn run(args: Args) -> Result {
     let state =
         web::State { hunter: hunter_state.clone(), logger: logger_runner.energy_profile.clone() };
     try_join!(
-        async { spawn(logger_runner.run_forever(args.logger_cron)).await? },
+        async { spawn(logger_runner.run_forever(args.logger_interval.into())).await? },
         async { spawn(hunter_runner.run_forever(args.optimizer_cron, hunter_state)).await? },
         async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? },
     )?;

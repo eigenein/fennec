@@ -30,8 +30,8 @@ pub struct Args {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
-    #[clap(long, env = "LOGGER_CRON", default_value = "*/5 * * * * *")]
-    pub logger_cron: CronSchedule,
+    #[clap(long, env = "LOGGER_INTERVAL", default_value = "5s")]
+    pub logger_interval: humantime::Duration,
 
     #[clap(long, env = "OPTIMIZER_CRON", default_value = "0 */15 * * * *")]
     pub optimizer_cron: CronSchedule,

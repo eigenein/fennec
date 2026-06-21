@@ -61,7 +61,7 @@ pub struct Args {
 }
 
 /// Web UI binding arguments.
-#[derive(Parser)]
+#[derive(Copy, Clone, Parser)]
 pub struct BindArgs {
     /// Web UI binding address.
     #[clap(long = "bind-address", env = "BIND_ADDRESS", default_value = "::")]

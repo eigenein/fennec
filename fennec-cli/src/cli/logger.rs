@@ -3,10 +3,7 @@ use std::{sync::Arc, time::Duration};
 use backon::{ConstantBuilder, Retryable};
 use bon::Builder;
 use chrono::Local;
-use tokio::{
-    sync::{RwLock, RwLockReadGuard},
-    try_join,
-};
+use tokio::{sync::RwLock, try_join};
 
 use crate::{
     api::{homewizard, mini_qube},
@@ -38,21 +35,15 @@ impl Args {
 }
 
 /// Battery state and power meter logger.
-///
-/// TODO: rename to `Runner`.
 #[must_use]
 #[derive(Clone)]
 pub struct Runner {
     args: Args,
-    energy_profile: Arc<RwLock<energy::Profile>>,
+    pub energy_profile: Arc<RwLock<energy::Profile>>,
 }
 
 impl Runner {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
-
-    pub async fn energy_profile(&self) -> RwLockReadGuard<'_, energy::Profile> {
-        self.energy_profile.read().await
-    }
 
     pub async fn run_forever(self, schedule: CronSchedule) -> Result {
         let mut cron = schedule.start();

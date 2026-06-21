@@ -30,6 +30,7 @@ pub struct Args {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
+    /// TODO: rename to just "interval".
     #[clap(long, env = "LOGGER_INTERVAL", default_value = "5s")]
     pub logger_interval: humantime::Duration,
 

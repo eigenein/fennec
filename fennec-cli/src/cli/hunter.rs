@@ -3,6 +3,7 @@ use std::{sync::Arc, time::Duration};
 use backon::{ExponentialBuilder, Retryable};
 use bon::Builder;
 use chrono::{DateTime, Days, Local, Timelike};
+use fennec_modbus::contrib::mq2200::schedule;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -81,7 +82,7 @@ impl Runner {
             .energy_profile(energy_profile)
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build()
-            .solve(energy_prices)
+            .solve(energy_prices) // FIXME: `spawn_blocking`.
             .solutions
             .backtrack(initial_energy_level)?;
         info!(
@@ -92,27 +93,12 @@ impl Runner {
             "solution summary",
         );
 
-        let entries = {
-            let schedule = steps.iter().map(|slot| (slot.interval, slot.value.1.working_mode));
-            api::battery::schedule::build(
-                schedule,
-                battery_state.untracked.allowed_charge,
-                self.battery_args.power_limits,
-            )
-        };
-
-        if self.dry_run {
-            warn!("not pushing the schedule to the battery, just scouting");
-            for entry in entries {
-                info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
-            }
-        } else {
-            (async || self.connections.battery.write_schedule(&entries).await)
-                .retry(Self::BACKOFF)
-                .notify(log_retried_error)
-                .await
-                .context("failed to push the schedule to the battery")?;
-        }
+        let schedule = api::battery::schedule::build(
+            steps.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
+            battery_state.untracked.allowed_charge,
+            self.battery_args.power_limits,
+        );
+        self.write_schedule(schedule).await?;
 
         Ok(State { steps, metrics })
     }
@@ -132,6 +118,22 @@ impl Runner {
         info!(len = prices.len(), "fetched energy prices");
         prices.advance_to(now);
         Ok(prices)
+    }
+
+    async fn write_schedule(&self, schedule: schedule::Full) -> Result {
+        if self.dry_run {
+            warn!("not writing the schedule to the battery, just scouting");
+            for entry in schedule {
+                info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
+            }
+        } else {
+            (async || self.connections.battery.write_schedule(&schedule).await)
+                .retry(Self::BACKOFF)
+                .notify(log_retried_error)
+                .await
+                .context("failed to push the schedule to the battery")?;
+        }
+        Ok(())
     }
 }
 

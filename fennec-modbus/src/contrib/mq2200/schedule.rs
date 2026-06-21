@@ -25,13 +25,13 @@ pub const N_ENTRIES_PER_BLOCK: usize = 12;
 /// Number of schedule blocks, each consisting of [`N_ENTRIES_PER_BLOCK`] entries.
 pub const N_BLOCKS: usize = 8;
 
-/// Full schedule type alias.
+/// Type alias for a full schedule of [`Entry::N_TOTAL`] entries.
 ///
 /// Note that this is not encodable nor decodable as it doesn't fit the Modbus payload size.
 /// The type alias is provided solely for convenience.
 pub type Full = [Entry; Entry::N_TOTAL];
 
-/// Schedule block consisting of 12 entries.
+/// Schedule block consisting of [`N_ENTRIES_PER_BLOCK`] entries.
 pub type Block = [Entry; N_ENTRIES_PER_BLOCK];
 
 /// Block index for batch-reading 12 schedule entries at a time.

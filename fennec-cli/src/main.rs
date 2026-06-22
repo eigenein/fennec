@@ -31,7 +31,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 pub use self::schedule::Schedule;
 use crate::{
     api::{homewizard, mini_qube},
-    cli::{Args, BatteryPowerLimits, Connections, hunter, logger},
+    cli::{Args, BatteryPowerLimits, Connections, hunter},
     energy::Balance,
     math::smoothing::HalfLife,
     prelude::*,

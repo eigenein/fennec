@@ -1,5 +1,4 @@
 pub mod hunter;
-pub mod logger;
 
 use std::{net::IpAddr, sync::Arc};
 

@@ -15,21 +15,27 @@ mod schedule;
 mod solution;
 mod web;
 
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
+use backon::{ConstantBuilder, Retryable};
+use chrono::Local;
 use clap::{Parser, crate_name, crate_version};
 use sentry::{
     SessionMode,
     integrations::{anyhow::capture_anyhow, tracing::EventFilter},
 };
-use tokio::{spawn, sync::RwLock, try_join};
+use tokio::{spawn, sync::RwLock, time::MissedTickBehavior, try_join};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 pub use self::schedule::Schedule;
 use crate::{
-    cli::{Args, hunter, logger},
+    api::{homewizard, mini_qube},
+    cli::{Args, BatteryPowerLimits, Connections, hunter, logger},
+    energy::Balance,
+    math::smoothing::HalfLife,
     prelude::*,
+    quantity::time::Hours,
 };
 
 fn main() -> Result {
@@ -86,7 +92,7 @@ fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
 }
 
 async fn run(args: Args) -> Result {
-    let logger_runner = logger::Runner::start(&args).await?;
+    let logger_runner = Logger::start(&args).await?;
     let hunter_runner = hunter::Runner::builder()
         .connections(args.connections.connect()?)
         .energy_provider(args.energy_provider)
@@ -105,4 +111,98 @@ async fn run(args: Args) -> Result {
     )?;
 
     Ok(())
+}
+
+#[must_use]
+pub struct Logger {
+    connections: Connections,
+    battery_power_limits: BatteryPowerLimits,
+    energy_balance_half_life: HalfLife<Hours>,
+    battery_efficiency_half_life_factor: f64,
+    pub energy_profile: Arc<RwLock<energy::Profile>>,
+}
+
+impl Logger {
+    const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
+
+    #[instrument(skip_all)]
+    pub async fn start(args: &Args) -> Result<Self> {
+        let energy_profile = energy::Profile::read_from_file(args.n_balance_harmonics).await?;
+        let this = Self {
+            connections: args.connections.connect()?,
+            battery_power_limits: args.battery.power_limits,
+            energy_balance_half_life: HalfLife(
+                Duration::from(args.energy_balance_half_life).into(),
+            ),
+            battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
+            energy_profile: Arc::new(RwLock::new(energy_profile)),
+        };
+        Ok(this)
+    }
+
+    pub async fn run_forever(self, interval: Duration) -> Result {
+        let mut interval = tokio::time::interval(interval);
+        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        loop {
+            interval.tick().await;
+            self.run_once().await.context("the logger iteration has failed")?;
+        }
+    }
+
+    pub async fn run_once(&self) -> Result {
+        let (battery_metrics, grid_metrics) = (async || self.read_metrics().await)
+            .retry(Self::BACKOFF)
+            .notify(log_retried_error)
+            .await?;
+
+        let net_deficit = grid_metrics.active_power + battery_metrics.untracked.active_power;
+        let balance = Balance::new(self.battery_power_limits, net_deficit);
+        debug!(
+            ?net_deficit,
+            battery.active_power = ?battery_metrics.untracked.active_power,
+            battery.eps_active_power = ?battery_metrics.untracked.eps_active_power,
+            battery.residual_energy = ?battery_metrics.tracked.residual_energy(),
+            ?balance.battery.export,
+            ?balance.battery.import,
+            ?balance.grid.export,
+            ?balance.grid.import,
+            "measurements",
+        );
+
+        let mut energy_profile = self.energy_profile.write().await;
+        energy_profile.update_energy_balance(
+            balance,
+            battery_metrics.untracked.eps_active_power,
+            Local::now(),
+            self.energy_balance_half_life,
+        );
+        energy_profile.update_battery_metrics(
+            battery_metrics.tracked,
+            self.battery_efficiency_half_life_factor,
+        );
+        energy_profile.write_to_file().await.context("failed to write the energy profile")?;
+        drop(energy_profile);
+
+        Ok(())
+    }
+
+    /// Read the MiniQube and HomeWizard P1 metrics simultaneously.
+    async fn read_metrics(&self) -> Result<(mini_qube::Metrics, homewizard::EnergyMetrics)> {
+        try_join!(
+            async {
+                self.connections
+                    .battery
+                    .read_metrics()
+                    .await
+                    .context("failed to read the battery metrics")
+            },
+            async {
+                self.connections
+                    .grid_measurement
+                    .get_measurement()
+                    .await
+                    .context("failed to retrieve the grid measurement")
+            }
+        )
+    }
 }

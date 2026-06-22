@@ -15,7 +15,7 @@ mod schedule;
 mod solution;
 mod web;
 
-use std::{borrow::Cow, sync::Arc, time::Duration};
+use std::{borrow::Cow, sync::Arc};
 
 use clap::{Parser, crate_name, crate_version};
 use sentry::{
@@ -29,7 +29,6 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 pub use self::schedule::Schedule;
 use crate::{
     cli::{Args, hunter, logger},
-    math::smoothing::HalfLife,
     prelude::*,
 };
 
@@ -87,20 +86,9 @@ fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
 }
 
 async fn run(args: Args) -> Result {
-    let battery_power_limits = args.battery.power_limits;
-    let connections = args.connections.connect()?;
-
-    let logger_runner = logger::Args::builder()
-        .connections(connections.clone())
-        .battery_power_limits(battery_power_limits)
-        .energy_balance_half_life(HalfLife(Duration::from(args.energy_balance_half_life).into()))
-        .battery_efficiency_half_life_factor(args.battery_efficiency_half_life_factor)
-        .n_balance_harmonics(args.n_balance_harmonics)
-        .build()
-        .start()
-        .await?;
+    let logger_runner = logger::Runner::start(&args).await?;
     let hunter_runner = hunter::Runner::builder()
-        .connections(connections.clone())
+        .connections(args.connections.connect()?)
         .energy_provider(args.energy_provider)
         .battery_args(args.battery)
         .n_balance_harmonics(args.n_balance_harmonics)

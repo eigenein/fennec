@@ -1,5 +1,3 @@
-pub mod hunter;
-
 use std::{net::IpAddr, sync::Arc};
 
 use clap::Parser;

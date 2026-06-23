@@ -1,21 +1,24 @@
+use std::sync::Arc;
+
 use axum::extract::State;
 use maud::{Markup, PreEscaped, html};
+use tokio::sync::RwLock;
 
 use crate::{
     battery::WorkingMode,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours},
-    web,
     web::{battery::StateOfCharge, partials, working_mode::WorkingModeColor},
 };
 
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
 #[expect(clippy::significant_drop_tightening)]
-pub async fn get(State(state): State<web::State>) -> Markup {
+pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
     debug!("access");
-    let hunter_state = state.hunter.read().await;
-    let energy_profile = &state.state.read().await.energy_profile;
+    let state = state.read().await;
+    let optimizer = state.optimizer.as_ref();
+    let energy_profile = &state.energy_profile;
     let battery_metrics = energy_profile.battery_metrics.as_ref();
 
     partials::page(
@@ -23,53 +26,55 @@ pub async fn get(State(state): State<web::State>) -> Markup {
         html! {
             section.section.pb-5 {
                 div.box {
-                    div.field.is-grouped.is-grouped-multiline {
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-info {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-money-bill {} }
-                                        span { "Loss" }
-                                    }
-                                }
-                                span.tag {
-                                    (hunter_state.metrics.losses.total())
-                                }
-                            }
-                        }
-                        div.control {
-                            div.tags.has-addons {
-                                span.tag.is-info {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-arrow-right-arrow-left {} }
-                                        span { "Flow" }
-                                    }
-                                }
-                                span.tag {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-angle-down {} }
-                                        span { (hunter_state.metrics.internal_battery_flow.import) }
-                                    }
-                                }
-                                span.tag {
-                                    span.icon-text {
-                                        span.icon { i.fas.fa-angle-up {} }
-                                        span { (hunter_state.metrics.internal_battery_flow.export) }
-                                    }
-                                }
-                            }
-                        }
-                        @if let Some(battery_metrics) = battery_metrics {
+                    @if let Some(optimizer) = optimizer {
+                        div.field.is-grouped.is-grouped-multiline {
                             div.control {
                                 div.tags.has-addons {
                                     span.tag.is-info {
                                         span.icon-text {
-                                            span.icon { i.fas.fa-rotate {} }
-                                            span { "Cycles" }
+                                            span.icon { i.fas.fa-money-bill {} }
+                                            span { "Loss" }
                                         }
                                     }
                                     span.tag {
-                                        (format!("{:.1}", (hunter_state.metrics.internal_battery_flow.import + hunter_state.metrics.internal_battery_flow.export) / battery_metrics.actual_capacity() / 2.0))
+                                        (optimizer.metrics.losses.total())
+                                    }
+                                }
+                            }
+                            div.control {
+                                div.tags.has-addons {
+                                    span.tag.is-info {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-arrow-right-arrow-left {} }
+                                            span { "Flow" }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-angle-down {} }
+                                            span { (optimizer.metrics.internal_battery_flow.import) }
+                                        }
+                                    }
+                                    span.tag {
+                                        span.icon-text {
+                                            span.icon { i.fas.fa-angle-up {} }
+                                            span { (optimizer.metrics.internal_battery_flow.export) }
+                                        }
+                                    }
+                                }
+                            }
+                            @if let Some(battery_metrics) = battery_metrics {
+                                div.control {
+                                    div.tags.has-addons {
+                                        span.tag.is-info {
+                                            span.icon-text {
+                                                span.icon { i.fas.fa-rotate {} }
+                                                span { "Cycles" }
+                                            }
+                                        }
+                                        span.tag {
+                                            (format!("{:.1}", (optimizer.metrics.internal_battery_flow.import + optimizer.metrics.internal_battery_flow.export) / battery_metrics.actual_capacity() / 2.0))
+                                        }
                                     }
                                 }
                             }
@@ -155,73 +160,75 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                 }
             }
 
-            section.section.py-5 {
-                div.card {
-                    header.card-header {
-                        p.card-header-title { "Schedule" }
-                    }
-                    div.card-content {
-                        div.table-container {
-                            table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
-                                thead { (steps_table_header()) }
-                                tfoot { (steps_table_header()) }
-                                tbody {
-                                    @for slot in hunter_state.steps.iter() {
-                                        tr.(WorkingModeColor(slot.value.1.working_mode)) {
-                                            td {
-                                                (slot.interval.start().format("%b"))
-                                                (PreEscaped("&nbsp;"))
-                                                (slot.interval.start().format("%d"))
-                                            }
-                                            td { (slot.interval.start().format("%H:%M")) }
-                                            td { (slot.interval.end().format("%H:%M")) }
-                                            td { (slot.value.1.duration) }
-                                            td.has-text-right.has-text-weight-medium[slot.value.1.working_mode != WorkingMode::Idle] {
-                                                (slot.value.0.import)
-                                            }
-                                            td {
-                                                (slot.value.1.working_mode)
-                                            }
-                                            td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.grid.import >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (slot.value.1.energy_balance.grid.import) }
-                                                    span.icon { i.fas.fa-angles-down {} }
+            @if let Some(optimizer) = optimizer {
+                section.section.py-5 {
+                    div.card {
+                        header.card-header {
+                            p.card-header-title { "Schedule" }
+                        }
+                        div.card-content {
+                            div.table-container {
+                                table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                                    thead { (steps_table_header()) }
+                                    tfoot { (steps_table_header()) }
+                                    tbody {
+                                        @for slot in optimizer.steps.iter() {
+                                            tr.(WorkingModeColor(slot.value.1.working_mode)) {
+                                                td {
+                                                    (slot.interval.start().format("%b"))
+                                                    (PreEscaped("&nbsp;"))
+                                                    (slot.interval.start().format("%d"))
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.grid.export >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (slot.value.1.energy_balance.grid.export) }
-                                                    span.icon { i.fas.fa-angles-up {} }
+                                                td { (slot.interval.start().format("%H:%M")) }
+                                                td { (slot.interval.end().format("%H:%M")) }
+                                                td { (slot.value.1.duration) }
+                                                td.has-text-right.has-text-weight-medium[slot.value.1.working_mode != WorkingMode::Idle] {
+                                                    (slot.value.0.import)
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.battery.import >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (slot.value.1.energy_balance.battery.import) }
-                                                    span.icon { i.fas.fa-angle-down {} }
+                                                td {
+                                                    (slot.value.1.working_mode)
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.battery.export >= WattHours::ONE] {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (slot.value.1.energy_balance.battery.export) }
-                                                    span.icon { i.fas.fa-angle-up {} }
-                                                }
-                                            }
-                                            td.has-text-right {
-                                                span.icon-text.is-flex-wrap-nowrap {
-                                                    span { (slot.value.1.energy_level_after) }
-                                                    @if let Some(battery_metrics) = battery_metrics {
-                                                        (StateOfCharge {
-                                                            residual_energy: slot.value.1.energy_level_after.into(),
-                                                            actual_capacity: battery_metrics.actual_capacity(),
-                                                        }.icon())
+                                                td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.grid.import >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (slot.value.1.energy_balance.grid.import) }
+                                                        span.icon { i.fas.fa-angles-down {} }
                                                     }
                                                 }
-                                            }
-                                            td.has-text-right.has-text-weight-medium[slot.value.1.metrics.losses.grid >= Mills::TEN] {
-                                                (slot.value.1.metrics.losses.grid)
-                                            }
-                                            td.has-text-right.has-text-weight-medium[slot.value.1.metrics.losses.battery >= Mills::TEN] {
-                                                (slot.value.1.metrics.losses.battery)
+                                                td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.grid.export >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (slot.value.1.energy_balance.grid.export) }
+                                                        span.icon { i.fas.fa-angles-up {} }
+                                                    }
+                                                }
+                                                td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.battery.import >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (slot.value.1.energy_balance.battery.import) }
+                                                        span.icon { i.fas.fa-angle-down {} }
+                                                    }
+                                                }
+                                                td.has-text-right.has-text-weight-medium[slot.value.1.energy_balance.battery.export >= WattHours::ONE] {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (slot.value.1.energy_balance.battery.export) }
+                                                        span.icon { i.fas.fa-angle-up {} }
+                                                    }
+                                                }
+                                                td.has-text-right {
+                                                    span.icon-text.is-flex-wrap-nowrap {
+                                                        span { (slot.value.1.energy_level_after) }
+                                                        @if let Some(battery_metrics) = battery_metrics {
+                                                            (StateOfCharge {
+                                                                residual_energy: slot.value.1.energy_level_after.into(),
+                                                                actual_capacity: battery_metrics.actual_capacity(),
+                                                            }.icon())
+                                                        }
+                                                    }
+                                                }
+                                                td.has-text-right.has-text-weight-medium[slot.value.1.metrics.losses.grid >= Mills::TEN] {
+                                                    (slot.value.1.metrics.losses.grid)
+                                                }
+                                                td.has-text-right.has-text-weight-medium[slot.value.1.metrics.losses.battery >= Mills::TEN] {
+                                                    (slot.value.1.metrics.losses.battery)
+                                                }
                                             }
                                         }
                                     }

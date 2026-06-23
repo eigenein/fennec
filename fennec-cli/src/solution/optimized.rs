@@ -11,7 +11,7 @@ use crate::{
         energy::{EnergyLevel, WattHours},
         price::KilowattHourPrice,
     },
-    solution::{Metrics, Optimizer, Solution, Step},
+    solution::{Metrics, Solution, Step, optimizer::StateOptimizer},
 };
 
 pub struct Optimized {
@@ -34,15 +34,9 @@ impl Optimized {
     ) {
         let initial_energy_level =
             WattHours::from(battery_metrics.tracked.residual_energy()).into();
-        self.solutions.get_mut(0)[initial_energy_level] = Optimizer(self.configuration.clone())
-            .optimize_state(
-                0,
-                initial_energy_level,
-                battery_metrics.allowed_energy_levels(),
-                battery_metrics.tracked.actual_capacity(),
-                energy_profile,
-                &self.solutions,
-            );
+        self.solutions.get_mut(0)[initial_energy_level] =
+            StateOptimizer::new(&self.configuration, battery_metrics, energy_profile)
+                .optimize_state(0, initial_energy_level, &self.solutions);
     }
 }
 

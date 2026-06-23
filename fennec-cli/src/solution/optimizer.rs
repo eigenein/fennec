@@ -1,7 +1,6 @@
 use std::{range::RangeInclusive, time::Instant};
 
 use bon::Builder;
-use enumset::EnumSet;
 
 use crate::{
     Schedule,
@@ -22,13 +21,10 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Optimizer {
-    battery_efficiency: Flow<f64>,
     battery_capacity: WattHours,
 
     /// Enabled working modes.
-    ///
-    /// TODO: do we need [`EnumSet`]?
-    working_modes: EnumSet<WorkingMode>,
+    working_modes: Vec<WorkingMode>,
 
     /// Incurred cost of the residual energy change per kilowatt-hour.
     battery_degradation_cost: KilowattHourPrice,
@@ -107,7 +103,7 @@ impl Optimizer {
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
-            efficiency: self.battery_efficiency,
+            efficiency: energy_profile.battery_efficiency,
         };
         self.working_modes
             .iter()
@@ -117,7 +113,7 @@ impl Optimizer {
                     duration,
                     average_balance,
                     stage.price(),
-                    working_mode,
+                    *working_mode,
                 );
                 if (step.energy_level_after < initial_energy_level)
                     && (initial_energy_level <= self.allowed_energy_levels.start)

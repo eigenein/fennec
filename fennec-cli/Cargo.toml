@@ -28,7 +28,6 @@ chrono = { version = "0.4.44", default-features = false, features = ["clock", "s
 clap = { version = "4.6.0", features = ["cargo", "derive", "env", "unicode"] }
 derive_more = { version = "2.1.1", features = ["full"] }
 dotenvy = "0.15.7"
-enumset = "1.1.10"
 fennec-modbus = { path = "../fennec-modbus", features = ["tracing", "tokio"] }
 http = "1.4.0"
 itertools = "0.14.0"

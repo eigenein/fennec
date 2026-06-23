@@ -281,9 +281,8 @@ impl Engine {
         let initial_energy_level =
             WattHours::from(battery_metrics.tracked.residual_energy()).into();
         let (metrics, steps) = Optimizer::builder()
-            .working_modes(self.optimizer_args.battery.working_modes.iter().copied().collect())
+            .working_modes(self.optimizer_args.battery.working_modes.clone()) // FIXME
             .allowed_energy_levels(min_energy_level..=max_energy_level)
-            .battery_efficiency(energy_profile.battery_efficiency)
             .battery_capacity(battery_metrics.tracked.actual_capacity())
             .max_battery_flow(
                 self.optimizer_args

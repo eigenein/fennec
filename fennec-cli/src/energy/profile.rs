@@ -16,7 +16,7 @@ use crate::{
         Quantity,
         Zero,
         angle::{Harmonic, Radians},
-        energy::WattHours,
+        energy::{DecawattHours, MilliwattHours, WattHours},
         power::Watts,
         time::Hours,
     },
@@ -49,14 +49,20 @@ pub struct Profile {
     /// Battery metrics as read from the device.
     ///
     /// This attribute is updated if and only if the residual charge changes.
-    /// Hence, it has its own timestamp.
     #[musli(Binary, name = 10)]
     #[musli(default)]
+    #[deprecated]
     pub battery_metrics: Option<mini_qube::TrackedMetrics>,
 
     #[musli(Binary, name = 12)]
     #[musli(default = Self::default_battery_efficiency)]
+    #[deprecated]
     pub battery_efficiency: Flow<f64>,
+
+    /// Battery profile.
+    #[musli(Binary, name = 13)]
+    #[musli(default)]
+    pub battery: BatteryProfile,
 }
 
 impl Profile {
@@ -80,6 +86,7 @@ impl Profile {
                 balance_harmonics: vec![Self::DEFAULT_HARMONIC; n_balance_harmonics],
                 battery_metrics: None,
                 battery_efficiency: Self::default_battery_efficiency(),
+                battery: BatteryProfile::default(),
             }
         })
     }
@@ -139,6 +146,7 @@ impl Profile {
                 self.battery_efficiency.export = Exponential(self.battery_efficiency.export)
                     .update(efficiency, smoothing_factor)
                     .0;
+                self.battery.efficiency.export = self.battery_efficiency.export;
                 info!(
                     ?residual_energy_change,
                     ?grid_export,
@@ -156,6 +164,7 @@ impl Profile {
                 self.battery_efficiency.import = Exponential(self.battery_efficiency.import)
                     .update(efficiency, smoothing_factor)
                     .0;
+                self.battery.efficiency.import = self.battery_efficiency.import;
                 info!(
                     ?residual_energy_change,
                     ?grid_import,
@@ -170,6 +179,10 @@ impl Profile {
         }
 
         self.battery_metrics = Some(current_metrics);
+        self.battery.tracker = Some(BatteryProfileTracker {
+            total_grid_flow: current_metrics.total_grid_flow,
+            residual_energy: current_metrics.residual_energy(),
+        });
         true
     }
 
@@ -251,10 +264,20 @@ impl Profile {
             .zip(self.balance_harmonics.iter())
             .map(|(mode_index, harmonic)| {
                 // (1/Δt) ∫ cos(2πk·t) dt = cos(2πk·middle_phase) · sinc(k·Δt)
-                let weight = sinc(mode_index * n_days);
+                let weight = Self::sinc(mode_index * n_days);
                 harmonic.0.dot(Harmonic::from_phase(middle_phase * mode_index)) * weight
             })
             .fold(Balance::ZERO, |sum, item| sum + item)
+    }
+
+    /// Normalized [sinc function](https://en.wikipedia.org/wiki/Sinc_function): sin(πx)÷(πx).
+    fn sinc(x: f64) -> f64 {
+        if x == 0.0 {
+            1.0
+        } else {
+            let pi_x = PI * x;
+            pi_x.sin() / pi_x
+        }
     }
 
     const fn default_battery_efficiency() -> Flow<f64> {
@@ -262,12 +285,26 @@ impl Profile {
     }
 }
 
-/// Normalized [sinc function](https://en.wikipedia.org/wiki/Sinc_function): sin(πx)÷(πx).
-fn sinc(x: f64) -> f64 {
-    if x == 0.0 {
-        1.0
-    } else {
-        let pi_x = PI * x;
-        pi_x.sin() / pi_x
+#[derive(Copy, Clone, Encode, Decode)]
+pub struct BatteryProfile {
+    #[musli(Binary, name = 1)]
+    pub efficiency: Flow<f64>,
+
+    #[musli(Binary, name = 2)]
+    pub tracker: Option<BatteryProfileTracker>,
+}
+
+impl Default for BatteryProfile {
+    fn default() -> Self {
+        Self { efficiency: Flow { import: 0.95, export: 0.95 }, tracker: None }
     }
+}
+
+#[derive(Copy, Clone, Encode, Decode)]
+pub struct BatteryProfileTracker {
+    #[musli(Binary, name = 1)]
+    pub total_grid_flow: Flow<DecawattHours>,
+
+    #[musli(Binary, name = 2)]
+    pub residual_energy: MilliwattHours,
 }

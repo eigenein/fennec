@@ -18,7 +18,7 @@ mod web;
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
-use chrono::Local;
+use chrono::{DateTime, Days, Local};
 use clap::{Parser, crate_name, crate_version};
 use sentry::{
     SessionMode,
@@ -32,9 +32,10 @@ pub use self::schedule::Schedule;
 use crate::{
     api::{homewizard, mini_qube},
     cli::{Args, BatteryPowerLimits, Connections, hunter},
+    energy::Flow,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::{power::Watts, time::Hours},
+    quantity::{power::Watts, price::KilowattHourPrice, time::Hours},
 };
 
 fn main() -> Result {
@@ -117,7 +118,12 @@ pub struct Runner {
     battery_power_limits: BatteryPowerLimits,
     energy_balance_half_life: HalfLife<Hours>,
     battery_efficiency_half_life_factor: f64,
-    pub energy_profile: Arc<RwLock<energy::Profile>>,
+    energy_provider: energy::Provider,
+
+    /// TODO: make a tiny wrapper around provider and prices.
+    energy_prices: Schedule<Flow<KilowattHourPrice>>,
+
+    energy_profile: Arc<RwLock<energy::Profile>>,
 }
 
 impl Runner {
@@ -134,11 +140,13 @@ impl Runner {
             ),
             battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
             energy_profile: Arc::new(RwLock::new(energy_profile)),
+            energy_prices: Self::get_prices(args.energy_provider, Local::now()).await?,
+            energy_provider: args.energy_provider,
         };
         Ok(this)
     }
 
-    pub async fn run_forever(self, interval: Duration) -> Result {
+    pub async fn run_forever(mut self, interval: Duration) -> Result {
         let mut interval = tokio::time::interval(interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
@@ -147,7 +155,8 @@ impl Runner {
         }
     }
 
-    pub async fn run_once(&self) -> Result {
+    pub async fn run_once(&mut self) -> Result {
+        let now = Local::now();
         let (battery_metrics, grid_metrics) = (async || self.read_metrics().await)
             .retry(Self::BACKOFF)
             .notify(log_retried_error)
@@ -169,9 +178,17 @@ impl Runner {
             "measurements",
         );
 
-        if self.update_energy_profile(balance, battery_metrics).await? {
+        let has_residual_charge_changed =
+            self.update_energy_profile(now, balance, battery_metrics).await?;
+        let has_schedule_advanced = {
+            let previous_len = self.energy_prices.len();
+            self.energy_prices.advance_to(now);
+            self.energy_prices.len() != previous_len
+        };
+        if has_residual_charge_changed || has_schedule_advanced {
             // TODO: optimize.
         }
+
         Ok(())
     }
 
@@ -195,9 +212,30 @@ impl Runner {
         )
     }
 
+    /// Fetch energy prices for up to 2 days.
+    #[instrument(skip_all, fields(now = ?now))]
+    async fn get_prices(
+        energy_provider: energy::Provider,
+        now: DateTime<Local>,
+    ) -> Result<Schedule<Flow<KilowattHourPrice>>> {
+        const ONE_DAY: Days = Days::new(1);
+
+        let today = now.date_naive();
+        let mut prices = energy_provider.get_prices(today).await?;
+        ensure!(prices.len() != 0, "received empty price schedule");
+
+        let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
+        prices.extend(energy_provider.get_prices(tomorrow).await?)?;
+
+        info!(len = prices.len(), "fetched energy prices");
+        prices.advance_to(now);
+        Ok(prices)
+    }
+
     /// Track the balance and battery metrics and update the persistent energy profile.
     async fn update_energy_profile(
         &self,
+        now: DateTime<Local>,
         balance: energy::Balance<Watts>,
         battery_metrics: mini_qube::Metrics,
     ) -> Result<bool> {
@@ -205,7 +243,7 @@ impl Runner {
         energy_profile.update_energy_balance(
             balance,
             battery_metrics.untracked.eps_active_power,
-            Local::now(),
+            now,
             self.energy_balance_half_life,
         );
         let is_residual_energy_changed = energy_profile.track_battery_metrics(

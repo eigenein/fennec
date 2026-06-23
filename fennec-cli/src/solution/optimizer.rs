@@ -62,16 +62,15 @@ impl Optimizer {
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
 
-        let mut solutions =
-            energy_prices.map(|price| Stage::new(*price, self.allowed_energy_levels.last));
+        let capacity_level = EnergyLevel::from(self.battery_capacity);
+        let mut solutions = energy_prices.map(|price| Stage::new(*price, capacity_level));
         let mut n_some: usize = 0;
         let mut n_none: usize = 0;
 
         // Going backwards:
         for interval_index in (0..solutions.len()).rev() {
             // Calculate partial solutions for the current time interval:
-            // FIXME: calculate up to the capacity:
-            for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
+            for energy_level in (0..=capacity_level.0).map(Quantity) {
                 let solution =
                     self.optimize_state(interval_index, energy_level, energy_profile, &solutions);
                 match solution {

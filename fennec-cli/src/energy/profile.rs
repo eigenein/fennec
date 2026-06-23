@@ -157,7 +157,6 @@ impl Profile {
                 self.battery_efficiency.export = Exponential(self.battery_efficiency.export)
                     .update(efficiency, smoothing_factor)
                     .0;
-                self.battery.efficiency.export = self.battery_efficiency.export;
                 info!(
                     ?residual_energy_change,
                     ?grid_export,
@@ -175,7 +174,6 @@ impl Profile {
                 self.battery_efficiency.import = Exponential(self.battery_efficiency.import)
                     .update(efficiency, smoothing_factor)
                     .0;
-                self.battery.efficiency.import = self.battery_efficiency.import;
                 info!(
                     ?residual_energy_change,
                     ?grid_import,
@@ -189,6 +187,7 @@ impl Profile {
             }
         }
 
+        self.battery.efficiency = self.battery_efficiency;
         self.battery_metrics = Some(current_metrics);
         self.battery.tracker = Some(BatteryProfileTracker {
             total_grid_flow: current_metrics.total_grid_flow,

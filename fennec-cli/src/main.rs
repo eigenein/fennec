@@ -172,6 +172,7 @@ impl Engine {
         );
 
         let has_residual_charge_changed =
+            // TODO: must also react on min-max SoC settings.
             self.update_energy_profile(now, balance, &battery_metrics).await?;
         let has_schedule_advanced = {
             let previous_len = self.energy_prices.len();
@@ -202,8 +203,7 @@ impl Engine {
                 battery.discharge = ?backtrack.metrics.internal_battery_flow.export,
                 "solution summary",
             );
-            self.write_schedule(&backtrack.schedule, battery_metrics.untracked.allowed_charge)
-                .await?;
+            self.write_schedule(&backtrack.schedule, battery_metrics.untracked.allowed_soc).await?;
             self.state.write().await.backtrack = Some(backtrack);
         }
 

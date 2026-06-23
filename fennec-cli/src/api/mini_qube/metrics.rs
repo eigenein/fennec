@@ -21,20 +21,20 @@ pub struct Metrics {
 impl Metrics {
     /// Minimum allowed residual charge.
     pub fn min_residual_charge(&self) -> WattHours {
-        self.tracked.design_capacity.rescale() * self.untracked.allowed_charge.start
+        self.tracked.actual_capacity() * self.untracked.allowed_soc.start
     }
 
     /// Maximum allowed residual charge.
     pub fn max_residual_charge(&self) -> WattHours {
-        self.tracked.design_capacity.rescale() * self.untracked.allowed_charge.last
+        self.tracked.actual_capacity() * self.untracked.allowed_soc.last
     }
 }
 
 /// Untracked metrics are throw away directly after processing.
 #[must_use]
 pub struct Untracked {
-    /// Allowed state-of-charge.
-    pub allowed_charge: RangeInclusive<Percentage>,
+    /// Allowed state-of-charge range.
+    pub allowed_soc: RangeInclusive<Percentage>,
 
     /// Battery external active power.
     ///

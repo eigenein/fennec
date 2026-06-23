@@ -5,7 +5,6 @@ use clap::Parser;
 use crate::{
     api::{homewizard, mini_qube},
     battery::WorkingMode,
-    cron::CronSchedule,
     energy,
     prelude::*,
     quantity::{power::Watts, price::KilowattHourPrice},
@@ -29,9 +28,6 @@ pub struct Args {
 
     #[clap(long, env = "INTERVAL", default_value = "5s")]
     pub interval: humantime::Duration,
-
-    #[clap(long, env = "OPTIMIZER_CRON", default_value = "0 */15 * * * *")]
-    pub optimizer_cron: CronSchedule,
 
     #[clap(long, env = "ENERGY_PROVIDER")]
     pub energy_provider: energy::Provider,

@@ -47,7 +47,7 @@ impl Optimizer {
             battery_capacity: battery_metrics.tracked.actual_capacity(),
             max_battery_flow: battery_args
                 .power_limits
-                .max_effective_flow(energy_profile.eps_active_power.0),
+                .max_effective_flow(energy_profile.balance.eps_active_power.0),
             energy_profile,
             allowed_energy_levels: (min_energy_level..=max_energy_level).into(),
             battery_degradation_cost: battery_args.degradation_cost,
@@ -115,7 +115,7 @@ impl Optimizer {
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
-            efficiency: self.energy_profile.battery_efficiency,
+            efficiency: self.energy_profile.battery.efficiency,
         };
         self.working_modes
             .iter()

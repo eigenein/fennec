@@ -24,7 +24,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
     debug!("access");
 
     let energy_profile = &state.read().await.energy_profile;
-    let mean_balance = energy_profile.mean_balance.0;
+    let mean_balance = energy_profile.balance.mean.0;
 
     partials::page(
         "Energy profile",
@@ -139,7 +139,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                     }
                                 }
                                 tbody {
-                                    @for (mode_index, harmonic) in (1..).zip(&energy_profile.balance_harmonics) {
+                                    @for (mode_index, harmonic) in (1..).zip(&energy_profile.balance.harmonics) {
                                         tr {
                                             th.has-text-right { "#" (mode_index) }
                                             td.has-text-right.has-text-success { (harmonic.0.cosine.battery.import) }
@@ -219,7 +219,7 @@ fn render_chart(points: &[(f64, Balance<Watts>)]) -> Markup {
 #[must_use]
 fn instant_balance_chart(energy_profile: &energy::Profile) -> Markup {
     let mut points = {
-        let mean_balance = energy_profile.mean_balance.0;
+        let mean_balance = energy_profile.balance.mean.0;
         (0..24)
             .cartesian_product([0, 10, 20, 30, 40, 50])
             .map(|(hour, minute)| {

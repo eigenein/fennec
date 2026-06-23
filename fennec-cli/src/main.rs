@@ -31,7 +31,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 pub use self::schedule::Schedule;
 use crate::{
     api::homewizard,
-    cli::{Args, BatteryArgs, BatteryPowerLimits, Connections},
+    cli::{Args, BatteryArgs, BatteryPowerLimits, Connections, EngineArgs},
     energy::Flow,
     math::smoothing::HalfLife,
     prelude::*,
@@ -98,9 +98,9 @@ fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
 }
 
 async fn run(args: Args) -> Result {
-    let engine = Engine::start(&args).await?;
+    let engine = Engine::start(args.engine).await?;
     let state = engine.state.clone();
-    let engine_future = async { spawn(engine.run_forever(args.interval.into())).await? };
+    let engine_future = async { spawn(engine.run_forever()).await? };
     let web_future = async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? };
     try_join!(engine_future, web_future)?;
     Ok(())
@@ -126,6 +126,7 @@ pub struct Engine {
     /// API connections.
     connections: Connections,
 
+    interval: Duration,
     battery_power_limits: BatteryPowerLimits,
     energy_balance_half_life: HalfLife<Hours>,
     battery_efficiency_half_life_factor: f64,
@@ -142,19 +143,19 @@ pub struct Engine {
 impl Engine {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
-    /// TODO: consume [`Args`].
     #[instrument(skip_all)]
-    pub async fn start(args: &Args) -> Result<Self> {
+    pub async fn start(args: EngineArgs) -> Result<Self> {
         let energy_profile = energy::Profile::read_from_file(args.n_balance_harmonics).await?;
         let this = Self {
             connections: args.connections.connect()?,
+            interval: args.interval.into(),
             battery_power_limits: args.battery.power_limits,
             energy_balance_half_life: HalfLife(
                 Duration::from(args.energy_balance_half_life).into(),
             ),
             battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
             dry_run: args.dry_run,
-            battery_args: args.battery.clone(), // TODO: kill `clone()`.
+            battery_args: args.battery,
             energy_prices: Self::get_prices(args.energy_provider, Local::now()).await?,
             energy_provider: args.energy_provider,
             state: Arc::new(RwLock::new(State { energy_profile, optimizer: None })),
@@ -162,8 +163,8 @@ impl Engine {
         Ok(this)
     }
 
-    pub async fn run_forever(mut self, interval: Duration) -> Result {
-        let mut interval = tokio::time::interval(interval);
+    pub async fn run_forever(mut self) -> Result {
+        let mut interval = tokio::time::interval(self.interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
             interval.tick().await;
@@ -299,11 +300,11 @@ impl Engine {
             .energy_profile(&state.energy_profile)
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build()
-            .solve(&self.energy_prices) // FIXME: `spawn_blocking`.
+            .solve(&self.energy_prices)
             .solutions
             .backtrack(initial_energy_level)?;
 
-        drop(state); // TODO: accept from outside?
+        drop(state);
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,

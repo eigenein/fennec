@@ -18,10 +18,16 @@ pub struct Args {
     pub sentry_dsn: Option<String>,
 
     #[clap(flatten)]
-    pub connections: ConnectionArgs,
+    pub bind: BindArgs,
 
     #[clap(flatten)]
-    pub bind: BindArgs,
+    pub engine: EngineArgs,
+}
+
+#[derive(Parser)]
+pub struct EngineArgs {
+    #[clap(flatten)]
+    pub connections: ConnectionArgs,
 
     #[clap(flatten)]
     pub battery: BatteryArgs,
@@ -149,11 +155,10 @@ pub struct ConnectionArgs {
 }
 
 impl ConnectionArgs {
-    pub fn connect(&self) -> Result<Connections> {
-        // TODO: kill cloning.
+    pub fn connect(self) -> Result<Connections> {
         Ok(Connections {
-            grid_measurement: self.grid_measurement_url.clone().client()?,
-            battery: Arc::new(mini_qube::Client::new(self.battery_address.clone())),
+            grid_measurement: self.grid_measurement_url.client()?,
+            battery: Arc::new(mini_qube::Client::new(self.battery_address)),
         })
     }
 }

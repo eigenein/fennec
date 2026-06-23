@@ -277,7 +277,7 @@ impl Engine {
         let initial_energy_level =
             WattHours::from(battery_metrics.tracked.residual_energy()).into();
         let (metrics, steps) = Optimizer::builder()
-            .working_modes(self.args.battery.working_modes.iter().copied().collect())
+            .working_modes(self.args.battery.working_modes.clone())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_efficiency(state.energy_profile.battery_efficiency)
             .battery_capacity(battery_metrics.tracked.actual_capacity())

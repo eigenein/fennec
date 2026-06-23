@@ -1,7 +1,6 @@
 use std::{range::RangeInclusive, time::Instant};
 
 use bon::Builder;
-use enumset::EnumSet;
 
 use crate::{
     Schedule,
@@ -26,9 +25,7 @@ pub struct Optimizer {
     battery_capacity: WattHours,
 
     /// Enabled working modes.
-    ///
-    /// TODO: do we need [`EnumSet`]?
-    working_modes: EnumSet<WorkingMode>,
+    working_modes: Vec<WorkingMode>,
 
     /// Incurred cost of the residual energy change per kilowatt-hour.
     battery_degradation_cost: KilowattHourPrice,
@@ -111,6 +108,7 @@ impl Optimizer {
         };
         self.working_modes
             .iter()
+            .copied()
             .filter_map(|working_mode| {
                 let step = self.simulate_step(
                     battery_simulator,

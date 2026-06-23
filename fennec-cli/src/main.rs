@@ -107,7 +107,6 @@ pub struct State {
     backtrack: Option<Backtrack>,
 }
 
-/// TODO: store [`Args`] directly.
 #[must_use]
 pub struct Engine {
     /// API connections.

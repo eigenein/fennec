@@ -7,23 +7,21 @@ use crate::{
     Schedule,
     battery,
     battery::WorkingMode,
-    energy,
-    energy::Flow,
-    ops::chrono::Interval,
+    energy::{Balance, Flow, Profile},
     prelude::*,
     quantity::{
         Quantity,
         energy::{EnergyLevel, WattHours},
         power::Watts,
         price::KilowattHourPrice,
+        time::Hours,
     },
     schedule::Slot,
     solution::{Losses, Metrics, Optimized, Solution, Step, optimized::Stage},
 };
 
 #[derive(Builder)]
-pub struct Optimizer<'a> {
-    energy_profile: &'a energy::Profile,
+pub struct Optimizer {
     battery_efficiency: Flow<f64>,
     battery_capacity: WattHours,
 
@@ -43,7 +41,7 @@ pub struct Optimizer<'a> {
     allowed_energy_levels: RangeInclusive<WattHours<usize>>,
 }
 
-impl<'a> Optimizer<'a> {
+impl Optimizer {
     /// Find the optimal battery schedule.
     ///
     /// Works backwards from future to present, computing the minimum cost at each
@@ -58,7 +56,11 @@ impl<'a> Optimizer<'a> {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(self, energy_prices: &Schedule<Flow<KilowattHourPrice>>) -> Optimized<'a> {
+    pub fn solve(
+        self,
+        energy_prices: &Schedule<Flow<KilowattHourPrice>>,
+        energy_profile: &Profile,
+    ) -> Optimized {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -73,7 +75,8 @@ impl<'a> Optimizer<'a> {
             // Calculate partial solutions for the current time interval:
             // FIXME: calculate up to the capacity:
             for energy_level in (0..=self.allowed_energy_levels.last.0).map(Quantity) {
-                let solution = self.optimize_state(interval_index, energy_level, &solutions);
+                let solution =
+                    self.optimize_state(interval_index, energy_level, energy_profile, &solutions);
                 match solution {
                     Some(_) => n_some += 1,
                     None => n_none += 1,
@@ -95,9 +98,12 @@ impl<'a> Optimizer<'a> {
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
+        energy_profile: &Profile,
         solutions: &Schedule<Stage>,
     ) -> Option<Solution> {
         let Slot { interval, value: stage } = solutions.get(interval_index);
+        let duration = interval.duration();
+        let average_balance = energy_profile.mean_balance_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
@@ -106,8 +112,13 @@ impl<'a> Optimizer<'a> {
         self.working_modes
             .iter()
             .filter_map(|working_mode| {
-                let step =
-                    self.simulate_step(battery_simulator, interval, stage.price(), working_mode);
+                let step = self.simulate_step(
+                    battery_simulator,
+                    duration,
+                    average_balance,
+                    stage.price(),
+                    working_mode,
+                );
                 if (step.energy_level_after < initial_energy_level)
                     && (initial_energy_level <= self.allowed_energy_levels.start)
                 {
@@ -140,18 +151,16 @@ impl<'a> Optimizer<'a> {
     fn simulate_step(
         &self,
         mut battery: battery::Simulator,
-        interval: Interval,
+        duration: Hours,
+        average_balance: Balance<Watts>,
         energy_price: Flow<KilowattHourPrice>,
         working_mode: WorkingMode,
     ) -> Step {
-        let average_balance = self.energy_profile.mean_balance_over(interval);
-
         // Remember that the average flow represents theoretical possibility,
         // actual flow depends on the working mode:
         let balance_request =
             average_balance.with_working_mode(working_mode, self.max_battery_flow);
 
-        let duration = interval.duration();
         let battery_flows = battery.apply(balance_request.battery, duration);
         let requested_battery = balance_request.battery * duration;
         let battery_shortage = requested_battery - battery_flows.external;
@@ -159,7 +168,7 @@ impl<'a> Optimizer<'a> {
         Step {
             working_mode,
             duration,
-            energy_balance: energy::Balance {
+            energy_balance: Balance {
                 grid: grid_flow.normalized(), // Normalize rare tiny negative values.
                 battery: battery_flows.external,
             },

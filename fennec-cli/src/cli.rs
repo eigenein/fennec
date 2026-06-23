@@ -120,7 +120,7 @@ impl BatteryPowerLimits {
     }
 }
 
-#[derive(Parser)]
+#[derive(Clone, Parser)]
 pub struct BatteryArgs {
     #[clap(
         long,

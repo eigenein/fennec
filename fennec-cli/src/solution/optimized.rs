@@ -8,16 +8,16 @@ use crate::{
     solution::{Metrics, Optimizer, Solution, Step},
 };
 
-pub struct Optimized {
+pub struct Optimized<'a> {
     /// [Solution space][1] that associates a [`Solution`] with every time interval and [`EnergyLevel`].
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     pub solutions: Schedule<Stage>,
 
-    pub optimizer: Optimizer,
+    pub optimizer: Optimizer<'a>,
 }
 
-impl Optimized {
+impl Optimized<'_> {
     /// Re-optimize the solution space at the specified energy level.
     ///
     /// Make sure to the space to the current timestamp.

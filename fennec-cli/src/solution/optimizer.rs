@@ -22,8 +22,8 @@ use crate::{
 };
 
 #[derive(Builder)]
-pub struct Optimizer {
-    energy_profile: energy::Profile,
+pub struct Optimizer<'a> {
+    energy_profile: &'a energy::Profile,
     battery_efficiency: Flow<f64>,
     battery_capacity: WattHours,
 
@@ -43,7 +43,7 @@ pub struct Optimizer {
     allowed_energy_levels: RangeInclusive<WattHours<usize>>,
 }
 
-impl Optimizer {
+impl<'a> Optimizer<'a> {
     /// Find the optimal battery schedule.
     ///
     /// Works backwards from future to present, computing the minimum cost at each
@@ -58,13 +58,13 @@ impl Optimizer {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(self, energy_prices: Schedule<Flow<KilowattHourPrice>>) -> Optimized {
+    pub fn solve(self, energy_prices: &Schedule<Flow<KilowattHourPrice>>) -> Optimized<'a> {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
 
         let mut solutions =
-            energy_prices.map(|price| Stage::new(price, self.allowed_energy_levels.last));
+            energy_prices.map(|price| Stage::new(*price, self.allowed_energy_levels.last));
         let mut n_some: usize = 0;
         let mut n_none: usize = 0;
 

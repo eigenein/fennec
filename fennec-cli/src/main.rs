@@ -32,11 +32,17 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 pub use self::schedule::Schedule;
 use crate::{
     api::homewizard,
-    cli::{Args, BatteryPowerLimits, Connections, hunter},
+    cli::{Args, BatteryArgs, BatteryPowerLimits, Connections, hunter},
     energy::Flow,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::{power::Watts, price::KilowattHourPrice, time::Hours},
+    quantity::{
+        energy::{EnergyLevel, WattHours},
+        power::Watts,
+        price::KilowattHourPrice,
+        time::Hours,
+    },
+    solution::Optimizer,
 };
 
 fn main() -> Result {
@@ -130,6 +136,7 @@ pub struct Runner {
     battery_efficiency_half_life_factor: f64,
     energy_provider: energy::Provider,
     dry_run: bool,
+    battery_args: BatteryArgs,
 
     /// Current energy prices.
     energy_prices: Schedule<Flow<KilowattHourPrice>>,
@@ -140,6 +147,7 @@ pub struct Runner {
 impl Runner {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
+    /// TODO: consume [`Args`].
     #[instrument(skip_all)]
     pub async fn start(args: &Args) -> Result<Self> {
         let energy_profile = energy::Profile::read_from_file(args.n_balance_harmonics).await?;
@@ -151,6 +159,7 @@ impl Runner {
             ),
             battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
             dry_run: args.dry_run,
+            battery_args: args.battery.clone(), // TODO: kill `clone()`.
             energy_prices: Self::get_prices(args.energy_provider, Local::now()).await?,
             energy_provider: args.energy_provider,
             state: Arc::new(RwLock::new(State { energy_profile })),
@@ -191,7 +200,7 @@ impl Runner {
         );
 
         let has_residual_charge_changed =
-            self.update_energy_profile(now, balance, battery_metrics).await?;
+            self.update_energy_profile(now, balance, &battery_metrics).await?;
         let has_schedule_advanced = {
             let previous_len = self.energy_prices.len();
             self.energy_prices.advance_to(now);
@@ -203,7 +212,7 @@ impl Runner {
                 self.energy_prices = Self::get_prices(self.energy_provider, now).await?;
                 // TODO: figure out whether the new prices came in.
             }
-            // TODO: optimize.
+            self.optimize(&battery_metrics).await?;
         }
 
         Ok(())
@@ -257,7 +266,7 @@ impl Runner {
         &self,
         now: DateTime<Local>,
         balance: energy::Balance<Watts>,
-        battery_metrics: api::mini_qube::Metrics,
+        battery_metrics: &api::mini_qube::Metrics,
     ) -> Result<bool> {
         let energy_profile = &mut self.state.write().await.energy_profile;
         energy_profile.update_energy_balance(
@@ -272,6 +281,50 @@ impl Runner {
         );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         Ok(is_residual_energy_changed)
+    }
+
+    #[instrument(skip_all)]
+    async fn optimize(&self, battery_metrics: &api::mini_qube::Metrics) -> Result {
+        let state = self.state.read().await;
+
+        let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
+        let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
+        let initial_energy_level =
+            WattHours::from(battery_metrics.tracked.residual_energy()).into();
+        let (metrics, steps) = Optimizer::builder()
+            .working_modes(self.battery_args.working_modes.iter().copied().collect())
+            .allowed_energy_levels(min_energy_level..=max_energy_level)
+            .battery_efficiency(state.energy_profile.battery_efficiency)
+            .battery_capacity(battery_metrics.tracked.actual_capacity())
+            .max_battery_flow(
+                self.battery_args
+                    .power_limits
+                    .max_effective_flow(state.energy_profile.eps_active_power.0),
+            )
+            .energy_profile(&state.energy_profile)
+            .battery_degradation_cost(self.battery_args.degradation_cost)
+            .build()
+            .solve(&self.energy_prices) // FIXME: `spawn_blocking`.
+            .solutions
+            .backtrack(initial_energy_level)?;
+
+        drop(state); // TODO: accept from outside?
+        info!(
+            grid_loss = ?metrics.losses.grid,
+            battery.loss = ?metrics.losses.battery,
+            battery.charge = ?metrics.internal_battery_flow.import,
+            battery.discharge = ?metrics.internal_battery_flow.export,
+            "solution summary",
+        );
+
+        let schedule = api::mini_qube::schedule::build(
+            steps.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
+            battery_metrics.untracked.allowed_charge,
+            self.battery_args.power_limits,
+        );
+        self.write_schedule(&schedule).await?;
+
+        Ok(())
     }
 
     /// Write the battery schedule.

@@ -47,7 +47,7 @@ pub struct Untracked {
 
 /// Tracked metrics are persisted in order to estimate the battery parameters.
 #[must_use]
-#[derive(Encode, Decode)]
+#[derive(Copy, Clone, Encode, Decode)]
 pub struct Tracked {
     /// Timestamp of the readings.
     #[musli(Binary, name = 1)]

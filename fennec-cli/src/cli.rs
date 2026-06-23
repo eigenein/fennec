@@ -22,14 +22,14 @@ pub struct Args {
     pub bind: BindArgs,
 
     #[clap(flatten)]
+    pub connections: ConnectionArgs,
+
+    #[clap(flatten)]
     pub engine: EngineArgs,
 }
 
 #[derive(Parser)]
 pub struct EngineArgs {
-    #[clap(flatten)]
-    pub connections: ConnectionArgs,
-
     #[clap(flatten)]
     pub battery: BatteryArgs,
 

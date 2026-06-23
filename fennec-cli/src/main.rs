@@ -196,7 +196,7 @@ impl Engine {
                 self.energy_prices = Self::get_prices(self.args.energy_provider, now).await?;
                 // TODO: figure out whether the new prices came in.
             }
-            self.optimize(&battery_metrics).await?;
+            self.reoptimize_schedule(&battery_metrics).await?;
         }
 
         Ok(())
@@ -267,8 +267,9 @@ impl Engine {
         Ok(is_residual_energy_changed)
     }
 
+    /// Fully re-optimize the battery schedule.
     #[instrument(skip_all)]
-    async fn optimize(&self, battery_metrics: &api::mini_qube::Metrics) -> Result {
+    async fn reoptimize_schedule(&self, battery_metrics: &api::mini_qube::Metrics) -> Result {
         let state = self.state.read().await;
 
         let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
@@ -286,10 +287,9 @@ impl Engine {
                     .power_limits
                     .max_effective_flow(state.energy_profile.eps_active_power.0),
             )
-            .energy_profile(&state.energy_profile)
             .battery_degradation_cost(self.args.battery.degradation_cost)
             .build()
-            .solve(&self.energy_prices)
+            .solve(&self.energy_prices, &state.energy_profile)
             .solutions
             .backtrack(initial_energy_level)?;
 

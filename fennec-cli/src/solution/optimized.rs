@@ -2,28 +2,33 @@ use std::ops::{Index, IndexMut};
 
 use crate::{
     Schedule,
+    energy,
     energy::Flow,
     prelude::*,
     quantity::{energy::EnergyLevel, price::KilowattHourPrice},
     solution::{Metrics, Optimizer, Solution, Step},
 };
 
-pub struct Optimized<'a> {
+pub struct Optimized {
     /// [Solution space][1] that associates a [`Solution`] with every time interval and [`EnergyLevel`].
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     pub solutions: Schedule<Stage>,
 
-    pub optimizer: Optimizer<'a>,
+    pub optimizer: Optimizer,
 }
 
-impl Optimized<'_> {
+impl Optimized {
     /// Re-optimize the solution space at the specified energy level.
     ///
     /// Make sure to the space to the current timestamp.
-    pub fn reoptimize_state(&mut self, initial_energy_level: EnergyLevel) {
+    pub fn reoptimize_state(
+        &mut self,
+        initial_energy_level: EnergyLevel,
+        energy_profile: &energy::Profile,
+    ) {
         self.solutions.get_mut(0)[initial_energy_level] =
-            self.optimizer.optimize_state(0, initial_energy_level, &self.solutions);
+            self.optimizer.optimize_state(0, initial_energy_level, energy_profile, &self.solutions);
     }
 }
 

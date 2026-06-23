@@ -91,7 +91,7 @@ fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
 }
 
 async fn run(args: Args) -> Result {
-    let logger_runner = Logger::start(&args).await?;
+    let runner = Runner::start(&args).await?;
     let hunter_runner = hunter::Runner::builder()
         .connections(args.connections.connect()?)
         .energy_provider(args.energy_provider)
@@ -101,10 +101,9 @@ async fn run(args: Args) -> Result {
         .build();
 
     let hunter_state = Arc::new(RwLock::new(hunter_runner.run_once().await?));
-    let state =
-        web::State { hunter: hunter_state.clone(), logger: logger_runner.energy_profile.clone() };
+    let state = web::State { hunter: hunter_state.clone(), logger: runner.energy_profile.clone() };
     try_join!(
-        async { spawn(logger_runner.run_forever(args.logger_interval.into())).await? },
+        async { spawn(runner.run_forever(args.logger_interval.into())).await? },
         async { spawn(hunter_runner.run_forever(args.optimizer_cron, hunter_state)).await? },
         async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? },
     )?;
@@ -113,7 +112,7 @@ async fn run(args: Args) -> Result {
 }
 
 #[must_use]
-pub struct Logger {
+pub struct Runner {
     connections: Connections,
     battery_power_limits: BatteryPowerLimits,
     energy_balance_half_life: HalfLife<Hours>,
@@ -121,7 +120,7 @@ pub struct Logger {
     pub energy_profile: Arc<RwLock<energy::Profile>>,
 }
 
-impl Logger {
+impl Runner {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
     #[instrument(skip_all)]

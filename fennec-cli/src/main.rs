@@ -199,7 +199,14 @@ impl Engine {
 
             self.state.write().await.optimizer = {
                 let energy_profile = &self.state.read().await.energy_profile;
-                Some(self.reoptimize_schedule(&battery_metrics, energy_profile).await?)
+                let optimizer_state =
+                    self.reoptimize_schedule(&battery_metrics, energy_profile).await?;
+                self.write_schedule(
+                    &optimizer_state.steps,
+                    battery_metrics.untracked.allowed_charge,
+                )
+                .await?;
+                Some(optimizer_state)
             };
         }
 
@@ -298,7 +305,6 @@ impl Engine {
             .solve(&self.energy_prices, energy_profile)
             .solutions
             .backtrack(initial_energy_level)?;
-
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,
@@ -306,8 +312,6 @@ impl Engine {
             battery.discharge = ?metrics.internal_battery_flow.export,
             "solution summary",
         );
-        self.write_schedule(&steps, battery_metrics.untracked.allowed_charge).await?;
-
         Ok(OptimizerState { metrics, steps })
     }
 

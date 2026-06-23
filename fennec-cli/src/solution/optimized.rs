@@ -39,7 +39,7 @@ impl Schedule<Stage> {
         initial_energy_level: EnergyLevel,
     ) -> Result<(Metrics, Schedule<(Flow<KilowattHourPrice>, Step)>)> {
         let mut energy_level = initial_energy_level;
-        let mut summary = None;
+        let mut metrics = None;
 
         let steps = self.try_map(|stage| {
             let solution = stage[energy_level]
@@ -47,13 +47,14 @@ impl Schedule<Stage> {
                 .with_context(|| format!("there is no solution at energy level {energy_level}"))?;
 
             // The first solution carries the cumulative metrics for the entire plan:
-            summary.get_or_insert(solution.metrics);
+            metrics.get_or_insert(solution.metrics);
 
             energy_level = solution.step.energy_level_after;
             Ok((stage.price, solution.step))
         })?;
 
-        summary.context("the solution space is empty").map(|summary| (summary, steps))
+        let metrics = metrics.context("the solution space is empty")?;
+        Ok((metrics, steps))
     }
 }
 

@@ -9,12 +9,12 @@ use std::{net::IpAddr, sync::Arc};
 use axum::{Router, routing::get};
 use tokio::sync::RwLock;
 
-use crate::{cli::hunter, energy, prelude::*};
+use crate::{cli::hunter, prelude::*};
 
 #[derive(Clone)]
 pub struct State {
     pub hunter: Arc<RwLock<hunter::State>>,
-    pub logger: Arc<RwLock<energy::Profile>>,
+    pub state: Arc<RwLock<crate::State>>,
 }
 
 pub async fn serve(address: IpAddr, port: u16, state: State) -> Result {

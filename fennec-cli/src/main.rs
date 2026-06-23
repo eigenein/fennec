@@ -102,7 +102,7 @@ async fn run(args: Args) -> Result {
         .build();
 
     let hunter_state = Arc::new(RwLock::new(hunter_runner.run_once().await?));
-    let state = web::State { hunter: hunter_state.clone(), logger: runner.energy_profile.clone() };
+    let state = web::State { hunter: hunter_state.clone(), state: runner.state.clone() };
     try_join!(
         async { spawn(runner.run_forever(args.logger_interval.into())).await? },
         async { spawn(hunter_runner.run_forever(args.optimizer_cron, hunter_state)).await? },
@@ -110,6 +110,12 @@ async fn run(args: Args) -> Result {
     )?;
 
     Ok(())
+}
+
+#[must_use]
+pub struct State {
+    /// Current energy profile.
+    energy_profile: energy::Profile,
 }
 
 #[must_use]
@@ -125,8 +131,7 @@ pub struct Runner {
     /// Current energy prices.
     energy_prices: Schedule<Flow<KilowattHourPrice>>,
 
-    /// Current energy profile.
-    energy_profile: Arc<RwLock<energy::Profile>>,
+    state: Arc<RwLock<State>>,
 }
 
 impl Runner {
@@ -142,9 +147,9 @@ impl Runner {
                 Duration::from(args.energy_balance_half_life).into(),
             ),
             battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
-            energy_profile: Arc::new(RwLock::new(energy_profile)),
             energy_prices: Self::get_prices(args.energy_provider, Local::now()).await?,
             energy_provider: args.energy_provider,
+            state: Arc::new(RwLock::new(State { energy_profile })),
         };
         Ok(this)
     }
@@ -250,7 +255,7 @@ impl Runner {
         balance: energy::Balance<Watts>,
         battery_metrics: mini_qube::Metrics,
     ) -> Result<bool> {
-        let mut energy_profile = self.energy_profile.write().await;
+        let energy_profile = &mut self.state.write().await.energy_profile;
         energy_profile.update_energy_balance(
             balance,
             battery_metrics.untracked.eps_active_power,
@@ -262,7 +267,6 @@ impl Runner {
             self.battery_efficiency_half_life_factor,
         );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
-        drop(energy_profile);
         Ok(is_residual_energy_changed)
     }
 }

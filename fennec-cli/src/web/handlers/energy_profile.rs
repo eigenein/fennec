@@ -18,11 +18,10 @@ pub const PATH: &str = "/energy-profile";
 
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
-#[expect(clippy::significant_drop_tightening)]
 pub async fn get(State(state): State<web::State>) -> Markup {
     debug!("access");
 
-    let energy_profile = state.logger.read().await;
+    let energy_profile = &state.state.read().await.energy_profile;
     let mean_balance = energy_profile.mean_balance.0;
 
     partials::page(
@@ -91,7 +90,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                     }
                     div.card-content {
                         figure.image.has-plotters-fix {
-                            (instant_balance_chart(&energy_profile))
+                            (instant_balance_chart(energy_profile))
                         }
                     }
                 }
@@ -104,7 +103,7 @@ pub async fn get(State(state): State<web::State>) -> Markup {
                     }
                     div.card-content {
                         figure.image.has-plotters-fix {
-                            (interval_balance_chart(&energy_profile))
+                            (interval_balance_chart(energy_profile))
                         }
                     }
                 }

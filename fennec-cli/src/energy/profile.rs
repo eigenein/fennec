@@ -25,44 +25,6 @@ use crate::{
 #[must_use]
 #[derive(Clone, Encode, Decode)]
 pub struct Profile {
-    /// Timestamp of the last update to the parameters.
-    ///
-    /// It does not apply to the battery metrics and parameters.
-    /// It would be nice to use something like `#[musli(flatten)]` and extract the structure,
-    /// but Musli does not support this at the moment.
-    #[musli(Binary, name = 6)]
-    #[musli(with = crate::ops::musli::chrono)]
-    #[deprecated]
-    balance_updated_at: DateTime<Local>,
-
-    /// Average EPS active power.
-    #[musli(Binary, name = 7)]
-    #[deprecated]
-    pub eps_active_power: Exponential<Watts>,
-
-    /// Global average energy balance (constant term of the Fourier decomposition).
-    #[musli(Binary, name = 8)]
-    #[deprecated]
-    pub mean_balance: Exponential<energy::Balance<Watts>>,
-
-    /// Energy balance harmonics (c₁ and so on).
-    #[musli(Binary, name = 9)]
-    #[deprecated]
-    pub balance_harmonics: Vec<Exponential<Harmonic<energy::Balance<Watts>>>>,
-
-    /// Battery metrics as read from the device.
-    ///
-    /// This attribute is updated if and only if the residual charge changes.
-    #[musli(Binary, name = 10)]
-    #[musli(default)]
-    #[deprecated]
-    pub battery_metrics: Option<mini_qube::TrackedMetrics>,
-
-    #[musli(Binary, name = 12)]
-    #[musli(default = Self::default_battery_efficiency)]
-    #[deprecated]
-    pub battery_efficiency: energy::Flow<f64>,
-
     /// Battery profile.
     #[musli(Binary, name = 13)]
     #[musli(default)]
@@ -85,20 +47,10 @@ impl Profile {
             let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
             let mut this: Self =
                 wire::decode(bytes.as_slice()).context("failed to decode the file")?;
-            this.balance_harmonics.resize(n_balance_harmonics, Self::DEFAULT_HARMONIC);
             this.balance.harmonics.resize(n_balance_harmonics, Self::DEFAULT_HARMONIC);
             this
         } else {
-            Self {
-                balance_updated_at: Local::now(),
-                mean_balance: Exponential(energy::Balance::ZERO),
-                eps_active_power: Exponential(Watts::ZERO),
-                balance_harmonics: vec![Self::DEFAULT_HARMONIC; n_balance_harmonics],
-                battery_metrics: None,
-                battery_efficiency: Self::default_battery_efficiency(),
-                battery: Battery::default(),
-                balance: Balance::new(n_balance_harmonics),
-            }
+            Self { battery: Battery::default(), balance: Balance::new(n_balance_harmonics) }
         })
     }
 
@@ -130,14 +82,17 @@ impl Profile {
         current_metrics: mini_qube::TrackedMetrics,
         half_life_factor: f64,
     ) -> bool {
-        let Some(last_metrics) = &self.battery_metrics else {
-            self.battery_metrics = Some(current_metrics);
+        let battery_tracker = BatteryTracker {
+            total_grid_flow: current_metrics.total_grid_flow,
+            residual_energy: current_metrics.residual_energy(),
+        };
+        let Some(tracker) = &self.battery.tracker else {
+            self.battery.tracker = Some(battery_tracker);
             info!("initialized battery metrics");
             return true;
         };
 
-        let residual_energy_change =
-            current_metrics.residual_energy() - last_metrics.residual_energy();
+        let residual_energy_change = current_metrics.residual_energy() - tracker.residual_energy;
         if residual_energy_change == Zero::ZERO {
             // Keep accumulating the grid flow until the residual energy changes.
             return false;
@@ -145,7 +100,7 @@ impl Profile {
 
         let residual_energy_change = WattHours::from(residual_energy_change).abs();
         info!(?residual_energy_change, "changed");
-        let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
+        let grid_flow = current_metrics.total_grid_flow - tracker.total_grid_flow;
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
             (true, false) => {
@@ -154,7 +109,7 @@ impl Profile {
                 let smoothing_factor =
                     HalfLife(current_metrics.actual_capacity() * half_life_factor)
                         .smoothing_factor(grid_export);
-                self.battery_efficiency.export = Exponential(self.battery_efficiency.export)
+                self.battery.efficiency.export = Exponential(self.battery.efficiency.export)
                     .update(efficiency, smoothing_factor)
                     .0;
                 info!(
@@ -171,7 +126,7 @@ impl Profile {
                 let smoothing_factor =
                     HalfLife(current_metrics.actual_capacity() * half_life_factor)
                         .smoothing_factor(grid_import);
-                self.battery_efficiency.import = Exponential(self.battery_efficiency.import)
+                self.battery.efficiency.import = Exponential(self.battery.efficiency.import)
                     .update(efficiency, smoothing_factor)
                     .0;
                 info!(
@@ -187,12 +142,7 @@ impl Profile {
             }
         }
 
-        self.battery.efficiency = self.battery_efficiency;
-        self.battery_metrics = Some(current_metrics);
-        self.battery.tracker = Some(BatteryProfileTracker {
-            total_grid_flow: current_metrics.total_grid_flow,
-            residual_energy: current_metrics.residual_energy(),
-        });
+        self.battery.tracker = Some(battery_tracker);
         true
     }
 
@@ -206,19 +156,16 @@ impl Profile {
     ) {
         let mean_smoothing_factor = {
             // Smoothing factor based on the configured half-life and elapsed time:
-            let elapsed = at - std::mem::replace(&mut self.balance_updated_at, at);
-            self.balance.updated_at = self.balance_updated_at;
+            let elapsed = at - std::mem::replace(&mut self.balance.updated_at, at);
             half_life.smoothing_factor(elapsed)
         };
 
-        self.eps_active_power.update(eps_active_power, mean_smoothing_factor);
-        self.balance.eps_active_power.0 = self.eps_active_power.0;
+        self.balance.eps_active_power.update(eps_active_power, mean_smoothing_factor);
 
         // Calculate the deviation before the mean update eats the signal:
-        let deviation = balance - self.mean_balance.0;
+        let deviation = balance - self.balance.mean.0;
 
-        self.mean_balance.update(balance, mean_smoothing_factor);
-        self.balance.mean.0 = self.mean_balance.0;
+        self.balance.mean.update(balance, mean_smoothing_factor);
 
         // Capture daily periodicity, hence one full day is τ radians:
         let base_phase: Radians =
@@ -229,13 +176,9 @@ impl Profile {
         // The following ensures that α × 2N ≤ 1 and the spike is constrained:
         #[expect(clippy::cast_precision_loss)]
         let harmonic_smoothing_factor =
-            mean_smoothing_factor.min(0.5 / self.balance_harmonics.len() as f64);
+            mean_smoothing_factor.min(0.5 / self.balance.harmonics.len() as f64);
 
-        for ((mode_index, deprecated_harmonic), new_harmonic) in (1..)
-            .map(f64::from)
-            .zip(self.balance_harmonics.iter_mut())
-            .zip(self.balance.harmonics.iter_mut())
-        {
+        for (mode_index, harmonic) in (1..).map(f64::from).zip(self.balance.harmonics.iter_mut()) {
             let basis = Harmonic::from_phase(base_phase * mode_index);
             let target = Harmonic {
                 // Multiplication by 2 comes from the scale factor:
@@ -243,8 +186,7 @@ impl Profile {
                 cosine: deviation * (2.0 * basis.cosine),
                 sine: deviation * (2.0 * basis.sine),
             };
-            deprecated_harmonic.update(target, harmonic_smoothing_factor);
-            new_harmonic.0 = deprecated_harmonic.0;
+            harmonic.update(target, harmonic_smoothing_factor);
         }
     }
 
@@ -254,7 +196,7 @@ impl Profile {
             Quantity(f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU);
         (1..)
             .map(f64::from)
-            .zip(self.balance_harmonics.iter())
+            .zip(self.balance.harmonics.iter())
             .map(|(mode_index, harmonic)| {
                 harmonic.0.dot(Harmonic::from_phase(day_phase * mode_index))
             })
@@ -262,7 +204,7 @@ impl Profile {
     }
 
     pub fn mean_balance_over(&self, interval: Interval) -> energy::Balance<Watts> {
-        let balance = self.mean_balance.0 + self.mean_deviation_over(interval);
+        let balance = self.balance.mean.0 + self.mean_deviation_over(interval);
         energy::Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
     }
 
@@ -279,7 +221,7 @@ impl Profile {
 
         (1..)
             .map(f64::from)
-            .zip(self.balance_harmonics.iter())
+            .zip(self.balance.harmonics.iter())
             .map(|(mode_index, harmonic)| {
                 // (1/Δt) ∫ cos(2πk·t) dt = cos(2πk·middle_phase) · sinc(k·Δt)
                 let weight = Self::sinc(mode_index * n_days);
@@ -297,10 +239,6 @@ impl Profile {
             pi_x.sin() / pi_x
         }
     }
-
-    const fn default_battery_efficiency() -> energy::Flow<f64> {
-        energy::Flow { import: 0.95, export: 0.95 }
-    }
 }
 
 #[derive(Copy, Clone, Encode, Decode)]
@@ -309,7 +247,7 @@ pub struct Battery {
     pub efficiency: energy::Flow<f64>,
 
     #[musli(Binary, name = 2)]
-    pub tracker: Option<BatteryProfileTracker>,
+    pub tracker: Option<BatteryTracker>,
 }
 
 impl Default for Battery {
@@ -319,7 +257,7 @@ impl Default for Battery {
 }
 
 #[derive(Copy, Clone, Encode, Decode)]
-pub struct BatteryProfileTracker {
+pub struct BatteryTracker {
     #[musli(Binary, name = 1)]
     pub total_grid_flow: energy::Flow<DecawattHours>,
 

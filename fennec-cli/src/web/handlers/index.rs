@@ -8,7 +8,7 @@ use crate::{
     battery::WorkingMode,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours},
-    web::{battery::StateOfCharge, partials, working_mode::WorkingModeColor},
+    web::{partials, working_mode::WorkingModeColor},
 };
 
 #[instrument(skip_all)]
@@ -19,15 +19,15 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
     let state = state.read().await;
     let backtrack = state.backtrack.as_ref();
     let energy_profile = &state.energy_profile;
-    let battery_metrics = energy_profile.battery_metrics.as_ref();
+    let battery_tracker = energy_profile.battery.tracker.as_ref();
 
     partials::page(
         "Fennec",
         html! {
             section.section.pb-5 {
                 div.box {
-                    @if let Some(backtrack) = backtrack {
-                        div.field.is-grouped.is-grouped-multiline {
+                    div.field.is-grouped.is-grouped-multiline {
+                        @if let Some(backtrack) = backtrack {
                             div.control {
                                 div.tags.has-addons {
                                     span.tag.is-info {
@@ -63,58 +63,20 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                     }
                                 }
                             }
-                            @if let Some(battery_metrics) = battery_metrics {
-                                div.control {
-                                    div.tags.has-addons {
-                                        span.tag.is-info {
-                                            span.icon-text {
-                                                span.icon { i.fas.fa-rotate {} }
-                                                span { "Cycles" }
-                                            }
-                                        }
-                                        span.tag {
-                                            (format!("{:.1}", (backtrack.metrics.internal_battery_flow.import + backtrack.metrics.internal_battery_flow.export) / battery_metrics.actual_capacity() / 2.0))
-                                        }
-                                    }
-                                }
-                            }
                         }
-                    }
-
-                    div.field.is-grouped.is-grouped-multiline {
-                        @if let Some(battery_metrics) = battery_metrics {
-                            div.control {
-                                div.tags.has-addons {
-                                     @let state_of_charge = StateOfCharge {
-                                        residual_energy: battery_metrics.residual_energy().into(),
-                                        actual_capacity: battery_metrics.actual_capacity(),
-                                    };
-                                    span.tag.(state_of_charge.class()) {
-                                        span.icon-text {
-                                            (state_of_charge.icon())
-                                            span { "Charge" }
-                                        }
-                                    }
-                                    span.tag { (battery_metrics.charge) }
-                                    span.tag { (WattHours::from(battery_metrics.residual_energy())) }
-                                }
-                            }
+                        @if let Some(battery_tracker) = battery_tracker {
                             div.control {
                                 div.tags.has-addons {
                                     span.tag.is-info {
                                         span.icon-text {
-                                            span.icon { i.fas.fa-star-of-life {} }
-                                            span { "Health" }
+                                            span.icon { i.fa-solid.fa-battery-half {} }
+                                            span { "Charge" }
                                         }
                                     }
-                                    span.tag { (battery_metrics.health) }
-                                    span.tag { (battery_metrics.actual_capacity()) }
+                                    span.tag { (WattHours::from(battery_tracker.residual_energy)) }
                                 }
                             }
                         }
-                    }
-
-                    div.field.is-grouped.is-grouped-multiline {
                         div.control {
                             div.tags.has-addons {
                                 span.tag.is-info {
@@ -126,19 +88,19 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-rotate {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.round_trip())) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery.efficiency.round_trip())) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-down {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.import)) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery.efficiency.import)) }
                                     }
                                 }
                                 span.tag {
                                     span.icon-text {
                                         span.icon { i.fas.fa-angle-up {} }
-                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery_efficiency.export)) }
+                                        span { (format!("{:.1}%", 100.0 * energy_profile.battery.efficiency.export)) }
                                     }
                                 }
                             }
@@ -152,7 +114,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                     }
                                 }
                                 span.tag {
-                                    (energy_profile.eps_active_power.0)
+                                    (energy_profile.balance.eps_active_power.0)
                                 }
                             }
                         }
@@ -213,15 +175,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                                     }
                                                 }
                                                 td.has-text-right {
-                                                    span.icon-text.is-flex-wrap-nowrap {
-                                                        span { (slot.value.1.energy_level_after) }
-                                                        @if let Some(battery_metrics) = battery_metrics {
-                                                            (StateOfCharge {
-                                                                residual_energy: slot.value.1.energy_level_after.into(),
-                                                                actual_capacity: battery_metrics.actual_capacity(),
-                                                            }.icon())
-                                                        }
-                                                    }
+                                                    (slot.value.1.energy_level_after)
                                                 }
                                                 td.has-text-right.has-text-weight-medium[slot.value.1.metrics.losses.grid >= Mills::TEN] {
                                                     (slot.value.1.metrics.losses.grid)

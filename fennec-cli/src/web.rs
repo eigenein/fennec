@@ -1,4 +1,3 @@
-mod battery;
 mod handlers;
 mod partials;
 mod plotters;

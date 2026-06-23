@@ -9,7 +9,7 @@ use crate::{
     solution::{Backtrack, Optimizer, Solution},
 };
 
-pub struct Optimized {
+pub struct Space {
     /// [Solution space][1] that associates a [`Solution`] with every time interval and [`EnergyLevel`].
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
@@ -18,7 +18,7 @@ pub struct Optimized {
     pub optimizer: Optimizer,
 }
 
-impl Optimized {
+impl Space {
     /// Re-optimize the solution space at the specified energy level.
     ///
     /// Make sure to the space to the current timestamp.

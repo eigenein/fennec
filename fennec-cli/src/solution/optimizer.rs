@@ -16,7 +16,7 @@ use crate::{
         time::Hours,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Optimized, Solution, Step, optimized::Stage},
+    solution::{Losses, Metrics, Solution, Space, Step, space::Stage},
 };
 
 #[derive(Builder)]
@@ -57,7 +57,7 @@ impl Optimizer {
         self,
         energy_prices: &Schedule<Flow<KilowattHourPrice>>,
         energy_profile: &Profile,
-    ) -> Optimized {
+    ) -> Space {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -84,7 +84,7 @@ impl Optimizer {
 
         // TODO: may wanna warn if `n_none` is non-zero.
         info!(elapsed = ?start_instant.elapsed(), n_some, n_none, "optimized");
-        Optimized { solutions, optimizer: self }
+        Space { solutions, optimizer: self }
     }
 
     /// # Returns

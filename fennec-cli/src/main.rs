@@ -14,12 +14,11 @@ mod schedule;
 mod solution;
 mod web;
 
-use std::{borrow::Cow, sync::Arc, time::Duration};
+use std::{borrow::Cow, range::RangeInclusive, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
 use chrono::{DateTime, Days, Local, TimeDelta};
 use clap::{Parser, crate_name, crate_version};
-use fennec_modbus::contrib;
 use sentry::{
     SessionMode,
     integrations::{anyhow::capture_anyhow, tracing::EventFilter},
@@ -30,16 +29,16 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 
 pub use self::schedule::Schedule;
 use crate::{
-    api::homewizard,
+    api::{homewizard, mini_qube},
     cli::{Args, Connections, EngineArgs},
-    energy::Flow,
     prelude::*,
     quantity::{
         energy::{EnergyLevel, WattHours},
         power::Watts,
         price::KilowattHourPrice,
+        ratios::Percentage,
     },
-    solution::{Backtrack, Optimizer},
+    solution::{Backtrack, Optimizer, Step},
 };
 
 fn main() -> Result {
@@ -124,7 +123,7 @@ pub struct Engine {
     /// Current energy prices.
     ///
     /// TODO: we'll have that in `steps`.
-    energy_prices: Schedule<Flow<KilowattHourPrice>>,
+    energy_prices: Schedule<energy::Flow<KilowattHourPrice>>,
 
     state: Arc<RwLock<State>>,
 }
@@ -191,14 +190,19 @@ impl Engine {
                 self.energy_prices = Self::get_prices(self.args.energy_provider, now).await?;
                 // TODO: figure out whether the new prices came in.
             }
-            self.reoptimize_schedule(&battery_metrics).await?;
+            let backtrack = self
+                .reoptimize_schedule(&battery_metrics, &self.state.read().await.energy_profile)
+                .await?;
+            self.write_schedule(&backtrack.schedule, battery_metrics.untracked.allowed_charge)
+                .await?;
+            self.state.write().await.backtrack = Some(backtrack);
         }
 
         Ok(())
     }
 
     /// Read the MiniQube and HomeWizard P1 metrics simultaneously.
-    async fn read_metrics(&self) -> Result<(api::mini_qube::Metrics, homewizard::EnergyMetrics)> {
+    async fn read_metrics(&self) -> Result<(mini_qube::Metrics, homewizard::EnergyMetrics)> {
         try_join!(
             async {
                 self.connections
@@ -222,7 +226,7 @@ impl Engine {
     async fn get_prices(
         energy_provider: energy::Provider,
         now: DateTime<Local>,
-    ) -> Result<Schedule<Flow<KilowattHourPrice>>> {
+    ) -> Result<Schedule<energy::Flow<KilowattHourPrice>>> {
         const ONE_DAY: Days = Days::new(1);
 
         // TODO: do not re-read prices for today:
@@ -245,7 +249,7 @@ impl Engine {
         &self,
         now: DateTime<Local>,
         balance: energy::Balance<Watts>,
-        battery_metrics: &api::mini_qube::Metrics,
+        battery_metrics: &mini_qube::Metrics,
     ) -> Result<bool> {
         let energy_profile = &mut self.state.write().await.energy_profile;
         energy_profile.update_energy_balance(
@@ -264,9 +268,11 @@ impl Engine {
 
     /// Fully re-optimize the battery schedule.
     #[instrument(skip_all)]
-    async fn reoptimize_schedule(&self, battery_metrics: &api::mini_qube::Metrics) -> Result {
-        let state = self.state.read().await;
-
+    async fn reoptimize_schedule(
+        &self,
+        battery_metrics: &mini_qube::Metrics,
+        energy_profile: &energy::Profile,
+    ) -> Result<Backtrack> {
         let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
         let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
         let initial_energy_level =
@@ -274,21 +280,20 @@ impl Engine {
         let backtrack = Optimizer::builder()
             .working_modes(self.args.battery.working_modes.clone())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
-            .battery_efficiency(state.energy_profile.battery_efficiency)
+            .battery_efficiency(energy_profile.battery_efficiency)
             .battery_capacity(battery_metrics.tracked.actual_capacity())
             .max_battery_flow(
                 self.args
                     .battery
                     .power_limits
-                    .max_effective_flow(state.energy_profile.eps_active_power.0),
+                    .max_effective_flow(energy_profile.eps_active_power.0),
             )
             .battery_degradation_cost(self.args.battery.degradation_cost)
             .build()
-            .solve(&self.energy_prices, &state.energy_profile)
+            .solve(&self.energy_prices, energy_profile)
             .solutions
             .backtrack(initial_energy_level)?;
 
-        drop(state);
         info!(
             grid_loss = ?backtrack.metrics.losses.grid,
             battery.loss = ?backtrack.metrics.losses.battery,
@@ -296,29 +301,29 @@ impl Engine {
             battery.discharge = ?backtrack.metrics.internal_battery_flow.export,
             "solution summary",
         );
-
-        let schedule = api::mini_qube::schedule::build(
-            backtrack.schedule.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
-            battery_metrics.untracked.allowed_charge,
-            self.args.battery.power_limits,
-        );
-        self.write_schedule(&schedule).await?;
-
-        self.state.write().await.backtrack = Some(backtrack);
-        Ok(())
+        Ok(backtrack)
     }
 
     /// Write the battery schedule.
     ///
     /// On dry run, print out the schedule without pushing it to the battery.
-    async fn write_schedule(&self, schedule: &contrib::mini_qube::schedule::Full) -> Result {
+    async fn write_schedule(
+        &self,
+        schedule: &Schedule<(energy::Flow<KilowattHourPrice>, Step)>,
+        allowed_charge: RangeInclusive<Percentage>,
+    ) -> Result {
+        let schedule = mini_qube::schedule::build(
+            schedule.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
+            allowed_charge,
+            self.args.battery.power_limits,
+        );
         if self.args.dry_run {
             warn!("not writing the schedule to the battery, just scouting");
             for entry in schedule {
                 info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
             }
         } else {
-            (async || self.connections.battery.write_schedule(schedule).await)
+            (async || self.connections.battery.write_schedule(&schedule).await)
                 .retry(Self::BACKOFF)
                 .notify(log_retried_error)
                 .await

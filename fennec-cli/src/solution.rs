@@ -1,8 +1,8 @@
 mod backtrack;
 mod losses;
 mod metrics;
-mod optimized;
 mod optimizer;
+mod space;
 mod step;
 
 use std::cmp::Ordering;
@@ -11,15 +11,15 @@ pub use self::{
     backtrack::Backtrack,
     losses::Losses,
     metrics::Metrics,
-    optimized::Optimized,
     optimizer::Optimizer,
+    space::Space,
     step::Step,
 };
 
 #[must_use]
 #[derive(Clone)]
 pub struct Solution {
-    /// Cumulative metrics across all stages of the solution.
+    /// Cumulative metrics of the solution starting with the current stage till the end of backtrack.
     pub metrics: Metrics,
 
     /// First step associated with this solution.

@@ -121,12 +121,12 @@ impl Profile {
         let residual_energy_change =
             current_metrics.residual_energy() - last_metrics.residual_energy();
         if residual_energy_change == Zero::ZERO {
-            info!(?residual_energy_change, "changed");
             // Keep accumulating the grid flow until the residual energy changes.
             return false;
         }
 
         let residual_energy_change = WattHours::from(residual_energy_change).abs();
+        info!(?residual_energy_change, "changed");
         let grid_flow = current_metrics.total_grid_flow - last_metrics.total_grid_flow;
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {

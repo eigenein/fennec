@@ -17,7 +17,7 @@ use crate::{
 pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
     debug!("access");
     let state = state.read().await;
-    let optimizer = state.optimizer.as_ref();
+    let backtrack = state.backtrack.as_ref();
     let energy_profile = &state.energy_profile;
     let battery_metrics = energy_profile.battery_metrics.as_ref();
 
@@ -26,7 +26,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
         html! {
             section.section.pb-5 {
                 div.box {
-                    @if let Some(optimizer) = optimizer {
+                    @if let Some(backtrack) = backtrack {
                         div.field.is-grouped.is-grouped-multiline {
                             div.control {
                                 div.tags.has-addons {
@@ -37,7 +37,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (optimizer.metrics.losses.total())
+                                        (backtrack.metrics.losses.total())
                                     }
                                 }
                             }
@@ -52,13 +52,13 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-down {} }
-                                            span { (optimizer.metrics.internal_battery_flow.import) }
+                                            span { (backtrack.metrics.internal_battery_flow.import) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-up {} }
-                                            span { (optimizer.metrics.internal_battery_flow.export) }
+                                            span { (backtrack.metrics.internal_battery_flow.export) }
                                         }
                                     }
                                 }
@@ -73,7 +73,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                             }
                                         }
                                         span.tag {
-                                            (format!("{:.1}", (optimizer.metrics.internal_battery_flow.import + optimizer.metrics.internal_battery_flow.export) / battery_metrics.actual_capacity() / 2.0))
+                                            (format!("{:.1}", (backtrack.metrics.internal_battery_flow.import + backtrack.metrics.internal_battery_flow.export) / battery_metrics.actual_capacity() / 2.0))
                                         }
                                     }
                                 }
@@ -160,7 +160,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                 }
             }
 
-            @if let Some(optimizer) = optimizer {
+            @if let Some(backtrack) = backtrack {
                 section.section.py-5 {
                     div.card {
                         header.card-header {
@@ -172,7 +172,7 @@ pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
                                     thead { (steps_table_header()) }
                                     tfoot { (steps_table_header()) }
                                     tbody {
-                                        @for slot in optimizer.steps.iter() {
+                                        @for slot in backtrack.steps.iter() {
                                             tr.(WorkingModeColor(slot.value.1.working_mode)) {
                                                 td {
                                                     (slot.interval.start().format("%b"))

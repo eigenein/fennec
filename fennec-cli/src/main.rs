@@ -39,7 +39,7 @@ use crate::{
         price::KilowattHourPrice,
         ratios::Percentage,
     },
-    solution::{Optimizer, Step},
+    solution::{Backtrack, Optimizer, Step},
 };
 
 fn main() -> Result {
@@ -109,13 +109,8 @@ pub struct State {
     /// Current energy profile.
     energy_profile: energy::Profile,
 
-    optimizer: Option<OptimizerState>,
-}
-
-#[must_use]
-pub struct OptimizerState {
-    metrics: solution::Metrics,
-    steps: Schedule<(Flow<KilowattHourPrice>, Step)>,
+    /// Current solution backtrack.
+    backtrack: Option<Backtrack>,
 }
 
 #[must_use]
@@ -145,7 +140,7 @@ impl Engine {
             connections,
             optimizer_args: args,
             energy_prices: Self::get_prices(energy_provider, Local::now()).await?,
-            state: Arc::new(RwLock::new(State { energy_profile, optimizer: None })),
+            state: Arc::new(RwLock::new(State { energy_profile, backtrack: None })),
         };
         Ok(this)
     }
@@ -197,16 +192,12 @@ impl Engine {
                 // TODO: figure out whether the new prices came in.
             }
 
-            self.state.write().await.optimizer = {
+            self.state.write().await.backtrack = {
                 let energy_profile = &self.state.read().await.energy_profile;
-                let optimizer_state =
-                    self.reoptimize_schedule(&battery_metrics, energy_profile).await?;
-                self.write_schedule(
-                    &optimizer_state.steps,
-                    battery_metrics.untracked.allowed_charge,
-                )
-                .await?;
-                Some(optimizer_state)
+                let backtrack = self.reoptimize_schedule(&battery_metrics, energy_profile).await?;
+                self.write_schedule(&backtrack.steps, battery_metrics.untracked.allowed_charge)
+                    .await?;
+                Some(backtrack)
             };
         }
 
@@ -284,7 +275,7 @@ impl Engine {
         &self,
         battery_metrics: &mini_qube::Metrics,
         energy_profile: &energy::Profile,
-    ) -> Result<OptimizerState> {
+    ) -> Result<Backtrack> {
         let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
         let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
         let initial_energy_level =
@@ -312,7 +303,7 @@ impl Engine {
             battery.discharge = ?metrics.internal_battery_flow.export,
             "solution summary",
         );
-        Ok(OptimizerState { metrics, steps })
+        Ok(Backtrack { metrics, steps })
     }
 
     /// Write the battery schedule.

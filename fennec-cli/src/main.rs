@@ -160,6 +160,8 @@ impl Runner {
             battery.active_power = ?battery_metrics.untracked.active_power,
             battery.eps_active_power = ?battery_metrics.untracked.eps_active_power,
             battery.residual_energy = ?battery_metrics.tracked.residual_energy(),
+            battery.health = ?battery_metrics.tracked.health,
+            battery.actual_capacity = ?battery_metrics.tracked.actual_capacity(),
             ?balance.battery.export,
             ?balance.battery.import,
             ?balance.grid.export,

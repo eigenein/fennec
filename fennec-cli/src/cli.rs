@@ -154,8 +154,8 @@ pub struct ConnectionArgs {
 }
 
 impl ConnectionArgs {
-    /// TODO: inline without cloning when hunter and logger would be combined.
     pub fn connect(&self) -> Result<Connections> {
+        // TODO: kill cloning.
         Ok(Connections {
             grid_measurement: self.grid_measurement_url.clone().client()?,
             battery: Arc::new(mini_qube::Client::new(self.battery_address.clone())),

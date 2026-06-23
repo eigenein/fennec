@@ -56,12 +56,6 @@ impl Runner {
             .notify(log_retried_error)
             .await
             .context("failed to read the battery state")?;
-        info!(
-            charge = ?battery_state.tracked.charge,
-            health = ?battery_state.tracked.health,
-            actual_capacity = ?battery_state.tracked.actual_capacity(),
-            "battery state",
-        );
 
         // FIXME: do not re-read it when the hunter and logger would be combined.
         let energy_profile = energy::Profile::read_from_file(self.n_balance_harmonics).await?;

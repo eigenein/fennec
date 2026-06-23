@@ -1,4 +1,4 @@
-use std::{range::RangeInclusive, time::Instant};
+use std::range::RangeInclusive;
 
 use crate::{
     Schedule,
@@ -8,70 +8,15 @@ use crate::{
     cli::BatteryConfigurationArgs,
     energy,
     energy::{Balance, Flow},
-    prelude::*,
     quantity::{
-        Quantity,
         energy::{EnergyLevel, WattHours},
         power::Watts,
         price::KilowattHourPrice,
         time::Hours,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Optimized, Solution, Step, optimized::Stage},
+    solution::{Losses, Metrics, Solution, Step, space::Stage},
 };
-
-pub struct Optimizer(pub BatteryConfigurationArgs);
-
-impl Optimizer {
-    /// Find the optimal battery schedule.
-    ///
-    /// Works backwards from future to present, computing the minimum cost at each
-    /// `(timestamp, residual_energy)` state. Cost is money lost or gained to grid import or export.
-    ///
-    /// The [DP][1] state space:
-    ///
-    /// - Time dimension: each hour in the forecast period
-    /// - Energy dimension: quantized with the specified step
-    ///
-    /// For each state, we pick the battery mode that minimizes total cost including future consequences.
-    ///
-    /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
-    #[instrument(skip_all)]
-    pub fn solve(
-        self,
-        energy_prices: &Schedule<Flow<KilowattHourPrice>>,
-        energy_profile: &energy::Profile,
-        battery_metrics: &mini_qube::Metrics,
-    ) -> Optimized {
-        let start_instant = Instant::now();
-
-        info!(n_intervals = energy_prices.len(), "optimizing…");
-
-        let capacity = battery_metrics.tracked.actual_capacity();
-        let capacity_level = EnergyLevel::from(capacity);
-        let mut solutions = energy_prices.map(|price| Stage::new(*price, capacity_level));
-        let mut n_some: usize = 0;
-        let mut n_none: usize = 0;
-
-        // Going backwards:
-        for interval_index in (0..solutions.len()).rev() {
-            // Calculate partial solutions for the current time interval:
-            for energy_level in (0..=capacity_level.0).map(Quantity) {
-                let solution = StateOptimizer::new(&self.0, battery_metrics, energy_profile)
-                    .optimize_state(interval_index, energy_level, &solutions);
-                match solution {
-                    Some(_) => n_some += 1,
-                    None => n_none += 1,
-                }
-                solutions.get_mut(interval_index)[energy_level] = solution;
-            }
-        }
-
-        // TODO: may wanna warn if `n_none` is non-zero.
-        info!(elapsed = ?start_instant.elapsed(), n_some, n_none, "optimized");
-        Optimized { solutions, configuration: self.0 }
-    }
-}
 
 pub struct StateOptimizer<'a> {
     battery_configuration: &'a BatteryConfigurationArgs,
@@ -98,7 +43,7 @@ impl<'a> StateOptimizer<'a> {
     ///
     /// - [`Some`] [`PartialSolution`], if a solution exists.
     /// - [`None`], if there is no solution.
-    pub fn optimize_state(
+    pub fn optimize(
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
@@ -120,7 +65,7 @@ impl<'a> StateOptimizer<'a> {
             .working_modes
             .iter()
             .filter_map(|working_mode| {
-                let step = self.simulate_step(
+                let step = self.simulate(
                     battery_simulator,
                     duration,
                     average_balance,
@@ -157,7 +102,7 @@ impl<'a> StateOptimizer<'a> {
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions.
-    fn simulate_step(
+    fn simulate(
         &self,
         mut battery: battery::Simulator,
         duration: Hours,

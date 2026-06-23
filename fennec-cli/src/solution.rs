@@ -1,20 +1,13 @@
 mod backtrack;
 mod losses;
 mod metrics;
-mod optimized;
 mod optimizer;
+mod space;
 mod step;
 
 use std::cmp::Ordering;
 
-pub use self::{
-    backtrack::Backtrack,
-    losses::Losses,
-    metrics::Metrics,
-    optimized::Optimized,
-    optimizer::Optimizer,
-    step::Step,
-};
+pub use self::{backtrack::Backtrack, losses::Losses, metrics::Metrics, space::Space, step::Step};
 
 /// Partial solution in the DP space.
 #[must_use]

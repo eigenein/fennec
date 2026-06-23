@@ -34,7 +34,7 @@ use crate::{
     energy::Flow,
     prelude::*,
     quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice, ratios::Percentage},
-    solution::{Backtrack, Optimizer, Step},
+    solution::{Backtrack, Space, Step},
 };
 
 fn main() -> Result {
@@ -273,10 +273,13 @@ impl Engine {
     ) -> Result<Backtrack> {
         let initial_energy_level =
             WattHours::from(battery_metrics.tracked.residual_energy()).into();
-        let (metrics, steps) = Optimizer(self.args.battery.configuration.clone())
-            .solve(&self.energy_prices, energy_profile, battery_metrics)
-            .solutions
-            .backtrack(initial_energy_level)?;
+        let space = Space::solve(
+            &self.energy_prices,
+            energy_profile,
+            &self.args.battery.configuration,
+            battery_metrics,
+        );
+        let (metrics, steps) = space.solutions.backtrack(initial_energy_level)?;
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,

@@ -73,10 +73,10 @@ impl Runner {
                     .power_limits
                     .max_effective_flow(energy_profile.eps_active_power.0),
             )
-            .energy_profile(energy_profile)
+            .energy_profile(&energy_profile)
             .battery_degradation_cost(self.battery_args.degradation_cost)
             .build()
-            .solve(energy_prices) // FIXME: `spawn_blocking`.
+            .solve(&energy_prices) // FIXME: `spawn_blocking`.
             .solutions
             .backtrack(initial_energy_level)?;
         info!(

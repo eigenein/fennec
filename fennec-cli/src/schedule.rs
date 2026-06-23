@@ -57,8 +57,8 @@ impl<V> Schedule<V> {
     }
 
     /// Construct new schedule by mapping the schedule values.
-    pub fn map<T>(self, mut mapper: impl FnMut(V) -> T) -> Schedule<T> {
-        Schedule(self.0.into_iter().map(|slot| slot.map(&mut mapper)).collect())
+    pub fn map<T>(&self, mut mapper: impl FnMut(&V) -> T) -> Schedule<T> {
+        Schedule(self.0.iter().map(|slot| slot.map(&mut mapper)).collect())
     }
 
     /// Construct a new schedule by mapping the values, stopping at the first error.
@@ -130,8 +130,8 @@ pub struct Slot<V> {
 }
 
 impl<V> Slot<V> {
-    pub fn map<T>(self, mapper: impl FnOnce(V) -> T) -> Slot<T> {
-        Slot { interval: self.interval, value: mapper(self.value) }
+    pub fn map<T>(&self, mapper: impl FnOnce(&V) -> T) -> Slot<T> {
+        Slot { interval: self.interval, value: mapper(&self.value) }
     }
 
     pub const fn as_ref(&self) -> Slot<&V> {

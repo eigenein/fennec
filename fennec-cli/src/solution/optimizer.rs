@@ -6,7 +6,7 @@ use crate::{
     Schedule,
     battery,
     battery::WorkingMode,
-    energy::{Balance, Flow, Profile},
+    energy,
     prelude::*,
     quantity::{
         Quantity,
@@ -21,6 +21,8 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Optimizer {
+    energy_profile: energy::Profile,
+
     battery_capacity: WattHours,
 
     /// Enabled working modes.
@@ -30,7 +32,7 @@ pub struct Optimizer {
     battery_degradation_cost: KilowattHourPrice,
 
     /// Maximum power flow that the battery supports.
-    max_battery_flow: Flow<Watts>,
+    max_battery_flow: energy::Flow<Watts>,
 
     /// Allowed energy level range.
     #[builder(into)]
@@ -52,11 +54,7 @@ impl Optimizer {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(
-        self,
-        energy_prices: &Schedule<Flow<KilowattHourPrice>>,
-        energy_profile: &Profile,
-    ) -> Space {
+    pub fn solve(self, energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>) -> Space {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -70,8 +68,7 @@ impl Optimizer {
         for interval_index in (0..solutions.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in (0..=capacity_level.0).map(Quantity) {
-                let solution =
-                    self.optimize_state(interval_index, energy_level, energy_profile, &solutions);
+                let solution = self.optimize_state(interval_index, energy_level, &solutions);
                 match solution {
                     Some(_) => n_some += 1,
                     None => n_none += 1,
@@ -93,16 +90,15 @@ impl Optimizer {
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
-        energy_profile: &Profile,
         solutions: &Schedule<Stage>,
     ) -> Option<Solution> {
         let Slot { interval, value: stage } = solutions.get(interval_index);
         let duration = interval.duration();
-        let average_balance = energy_profile.mean_balance_over(interval);
+        let average_balance = self.energy_profile.mean_balance_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
-            efficiency: energy_profile.battery_efficiency,
+            efficiency: self.energy_profile.battery_efficiency,
         };
         self.working_modes
             .iter()
@@ -148,8 +144,8 @@ impl Optimizer {
         &self,
         mut battery: battery::Simulator,
         duration: Hours,
-        average_balance: Balance<Watts>,
-        energy_price: Flow<KilowattHourPrice>,
+        average_balance: energy::Balance<Watts>,
+        energy_price: energy::Flow<KilowattHourPrice>,
         working_mode: WorkingMode,
     ) -> Step {
         // Remember that the average flow represents theoretical possibility,
@@ -164,7 +160,7 @@ impl Optimizer {
         Step {
             working_mode,
             duration,
-            energy_balance: Balance {
+            energy_balance: energy::Balance {
                 grid: grid_flow.normalized(), // Normalize rare tiny negative values.
                 battery: battery_flows.external,
             },

@@ -23,7 +23,7 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Encode, Decode)]
+#[derive(Clone, Encode, Decode)]
 pub struct Profile {
     /// Timestamp of the last update to the parameters.
     ///

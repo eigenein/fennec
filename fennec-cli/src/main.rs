@@ -191,7 +191,10 @@ impl Engine {
                 // TODO: figure out whether the new prices came in.
             }
             let backtrack = self
-                .reoptimize_schedule(&battery_metrics, &self.state.read().await.energy_profile)
+                .reoptimize_schedule(
+                    &battery_metrics,
+                    self.state.read().await.energy_profile.clone(),
+                )
                 .await?;
             self.write_schedule(&backtrack.schedule, battery_metrics.untracked.allowed_charge)
                 .await?;
@@ -271,7 +274,7 @@ impl Engine {
     async fn reoptimize_schedule(
         &self,
         battery_metrics: &mini_qube::Metrics,
-        energy_profile: &energy::Profile,
+        energy_profile: energy::Profile,
     ) -> Result<Backtrack> {
         let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
         let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
@@ -288,8 +291,9 @@ impl Engine {
                     .max_effective_flow(energy_profile.eps_active_power.0),
             )
             .battery_degradation_cost(self.args.battery.degradation_cost)
+            .energy_profile(energy_profile)
             .build()
-            .solve(&self.energy_prices, energy_profile)
+            .solve(&self.energy_prices)
             .solutions
             .backtrack(initial_energy_level)?;
 

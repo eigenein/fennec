@@ -3,12 +3,12 @@ use std::ops::{Index, IndexMut};
 use crate::{
     Schedule,
     energy,
-    energy::Flow,
     prelude::*,
     quantity::{energy::EnergyLevel, price::KilowattHourPrice},
     solution::{Backtrack, Optimizer, Solution},
 };
 
+/// Optimized solution space.
 pub struct Space {
     /// [Solution space][1] that associates a [`Solution`] with every time interval and [`EnergyLevel`].
     ///
@@ -22,13 +22,9 @@ impl Space {
     /// Re-optimize the solution space at the specified energy level.
     ///
     /// Make sure to the space to the current timestamp.
-    pub fn reoptimize_state(
-        &mut self,
-        initial_energy_level: EnergyLevel,
-        energy_profile: &energy::Profile,
-    ) {
+    pub fn reoptimize_state(&mut self, initial_energy_level: EnergyLevel) {
         self.solutions.get_mut(0)[initial_energy_level] =
-            self.optimizer.optimize_state(0, initial_energy_level, energy_profile, &self.solutions);
+            self.optimizer.optimize_state(0, initial_energy_level, &self.solutions);
     }
 }
 
@@ -57,7 +53,7 @@ impl Schedule<Stage> {
 /// and the partial solutions for every energy level.
 #[must_use]
 pub struct Stage {
-    price: Flow<KilowattHourPrice>,
+    price: energy::Flow<KilowattHourPrice>,
 
     /// Mapping from [`EnergyLevel`] to a [`Solution`].
     solutions: Vec<Option<Solution>>,
@@ -80,11 +76,11 @@ impl IndexMut<EnergyLevel> for Stage {
 }
 
 impl Stage {
-    pub fn new(price: Flow<KilowattHourPrice>, max_energy_level: EnergyLevel) -> Self {
+    pub fn new(price: energy::Flow<KilowattHourPrice>, max_energy_level: EnergyLevel) -> Self {
         Self { price, solutions: vec![None; max_energy_level.0 + 1] }
     }
 
-    pub const fn price(&self) -> Flow<KilowattHourPrice> {
+    pub const fn price(&self) -> energy::Flow<KilowattHourPrice> {
         self.price
     }
 }

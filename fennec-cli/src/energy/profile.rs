@@ -8,7 +8,7 @@ use musli::{Decode, Encode, wire};
 
 use super::{Balance, Flow};
 use crate::{
-    api,
+    api::mini_qube,
     math::smoothing::{Exponential, HalfLife},
     ops::chrono::Interval,
     prelude::*,
@@ -21,14 +21,6 @@ use crate::{
         time::Hours,
     },
 };
-
-#[must_use]
-#[derive(Copy, Clone)]
-pub enum BatteryMetricsUpdate {
-    None,
-    Initialized,
-    ResidualEnergyChanged,
-}
 
 #[must_use]
 #[derive(Encode, Decode)]
@@ -60,7 +52,7 @@ pub struct Profile {
     /// Hence, it has its own timestamp.
     #[musli(Binary, name = 10)]
     #[musli(default)]
-    pub battery_metrics: Option<api::mini_qube::TrackedMetrics>,
+    pub battery_metrics: Option<mini_qube::TrackedMetrics>,
 
     #[musli(Binary, name = 12)]
     #[musli(default = Self::default_battery_efficiency)]
@@ -107,24 +99,30 @@ impl Profile {
         Ok(())
     }
 
-    /// Update the battery metrics based on the difference between the current and last tracked metrics.
+    /// Track the battery metrics and update the battery efficiency parameters when the residual energy has changed.
+    ///
+    /// # Returns
+    ///
+    /// - [`true`], if the battery residual energy has changed since the last call;
+    /// - [`false`], otherwise.
     #[instrument(skip_all)]
-    pub fn update_battery_metrics(
+    #[must_use]
+    pub fn track_battery_metrics(
         &mut self,
-        current_metrics: api::mini_qube::TrackedMetrics,
+        current_metrics: mini_qube::TrackedMetrics,
         half_life_factor: f64,
-    ) -> BatteryMetricsUpdate {
+    ) -> bool {
         let Some(last_metrics) = &self.battery_metrics else {
             // First initialization:
             self.battery_metrics = Some(current_metrics);
-            return BatteryMetricsUpdate::Initialized;
+            return true;
         };
 
         let residual_energy_change =
             current_metrics.residual_energy() - last_metrics.residual_energy();
         if residual_energy_change == Zero::ZERO {
             // No change in the residual energy: do not update the parameters and keep accumulating.
-            return BatteryMetricsUpdate::None;
+            return false;
         }
 
         let residual_energy_change = WattHours::from(residual_energy_change).abs();
@@ -166,14 +164,15 @@ impl Profile {
                 );
             }
             (false, false) | (true, true) => {
-                // Idle or mixed regime is not good enough for updating the parameters.
+                debug!("idle and mixed regimes are ignored");
             }
         }
 
         self.battery_metrics = Some(current_metrics);
-        BatteryMetricsUpdate::ResidualEnergyChanged
+        true
     }
 
+    #[instrument(skip_all)]
     pub fn update_energy_balance(
         &mut self,
         balance: Balance<Watts>,

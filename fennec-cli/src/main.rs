@@ -32,10 +32,9 @@ pub use self::schedule::Schedule;
 use crate::{
     api::{homewizard, mini_qube},
     cli::{Args, BatteryPowerLimits, Connections, hunter},
-    energy::Balance,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::time::Hours,
+    quantity::{power::Watts, time::Hours},
 };
 
 fn main() -> Result {
@@ -156,7 +155,7 @@ impl Logger {
             .await?;
 
         let net_deficit = grid_metrics.active_power + battery_metrics.untracked.active_power;
-        let balance = Balance::new(self.battery_power_limits, net_deficit);
+        let balance = energy::Balance::new(self.battery_power_limits, net_deficit);
         debug!(
             ?net_deficit,
             battery.active_power = ?battery_metrics.untracked.active_power,
@@ -169,20 +168,9 @@ impl Logger {
             "measurements",
         );
 
-        let mut energy_profile = self.energy_profile.write().await;
-        energy_profile.update_energy_balance(
-            balance,
-            battery_metrics.untracked.eps_active_power,
-            Local::now(),
-            self.energy_balance_half_life,
-        );
-        energy_profile.update_battery_metrics(
-            battery_metrics.tracked,
-            self.battery_efficiency_half_life_factor,
-        );
-        energy_profile.write_to_file().await.context("failed to write the energy profile")?;
-        drop(energy_profile);
-
+        if self.update_energy_profile(balance, battery_metrics).await? {
+            // TODO: optimize.
+        }
         Ok(())
     }
 
@@ -204,5 +192,27 @@ impl Logger {
                     .context("failed to retrieve the grid measurement")
             }
         )
+    }
+
+    /// Track the balance and battery metrics and update the persistent energy profile.
+    async fn update_energy_profile(
+        &self,
+        balance: energy::Balance<Watts>,
+        battery_metrics: mini_qube::Metrics,
+    ) -> Result<bool> {
+        let mut energy_profile = self.energy_profile.write().await;
+        energy_profile.update_energy_balance(
+            balance,
+            battery_metrics.untracked.eps_active_power,
+            Local::now(),
+            self.energy_balance_half_life,
+        );
+        let is_residual_energy_changed = energy_profile.track_battery_metrics(
+            battery_metrics.tracked,
+            self.battery_efficiency_half_life_factor,
+        );
+        energy_profile.write_to_file().await.context("failed to write the energy profile")?;
+        drop(energy_profile);
+        Ok(is_residual_energy_changed)
     }
 }

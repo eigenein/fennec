@@ -1,9 +1,12 @@
 use std::{
     f64::consts::LN_2,
     ops::{AddAssign, Div, Mul, Sub},
+    time::Duration,
 };
 
 use musli::{Decode, Encode};
+
+use crate::quantity::time::Hours;
 
 /// Raw [exponential moving average][1] with explicit smoothing factor per update.
 ///
@@ -31,6 +34,12 @@ impl<V> Exponential<V> {
 #[must_use]
 #[derive(Copy, Clone)]
 pub struct HalfLife<V>(pub V);
+
+impl From<humantime::Duration> for HalfLife<Hours> {
+    fn from(duration: humantime::Duration) -> Self {
+        Self(Hours::from(Duration::from(duration)))
+    }
+}
 
 impl<V> HalfLife<V> {
     /// Calculate the smoothing factor from the quantity delta.

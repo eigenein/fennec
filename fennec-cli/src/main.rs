@@ -148,11 +148,9 @@ impl Engine {
         let energy_profile = energy::Profile::read_from_file(args.n_balance_harmonics).await?;
         let this = Self {
             connections: args.connections.connect()?,
-            interval: args.interval.into(),
+            interval: args.interval,
             battery_power_limits: args.battery.power_limits,
-            energy_balance_half_life: HalfLife(
-                Duration::from(args.energy_balance_half_life).into(),
-            ),
+            energy_balance_half_life: args.energy_balance_half_life,
             battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
             dry_run: args.dry_run,
             battery_args: args.battery,

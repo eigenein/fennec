@@ -54,19 +54,29 @@ pub struct EnergyProfileArgs {
     /// - after 2τ: 75% adapted;
     /// - after 3τ: 87.5% adapted.
     #[clap(
-        long = "energy-profile-half-life",
-        env = "ENERGY_PROFILE_HALF_LIFE",
+        long = "energy-balance-half-life",
+        env = "ENERGY_BALANCE_HALF_LIFE",
         default_value = "7d",
         value_parser = |value: &str| value.parse::<humantime::Duration>().map(HalfLife::from),
     )]
-    pub half_life: HalfLife<Hours>,
+    pub balance_half_life: HalfLife<Hours>,
 
     #[clap(
-        long = "n-energy-profile-harmonics",
-        env = "N_ENERGY_PROFILE_HARMONICS",
+        long = "n-energy-balance-harmonics",
+        env = "N_ENERGY_BALANCE_HARMONICS",
         default_value = "12"
     )]
-    pub n_harmonics: usize,
+    pub n_balance_harmonics: usize,
+
+    /// Battery parameters are learned with exponential moving average.
+    /// This factor multiplied by the battery capacity defines the half-life in the units of energy.
+    /// The residual energy change is then used to calculate smoothing at each parameter update.
+    #[clap(
+        long = "battery-efficiency-half-life-factor",
+        env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR",
+        default_value = "10"
+    )]
+    pub battery_efficiency_half_life_factor: f64,
 }
 
 /// Web UI binding arguments.
@@ -149,16 +159,6 @@ pub struct BatteryArgs {
         default_value = "0.01"
     )]
     pub degradation_cost: KilowattHourPrice,
-
-    /// Battery parameters are learned with exponential moving average.
-    /// This factor multiplied by the battery capacity defines the half-life in the units of energy.
-    /// The residual energy change is then used to calculate smoothing at each parameter update.
-    #[clap(
-        long = "battery-efficiency-half-life-factor",
-        env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR",
-        default_value = "10"
-    )]
-    pub efficiency_half_life_factor: f64,
 }
 
 #[derive(Parser)]

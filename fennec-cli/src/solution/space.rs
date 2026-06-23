@@ -8,26 +8,9 @@ use crate::{
     solution::{Backtrack, Optimizer, Solution},
 };
 
-/// Optimized solution space.
-pub struct Space {
-    /// [Solution space][1] that associates a [`Solution`] with every time interval and [`EnergyLevel`].
-    ///
-    /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
-    pub solutions: Schedule<Stage>,
-
-    pub optimizer: Optimizer,
-}
-
-impl Space {
-    /// Re-optimize the solution space at the specified energy level.
-    ///
-    /// Make sure to the space to the current timestamp.
-    pub fn reoptimize_state(&mut self, initial_energy_level: EnergyLevel) {
-        self.solutions.get_mut(0)[initial_energy_level] =
-            self.optimizer.optimize_state(0, initial_energy_level, &self.solutions);
-    }
-}
-
+/// [Solution space][1] that associates a [`Solution`] with every time interval and [`EnergyLevel`].
+///
+/// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
 impl Schedule<Stage> {
     pub fn backtrack(&self, initial_energy_level: EnergyLevel) -> Result<Backtrack> {
         let mut energy_level = initial_energy_level;
@@ -46,6 +29,14 @@ impl Schedule<Stage> {
         })?;
 
         Ok(Backtrack { metrics: metrics.context("the solution space is empty")?, schedule })
+    }
+
+    /// Re-optimize the solution space at the specified energy level.
+    ///
+    /// Make sure to advance the schedule to the current timestamp.
+    pub fn reoptimize_state(&mut self, optimizer: &Optimizer, initial_energy_level: EnergyLevel) {
+        self.get_mut(0)[initial_energy_level] =
+            optimizer.optimize_state(0, initial_energy_level, self);
     }
 }
 

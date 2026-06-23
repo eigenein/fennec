@@ -138,7 +138,7 @@ impl BatteryPowerLimits {
     }
 }
 
-#[derive(Clone, Parser)]
+#[derive(Parser)]
 pub struct BatteryArgs {
     #[clap(
         long = "battery-working-modes",

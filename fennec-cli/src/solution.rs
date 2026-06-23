@@ -12,7 +12,6 @@ pub use self::{
     losses::Losses,
     metrics::Metrics,
     optimizer::Optimizer,
-    space::Space,
     step::Step,
 };
 

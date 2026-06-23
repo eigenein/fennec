@@ -25,11 +25,11 @@ pub struct Args {
     pub connections: ConnectionArgs,
 
     #[clap(flatten)]
-    pub engine: EngineArgs,
+    pub optimizer: OptimizerArgs,
 }
 
 #[derive(Parser)]
-pub struct EngineArgs {
+pub struct OptimizerArgs {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 

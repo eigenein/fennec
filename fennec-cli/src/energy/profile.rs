@@ -139,13 +139,7 @@ impl Profile {
                 self.battery_efficiency.export = Exponential(self.battery_efficiency.export)
                     .update(efficiency, smoothing_factor)
                     .0;
-                info!(
-                    ?residual_energy_change,
-                    ?grid_export,
-                    ?efficiency,
-                    ?smoothing_factor,
-                    "discharging",
-                );
+                info!(?grid_export, ?efficiency, ?smoothing_factor, "discharging");
             }
             (false, true) => {
                 let grid_import = grid_flow.import.rescale();
@@ -156,13 +150,7 @@ impl Profile {
                 self.battery_efficiency.import = Exponential(self.battery_efficiency.import)
                     .update(efficiency, smoothing_factor)
                     .0;
-                info!(
-                    ?residual_energy_change,
-                    ?grid_import,
-                    ?efficiency,
-                    ?smoothing_factor,
-                    "charging",
-                );
+                info!(?grid_import, ?efficiency, ?smoothing_factor, "charging");
             }
             (false, false) | (true, true) => {
                 debug!("idle and mixed regimes are ignored");

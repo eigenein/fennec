@@ -1,4 +1,4 @@
-use std::{net::IpAddr, sync::Arc};
+use std::{net::IpAddr, sync::Arc, time::Duration};
 
 use clap::Parser;
 
@@ -6,8 +6,9 @@ use crate::{
     api::{homewizard, mini_qube},
     battery::WorkingMode,
     energy,
+    math::smoothing::HalfLife,
     prelude::*,
-    quantity::{power::Watts, price::KilowattHourPrice},
+    quantity::{power::Watts, price::KilowattHourPrice, time::Hours},
 };
 
 #[derive(Parser)]
@@ -32,8 +33,8 @@ pub struct EngineArgs {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
-    #[clap(long, env = "INTERVAL", default_value = "5s")]
-    pub interval: humantime::Duration,
+    #[clap(long, env = "INTERVAL", default_value = "5s", value_parser = humantime::parse_duration)]
+    pub interval: Duration,
 
     #[clap(long, env = "ENERGY_PROVIDER")]
     pub energy_provider: energy::Provider,
@@ -42,10 +43,13 @@ pub struct EngineArgs {
     /// - after τ: the energy profile is 50% adapted to the new routine;
     /// - after 2τ: 75% adapted;
     /// - after 3τ: 87.5% adapted.
-    ///
-    /// TODO: can I actually make it `HalfLife`?
-    #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "7d")]
-    pub energy_balance_half_life: humantime::Duration,
+    #[clap(
+        long,
+        env = "ENERGY_BALANCE_HALF_LIFE",
+        default_value = "7d",
+        value_parser = |value: &str| value.parse::<humantime::Duration>().map(HalfLife::from),
+    )]
+    pub energy_balance_half_life: HalfLife<Hours>,
 
     #[clap(long, env = "N_BALANCE_HARMONICS", default_value = "12")]
     pub n_balance_harmonics: usize,

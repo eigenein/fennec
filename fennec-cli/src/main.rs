@@ -280,7 +280,6 @@ impl Engine {
         let backtrack = Optimizer::builder()
             .working_modes(self.args.battery.working_modes.clone())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
-            .battery_efficiency(energy_profile.battery_efficiency)
             .battery_capacity(battery_metrics.tracked.actual_capacity())
             .max_battery_flow(
                 self.args

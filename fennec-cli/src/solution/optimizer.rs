@@ -21,7 +21,6 @@ use crate::{
 
 #[derive(Builder)]
 pub struct Optimizer {
-    battery_efficiency: Flow<f64>,
     battery_capacity: WattHours,
 
     /// Enabled working modes.
@@ -103,7 +102,7 @@ impl Optimizer {
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
-            efficiency: self.battery_efficiency,
+            efficiency: energy_profile.battery_efficiency,
         };
         self.working_modes
             .iter()

@@ -111,7 +111,6 @@ impl Optimizer {
         solutions: &Schedule<Stage>,
     ) -> Option<Solution> {
         let Slot { interval, value: stage } = solutions.get(interval_index);
-        let duration = interval.duration();
         let average_balance = self.energy_profile.mean_balance_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
@@ -124,7 +123,7 @@ impl Optimizer {
             .filter_map(|working_mode| {
                 let step = self.simulate_step(
                     battery_simulator,
-                    duration,
+                    interval.duration(),
                     average_balance,
                     stage.price(),
                     working_mode,

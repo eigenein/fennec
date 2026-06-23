@@ -86,13 +86,13 @@ impl Client {
     #[instrument(skip_all)]
     async fn read_untracked_metrics(&self) -> Result<UntrackedMetrics> {
         // TODO: these two are only needed when optimizing:
-        let min_charge = self
+        let min_soc = self
             .0
             .call::<mini_qube::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the min SoC")?
             .try_into()?;
-        let max_charge = self
+        let max_soc = self
             .0
             .call::<mini_qube::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
@@ -113,7 +113,7 @@ impl Client {
             .into();
 
         Ok(UntrackedMetrics {
-            allowed_charge: (min_charge..=max_charge).into(),
+            allowed_soc: (min_soc..=max_soc).into(),
             active_power,
             eps_active_power,
         })

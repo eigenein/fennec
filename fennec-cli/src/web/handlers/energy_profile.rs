@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use axum::extract::State;
 use chrono::{Local, NaiveTime, TimeDelta, TimeZone};
 use itertools::Itertools;
 use maud::{Markup, PreEscaped, html};
 use plotters::{backend::SVGBackend, chart::ChartBuilder, prelude::*};
+use tokio::sync::RwLock;
 
 use crate::{
     energy,
@@ -10,7 +13,6 @@ use crate::{
     ops::chrono::Interval,
     prelude::*,
     quantity::power::Watts,
-    web,
     web::partials,
 };
 
@@ -18,10 +20,10 @@ pub const PATH: &str = "/energy-profile";
 
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
-pub async fn get(State(state): State<web::State>) -> Markup {
+pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
     debug!("access");
 
-    let energy_profile = &state.state.read().await.energy_profile;
+    let energy_profile = &state.read().await.energy_profile;
     let mean_balance = energy_profile.mean_balance.0;
 
     partials::page(

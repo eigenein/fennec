@@ -32,7 +32,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 pub use self::schedule::Schedule;
 use crate::{
     api::homewizard,
-    cli::{Args, BatteryArgs, BatteryPowerLimits, Connections, hunter},
+    cli::{Args, BatteryArgs, BatteryPowerLimits, Connections},
     energy::Flow,
     math::smoothing::HalfLife,
     prelude::*,
@@ -42,7 +42,7 @@ use crate::{
         price::KilowattHourPrice,
         time::Hours,
     },
-    solution::Optimizer,
+    solution::{Optimizer, Step},
 };
 
 fn main() -> Result {
@@ -99,23 +99,11 @@ fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
 }
 
 async fn run(args: Args) -> Result {
-    let runner = Runner::start(&args).await?;
-    let hunter_runner = hunter::Runner::builder()
-        .connections(args.connections.connect()?)
-        .energy_provider(args.energy_provider)
-        .battery_args(args.battery)
-        .n_balance_harmonics(args.n_balance_harmonics)
-        .dry_run(args.dry_run)
-        .build();
-
-    let hunter_state = Arc::new(RwLock::new(hunter_runner.run_once().await?));
-    let state = web::State { hunter: hunter_state.clone(), state: runner.state.clone() };
-    try_join!(
-        async { spawn(runner.run_forever(args.interval.into())).await? },
-        async { spawn(hunter_runner.run_forever(args.optimizer_cron, hunter_state)).await? },
-        async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? },
-    )?;
-
+    let engine = Engine::start(&args).await?;
+    let state = engine.state.clone();
+    let engine_future = async { spawn(engine.run_forever(args.interval.into())).await? };
+    let web_future = async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? };
+    try_join!(engine_future, web_future)?;
     Ok(())
 }
 
@@ -123,11 +111,19 @@ async fn run(args: Args) -> Result {
 pub struct State {
     /// Current energy profile.
     energy_profile: energy::Profile,
+
+    optimizer: Option<OptimizerState>,
+}
+
+#[must_use]
+pub struct OptimizerState {
+    metrics: solution::Metrics,
+    steps: Schedule<(Flow<KilowattHourPrice>, Step)>,
 }
 
 /// TODO: store [`Args`] directly.
 #[must_use]
-pub struct Runner {
+pub struct Engine {
     /// API connections.
     connections: Connections,
 
@@ -144,7 +140,7 @@ pub struct Runner {
     state: Arc<RwLock<State>>,
 }
 
-impl Runner {
+impl Engine {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
     /// TODO: consume [`Args`].
@@ -162,7 +158,7 @@ impl Runner {
             battery_args: args.battery.clone(), // TODO: kill `clone()`.
             energy_prices: Self::get_prices(args.energy_provider, Local::now()).await?,
             energy_provider: args.energy_provider,
-            state: Arc::new(RwLock::new(State { energy_profile })),
+            state: Arc::new(RwLock::new(State { energy_profile, optimizer: None })),
         };
         Ok(this)
     }
@@ -324,6 +320,7 @@ impl Runner {
         );
         self.write_schedule(&schedule).await?;
 
+        self.state.write().await.optimizer = Some(OptimizerState { metrics, steps });
         Ok(())
     }
 

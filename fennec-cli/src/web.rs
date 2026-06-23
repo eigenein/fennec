@@ -9,15 +9,9 @@ use std::{net::IpAddr, sync::Arc};
 use axum::{Router, routing::get};
 use tokio::sync::RwLock;
 
-use crate::{cli::hunter, prelude::*};
+use crate::{State, prelude::*};
 
-#[derive(Clone)]
-pub struct State {
-    pub hunter: Arc<RwLock<hunter::State>>,
-    pub state: Arc<RwLock<crate::State>>,
-}
-
-pub async fn serve(address: IpAddr, port: u16, state: State) -> Result {
+pub async fn serve(address: IpAddr, port: u16, state: Arc<RwLock<State>>) -> Result {
     info!(%address, port, "serving web UI…");
     let app = Router::new()
         .route("/", get(handlers::index::get))

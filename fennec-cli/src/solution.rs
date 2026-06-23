@@ -1,3 +1,4 @@
+mod backtrack;
 mod losses;
 mod metrics;
 mod optimized;
@@ -7,6 +8,7 @@ mod step;
 use std::cmp::Ordering;
 
 pub use self::{
+    backtrack::Backtrack,
     losses::Losses,
     metrics::Metrics,
     optimized::Optimized,

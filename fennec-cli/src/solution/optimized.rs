@@ -6,7 +6,7 @@ use crate::{
     energy::Flow,
     prelude::*,
     quantity::{energy::EnergyLevel, price::KilowattHourPrice},
-    solution::{Metrics, Optimizer, Solution, Step},
+    solution::{Backtrack, Optimizer, Solution},
 };
 
 pub struct Optimized {
@@ -33,27 +33,23 @@ impl Optimized {
 }
 
 impl Schedule<Stage> {
-    #[expect(clippy::type_complexity)]
-    pub fn backtrack(
-        &self,
-        initial_energy_level: EnergyLevel,
-    ) -> Result<(Metrics, Schedule<(Flow<KilowattHourPrice>, Step)>)> {
+    pub fn backtrack(&self, initial_energy_level: EnergyLevel) -> Result<Backtrack> {
         let mut energy_level = initial_energy_level;
-        let mut summary = None;
+        let mut metrics = None;
 
-        let steps = self.try_map(|stage| {
+        let schedule = self.try_map(|stage| {
             let solution = stage[energy_level]
                 .as_ref()
                 .with_context(|| format!("there is no solution at energy level {energy_level}"))?;
 
             // The first solution carries the cumulative metrics for the entire plan:
-            summary.get_or_insert(solution.metrics);
+            metrics.get_or_insert(solution.metrics);
 
             energy_level = solution.step.energy_level_after;
             Ok((stage.price, solution.step))
         })?;
 
-        summary.context("the solution space is empty").map(|summary| (summary, steps))
+        Ok(Backtrack { metrics: metrics.context("the solution space is empty")?, schedule })
     }
 }
 

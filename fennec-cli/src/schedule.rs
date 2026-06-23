@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeDelta};
 use derive_more::IntoIterator;
 use itertools::Itertools;
 
@@ -33,6 +33,12 @@ impl<V> Schedule<V> {
     #[must_use]
     pub fn end(&self) -> Option<DateTime<Local>> {
         self.0.back().map(|slot| slot.interval.end())
+    }
+
+    /// Get the schedule total duration.
+    #[must_use]
+    pub fn duration(&self) -> TimeDelta {
+        self.start().zip(self.end()).map_or(TimeDelta::zero(), |(start, end)| end - start)
     }
 
     /// Retrieve the interval and value at the given index.

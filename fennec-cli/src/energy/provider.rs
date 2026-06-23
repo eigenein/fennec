@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use backon::{ConstantBuilder, Retryable};
 use chrono::NaiveDate;
 
 use crate::{
@@ -22,14 +25,16 @@ pub enum Provider {
 }
 
 impl Provider {
+    const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(10));
+
     pub async fn get_prices(self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
-        match self {
-            Self::FrankEnergieQuarterly => {
-                frank_energie::Api::new(frank_energie::Resolution::Quarterly)?.get_prices(on).await
-            }
-            Self::FrankEnergieHourly => {
-                frank_energie::Api::new(frank_energie::Resolution::Hourly)?.get_prices(on).await
-            }
-        }
+        let resolution = match self {
+            Self::FrankEnergieQuarterly => frank_energie::Resolution::Quarterly,
+            Self::FrankEnergieHourly => frank_energie::Resolution::Hourly,
+        };
+        (|| async { frank_energie::Api::new(resolution)?.get_prices(on).await })
+            .retry(Self::BACKOFF)
+            .notify(log_retried_error)
+            .await
     }
 }

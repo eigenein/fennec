@@ -18,7 +18,7 @@ mod web;
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
-use chrono::{DateTime, Days, Local};
+use chrono::{DateTime, Days, Local, TimeDelta};
 use clap::{Parser, crate_name, crate_version};
 use sentry::{
     SessionMode,
@@ -114,15 +114,18 @@ async fn run(args: Args) -> Result {
 
 #[must_use]
 pub struct Runner {
+    /// API connections.
     connections: Connections,
+
     battery_power_limits: BatteryPowerLimits,
     energy_balance_half_life: HalfLife<Hours>,
     battery_efficiency_half_life_factor: f64,
     energy_provider: energy::Provider,
 
-    /// TODO: make a tiny wrapper around provider and prices.
+    /// Current energy prices.
     energy_prices: Schedule<Flow<KilowattHourPrice>>,
 
+    /// Current energy profile.
     energy_profile: Arc<RwLock<energy::Profile>>,
 }
 
@@ -186,6 +189,11 @@ impl Runner {
             self.energy_prices.len() != previous_len
         };
         if has_residual_charge_changed || has_schedule_advanced {
+            if self.energy_prices.duration() <= TimeDelta::hours(12) {
+                // When the time comes, try to fetch the tomorrow prices:
+                self.energy_prices = Self::get_prices(self.energy_provider, now).await?;
+                // TODO: figure out whether the new prices came in.
+            }
             // TODO: optimize.
         }
 
@@ -220,12 +228,15 @@ impl Runner {
     ) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         const ONE_DAY: Days = Days::new(1);
 
+        // TODO: do not re-read prices for today:
         let today = now.date_naive();
         let mut prices = energy_provider.get_prices(today).await?;
-        ensure!(prices.len() != 0, "received empty price schedule");
+        ensure!(prices.len() != 0, "received empty price schedule for today");
 
-        let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
-        prices.extend(energy_provider.get_prices(tomorrow).await?)?;
+        prices.extend({
+            let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
+            energy_provider.get_prices(tomorrow).await?
+        })?;
 
         info!(len = prices.len(), "fetched energy prices");
         prices.advance_to(now);

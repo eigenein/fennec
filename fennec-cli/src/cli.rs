@@ -39,30 +39,34 @@ pub struct EngineArgs {
     #[clap(long, env = "ENERGY_PROVIDER")]
     pub energy_provider: energy::Provider,
 
-    /// Half-life for exponential moving average when learning the energy balance:
-    /// - after τ: the energy profile is 50% adapted to the new routine;
-    /// - after 2τ: 75% adapted;
-    /// - after 3τ: 87.5% adapted.
-    #[clap(
-        long,
-        env = "ENERGY_BALANCE_HALF_LIFE",
-        default_value = "7d",
-        value_parser = |value: &str| value.parse::<humantime::Duration>().map(HalfLife::from),
-    )]
-    pub energy_balance_half_life: HalfLife<Hours>,
-
-    #[clap(long, env = "N_BALANCE_HARMONICS", default_value = "12")]
-    pub n_balance_harmonics: usize,
-
-    /// Battery parameters are learned with exponential moving average.
-    /// This factor multiplied by the battery capacity defines the half-life in the units of energy.
-    /// The residual energy change is then used to calculate smoothing at each parameter update.
-    #[clap(long, env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR", default_value = "10")]
-    pub battery_efficiency_half_life_factor: f64,
+    #[clap(flatten)]
+    pub energy_profile: EnergyProfileArgs,
 
     /// Do not push schedule to the device, dry run.
     #[clap(long, alias = "scout", env = "DRY_RUN")]
     pub dry_run: bool,
+}
+
+#[derive(Parser)]
+pub struct EnergyProfileArgs {
+    /// Half-life for exponential moving average when learning the energy balance profile:
+    /// - after τ: the energy profile is 50% adapted to the new routine;
+    /// - after 2τ: 75% adapted;
+    /// - after 3τ: 87.5% adapted.
+    #[clap(
+        long = "energy-profile-half-life",
+        env = "ENERGY_PROFILE_HALF_LIFE",
+        default_value = "7d",
+        value_parser = |value: &str| value.parse::<humantime::Duration>().map(HalfLife::from),
+    )]
+    pub half_life: HalfLife<Hours>,
+
+    #[clap(
+        long = "n-energy-profile-harmonics",
+        env = "N_ENERGY_PROFILE_HARMONICS",
+        default_value = "12"
+    )]
+    pub n_harmonics: usize,
 }
 
 /// Web UI binding arguments.
@@ -127,7 +131,7 @@ impl BatteryPowerLimits {
 #[derive(Clone, Parser)]
 pub struct BatteryArgs {
     #[clap(
-        long,
+        long = "battery-working-modes",
         env = "WORKING_MODES",
         value_delimiter = ',',
         num_args = 1..,
@@ -145,12 +149,22 @@ pub struct BatteryArgs {
         default_value = "0.01"
     )]
     pub degradation_cost: KilowattHourPrice,
+
+    /// Battery parameters are learned with exponential moving average.
+    /// This factor multiplied by the battery capacity defines the half-life in the units of energy.
+    /// The residual energy change is then used to calculate smoothing at each parameter update.
+    #[clap(
+        long = "battery-efficiency-half-life-factor",
+        env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR",
+        default_value = "10"
+    )]
+    pub efficiency_half_life_factor: f64,
 }
 
 #[derive(Parser)]
 pub struct ConnectionArgs {
     /// P1 meter measurement URL.
-    #[clap(long, env = "GRID_MEASUREMENT_URL")]
+    #[clap(long = "grid-measurement-url", env = "GRID_MEASUREMENT_URL")]
     pub grid_measurement_url: homewizard::Url,
 
     /// Battery Modbus address. Only Fox ESS MiniQube is supported.

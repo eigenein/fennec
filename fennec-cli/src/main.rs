@@ -139,7 +139,8 @@ impl Engine {
 
     #[instrument(skip_all)]
     pub async fn start(connections: Connections, args: EngineArgs) -> Result<Self> {
-        let energy_profile = energy::Profile::read_from_file(args.n_balance_harmonics).await?;
+        let energy_profile =
+            energy::Profile::read_from_file(args.energy_profile.n_harmonics).await?;
         let energy_provider = args.energy_provider;
         let this = Self {
             connections,
@@ -256,11 +257,11 @@ impl Engine {
             balance,
             battery_metrics.untracked.eps_active_power,
             now,
-            self.args.energy_balance_half_life,
+            self.args.energy_profile.half_life,
         );
         let is_residual_energy_changed = energy_profile.track_battery_metrics(
             battery_metrics.tracked,
-            self.args.battery_efficiency_half_life_factor,
+            self.args.battery.efficiency_half_life_factor,
         );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         Ok(is_residual_energy_changed)

@@ -2,10 +2,15 @@ use std::ops::{Index, IndexMut};
 
 use crate::{
     Schedule,
+    api::mini_qube,
+    cli::BatteryConfigurationArgs,
     energy,
     energy::Flow,
     prelude::*,
-    quantity::{energy::EnergyLevel, price::KilowattHourPrice},
+    quantity::{
+        energy::{EnergyLevel, WattHours},
+        price::KilowattHourPrice,
+    },
     solution::{Metrics, Optimizer, Solution, Step},
 };
 
@@ -15,7 +20,7 @@ pub struct Optimized {
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     pub solutions: Schedule<Stage>,
 
-    pub optimizer: Optimizer,
+    pub configuration: BatteryConfigurationArgs,
 }
 
 impl Optimized {
@@ -24,11 +29,20 @@ impl Optimized {
     /// Make sure to the space to the current timestamp.
     pub fn reoptimize_state(
         &mut self,
-        initial_energy_level: EnergyLevel,
+        battery_metrics: &mini_qube::Metrics,
         energy_profile: &energy::Profile,
     ) {
-        self.solutions.get_mut(0)[initial_energy_level] =
-            self.optimizer.optimize_state(0, initial_energy_level, energy_profile, &self.solutions);
+        let initial_energy_level =
+            WattHours::from(battery_metrics.tracked.residual_energy()).into();
+        self.solutions.get_mut(0)[initial_energy_level] = Optimizer(self.configuration.clone())
+            .optimize_state(
+                0,
+                initial_energy_level,
+                battery_metrics.allowed_energy_levels(),
+                battery_metrics.tracked.actual_capacity(),
+                energy_profile,
+                &self.solutions,
+            );
     }
 }
 

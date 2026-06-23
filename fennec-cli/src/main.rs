@@ -30,15 +30,10 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 pub use self::schedule::Schedule;
 use crate::{
     api::{homewizard, mini_qube},
-    cli::{Args, Connections, OptimizerArgs},
+    cli::{Args, Connections, EngineArgs},
     energy::Flow,
     prelude::*,
-    quantity::{
-        energy::{EnergyLevel, WattHours},
-        power::Watts,
-        price::KilowattHourPrice,
-        ratios::Percentage,
-    },
+    quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice, ratios::Percentage},
     solution::{Backtrack, Optimizer, Step},
 };
 
@@ -96,7 +91,7 @@ fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
 }
 
 async fn run(args: Args) -> Result {
-    let engine = Engine::start(args.connections.connect()?, args.optimizer).await?;
+    let engine = Engine::start(args.connections.connect()?, args.engine).await?;
     let state = engine.state.clone();
     let engine_future = async { spawn(engine.run_forever()).await? };
     let web_future = async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? };
@@ -118,7 +113,7 @@ pub struct Engine {
     /// API connections.
     connections: Connections,
 
-    optimizer_args: OptimizerArgs,
+    args: EngineArgs,
 
     /// Current energy prices.
     ///
@@ -132,13 +127,13 @@ impl Engine {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(1));
 
     #[instrument(skip_all)]
-    pub async fn start(connections: Connections, args: OptimizerArgs) -> Result<Self> {
+    pub async fn start(connections: Connections, args: EngineArgs) -> Result<Self> {
         let energy_profile =
             energy::Profile::read_from_file(args.energy_profile.n_harmonics).await?;
         let energy_provider = args.energy_provider;
         let this = Self {
             connections,
-            optimizer_args: args,
+            args,
             energy_prices: Self::get_prices(energy_provider, Local::now()).await?,
             state: Arc::new(RwLock::new(State { energy_profile, backtrack: None })),
         };
@@ -146,7 +141,7 @@ impl Engine {
     }
 
     pub async fn run_forever(mut self) -> Result {
-        let mut interval = tokio::time::interval(self.optimizer_args.interval);
+        let mut interval = tokio::time::interval(self.args.interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
             interval.tick().await;
@@ -162,7 +157,8 @@ impl Engine {
             .await?;
 
         let net_deficit = grid_metrics.active_power + battery_metrics.untracked.active_power;
-        let balance = energy::Balance::new(self.optimizer_args.battery.power_limits, net_deficit);
+        let balance =
+            energy::Balance::new(self.args.battery.configuration.power_limits, net_deficit);
         debug!(
             ?net_deficit,
             battery.active_power = ?battery_metrics.untracked.active_power,
@@ -187,8 +183,7 @@ impl Engine {
         if has_residual_charge_changed || has_schedule_advanced {
             if self.energy_prices.duration() <= TimeDelta::hours(12) {
                 // When the time comes, try to fetch the tomorrow prices:
-                self.energy_prices =
-                    Self::get_prices(self.optimizer_args.energy_provider, now).await?;
+                self.energy_prices = Self::get_prices(self.args.energy_provider, now).await?;
                 // TODO: figure out whether the new prices came in.
             }
 
@@ -259,11 +254,11 @@ impl Engine {
             balance,
             battery_metrics.untracked.eps_active_power,
             now,
-            self.optimizer_args.energy_profile.half_life,
+            self.args.energy_profile.half_life,
         );
         let is_residual_energy_changed = energy_profile.track_battery_metrics(
             battery_metrics.tracked,
-            self.optimizer_args.battery.efficiency_half_life_factor,
+            self.args.battery.efficiency_half_life_factor,
         );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         Ok(is_residual_energy_changed)
@@ -276,23 +271,10 @@ impl Engine {
         battery_metrics: &mini_qube::Metrics,
         energy_profile: &energy::Profile,
     ) -> Result<Backtrack> {
-        let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
-        let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
         let initial_energy_level =
             WattHours::from(battery_metrics.tracked.residual_energy()).into();
-        let (metrics, steps) = Optimizer::builder()
-            .working_modes(self.optimizer_args.battery.working_modes.clone()) // FIXME
-            .allowed_energy_levels(min_energy_level..=max_energy_level)
-            .battery_capacity(battery_metrics.tracked.actual_capacity())
-            .max_battery_flow(
-                self.optimizer_args
-                    .battery
-                    .power_limits
-                    .max_effective_flow(energy_profile.eps_active_power.0),
-            )
-            .battery_degradation_cost(self.optimizer_args.battery.degradation_cost)
-            .build()
-            .solve(&self.energy_prices, energy_profile)
+        let (metrics, steps) = Optimizer(self.args.battery.configuration.clone())
+            .solve(&self.energy_prices, energy_profile, battery_metrics)
             .solutions
             .backtrack(initial_energy_level)?;
         info!(
@@ -316,9 +298,9 @@ impl Engine {
         let schedule = mini_qube::schedule::build(
             steps.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
             allowed_charge,
-            self.optimizer_args.battery.power_limits,
+            self.args.battery.configuration.power_limits,
         );
-        if self.optimizer_args.dry_run {
+        if self.args.dry_run {
             warn!("not writing the schedule to the battery, just scouting");
             for entry in schedule {
                 info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);

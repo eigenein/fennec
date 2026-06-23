@@ -28,6 +28,10 @@ impl Metrics {
     pub fn max_residual_charge(&self) -> WattHours {
         self.tracked.design_capacity.rescale() * self.untracked.allowed_charge.last
     }
+
+    pub fn allowed_energy_levels(&self) -> RangeInclusive<WattHours<usize>> {
+        (self.min_residual_charge().into()..=self.max_residual_charge().into()).into()
+    }
 }
 
 /// Untracked metrics are throw away directly after processing.

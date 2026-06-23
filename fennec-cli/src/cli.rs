@@ -25,11 +25,11 @@ pub struct Args {
     pub connections: ConnectionArgs,
 
     #[clap(flatten)]
-    pub optimizer: OptimizerArgs,
+    pub engine: EngineArgs,
 }
 
 #[derive(Parser)]
-pub struct OptimizerArgs {
+pub struct EngineArgs {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
@@ -128,8 +128,27 @@ impl BatteryPowerLimits {
     }
 }
 
-#[derive(Clone, Parser)]
+#[derive(Parser)]
 pub struct BatteryArgs {
+    #[clap(flatten)]
+    pub configuration: BatteryConfigurationArgs,
+
+    /// Battery parameters are learned with exponential moving average.
+    /// This factor multiplied by the battery capacity defines the half-life in the units of energy.
+    /// The residual energy change is then used to calculate smoothing at each parameter update.
+    #[clap(
+        long = "battery-efficiency-half-life-factor",
+        env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR",
+        default_value = "10"
+    )]
+    pub efficiency_half_life_factor: f64,
+}
+
+/// Battery optimization configuration settings.
+///
+/// FIXME: cloning.
+#[derive(Clone, Parser)]
+pub struct BatteryConfigurationArgs {
     #[clap(
         long = "battery-working-modes",
         env = "WORKING_MODES",
@@ -149,16 +168,6 @@ pub struct BatteryArgs {
         default_value = "0.01"
     )]
     pub degradation_cost: KilowattHourPrice,
-
-    /// Battery parameters are learned with exponential moving average.
-    /// This factor multiplied by the battery capacity defines the half-life in the units of energy.
-    /// The residual energy change is then used to calculate smoothing at each parameter update.
-    #[clap(
-        long = "battery-efficiency-half-life-factor",
-        env = "BATTERY_EFFICIENCY_HALF_LIFE_FACTOR",
-        default_value = "10"
-    )]
-    pub efficiency_half_life_factor: f64,
 }
 
 #[derive(Parser)]

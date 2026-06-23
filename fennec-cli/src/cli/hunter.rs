@@ -98,6 +98,7 @@ impl Runner {
     }
 
     /// Fetch energy prices for up to 2 days.
+    #[deprecated]
     #[instrument(skip_all, fields(now = ?now))]
     async fn get_prices(&self, now: DateTime<Local>) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         const ONE_DAY: Days = Days::new(1);

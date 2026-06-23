@@ -113,15 +113,16 @@ impl Profile {
         half_life_factor: f64,
     ) -> bool {
         let Some(last_metrics) = &self.battery_metrics else {
-            // First initialization:
             self.battery_metrics = Some(current_metrics);
+            info!("initialized battery metrics");
             return true;
         };
 
         let residual_energy_change =
             current_metrics.residual_energy() - last_metrics.residual_energy();
         if residual_energy_change == Zero::ZERO {
-            // No change in the residual energy: do not update the parameters and keep accumulating.
+            info!(?residual_energy_change, "changed");
+            // Keep accumulating the grid flow until the residual energy changes.
             return false;
         }
 

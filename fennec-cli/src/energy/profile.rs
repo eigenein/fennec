@@ -23,6 +23,14 @@ use crate::{
 };
 
 #[must_use]
+#[derive(Copy, Clone)]
+pub enum BatteryMetricsUpdate {
+    None,
+    Initialized,
+    ResidualEnergyChanged,
+}
+
+#[must_use]
 #[derive(Encode, Decode)]
 pub struct Profile {
     /// Timestamp of the last update to the parameters.
@@ -99,23 +107,24 @@ impl Profile {
         Ok(())
     }
 
+    /// Update the battery metrics based on the difference between the current and last tracked metrics.
     #[instrument(skip_all)]
     pub fn update_battery_metrics(
         &mut self,
         current_metrics: api::mini_qube::TrackedMetrics,
         half_life_factor: f64,
-    ) {
+    ) -> BatteryMetricsUpdate {
         let Some(last_metrics) = &self.battery_metrics else {
             // First initialization:
             self.battery_metrics = Some(current_metrics);
-            return;
+            return BatteryMetricsUpdate::Initialized;
         };
 
         let residual_energy_change =
             current_metrics.residual_energy() - last_metrics.residual_energy();
         if residual_energy_change == Zero::ZERO {
             // No change in the residual energy: do not update the parameters and keep accumulating.
-            return;
+            return BatteryMetricsUpdate::None;
         }
 
         let residual_energy_change = WattHours::from(residual_energy_change).abs();
@@ -162,6 +171,7 @@ impl Profile {
         }
 
         self.battery_metrics = Some(current_metrics);
+        BatteryMetricsUpdate::ResidualEnergyChanged
     }
 
     pub fn update_energy_balance(

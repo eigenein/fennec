@@ -281,7 +281,7 @@ impl Engine {
         let initial_energy_level =
             WattHours::from(battery_metrics.tracked.residual_energy()).into();
         let backtrack = Optimizer::builder()
-            .working_modes(self.args.battery.working_modes.clone())
+            .battery_args(self.args.battery.clone()) // FIXME: cloning.
             .allowed_energy_levels(min_energy_level..=max_energy_level)
             .battery_capacity(battery_metrics.tracked.actual_capacity())
             .max_battery_flow(
@@ -290,7 +290,6 @@ impl Engine {
                     .power_limits
                     .max_effective_flow(energy_profile.eps_active_power.0),
             )
-            .battery_degradation_cost(self.args.battery.degradation_cost)
             .energy_profile(energy_profile)
             .build()
             .solve(&self.energy_prices) // TODO: consume energy prices.

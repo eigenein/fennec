@@ -6,6 +6,7 @@ use crate::{
     Schedule,
     battery,
     battery::WorkingMode,
+    cli::BatteryArgs,
     energy,
     prelude::*,
     quantity::{
@@ -25,11 +26,7 @@ pub struct Optimizer {
 
     battery_capacity: WattHours,
 
-    /// Enabled working modes.
-    working_modes: Vec<WorkingMode>,
-
-    /// Incurred cost of the residual energy change per kilowatt-hour.
-    battery_degradation_cost: KilowattHourPrice,
+    battery_args: BatteryArgs,
 
     /// Maximum power flow that the battery supports.
     max_battery_flow: energy::Flow<Watts>,
@@ -100,7 +97,8 @@ impl Optimizer {
             capacity: self.battery_capacity,
             efficiency: self.energy_profile.battery_efficiency,
         };
-        self.working_modes
+        self.battery_args
+            .working_modes
             .iter()
             .copied()
             .filter_map(|working_mode| {
@@ -170,7 +168,7 @@ impl Optimizer {
                 losses: Losses {
                     grid: energy_price.loss(grid_flow),
                     battery: (battery_flows.internal.import + battery_flows.internal.export)
-                        * self.battery_degradation_cost,
+                        * self.battery_args.degradation_cost,
                 },
             },
         }

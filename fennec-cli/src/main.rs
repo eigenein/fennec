@@ -20,6 +20,7 @@ use std::{borrow::Cow, sync::Arc, time::Duration};
 use backon::{ConstantBuilder, Retryable};
 use chrono::{DateTime, Days, Local, TimeDelta};
 use clap::{Parser, crate_name, crate_version};
+use fennec_modbus::contrib;
 use sentry::{
     SessionMode,
     integrations::{anyhow::capture_anyhow, tracing::EventFilter},
@@ -30,7 +31,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 
 pub use self::schedule::Schedule;
 use crate::{
-    api::{homewizard, mini_qube},
+    api::homewizard,
     cli::{Args, BatteryPowerLimits, Connections, hunter},
     energy::Flow,
     math::smoothing::HalfLife,
@@ -104,7 +105,7 @@ async fn run(args: Args) -> Result {
     let hunter_state = Arc::new(RwLock::new(hunter_runner.run_once().await?));
     let state = web::State { hunter: hunter_state.clone(), state: runner.state.clone() };
     try_join!(
-        async { spawn(runner.run_forever(args.logger_interval.into())).await? },
+        async { spawn(runner.run_forever(args.interval.into())).await? },
         async { spawn(hunter_runner.run_forever(args.optimizer_cron, hunter_state)).await? },
         async { spawn(web::serve(args.bind.address, args.bind.port, state)).await? },
     )?;
@@ -118,6 +119,7 @@ pub struct State {
     energy_profile: energy::Profile,
 }
 
+/// TODO: store [`Args`] directly.
 #[must_use]
 pub struct Runner {
     /// API connections.
@@ -127,6 +129,7 @@ pub struct Runner {
     energy_balance_half_life: HalfLife<Hours>,
     battery_efficiency_half_life_factor: f64,
     energy_provider: energy::Provider,
+    dry_run: bool,
 
     /// Current energy prices.
     energy_prices: Schedule<Flow<KilowattHourPrice>>,
@@ -147,6 +150,7 @@ impl Runner {
                 Duration::from(args.energy_balance_half_life).into(),
             ),
             battery_efficiency_half_life_factor: args.battery_efficiency_half_life_factor,
+            dry_run: args.dry_run,
             energy_prices: Self::get_prices(args.energy_provider, Local::now()).await?,
             energy_provider: args.energy_provider,
             state: Arc::new(RwLock::new(State { energy_profile })),
@@ -206,7 +210,7 @@ impl Runner {
     }
 
     /// Read the MiniQube and HomeWizard P1 metrics simultaneously.
-    async fn read_metrics(&self) -> Result<(mini_qube::Metrics, homewizard::EnergyMetrics)> {
+    async fn read_metrics(&self) -> Result<(api::mini_qube::Metrics, homewizard::EnergyMetrics)> {
         try_join!(
             async {
                 self.connections
@@ -253,7 +257,7 @@ impl Runner {
         &self,
         now: DateTime<Local>,
         balance: energy::Balance<Watts>,
-        battery_metrics: mini_qube::Metrics,
+        battery_metrics: api::mini_qube::Metrics,
     ) -> Result<bool> {
         let energy_profile = &mut self.state.write().await.energy_profile;
         energy_profile.update_energy_balance(
@@ -268,5 +272,24 @@ impl Runner {
         );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         Ok(is_residual_energy_changed)
+    }
+
+    /// Write the battery schedule.
+    ///
+    /// On dry run, print out the schedule without pushing it to the battery.
+    async fn write_schedule(&self, schedule: &contrib::mini_qube::schedule::Full) -> Result {
+        if self.dry_run {
+            warn!("not writing the schedule to the battery, just scouting");
+            for entry in schedule {
+                info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
+            }
+        } else {
+            (async || self.connections.battery.write_schedule(schedule).await)
+                .retry(Self::BACKOFF)
+                .notify(log_retried_error)
+                .await
+                .context("failed to push the schedule to the battery")?;
+        }
+        Ok(())
     }
 }

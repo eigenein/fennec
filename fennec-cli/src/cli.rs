@@ -29,9 +29,8 @@ pub struct Args {
     #[clap(flatten)]
     pub battery: BatteryArgs,
 
-    /// TODO: rename to just "interval".
-    #[clap(long, env = "LOGGER_INTERVAL", default_value = "5s")]
-    pub logger_interval: humantime::Duration,
+    #[clap(long, env = "INTERVAL", default_value = "5s")]
+    pub interval: humantime::Duration,
 
     #[clap(long, env = "OPTIMIZER_CRON", default_value = "0 */15 * * * *")]
     pub optimizer_cron: CronSchedule,
@@ -43,6 +42,8 @@ pub struct Args {
     /// - after τ: the energy profile is 50% adapted to the new routine;
     /// - after 2τ: 75% adapted;
     /// - after 3τ: 87.5% adapted.
+    ///
+    /// TODO: can I actually make it `HalfLife`?
     #[clap(long, env = "ENERGY_BALANCE_HALF_LIFE", default_value = "7d")]
     pub energy_balance_half_life: humantime::Duration,
 

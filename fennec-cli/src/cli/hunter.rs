@@ -115,6 +115,7 @@ impl Runner {
         Ok(prices)
     }
 
+    #[deprecated]
     async fn write_schedule(&self, schedule: &schedule::Full) -> Result {
         if self.dry_run {
             warn!("not writing the schedule to the battery, just scouting");

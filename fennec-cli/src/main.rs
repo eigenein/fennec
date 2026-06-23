@@ -32,12 +32,7 @@ use crate::{
     api::{homewizard, mini_qube},
     cli::{Args, Connections, EngineArgs},
     prelude::*,
-    quantity::{
-        energy::{EnergyLevel, WattHours},
-        power::Watts,
-        price::KilowattHourPrice,
-        ratios::Percentage,
-    },
+    quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice, ratios::Percentage},
     solution::{Backtrack, Optimizer, Step},
 };
 
@@ -190,12 +185,24 @@ impl Engine {
                 self.energy_prices = Self::get_prices(self.args.energy_provider, now).await?;
                 // TODO: figure out whether the new prices came in.
             }
-            let backtrack = self
-                .reoptimize_schedule(
-                    &battery_metrics,
-                    self.state.read().await.energy_profile.clone(),
-                )
-                .await?;
+            let optimizer = Optimizer::new(
+                self.state.read().await.energy_profile.clone(),
+                &self.args.battery,
+                &battery_metrics,
+            );
+            let solutions = optimizer.solve(&self.energy_prices); // TODO: consume energy prices.
+            let backtrack = {
+                let initial_energy_level =
+                    WattHours::from(battery_metrics.tracked.residual_energy()).into();
+                solutions.backtrack(initial_energy_level)?
+            };
+            info!(
+                grid_loss = ?backtrack.metrics.losses.grid,
+                battery.loss = ?backtrack.metrics.losses.battery,
+                battery.charge = ?backtrack.metrics.internal_battery_flow.import,
+                battery.discharge = ?backtrack.metrics.internal_battery_flow.export,
+                "solution summary",
+            );
             self.write_schedule(&backtrack.schedule, battery_metrics.untracked.allowed_charge)
                 .await?;
             self.state.write().await.backtrack = Some(backtrack);
@@ -267,43 +274,6 @@ impl Engine {
         );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         Ok(is_residual_energy_changed)
-    }
-
-    /// Fully re-optimize the battery schedule.
-    #[instrument(skip_all)]
-    async fn reoptimize_schedule(
-        &self,
-        battery_metrics: &mini_qube::Metrics,
-        energy_profile: energy::Profile,
-    ) -> Result<Backtrack> {
-        let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
-        let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
-        let initial_energy_level =
-            WattHours::from(battery_metrics.tracked.residual_energy()).into();
-        let backtrack = Optimizer::builder()
-            .battery_args(self.args.battery.clone()) // FIXME: cloning.
-            .allowed_energy_levels(min_energy_level..=max_energy_level)
-            .battery_capacity(battery_metrics.tracked.actual_capacity())
-            .max_battery_flow(
-                self.args
-                    .battery
-                    .power_limits
-                    .max_effective_flow(energy_profile.eps_active_power.0),
-            )
-            .energy_profile(energy_profile)
-            .build()
-            .solve(&self.energy_prices) // TODO: consume energy prices.
-            .solutions
-            .backtrack(initial_energy_level)?;
-
-        info!(
-            grid_loss = ?backtrack.metrics.losses.grid,
-            battery.loss = ?backtrack.metrics.losses.battery,
-            battery.charge = ?backtrack.metrics.internal_battery_flow.import,
-            battery.discharge = ?backtrack.metrics.internal_battery_flow.export,
-            "solution summary",
-        );
-        Ok(backtrack)
     }
 
     /// Write the battery schedule.

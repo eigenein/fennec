@@ -1,9 +1,8 @@
 use std::{range::RangeInclusive, time::Instant};
 
-use bon::Builder;
-
 use crate::{
     Schedule,
+    api::mini_qube,
     battery,
     battery::WorkingMode,
     cli::BatteryArgs,
@@ -17,26 +16,45 @@ use crate::{
         time::Hours,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Solution, Space, Step, space::Stage},
+    solution::{Losses, Metrics, Solution, Step, space::Stage},
 };
 
-#[derive(Builder)]
 pub struct Optimizer {
-    energy_profile: energy::Profile,
-
     battery_capacity: WattHours,
-
-    battery_args: BatteryArgs,
 
     /// Maximum power flow that the battery supports.
     max_battery_flow: energy::Flow<Watts>,
 
     /// Allowed energy level range.
-    #[builder(into)]
     allowed_energy_levels: RangeInclusive<WattHours<usize>>,
+
+    battery_degradation_cost: KilowattHourPrice,
+
+    working_modes: Vec<WorkingMode>,
+
+    energy_profile: energy::Profile,
 }
 
 impl Optimizer {
+    pub fn new(
+        energy_profile: energy::Profile,
+        battery_args: &BatteryArgs,
+        battery_metrics: &mini_qube::Metrics,
+    ) -> Self {
+        let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
+        let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
+        Self {
+            battery_capacity: battery_metrics.tracked.actual_capacity(),
+            max_battery_flow: battery_args
+                .power_limits
+                .max_effective_flow(energy_profile.eps_active_power.0),
+            energy_profile,
+            allowed_energy_levels: (min_energy_level..=max_energy_level).into(),
+            battery_degradation_cost: battery_args.degradation_cost,
+            working_modes: battery_args.working_modes.clone(),
+        }
+    }
+
     /// Find the optimal battery schedule.
     ///
     /// Works backwards from future to present, computing the minimum cost at each
@@ -51,7 +69,10 @@ impl Optimizer {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(self, energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>) -> Space {
+    pub fn solve(
+        self,
+        energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>,
+    ) -> Schedule<Stage> {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -76,7 +97,7 @@ impl Optimizer {
 
         // TODO: may wanna warn if `n_none` is non-zero.
         info!(elapsed = ?start_instant.elapsed(), n_some, n_none, "optimized");
-        Space { solutions, optimizer: self }
+        solutions
     }
 
     /// # Returns
@@ -97,8 +118,7 @@ impl Optimizer {
             capacity: self.battery_capacity,
             efficiency: self.energy_profile.battery_efficiency,
         };
-        self.battery_args
-            .working_modes
+        self.working_modes
             .iter()
             .copied()
             .filter_map(|working_mode| {
@@ -168,7 +188,7 @@ impl Optimizer {
                 losses: Losses {
                     grid: energy_price.loss(grid_flow),
                     battery: (battery_flows.internal.import + battery_flows.internal.export)
-                        * self.battery_args.degradation_cost,
+                        * self.battery_degradation_cost,
                 },
             },
         }

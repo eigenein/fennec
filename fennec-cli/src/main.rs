@@ -196,7 +196,11 @@ impl Engine {
                     Self::get_prices(self.optimizer_args.energy_provider, now).await?;
                 // TODO: figure out whether the new prices came in.
             }
-            self.reoptimize_schedule(&battery_metrics).await?;
+
+            self.state.write().await.optimizer = {
+                let energy_profile = &self.state.read().await.energy_profile;
+                Some(self.reoptimize_schedule(&battery_metrics, energy_profile).await?)
+            };
         }
 
         Ok(())
@@ -269,9 +273,11 @@ impl Engine {
 
     /// Fully re-optimize the battery schedule.
     #[instrument(skip_all)]
-    async fn reoptimize_schedule(&self, battery_metrics: &mini_qube::Metrics) -> Result {
-        let state = self.state.read().await;
-
+    async fn reoptimize_schedule(
+        &self,
+        battery_metrics: &mini_qube::Metrics,
+        energy_profile: &energy::Profile,
+    ) -> Result<OptimizerState> {
         let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
         let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
         let initial_energy_level =
@@ -279,21 +285,20 @@ impl Engine {
         let (metrics, steps) = Optimizer::builder()
             .working_modes(self.optimizer_args.battery.working_modes.iter().copied().collect())
             .allowed_energy_levels(min_energy_level..=max_energy_level)
-            .battery_efficiency(state.energy_profile.battery_efficiency)
+            .battery_efficiency(energy_profile.battery_efficiency)
             .battery_capacity(battery_metrics.tracked.actual_capacity())
             .max_battery_flow(
                 self.optimizer_args
                     .battery
                     .power_limits
-                    .max_effective_flow(state.energy_profile.eps_active_power.0),
+                    .max_effective_flow(energy_profile.eps_active_power.0),
             )
             .battery_degradation_cost(self.optimizer_args.battery.degradation_cost)
             .build()
-            .solve(&self.energy_prices, &state.energy_profile)
+            .solve(&self.energy_prices, energy_profile)
             .solutions
             .backtrack(initial_energy_level)?;
 
-        drop(state);
         info!(
             grid_loss = ?metrics.losses.grid,
             battery.loss = ?metrics.losses.battery,
@@ -303,8 +308,7 @@ impl Engine {
         );
         self.write_schedule(&steps, battery_metrics.untracked.allowed_charge).await?;
 
-        self.state.write().await.optimizer = Some(OptimizerState { metrics, steps });
-        Ok(())
+        Ok(OptimizerState { metrics, steps })
     }
 
     /// Write the battery schedule.

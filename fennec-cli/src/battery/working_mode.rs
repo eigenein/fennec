@@ -1,8 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use enumset::EnumSetType;
-
-#[derive(Debug, Hash, clap::ValueEnum, EnumSetType)]
+#[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, clap::ValueEnum)]
 pub enum WorkingMode {
     /// Do not do anything.
     Idle,

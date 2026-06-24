@@ -261,16 +261,15 @@ impl Engine {
         battery_metrics: &mini_qube::Metrics,
     ) -> Result<bool> {
         let energy_profile = &mut self.state.write().await.energy_profile;
-        energy_profile.update_energy_balance(
+        energy_profile.balance.update(
             balance,
             battery_metrics.eps_active_power,
             now,
             self.args.energy_profile.balance_half_life,
         );
-        let is_residual_energy_changed = energy_profile.track_battery_metrics(
-            battery_metrics,
-            self.args.energy_profile.battery_efficiency_half_life_factor,
-        );
+        let is_residual_energy_changed = energy_profile
+            .battery
+            .track(battery_metrics, self.args.energy_profile.battery_efficiency_half_life_factor);
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
         Ok(is_residual_energy_changed)
     }

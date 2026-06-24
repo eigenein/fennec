@@ -228,7 +228,9 @@ fn instant_balance_chart(energy_profile: &energy::Profile) -> Markup {
                     NaiveTime::from_hms_opt(hour % 24, minute, 0).unwrap(),
                 )
             })
-            .map(|(x, naive_time)| (x, mean_balance + energy_profile.deviation_at(naive_time)))
+            .map(|(x, naive_time)| {
+                (x, mean_balance + energy_profile.balance.deviation_at(naive_time))
+            })
             .collect_vec()
     };
     points.push((24.0, points[0].1));
@@ -242,7 +244,7 @@ fn interval_balance_chart(energy_profile: &energy::Profile) -> Markup {
             .map(|hour| {
                 let start = Local.with_ymd_and_hms(2026, 1, 1, hour, 0, 0).unwrap();
                 let interval = Interval::new(start, start + TimeDelta::hours(1));
-                (f64::from(hour) + 0.5, energy_profile.mean_balance_over(interval))
+                (f64::from(hour) + 0.5, energy_profile.balance.mean_over(interval))
             })
             .collect_vec()
     };

@@ -37,8 +37,6 @@ pub struct Profile {
 
 impl Profile {
     const PATH: &str = "energy-profile.musli";
-    const DEFAULT_HARMONIC: Exponential<Harmonic<energy::Balance<Watts>>> =
-        Exponential(Harmonic::ZERO);
 
     #[instrument]
     pub async fn read_from_file(n_balance_harmonics: usize) -> Result<Self> {
@@ -47,7 +45,7 @@ impl Profile {
             let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
             let mut this: Self =
                 wire::decode(bytes.as_slice()).context("failed to decode the file")?;
-            this.balance.harmonics.resize(n_balance_harmonics, Self::DEFAULT_HARMONIC);
+            this.balance.resize(n_balance_harmonics);
             this
         } else {
             Self { battery: Battery::default(), balance: Balance::new(n_balance_harmonics) }
@@ -68,7 +66,24 @@ impl Profile {
             .context("failed to rename the temporary file")?;
         Ok(())
     }
+}
 
+#[derive(Copy, Clone, Encode, Decode)]
+pub struct Battery {
+    #[musli(Binary, name = 1)]
+    pub efficiency: energy::Flow<f64>,
+
+    #[musli(Binary, name = 2)]
+    pub tracker: Option<BatteryTracker>,
+}
+
+impl Default for Battery {
+    fn default() -> Self {
+        Self { efficiency: energy::Flow { import: 0.95, export: 0.95 }, tracker: None }
+    }
+}
+
+impl Battery {
     /// Track the battery metrics and update the battery efficiency parameters when the residual energy has changed.
     ///
     /// # Returns
@@ -77,18 +92,14 @@ impl Profile {
     /// - [`false`], otherwise.
     #[instrument(skip_all)]
     #[must_use]
-    pub fn track_battery_metrics(
-        &mut self,
-        current_metrics: &mini_qube::Metrics,
-        half_life_factor: f64,
-    ) -> bool {
-        let battery_tracker = BatteryTracker {
+    pub fn track(&mut self, current_metrics: &mini_qube::Metrics, half_life_factor: f64) -> bool {
+        let current_tracker = BatteryTracker {
             total_grid_flow: current_metrics.total_grid_flow,
             residual_energy: current_metrics.residual_energy(),
         };
-        let Some(tracker) = &self.battery.tracker else {
-            self.battery.tracker = Some(battery_tracker);
-            info!("initialized battery metrics");
+        let Some(tracker) = &self.tracker else {
+            self.tracker = Some(current_tracker);
+            info!("initialized battery tracker");
             return true;
         };
 
@@ -109,9 +120,8 @@ impl Profile {
                 let smoothing_factor =
                     HalfLife(current_metrics.actual_capacity() * half_life_factor)
                         .smoothing_factor(grid_export);
-                self.battery.efficiency.export = Exponential(self.battery.efficiency.export)
-                    .update(efficiency, smoothing_factor)
-                    .0;
+                self.efficiency.export =
+                    Exponential(self.efficiency.export).update(efficiency, smoothing_factor).0;
                 info!(
                     ?residual_energy_change,
                     ?grid_export,
@@ -126,9 +136,8 @@ impl Profile {
                 let smoothing_factor =
                     HalfLife(current_metrics.actual_capacity() * half_life_factor)
                         .smoothing_factor(grid_import);
-                self.battery.efficiency.import = Exponential(self.battery.efficiency.import)
-                    .update(efficiency, smoothing_factor)
-                    .0;
+                self.efficiency.import =
+                    Exponential(self.efficiency.import).update(efficiency, smoothing_factor).0;
                 info!(
                     ?residual_energy_change,
                     ?grid_import,
@@ -142,117 +151,8 @@ impl Profile {
             }
         }
 
-        self.battery.tracker = Some(battery_tracker);
+        self.tracker = Some(current_tracker);
         true
-    }
-
-    #[instrument(skip_all)]
-    pub fn update_energy_balance(
-        &mut self,
-        balance: energy::Balance<Watts>,
-        eps_active_power: Watts,
-        at: DateTime<Local>,
-        half_life: HalfLife<Hours>,
-    ) {
-        let mean_smoothing_factor = {
-            // Smoothing factor based on the configured half-life and elapsed time:
-            let elapsed = at - std::mem::replace(&mut self.balance.updated_at, at);
-            half_life.smoothing_factor(elapsed)
-        };
-
-        self.balance.eps_active_power.update(eps_active_power, mean_smoothing_factor);
-
-        // Calculate the deviation before the mean update eats the signal:
-        let deviation = balance - self.balance.mean.0;
-
-        self.balance.mean.update(balance, mean_smoothing_factor);
-
-        // Capture daily periodicity, hence one full day is τ radians:
-        let base_phase: Radians =
-            Quantity(f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU);
-
-        // After long gaps, the smoothing factor jumps through the roof, and
-        // each harmonic would then pick up the full signal – effectively amplifying it by N.
-        // The following ensures that α × 2N ≤ 1 and the spike is constrained:
-        #[expect(clippy::cast_precision_loss)]
-        let harmonic_smoothing_factor =
-            mean_smoothing_factor.min(0.5 / self.balance.harmonics.len() as f64);
-
-        for (mode_index, harmonic) in (1..).map(f64::from).zip(self.balance.harmonics.iter_mut()) {
-            let basis = Harmonic::from_phase(base_phase * mode_index);
-            let target = Harmonic {
-                // Multiplication by 2 comes from the scale factor:
-                // <https://en.wikipedia.org/wiki/Fourier_series#Analysis>.
-                cosine: deviation * (2.0 * basis.cosine),
-                sine: deviation * (2.0 * basis.sine),
-            };
-            harmonic.update(target, harmonic_smoothing_factor);
-        }
-    }
-
-    /// Calculate the balance deviation from the average at concrete moment in time.
-    pub fn deviation_at(&self, naive_time: NaiveTime) -> energy::Balance<Watts> {
-        let day_phase: Radians =
-            Quantity(f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU);
-        (1..)
-            .map(f64::from)
-            .zip(self.balance.harmonics.iter())
-            .map(|(mode_index, harmonic)| {
-                harmonic.0.dot(Harmonic::from_phase(day_phase * mode_index))
-            })
-            .fold(energy::Balance::ZERO, |sum, item| sum + item)
-    }
-
-    pub fn mean_balance_over(&self, interval: Interval) -> energy::Balance<Watts> {
-        let balance = self.balance.mean.0 + self.mean_deviation_over(interval);
-        energy::Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
-    }
-
-    /// Calculate the mean deviation of the balance over the interval.
-    fn mean_deviation_over(&self, interval: Interval) -> energy::Balance<Watts> {
-        assert!(interval.start() < interval.end());
-
-        let n_days = interval.duration().days();
-        let middle_phase: Radians = {
-            let start =
-                f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0 * TAU;
-            Quantity((n_days / 2.0).mul_add(TAU, start))
-        };
-
-        (1..)
-            .map(f64::from)
-            .zip(self.balance.harmonics.iter())
-            .map(|(mode_index, harmonic)| {
-                // (1/Δt) ∫ cos(2πk·t) dt = cos(2πk·middle_phase) · sinc(k·Δt)
-                let weight = Self::sinc(mode_index * n_days);
-                harmonic.0.dot(Harmonic::from_phase(middle_phase * mode_index)) * weight
-            })
-            .fold(energy::Balance::ZERO, |sum, item| sum + item)
-    }
-
-    /// Normalized [sinc function](https://en.wikipedia.org/wiki/Sinc_function): sin(πx)÷(πx).
-    fn sinc(x: f64) -> f64 {
-        if x == 0.0 {
-            1.0
-        } else {
-            let pi_x = PI * x;
-            pi_x.sin() / pi_x
-        }
-    }
-}
-
-#[derive(Copy, Clone, Encode, Decode)]
-pub struct Battery {
-    #[musli(Binary, name = 1)]
-    pub efficiency: energy::Flow<f64>,
-
-    #[musli(Binary, name = 2)]
-    pub tracker: Option<BatteryTracker>,
-}
-
-impl Default for Battery {
-    fn default() -> Self {
-        Self { efficiency: energy::Flow { import: 0.95, export: 0.95 }, tracker: None }
     }
 }
 
@@ -300,6 +200,104 @@ impl Balance {
             eps_active_power: Exponential(Watts::ZERO),
             mean: Exponential(Zero::ZERO),
             harmonics: vec![Self::DEFAULT_HARMONIC; n_balance_harmonics],
+        }
+    }
+
+    fn resize(&mut self, n_balance_harmonics: usize) {
+        self.harmonics.resize(n_balance_harmonics, Self::DEFAULT_HARMONIC);
+    }
+
+    /// Calculate the balance deviation from the average at concrete moment in time.
+    pub fn deviation_at(&self, naive_time: NaiveTime) -> energy::Balance<Watts> {
+        let day_phase: Radians =
+            Quantity(f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU);
+        (1..)
+            .map(f64::from)
+            .zip(self.harmonics.iter())
+            .map(|(mode_index, harmonic)| {
+                harmonic.0.dot(Harmonic::from_phase(day_phase * mode_index))
+            })
+            .fold(energy::Balance::ZERO, |sum, item| sum + item)
+    }
+
+    pub fn mean_over(&self, interval: Interval) -> energy::Balance<Watts> {
+        let balance = self.mean.0 + self.mean_deviation_over(interval);
+        energy::Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
+    }
+
+    /// Calculate the mean deviation of the balance over the interval.
+    fn mean_deviation_over(&self, interval: Interval) -> energy::Balance<Watts> {
+        assert!(interval.start() < interval.end());
+
+        let n_days = interval.duration().days();
+        let middle_phase: Radians = {
+            let start =
+                f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0 * TAU;
+            Quantity((n_days / 2.0).mul_add(TAU, start))
+        };
+
+        (1..)
+            .map(f64::from)
+            .zip(self.harmonics.iter())
+            .map(|(mode_index, harmonic)| {
+                // (1/Δt) ∫ cos(2πk·t) dt = cos(2πk·middle_phase) · sinc(k·Δt)
+                let weight = Self::sinc(mode_index * n_days);
+                harmonic.0.dot(Harmonic::from_phase(middle_phase * mode_index)) * weight
+            })
+            .fold(energy::Balance::ZERO, |sum, item| sum + item)
+    }
+
+    /// Normalized [sinc function](https://en.wikipedia.org/wiki/Sinc_function): sin(πx)÷(πx).
+    fn sinc(x: f64) -> f64 {
+        if x == 0.0 {
+            1.0
+        } else {
+            let pi_x = PI * x;
+            pi_x.sin() / pi_x
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub fn update(
+        &mut self,
+        balance: energy::Balance<Watts>,
+        eps_active_power: Watts,
+        at: DateTime<Local>,
+        half_life: HalfLife<Hours>,
+    ) {
+        let mean_smoothing_factor = {
+            // Smoothing factor based on the configured half-life and elapsed time:
+            let elapsed = at - std::mem::replace(&mut self.updated_at, at);
+            half_life.smoothing_factor(elapsed)
+        };
+
+        self.eps_active_power.update(eps_active_power, mean_smoothing_factor);
+
+        // Calculate the deviation before the mean update eats the signal:
+        let deviation = balance - self.mean.0;
+
+        self.mean.update(balance, mean_smoothing_factor);
+
+        // Capture daily periodicity, hence one full day is τ radians:
+        let base_phase: Radians =
+            Quantity(f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU);
+
+        // After long gaps, the smoothing factor jumps through the roof, and
+        // each harmonic would then pick up the full signal – effectively amplifying it by N.
+        // The following ensures that α × 2N ≤ 1 and the spike is constrained:
+        #[expect(clippy::cast_precision_loss)]
+        let harmonic_smoothing_factor =
+            mean_smoothing_factor.min(0.5 / self.harmonics.len() as f64);
+
+        for (mode_index, harmonic) in (1..).map(f64::from).zip(self.harmonics.iter_mut()) {
+            let basis = Harmonic::from_phase(base_phase * mode_index);
+            let target = Harmonic {
+                // Multiplication by 2 comes from the scale factor:
+                // <https://en.wikipedia.org/wiki/Fourier_series#Analysis>.
+                cosine: deviation * (2.0 * basis.cosine),
+                sine: deviation * (2.0 * basis.sine),
+            };
+            harmonic.update(target, harmonic_smoothing_factor);
         }
     }
 }

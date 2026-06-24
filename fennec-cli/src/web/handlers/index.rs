@@ -6,6 +6,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     battery::WorkingMode,
+    engine,
     prelude::*,
     quantity::{currency::Mills, energy::WattHours},
     web::{partials, working_mode::WorkingModeColor},
@@ -14,7 +15,7 @@ use crate::{
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
 #[expect(clippy::significant_drop_tightening)]
-pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
+pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
     debug!("access");
     let state = state.read().await;
     let backtrack = state.backtrack.as_ref();

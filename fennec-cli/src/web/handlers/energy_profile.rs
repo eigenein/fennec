@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 use crate::{
     energy,
     energy::Balance,
+    engine,
     ops::chrono::Interval,
     prelude::*,
     quantity::power::Watts,
@@ -20,7 +21,7 @@ pub const PATH: &str = "/energy-profile";
 
 #[instrument(skip_all)]
 #[expect(clippy::too_many_lines)]
-pub async fn get(State(state): State<Arc<RwLock<crate::State>>>) -> Markup {
+pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
     debug!("access");
 
     let energy_profile = &state.read().await.energy_profile;

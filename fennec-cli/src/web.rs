@@ -8,7 +8,7 @@ use std::{net::IpAddr, sync::Arc};
 use axum::{Router, routing::get};
 use tokio::sync::RwLock;
 
-use crate::{State, prelude::*};
+use crate::{engine::State, prelude::*};
 
 pub async fn serve(address: IpAddr, port: u16, state: Arc<RwLock<State>>) -> Result {
     info!(%address, port, "serving web UI…");

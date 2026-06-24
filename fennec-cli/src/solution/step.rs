@@ -8,7 +8,7 @@ use crate::{
     solution,
 };
 
-/// Working plan for a single [`crate::ops::Interval`].
+/// Per-interval decision, one step of a [`super::Plan`].
 #[derive(Copy, Clone)]
 pub struct Step {
     /// Calculated time interval duration.

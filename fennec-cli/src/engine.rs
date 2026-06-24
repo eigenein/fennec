@@ -11,7 +11,7 @@ use crate::{
     energy,
     prelude::*,
     quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice, ratios::Percentage},
-    solution::{Backtrack, Optimizer, Step},
+    solution::{Optimizer, Plan, Step},
 };
 
 #[must_use]
@@ -20,7 +20,7 @@ pub struct State {
     pub energy_profile: energy::Profile,
 
     /// Current solution backtrack.
-    pub backtrack: Option<Backtrack>,
+    pub plan: Option<Plan>,
 }
 
 #[must_use]
@@ -50,7 +50,7 @@ impl Engine {
             connections,
             args,
             energy_prices: energy_provider.get_future_prices(Local::now()).await?,
-            state: Arc::new(RwLock::new(State { energy_profile, backtrack: None })),
+            state: Arc::new(RwLock::new(State { energy_profile, plan: None })),
         };
         Ok(this)
     }
@@ -105,27 +105,27 @@ impl Engine {
                 self.energy_prices = self.args.energy_provider.get_future_prices(now).await?;
                 // TODO: figure out whether the new prices came in.
             }
-            let optimizer = Optimizer::new(
-                self.state.read().await.energy_profile.clone(),
-                &self.args.battery,
-                battery_metrics.actual_capacity(),
-                battery_metrics.allowed_energy_levels(),
-            );
-            let solutions = optimizer.solve(&self.energy_prices); // TODO: consume energy prices.
-            let backtrack = {
+            let plan = {
+                let optimizer = Optimizer::new(
+                    self.state.read().await.energy_profile.clone(),
+                    &self.args.battery,
+                    battery_metrics.actual_capacity(),
+                    battery_metrics.allowed_energy_levels(),
+                );
+                let solution_space = optimizer.solve(&self.energy_prices); // TODO: consume energy prices?
                 let initial_energy_level =
                     WattHours::from(battery_metrics.residual_energy()).into();
-                solutions.backtrack(initial_energy_level)?
+                solution_space.backtrack(initial_energy_level)?
             };
             info!(
-                grid_loss = ?backtrack.metrics.losses.grid,
-                battery.loss = ?backtrack.metrics.losses.battery,
-                battery.charge = ?backtrack.metrics.internal_battery_flow.import,
-                battery.discharge = ?backtrack.metrics.internal_battery_flow.export,
+                grid_loss = ?plan.metrics.losses.grid,
+                battery.loss = ?plan.metrics.losses.battery,
+                battery.charge = ?plan.metrics.internal_battery_flow.import,
+                battery.discharge = ?plan.metrics.internal_battery_flow.export,
                 "solution summary",
             );
-            self.write_schedule(&backtrack.schedule, battery_metrics.allowed_soc).await?;
-            self.state.write().await.backtrack = Some(backtrack);
+            self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
+            self.state.write().await.plan = Some(plan);
         }
 
         Ok(())

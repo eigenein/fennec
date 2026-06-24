@@ -5,7 +5,10 @@ use crate::{
     solution::{Metrics, Step},
 };
 
-pub struct Backtrack {
+/// Schedule of working mode decisions along with cumulative metrics.
+pub struct Plan {
+    /// Cumulative metrics of the entire plan.
     pub metrics: Metrics,
+
     pub schedule: Schedule<(energy::Flow<KilowattHourPrice>, Step)>,
 }

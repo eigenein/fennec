@@ -1,11 +1,12 @@
 use std::time::Duration;
 
 use backon::{ConstantBuilder, Retryable};
-use chrono::NaiveDate;
+use chrono::{DateTime, Days, Local, NaiveDate};
 
 use crate::{
     Schedule,
     api::frank_energie,
+    energy,
     energy::Flow,
     prelude::*,
     quantity::price::KilowattHourPrice,
@@ -27,7 +28,31 @@ pub enum Provider {
 impl Provider {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(10));
 
-    pub async fn get_prices(self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
+    /// Fetch energy prices for up to 2 days since the specified timestamp.
+    #[instrument(skip_all, fields(now = ?now))]
+    pub async fn get_future_prices(
+        self,
+        now: DateTime<Local>,
+    ) -> Result<Schedule<energy::Flow<KilowattHourPrice>>> {
+        const ONE_DAY: Days = Days::new(1);
+
+        // TODO: potentially, check for tomorrow's prices doesn't require fetching today's prices:
+        let today = now.date_naive();
+        let mut prices = self.get_prices(today).await?;
+        ensure!(prices.len() != 0, "received empty price schedule for today");
+
+        prices.extend({
+            let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
+            self.get_prices(tomorrow).await?
+        })?;
+
+        info!(len = prices.len(), "fetched energy prices");
+        prices.advance_to(now);
+        Ok(prices)
+    }
+
+    /// Fetch energy prices for a single day.
+    async fn get_prices(self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
         let resolution = match self {
             Self::FrankEnergieQuarterly => frank_energie::Resolution::Quarterly,
             Self::FrankEnergieHourly => frank_energie::Resolution::Hourly,

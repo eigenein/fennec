@@ -1,7 +1,7 @@
 use std::{range::RangeInclusive, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
-use chrono::{DateTime, Days, Local, TimeDelta};
+use chrono::{DateTime, Local, TimeDelta};
 use tokio::{sync::RwLock, time::MissedTickBehavior, try_join};
 
 use crate::{
@@ -49,7 +49,7 @@ impl Engine {
         let this = Self {
             connections,
             args,
-            energy_prices: Self::get_prices(energy_provider, Local::now()).await?,
+            energy_prices: energy_provider.get_future_prices(Local::now()).await?,
             state: Arc::new(RwLock::new(State { energy_profile, backtrack: None })),
         };
         Ok(this)
@@ -64,7 +64,7 @@ impl Engine {
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
             interval.tick().await;
-            self.run_once().await.context("the logger iteration has failed")?;
+            self.run_once().await?;
         }
     }
 
@@ -102,7 +102,7 @@ impl Engine {
         if has_residual_charge_changed || has_schedule_advanced {
             if self.energy_prices.duration() <= TimeDelta::hours(12) {
                 // When the time comes, try to fetch the tomorrow prices:
-                self.energy_prices = Self::get_prices(self.args.energy_provider, now).await?;
+                self.energy_prices = self.args.energy_provider.get_future_prices(now).await?;
                 // TODO: figure out whether the new prices came in.
             }
             let optimizer = Optimizer::new(
@@ -149,29 +149,6 @@ impl Engine {
                     .context("failed to retrieve the grid measurement")
             }
         )
-    }
-
-    /// Fetch energy prices for up to 2 days.
-    #[instrument(skip_all, fields(now = ?now))]
-    async fn get_prices(
-        energy_provider: energy::Provider,
-        now: DateTime<Local>,
-    ) -> Result<Schedule<energy::Flow<KilowattHourPrice>>> {
-        const ONE_DAY: Days = Days::new(1);
-
-        // TODO: do not re-read prices for today:
-        let today = now.date_naive();
-        let mut prices = energy_provider.get_prices(today).await?;
-        ensure!(prices.len() != 0, "received empty price schedule for today");
-
-        prices.extend({
-            let tomorrow = today.checked_add_days(ONE_DAY).unwrap();
-            energy_provider.get_prices(tomorrow).await?
-        })?;
-
-        info!(len = prices.len(), "fetched energy prices");
-        prices.advance_to(now);
-        Ok(prices)
     }
 
     /// Track the balance and battery metrics and update the persistent energy profile.

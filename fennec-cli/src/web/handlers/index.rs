@@ -18,7 +18,7 @@ use crate::{
 pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
     debug!("access");
     let state = state.read().await;
-    let backtrack = state.backtrack.as_ref();
+    let plan = state.plan.as_ref();
     let energy_profile = &state.energy_profile;
     let battery_tracker = energy_profile.battery.tracker.as_ref();
 
@@ -28,7 +28,7 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
             section.section.pb-5 {
                 div.box {
                     div.field.is-grouped.is-grouped-multiline {
-                        @if let Some(backtrack) = backtrack {
+                        @if let Some(plan) = plan {
                             div.control {
                                 div.tags.has-addons {
                                     span.tag.is-info {
@@ -38,7 +38,7 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                                         }
                                     }
                                     span.tag {
-                                        (backtrack.metrics.losses.total())
+                                        (plan.metrics.losses.total())
                                     }
                                 }
                             }
@@ -53,13 +53,13 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-down {} }
-                                            span { (backtrack.metrics.internal_battery_flow.import) }
+                                            span { (plan.metrics.internal_battery_flow.import) }
                                         }
                                     }
                                     span.tag {
                                         span.icon-text {
                                             span.icon { i.fas.fa-angle-up {} }
-                                            span { (backtrack.metrics.internal_battery_flow.export) }
+                                            span { (plan.metrics.internal_battery_flow.export) }
                                         }
                                     }
                                 }
@@ -123,7 +123,7 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                 }
             }
 
-            @if let Some(backtrack) = backtrack {
+            @if let Some(plan) = plan {
                 section.section.py-5 {
                     div.card {
                         header.card-header {
@@ -135,7 +135,7 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                                     thead { (steps_table_header()) }
                                     tfoot { (steps_table_header()) }
                                     tbody {
-                                        @for slot in backtrack.schedule.iter() {
+                                        @for slot in plan.schedule.iter() {
                                             tr.(WorkingModeColor(slot.value.1.working_mode)) {
                                                 td {
                                                     (slot.interval.start().format("%b"))

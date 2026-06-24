@@ -14,7 +14,7 @@ use crate::{
         time::Hours,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Solution, Step, space::Stage},
+    solution::{Losses, Metrics, Solution, Space, Stage, Step},
 };
 
 pub struct Optimizer {
@@ -66,10 +66,7 @@ impl Optimizer {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(
-        &self,
-        energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>,
-    ) -> Schedule<Stage> {
+    pub fn solve(&self, energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>) -> Space {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
@@ -105,9 +102,9 @@ impl Optimizer {
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
-        solutions: &Schedule<Stage>,
+        solution_space: &Space,
     ) -> Option<Solution> {
-        let Slot { interval, value: stage } = solutions.get(interval_index);
+        let Slot { interval, value: stage } = solution_space.get(interval_index);
         let average_balance = self.energy_profile.balance.mean_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
@@ -141,16 +138,17 @@ impl Optimizer {
                 let mut metrics = step.metrics;
                 let next_interval_index = interval_index + 1;
 
-                if next_interval_index < solutions.len() {
+                if next_interval_index < solution_space.len() {
                     // For non-boundary solutions, accumulate the target optimization metrics:
-                    metrics += solutions.get(next_interval_index).value[step.energy_level_after]
+                    metrics += solution_space.get(next_interval_index).value
+                        [step.energy_level_after]
                         .as_ref()?
                         .metrics;
                 }
 
                 Some(Solution { metrics, step })
             })
-            .min()
+            .min_by(Solution::compare_loss_to)
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions.

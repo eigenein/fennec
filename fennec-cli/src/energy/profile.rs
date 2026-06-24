@@ -79,7 +79,7 @@ impl Profile {
     #[must_use]
     pub fn track_battery_metrics(
         &mut self,
-        current_metrics: mini_qube::TrackedMetrics,
+        current_metrics: &mini_qube::Metrics,
         half_life_factor: f64,
     ) -> bool {
         let battery_tracker = BatteryTracker {

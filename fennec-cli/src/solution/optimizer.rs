@@ -44,7 +44,7 @@ impl Optimizer {
         let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
         let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
         Self {
-            battery_capacity: battery_metrics.tracked.actual_capacity(),
+            battery_capacity: battery_metrics.actual_capacity(),
             max_battery_flow: battery_args
                 .power_limits
                 .max_effective_flow(energy_profile.balance.eps_active_power.0),

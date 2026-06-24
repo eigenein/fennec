@@ -72,38 +72,27 @@ impl Optimizer {
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
 
         let capacity_level = EnergyLevel::from(self.battery_capacity);
-        let mut solutions = energy_prices.map(|price| Stage::new(*price, capacity_level));
-        let mut n_some: usize = 0;
-        let mut n_none: usize = 0;
+        let mut solution_space = energy_prices.map(|price| Stage::new(*price, capacity_level));
 
         // Going backwards:
-        for interval_index in (0..solutions.len()).rev() {
+        for interval_index in (0..solution_space.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in (0..=capacity_level.0).map(Quantity) {
-                let solution = self.optimize_state(interval_index, energy_level, &solutions);
-                match solution {
-                    Some(_) => n_some += 1,
-                    None => n_none += 1,
-                }
-                solutions.get_mut(interval_index)[energy_level] = solution;
+                self.optimize_state(interval_index, energy_level, &mut solution_space);
             }
         }
 
-        // TODO: may wanna warn if `n_none` is non-zero.
-        info!(elapsed = ?start_instant.elapsed(), n_some, n_none, "optimized");
-        solutions
+        info!(elapsed = ?start_instant.elapsed(), "optimized");
+        solution_space
     }
 
-    /// # Returns
-    ///
-    /// - [`Some`] [`PartialSolution`], if a solution exists.
-    /// - [`None`], if there is no solution.
+    /// Optimize the state and assign the solution.
     pub fn optimize_state(
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
-        solution_space: &Space,
-    ) -> Option<Solution> {
+        solution_space: &mut Space,
+    ) {
         let Slot { interval, value: stage } = solution_space.get(interval_index);
         let average_balance = self.energy_profile.balance.mean_over(interval);
         let battery_simulator = battery::Simulator {
@@ -111,7 +100,8 @@ impl Optimizer {
             capacity: self.battery_capacity,
             efficiency: self.energy_profile.battery.efficiency,
         };
-        self.working_modes
+        solution_space.get_mut(interval_index)[initial_energy_level] = self
+            .working_modes
             .iter()
             .copied()
             .filter_map(|working_mode| {
@@ -148,7 +138,7 @@ impl Optimizer {
 
                 Some(Solution { metrics, step })
             })
-            .min_by(Solution::compare_loss_to)
+            .min_by(Solution::compare_loss_to);
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions.

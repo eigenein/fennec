@@ -4,7 +4,7 @@ use crate::{
     Schedule,
     prelude::*,
     quantity::energy::EnergyLevel,
-    solution::{Optimizer, Plan, stage::Stage},
+    solution::{Plan, stage::Stage},
 };
 
 /// [Solution space][1] that associates a [`super::Solution`] with every time interval and [`EnergyLevel`].
@@ -31,13 +31,5 @@ impl Space {
         })?;
 
         Ok(Plan { metrics: metrics.context("the solution space is empty")?, schedule })
-    }
-
-    /// Re-optimize the solution space at the specified energy level.
-    ///
-    /// Make sure to advance the schedule to the current timestamp.
-    pub fn reoptimize_state(&mut self, optimizer: &Optimizer, initial_energy_level: EnergyLevel) {
-        self.get_mut(0)[initial_energy_level] =
-            optimizer.optimize_state(0, initial_energy_level, self);
     }
 }

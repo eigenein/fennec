@@ -3,7 +3,7 @@ use std::{net::IpAddr, sync::Arc, time::Duration};
 use clap::Parser;
 
 use crate::{
-    api::{homewizard, mini_qube},
+    api::{Connections, homewizard, mini_qube},
     battery::WorkingMode,
     energy,
     math::smoothing::HalfLife,
@@ -179,10 +179,4 @@ impl ConnectionArgs {
             battery: Arc::new(mini_qube::Client::new(self.battery_address)),
         })
     }
-}
-
-#[derive(Clone)]
-pub struct Connections {
-    pub grid_measurement: homewizard::Client,
-    pub battery: Arc<mini_qube::Client>,
 }

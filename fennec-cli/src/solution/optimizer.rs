@@ -91,7 +91,7 @@ impl Optimizer {
         &self,
         interval_index: usize,
         initial_energy_level: EnergyLevel,
-        solution_space: &mut Space,
+        solution_space: &mut Space, // TODO: this goes to an attribute. But how to ensure it's solved?
     ) {
         let Slot { interval, value: stage } = solution_space.get(interval_index);
         let average_balance = self.energy_profile.balance.mean_over(interval);

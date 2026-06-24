@@ -108,7 +108,8 @@ impl Engine {
             let optimizer = Optimizer::new(
                 self.state.read().await.energy_profile.clone(),
                 &self.args.battery,
-                &battery_metrics,
+                battery_metrics.actual_capacity(),
+                battery_metrics.allowed_energy_levels(),
             );
             let solutions = optimizer.solve(&self.energy_prices); // TODO: consume energy prices.
             let backtrack = {

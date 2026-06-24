@@ -2,7 +2,6 @@ use std::{range::RangeInclusive, time::Instant};
 
 use crate::{
     Schedule,
-    api::mini_qube,
     battery,
     battery::WorkingMode,
     energy,
@@ -38,17 +37,16 @@ impl Optimizer {
     pub fn new(
         energy_profile: energy::Profile,
         battery_args: &battery::Args,
-        battery_metrics: &mini_qube::Metrics,
+        battery_capacity: WattHours,
+        allowed_energy_levels: RangeInclusive<EnergyLevel>,
     ) -> Self {
-        let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());
-        let max_energy_level = EnergyLevel::from(battery_metrics.max_residual_charge());
         Self {
-            battery_capacity: battery_metrics.actual_capacity(),
+            battery_capacity,
             max_battery_flow: battery_args
                 .power_limits
                 .max_effective_flow(energy_profile.balance.eps_active_power.0),
             energy_profile,
-            allowed_energy_levels: (min_energy_level..=max_energy_level).into(),
+            allowed_energy_levels,
             battery_degradation_cost: battery_args.degradation_cost,
             working_modes: battery_args.working_modes.clone(),
         }

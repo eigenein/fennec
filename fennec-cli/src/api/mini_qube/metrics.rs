@@ -3,7 +3,7 @@ use std::range::RangeInclusive;
 use crate::{
     energy::Flow,
     quantity::{
-        energy::{DecawattHours, MilliwattHours, WattHours},
+        energy::{DecawattHours, EnergyLevel, MilliwattHours, WattHours},
         power::Watts,
         ratios::Percentage,
     },
@@ -34,16 +34,6 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    /// Minimum allowed residual charge.
-    pub fn min_residual_charge(&self) -> WattHours {
-        self.actual_capacity() * self.allowed_soc.start
-    }
-
-    /// Maximum allowed residual charge.
-    pub fn max_residual_charge(&self) -> WattHours {
-        self.actual_capacity() * self.allowed_soc.last
-    }
-
     /// Battery capacity corrected on the state of health.
     pub fn actual_capacity(&self) -> WattHours {
         self.design_capacity.rescale() * self.state_of_health
@@ -52,5 +42,12 @@ impl Metrics {
     /// Residual energy corrected on the state of health.
     pub fn residual_energy(&self) -> MilliwattHours {
         self.design_capacity * (self.state_of_health * self.state_of_charge)
+    }
+
+    pub fn allowed_energy_levels(&self) -> RangeInclusive<EnergyLevel> {
+        let actual_capacity = self.actual_capacity();
+        let start_energy_level = EnergyLevel::from(actual_capacity * self.allowed_soc.start);
+        let last_energy_level = EnergyLevel::from(actual_capacity * self.allowed_soc.last);
+        (start_energy_level..=last_energy_level).into()
     }
 }

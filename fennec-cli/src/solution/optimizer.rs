@@ -5,7 +5,6 @@ use crate::{
     api::mini_qube,
     battery,
     battery::WorkingMode,
-    cli::BatteryArgs,
     energy,
     prelude::*,
     quantity::{
@@ -38,7 +37,7 @@ pub struct Optimizer {
 impl Optimizer {
     pub fn new(
         energy_profile: energy::Profile,
-        battery_args: &BatteryArgs,
+        battery_args: &battery::Args,
         battery_metrics: &mini_qube::Metrics,
     ) -> Self {
         let min_energy_level = EnergyLevel::from(battery_metrics.min_residual_charge());

@@ -5,11 +5,10 @@ use clap::Parser;
 use crate::{
     api::{Connections, homewizard, mini_qube},
     battery,
-    battery::WorkingMode,
     energy,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::{price::KilowattHourPrice, time::Hours},
+    quantity::time::Hours,
 };
 
 #[derive(Parser)]
@@ -32,7 +31,7 @@ pub struct Args {
 #[derive(Parser)]
 pub struct EngineArgs {
     #[clap(flatten)]
-    pub battery: BatteryArgs,
+    pub battery: battery::Args,
 
     #[clap(long, env = "INTERVAL", default_value = "5s", value_parser = humantime::parse_duration)]
     pub interval: Duration,
@@ -90,29 +89,6 @@ pub struct BindArgs {
     /// Web UI binding port.
     #[clap(long = "bind-port", env = "BIND_PORT", default_value = "80")]
     pub port: u16,
-}
-
-#[derive(Parser)]
-pub struct BatteryArgs {
-    #[clap(
-        long = "battery-working-modes",
-        env = "WORKING_MODES",
-        value_delimiter = ',',
-        num_args = 1..,
-        default_value = "harness,compensate,charge,self-use",
-    )]
-    pub working_modes: Vec<WorkingMode>,
-
-    #[clap(flatten)]
-    pub power_limits: battery::PowerLimits,
-
-    /// Battery health costs lost to the cycling, in ¤/kWh.
-    #[clap(
-        long = "battery-degradation-cost",
-        env = "BATTERY_DEGRADATION_COST",
-        default_value = "0.01"
-    )]
-    pub degradation_cost: KilowattHourPrice,
 }
 
 #[derive(Parser)]

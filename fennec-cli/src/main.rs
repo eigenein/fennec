@@ -155,15 +155,15 @@ impl Engine {
             .notify(log_retried_error)
             .await?;
 
-        let net_deficit = grid_metrics.active_power + battery_metrics.untracked.active_power;
+        let net_deficit = grid_metrics.active_power + battery_metrics.active_power;
         let balance = energy::Balance::new(self.args.battery.power_limits, net_deficit);
         debug!(
             ?net_deficit,
-            battery.active_power = ?battery_metrics.untracked.active_power,
-            battery.eps_active_power = ?battery_metrics.untracked.eps_active_power,
-            battery.residual_energy = ?battery_metrics.tracked.residual_energy(),
-            battery.health = ?battery_metrics.tracked.health,
-            battery.actual_capacity = ?battery_metrics.tracked.actual_capacity(),
+            battery.active_power = ?battery_metrics.active_power,
+            battery.eps_active_power = ?battery_metrics.eps_active_power,
+            battery.residual_energy = ?battery_metrics.residual_energy(),
+            battery.state_of_health = ?battery_metrics.state_of_health,
+            battery.actual_capacity = ?battery_metrics.actual_capacity(),
             ?balance.battery.export,
             ?balance.battery.import,
             ?balance.grid.export,
@@ -193,7 +193,7 @@ impl Engine {
             let solutions = optimizer.solve(&self.energy_prices); // TODO: consume energy prices.
             let backtrack = {
                 let initial_energy_level =
-                    WattHours::from(battery_metrics.tracked.residual_energy()).into();
+                    WattHours::from(battery_metrics.residual_energy()).into();
                 solutions.backtrack(initial_energy_level)?
             };
             info!(
@@ -203,7 +203,7 @@ impl Engine {
                 battery.discharge = ?backtrack.metrics.internal_battery_flow.export,
                 "solution summary",
             );
-            self.write_schedule(&backtrack.schedule, battery_metrics.untracked.allowed_soc).await?;
+            self.write_schedule(&backtrack.schedule, battery_metrics.allowed_soc).await?;
             self.state.write().await.backtrack = Some(backtrack);
         }
 
@@ -263,12 +263,12 @@ impl Engine {
         let energy_profile = &mut self.state.write().await.energy_profile;
         energy_profile.update_energy_balance(
             balance,
-            battery_metrics.untracked.eps_active_power,
+            battery_metrics.eps_active_power,
             now,
             self.args.energy_profile.balance_half_life,
         );
         let is_residual_energy_changed = energy_profile.track_battery_metrics(
-            battery_metrics.tracked,
+            battery_metrics,
             self.args.energy_profile.battery_efficiency_half_life_factor,
         );
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;

@@ -7,7 +7,6 @@ pub mod schedule;
 
 use std::array::from_fn;
 
-use chrono::Local;
 use fennec_modbus::{
     contrib::{
         mini_qube,
@@ -17,7 +16,7 @@ use fennec_modbus::{
     tcp::UnitId,
 };
 
-pub use self::metrics::{Metrics, Tracked as TrackedMetrics, Untracked as UntrackedMetrics};
+pub use self::metrics::Metrics;
 use crate::{energy::Flow, prelude::*};
 
 /// FoxESS MQ2200 Modbus client.
@@ -31,28 +30,21 @@ impl Client {
         Self(fennec_modbus::tcp::tokio::Client::new(address))
     }
 
-    pub async fn read_metrics(&self) -> Result<Metrics> {
-        Ok(Metrics {
-            tracked: self.read_tracked_metrics().await?,
-            untracked: self.read_untracked_metrics().await?,
-        })
-    }
-
     #[instrument(skip_all)]
-    async fn read_tracked_metrics(&self) -> Result<TrackedMetrics> {
+    pub async fn read_metrics(&self) -> Result<Metrics> {
         let design_capacity = self
             .0
             .call::<mini_qube::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the design capacity")?
             .into();
-        let health = self
+        let state_of_health = self
             .0
             .call::<mini_qube::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoH")?
             .try_into()?;
-        let charge = self
+        let state_of_charge = self
             .0
             .call::<mini_qube::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
             .await
@@ -70,21 +62,19 @@ impl Client {
             .await
             .context("failed to read the total exported energy")?
             .into();
+        let active_power = self
+            .0
+            .call::<mini_qube::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the active power")?
+            .into();
+        let eps_active_power = self
+            .0
+            .call::<mini_qube::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
+            .await
+            .context("failed to read the EPS active power")?
+            .into();
 
-        Ok(TrackedMetrics {
-            timestamp: Local::now(),
-            charge,
-            health,
-            design_capacity,
-            total_grid_flow: Flow {
-                import: total_grid_import_energy,
-                export: total_grid_export_energy,
-            },
-        })
-    }
-
-    #[instrument(skip_all)]
-    async fn read_untracked_metrics(&self) -> Result<UntrackedMetrics> {
         // TODO: these two are only needed when optimizing:
         let min_soc = self
             .0
@@ -99,20 +89,14 @@ impl Client {
             .context("failed to read the max SoC")?
             .try_into()?;
 
-        let active_power = self
-            .0
-            .call::<mini_qube::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the active power")?
-            .into();
-        let eps_active_power = self
-            .0
-            .call::<mini_qube::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the EPS active power")?
-            .into();
-
-        Ok(UntrackedMetrics {
+        Ok(Metrics {
+            state_of_charge,
+            state_of_health,
+            design_capacity,
+            total_grid_flow: Flow {
+                import: total_grid_import_energy,
+                export: total_grid_export_energy,
+            },
             allowed_soc: (min_soc..=max_soc).into(),
             active_power,
             eps_active_power,

@@ -1,8 +1,7 @@
-use clap::Parser;
-
 use crate::{battery, battery::WorkingMode, quantity::price::KilowattHourPrice};
 
-#[derive(Parser)]
+#[derive(clap::Args)]
+#[group(id = "battery")]
 pub struct Args {
     #[clap(
         long = "battery-working-modes",

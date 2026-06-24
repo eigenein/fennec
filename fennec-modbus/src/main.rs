@@ -3,7 +3,7 @@
 mod cli;
 
 use anyhow::Error;
-use clap::{Parser, Subcommand};
+use clap::Parser as _;
 use fennec_modbus::tcp::{UnitId, tokio::Client};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
@@ -33,7 +33,7 @@ async fn main() -> Result {
     Ok(())
 }
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 struct Args {
     #[clap(flatten)]
     endpoint: Endpoint,
@@ -46,7 +46,7 @@ struct Args {
     command: Command,
 }
 
-#[derive(Parser)]
+#[derive(clap::Args)]
 struct Endpoint {
     /// Connection endpoint.
     #[clap(name = "ENDPOINT", env = "ENDPOINT")]
@@ -59,14 +59,14 @@ impl Endpoint {
     }
 }
 
-#[derive(Copy, Clone, Subcommand)]
+#[derive(Copy, Clone, clap::Subcommand)]
 enum Command {
     /// Test readings from a live device.
     #[clap(subcommand)]
     Read(Device),
 }
 
-#[derive(Copy, Clone, Subcommand)]
+#[derive(Copy, Clone, clap::Subcommand)]
 enum Device {
     /// Fox ESS MQ2200 (Mini Qube), Solakon ONE, and Avocado 22 Pro.
     #[clap(alias = "solakon-one", alias = "avocado-22-pro")]

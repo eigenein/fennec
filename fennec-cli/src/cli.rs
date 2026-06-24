@@ -1,7 +1,5 @@
 use std::{net::IpAddr, sync::Arc, time::Duration};
 
-use clap::Parser;
-
 use crate::{
     api::{Connections, homewizard, mini_qube},
     battery,
@@ -11,7 +9,8 @@ use crate::{
     quantity::time::Hours,
 };
 
-#[derive(Parser)]
+/// Root CLI arguments.
+#[derive(clap::Parser)]
 #[command(author, version, about, propagate_version = true)]
 #[must_use]
 pub struct Args {
@@ -28,7 +27,7 @@ pub struct Args {
     pub engine: EngineArgs,
 }
 
-#[derive(Parser)]
+#[derive(clap::Args)]
 pub struct EngineArgs {
     #[clap(flatten)]
     pub battery: battery::Args,
@@ -47,7 +46,7 @@ pub struct EngineArgs {
     pub dry_run: bool,
 }
 
-#[derive(Parser)]
+#[derive(clap::Args)]
 pub struct EnergyProfileArgs {
     /// Half-life for exponential moving average when learning the energy balance profile:
     /// - after τ: the energy profile is 50% adapted to the new routine;
@@ -80,7 +79,7 @@ pub struct EnergyProfileArgs {
 }
 
 /// Web UI binding arguments.
-#[derive(Copy, Clone, Parser)]
+#[derive(Copy, Clone, clap::Args)]
 pub struct BindArgs {
     /// Web UI binding address.
     #[clap(long = "bind-address", env = "BIND_ADDRESS", default_value = "::")]
@@ -91,7 +90,7 @@ pub struct BindArgs {
     pub port: u16,
 }
 
-#[derive(Parser)]
+#[derive(clap::Args)]
 pub struct ConnectionArgs {
     /// P1 meter measurement URL.
     #[clap(long = "grid-measurement-url", env = "GRID_MEASUREMENT_URL")]

@@ -1,12 +1,10 @@
-use clap::Parser;
-
 use crate::{energy, quantity::power::Watts};
 
 /// Battery power limits.
 ///
 /// TODO: we could use `Watts<u16>` here.
 #[must_use]
-#[derive(Copy, Clone, Parser)]
+#[derive(Copy, Clone, clap::Args)]
 pub struct PowerLimits {
     /// Charging power in watts.
     #[clap(

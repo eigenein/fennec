@@ -17,7 +17,7 @@ mod web;
 
 use std::borrow::Cow;
 
-use clap::{Parser, crate_name, crate_version};
+use clap::{Parser as _, crate_name, crate_version};
 use sentry::{
     SessionMode,
     integrations::{anyhow::capture_anyhow, tracing::EventFilter},
@@ -32,9 +32,9 @@ use crate::{cli::Args, engine::Engine, prelude::*};
 fn main() -> Result {
     init_tracing()?;
 
-    info!(version = crate_version!(), "starting…");
     let _ = dotenvy::dotenv();
     let args = Args::parse();
+    info!(version = crate_version!(), "starting…");
     let _sentry_guard = init_sentry(args.sentry_dsn.as_deref());
 
     tokio::runtime::Builder::new_multi_thread()

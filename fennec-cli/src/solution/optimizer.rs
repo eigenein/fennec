@@ -67,7 +67,7 @@ impl Optimizer {
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
     pub fn solve(
-        self,
+        &self,
         energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>,
     ) -> Schedule<Stage> {
         let start_instant = Instant::now();

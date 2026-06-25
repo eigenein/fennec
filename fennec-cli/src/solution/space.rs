@@ -14,8 +14,8 @@ pub type Space = Schedule<Stage>;
 
 impl Space {
     /// Recover schedule of working mode decisions starting with the specified [`EnergyLevel`].
-    pub fn backtrack(&self, initial_energy_level: impl Into<EnergyLevel>) -> Result<Plan> {
-        let mut energy_level = initial_energy_level.into();
+    pub fn backtrack(&self, initial_energy_level: EnergyLevel) -> Result<Plan> {
+        let mut energy_level = initial_energy_level;
         let mut metrics = None;
 
         let schedule = self.try_map(|stage| {

@@ -10,7 +10,12 @@ use crate::{
     cli::EngineArgs,
     energy,
     prelude::*,
-    quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice, ratios::Percentage},
+    quantity::{
+        energy::{EnergyLevel, WattHours},
+        power::Watts,
+        price::KilowattHourPrice,
+        ratios::Percentage,
+    },
     solution::{Optimizer, Plan, Step},
 };
 
@@ -89,10 +94,9 @@ impl Engine {
             optimizer.solution_space().len() != space_len
         });
         let has_residual_charge_changed =
-            // TODO: must also react on min-max SoC settings.
-            // TODO: `Engine` or owned struct should own last know last residual charge and SoC settings.
             self.update_energy_profile(now, balance, &battery_metrics).await?;
         if has_residual_charge_changed || has_solution_space_advanced {
+            // TODO: must also react on min-max SoC settings.
             // TODO: should only update when `solution_space.duration() <= TimeDelta::hours(12)`.
             let energy_prices = self.args.energy_provider.get_future_prices(now).await?;
             let mut optimizer = Optimizer::new(
@@ -103,8 +107,9 @@ impl Engine {
             );
             optimizer.solve(&energy_prices);
             let plan = {
-                let residual_energy = WattHours::from(battery_metrics.residual_energy());
-                optimizer.solution_space().backtrack(residual_energy)?
+                let initial_energy_level =
+                    EnergyLevel::from(WattHours::from(battery_metrics.residual_energy()));
+                optimizer.solution_space().backtrack(initial_energy_level)?
             };
             self.optimizer = Some(optimizer);
             info!(

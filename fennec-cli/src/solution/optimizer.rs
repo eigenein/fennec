@@ -19,18 +19,12 @@ use crate::{
 
 pub struct Optimizer {
     battery_capacity: WattHours,
-
-    /// Maximum power flow that the battery supports.
     max_battery_flow: energy::Flow<Watts>,
-
-    /// Allowed energy level range.
     allowed_energy_levels: RangeInclusive<WattHours<usize>>,
-
     battery_degradation_cost: KilowattHourPrice,
-
     working_modes: Vec<WorkingMode>,
-
     energy_profile: energy::Profile,
+    solution_space: Space,
 }
 
 impl Optimizer {
@@ -49,7 +43,14 @@ impl Optimizer {
             allowed_energy_levels,
             battery_degradation_cost: battery_args.degradation_cost,
             working_modes: battery_args.working_modes.clone(),
+
+            // TODO: this is better done by type state, but that would require forwarding the above args.
+            solution_space: Schedule::new(),
         }
+    }
+
+    pub const fn solution_space(&self) -> &Space {
+        &self.solution_space
     }
 
     /// Populate the solution space from scratch.
@@ -66,41 +67,35 @@ impl Optimizer {
     ///
     /// [1]: https://en.wikipedia.org/wiki/Dynamic_programming
     #[instrument(skip_all)]
-    pub fn solve(&self, energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>) -> Space {
+    pub fn solve(&mut self, energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>) {
         let start_instant = Instant::now();
 
         info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
 
         let capacity_level = EnergyLevel::from(self.battery_capacity);
-        let mut solution_space = energy_prices.map(|price| Stage::new(*price, capacity_level));
+        self.solution_space = energy_prices.map(|price| Stage::new(*price, capacity_level));
 
         // Going backwards:
-        for interval_index in (0..solution_space.len()).rev() {
+        for interval_index in (0..self.solution_space.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in (0..=capacity_level.0).map(Quantity) {
-                self.optimize_state(interval_index, energy_level, &mut solution_space);
+                self.optimize_state(interval_index, energy_level);
             }
         }
 
         info!(elapsed = ?start_instant.elapsed(), "optimized");
-        solution_space
     }
 
     /// Optimize the state and assign the solution.
-    pub fn optimize_state(
-        &self,
-        interval_index: usize,
-        initial_energy_level: EnergyLevel,
-        solution_space: &mut Space, // TODO: this goes to an attribute. But how to ensure it's solved?
-    ) {
-        let Slot { interval, value: stage } = solution_space.get(interval_index);
+    pub fn optimize_state(&mut self, interval_index: usize, initial_energy_level: EnergyLevel) {
+        let Slot { interval, value: stage } = self.solution_space.get(interval_index);
         let average_balance = self.energy_profile.balance.mean_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,
             efficiency: self.energy_profile.battery.efficiency,
         };
-        solution_space.get_mut(interval_index)[initial_energy_level] = self
+        self.solution_space.get_mut(interval_index)[initial_energy_level] = self
             .working_modes
             .iter()
             .copied()
@@ -128,9 +123,9 @@ impl Optimizer {
                 let mut metrics = step.metrics;
                 let next_interval_index = interval_index + 1;
 
-                if next_interval_index < solution_space.len() {
+                if next_interval_index < self.solution_space.len() {
                     // For non-boundary solutions, accumulate the target optimization metrics:
-                    metrics += solution_space.get(next_interval_index).value
+                    metrics += self.solution_space.get(next_interval_index).value
                         [step.energy_level_after]
                         .as_ref()?
                         .metrics;

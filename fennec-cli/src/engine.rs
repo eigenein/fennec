@@ -28,6 +28,7 @@ pub struct Engine {
     connections: Connections,
     args: EngineArgs,
     state: Arc<RwLock<State>>,
+    optimizer: Option<Optimizer>,
 }
 
 impl Engine {
@@ -41,6 +42,7 @@ impl Engine {
             connections,
             args,
             state: Arc::new(RwLock::new(State { energy_profile, plan: None })),
+            optimizer: None,
         };
         Ok(this)
     }
@@ -49,7 +51,7 @@ impl Engine {
         self.state.clone()
     }
 
-    pub async fn run_forever(self) -> Result {
+    pub async fn run_forever(mut self) -> Result {
         let mut interval = tokio::time::interval(self.args.interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
@@ -58,7 +60,7 @@ impl Engine {
         }
     }
 
-    pub async fn run_once(&self) -> Result {
+    pub async fn run_once(&mut self) -> Result {
         let now = Local::now();
         let (battery_metrics, grid_metrics) = (async || self.read_metrics().await)
             .retry(Self::BACKOFF)
@@ -81,27 +83,30 @@ impl Engine {
             "measurements",
         );
 
-        // TODO: advance the solution space.
+        let has_solution_space_advanced = self.optimizer.as_mut().is_none_or(|optimizer| {
+            let space_len = optimizer.solution_space().len();
+            optimizer.solution_space().advance_to(now);
+            optimizer.solution_space().len() != space_len
+        });
         let has_residual_charge_changed =
             // TODO: must also react on min-max SoC settings.
             // TODO: `Engine` or owned struct should own last know last residual charge and SoC settings.
             self.update_energy_profile(now, balance, &battery_metrics).await?;
-        if has_residual_charge_changed {
+        if has_residual_charge_changed || has_solution_space_advanced {
             // TODO: should only update when `solution_space.duration() <= TimeDelta::hours(12)`.
             let energy_prices = self.args.energy_provider.get_future_prices(now).await?;
+            let mut optimizer = Optimizer::new(
+                self.state.read().await.energy_profile.clone(),
+                &self.args.battery,
+                battery_metrics.actual_capacity(),
+                battery_metrics.allowed_energy_levels(),
+            );
+            optimizer.solve(&energy_prices);
             let plan = {
-                // TODO: own the optimizer.
-                let mut optimizer = Optimizer::new(
-                    self.state.read().await.energy_profile.clone(),
-                    &self.args.battery,
-                    battery_metrics.actual_capacity(),
-                    battery_metrics.allowed_energy_levels(),
-                );
-                optimizer.solve(&energy_prices);
-                let initial_energy_level =
-                    WattHours::from(battery_metrics.residual_energy()).into();
-                optimizer.solution_space().backtrack(initial_energy_level)?
+                let residual_energy = WattHours::from(battery_metrics.residual_energy());
+                optimizer.solution_space().backtrack(residual_energy)?
             };
+            self.optimizer = Some(optimizer);
             info!(
                 grid_loss = ?plan.metrics.losses.grid,
                 battery.loss = ?plan.metrics.losses.battery,

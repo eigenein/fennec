@@ -49,8 +49,8 @@ impl Optimizer {
         }
     }
 
-    pub const fn solution_space(&self) -> &Space {
-        &self.solution_space
+    pub const fn solution_space(&mut self) -> &mut Space {
+        &mut self.solution_space
     }
 
     /// Populate the solution space from scratch.

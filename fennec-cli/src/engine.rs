@@ -1,7 +1,7 @@
 use std::{range::RangeInclusive, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local};
 use tokio::{sync::RwLock, time::MissedTickBehavior, try_join};
 
 use crate::{
@@ -25,16 +25,8 @@ pub struct State {
 
 #[must_use]
 pub struct Engine {
-    /// API connections.
     connections: Connections,
-
     args: EngineArgs,
-
-    /// Current energy prices.
-    ///
-    /// TODO: we'll have that in `steps`.
-    energy_prices: Schedule<energy::Flow<KilowattHourPrice>>,
-
     state: Arc<RwLock<State>>,
 }
 
@@ -45,11 +37,9 @@ impl Engine {
     pub async fn start(connections: Connections, args: EngineArgs) -> Result<Self> {
         let energy_profile =
             energy::Profile::read_from_file(args.energy_profile.n_balance_harmonics).await?;
-        let energy_provider = args.energy_provider;
         let this = Self {
             connections,
             args,
-            energy_prices: energy_provider.get_future_prices(Local::now()).await?,
             state: Arc::new(RwLock::new(State { energy_profile, plan: None })),
         };
         Ok(this)
@@ -59,7 +49,7 @@ impl Engine {
         self.state.clone()
     }
 
-    pub async fn run_forever(mut self) -> Result {
+    pub async fn run_forever(self) -> Result {
         let mut interval = tokio::time::interval(self.args.interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
         loop {
@@ -68,7 +58,7 @@ impl Engine {
         }
     }
 
-    pub async fn run_once(&mut self) -> Result {
+    pub async fn run_once(&self) -> Result {
         let now = Local::now();
         let (battery_metrics, grid_metrics) = (async || self.read_metrics().await)
             .retry(Self::BACKOFF)
@@ -91,31 +81,26 @@ impl Engine {
             "measurements",
         );
 
+        // TODO: advance the solution space.
         let has_residual_charge_changed =
             // TODO: must also react on min-max SoC settings.
+            // TODO: `Engine` or owned struct should own last know last residual charge and SoC settings.
             self.update_energy_profile(now, balance, &battery_metrics).await?;
-        let has_schedule_advanced = {
-            let previous_len = self.energy_prices.len();
-            self.energy_prices.advance_to(now);
-            self.energy_prices.len() != previous_len
-        };
-        if has_residual_charge_changed || has_schedule_advanced {
-            if self.energy_prices.duration() <= TimeDelta::hours(12) {
-                // When the time comes, try to fetch the tomorrow prices:
-                self.energy_prices = self.args.energy_provider.get_future_prices(now).await?;
-                // TODO: figure out whether the new prices came in.
-            }
+        if has_residual_charge_changed {
+            // TODO: should only update when `solution_space.duration() <= TimeDelta::hours(12)`.
+            let energy_prices = self.args.energy_provider.get_future_prices(now).await?;
             let plan = {
-                let optimizer = Optimizer::new(
+                // TODO: own the optimizer.
+                let mut optimizer = Optimizer::new(
                     self.state.read().await.energy_profile.clone(),
                     &self.args.battery,
                     battery_metrics.actual_capacity(),
                     battery_metrics.allowed_energy_levels(),
                 );
-                let solution_space = optimizer.solve(&self.energy_prices); // TODO: consume energy prices?
+                optimizer.solve(&energy_prices);
                 let initial_energy_level =
                     WattHours::from(battery_metrics.residual_energy()).into();
-                solution_space.backtrack(initial_energy_level)?
+                optimizer.solution_space().backtrack(initial_energy_level)?
             };
             info!(
                 grid_loss = ?plan.metrics.losses.grid,

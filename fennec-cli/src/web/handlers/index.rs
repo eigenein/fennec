@@ -137,7 +137,7 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                                         }
                                         td { (slot.interval.start().format("%H:%M")) }
                                         td { (slot.interval.end().format("%H:%M")) }
-                                        td { (slot.value.1.duration) }
+                                        td { (format!("{:.0} min", slot.value.1.duration.0 * 60.0)) }
                                         td.has-text-right.has-text-weight-medium[slot.value.1.working_mode != WorkingMode::Idle] {
                                             (slot.value.0.import)
                                         }

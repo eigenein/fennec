@@ -52,7 +52,7 @@ impl Optimizer {
         }
     }
 
-    /// Find the optimal battery schedule.
+    /// Populate the solution space from scratch.
     ///
     /// Works backwards from future to present, computing the minimum cost at each
     /// `(timestamp, residual_energy)` state. Cost is money lost or gained to grid import or export.

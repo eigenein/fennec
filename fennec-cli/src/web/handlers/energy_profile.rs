@@ -30,55 +30,49 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
     partials::page(
         "Energy profile",
         html! {
-            section.section.pb-5 {
-                div.card {
-                    header.card-header {
-                        p.card-header-title { "Mean balance" }
+            section.section.py-0.my-5 {
+                div.field.is-grouped.is-grouped-multiline {
+                    div.control {
+                        div.tags.has-addons {
+                            span.tag {
+                                span.icon-text {
+                                    span.icon { i.fas.fa-charging-station {} }
+                                    span { "Battery" }
+                                }
+                            }
+                            span.tag.is-success {
+                                span.icon-text {
+                                    span.icon { i.fas.fa-angle-down {} }
+                                    span { (mean_balance.battery.import) }
+                                }
+                            }
+                            span.tag.is-warning {
+                                span.icon-text {
+                                    span.icon { i.fas.fa-angle-up {} }
+                                    span { (mean_balance.battery.export) }
+                                }
+                            }
+                        }
                     }
-                    div.card-content {
-                        nav.level.is-mobile {
-                            div.level-item.has-text-centered {
-                                div {
-                                    p.heading {
-                                        span.icon-text {
-                                            span.icon { i.fa-solid.fa-angle-down {} }
-                                            span { "Battery" }
-                                        }
-                                    }
-                                    p.title.has-text-success { (mean_balance.battery.import) }
+
+                    div.control {
+                        div.tags.has-addons {
+                            span.tag {
+                                span.icon-text {
+                                    span.icon { i.fas.fa-plug {} }
+                                    span { "Grid" }
                                 }
                             }
-                            div.level-item.has-text-centered {
-                                div {
-                                    p.heading {
-                                        span.icon-text {
-                                            span.icon { i.fa-solid.fa-angle-up {} }
-                                            span { "Battery" }
-                                        }
-                                    }
-                                    p.title.has-text-warning { (mean_balance.battery.export) }
+                            span.tag.is-danger {
+                                span.icon-text {
+                                    span.icon { i.fas.fa-angles-down {} }
+                                    span { (mean_balance.grid.import) }
                                 }
                             }
-                            div.level-item.has-text-centered {
-                                div {
-                                    p.heading {
-                                        span.icon-text {
-                                            span.icon { i.fa-solid.fa-angles-down {} }
-                                            span { "Grid" }
-                                        }
-                                    }
-                                    p.title.has-text-danger { (mean_balance.grid.import) }
-                                }
-                            }
-                            div.level-item.has-text-centered {
-                                div {
-                                    p.heading {
-                                        span.icon-text {
-                                            span.icon { i.fa-solid.fa-angles-up {} }
-                                            span { "Grid" }
-                                        }
-                                    }
-                                    p.title.has-text-link { (mean_balance.grid.export) }
+                            span.tag.is-link {
+                                span.icon-text {
+                                    span.icon { i.fas.fa-angles-up {} }
+                                    span { (mean_balance.grid.export) }
                                 }
                             }
                         }
@@ -86,73 +80,52 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                 }
             }
 
-            section.section.py-5 {
-                div.card {
-                    header.card-header {
-                        p.card-header-title { "Instant balance" }
-                    }
-                    div.card-content {
-                        figure.image.has-plotters-fix {
-                            (instant_balance_chart(energy_profile))
-                        }
-                    }
+            section.section.py-0.my-5 {
+                figure.image.has-plotters-fix {
+                    (instant_balance_chart(energy_profile))
                 }
             }
 
-            section.section.py-5 {
-                div.card {
-                    header.card-header {
-                        p.card-header-title { "Interval balance" }
-                    }
-                    div.card-content {
-                        figure.image.has-plotters-fix {
-                            (interval_balance_chart(energy_profile))
-                        }
-                    }
+            section.section.py-0.my-5 {
+                figure.image.has-plotters-fix {
+                    (interval_balance_chart(energy_profile))
                 }
             }
 
-            section.section.py-5 {
-                div.card {
-                    header.card-header {
-                        p.card-header-title { "Harmonics" }
-                    }
-                    div.card-content {
-                        div.table-container {
-                            table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
-                                thead {
-                                    tr {
-                                        th.has-text-centered rowspan="2" { "Fourier" (PreEscaped("<br>")) "mode" }
-                                        th.has-text-success align="center" colspan="2" { "Battery import" }
-                                        th.has-text-warning align="center" colspan="2" { "Battery export" }
-                                        th.has-text-danger align="center" colspan="2" { "Grid import" }
-                                        th.has-text-link align="center" colspan="2" { "Grid export" }
-                                    }
-                                    tr {
-                                        th.has-text-right.has-text-success { "Cosine" }
-                                        th.has-text-right.has-text-success { "Sine" }
-                                        th.has-text-right.has-text-warning { "Cosine" }
-                                        th.has-text-right.has-text-warning { "Sine" }
-                                        th.has-text-right.has-text-danger { "Cosine" }
-                                        th.has-text-right.has-text-danger { "Sine" }
-                                        th.has-text-right.has-text-link { "Cosine" }
-                                        th.has-text-right.has-text-link { "Sine" }
-                                    }
-                                }
-                                tbody {
-                                    @for (mode_index, harmonic) in (1..).zip(&energy_profile.balance.harmonics) {
-                                        tr {
-                                            th.has-text-right { "#" (mode_index) }
-                                            td.has-text-right.has-text-success { (harmonic.0.cosine.battery.import) }
-                                            td.has-text-right.has-text-success { (harmonic.0.sine.battery.import) }
-                                            td.has-text-right.has-text-warning { (harmonic.0.cosine.battery.export) }
-                                            td.has-text-right.has-text-warning { (harmonic.0.sine.battery.export) }
-                                            td.has-text-right.has-text-danger { (harmonic.0.cosine.grid.import) }
-                                            td.has-text-right.has-text-danger { (harmonic.0.sine.grid.import) }
-                                            td.has-text-right.has-text-link { (harmonic.0.cosine.grid.export) }
-                                            td.has-text-right.has-text-link { (harmonic.0.sine.grid.export) }
-                                        }
-                                    }
+            section.section.py-0.my-5 {
+                div.table-container {
+                    table.table.is-striped.is-narrow.is-hoverable.is-fullwidth {
+                        thead {
+                            tr {
+                                th.has-text-centered rowspan="2" { "Fourier" (PreEscaped("<br>")) "mode" }
+                                th.has-text-success align="center" colspan="2" { "Battery import" }
+                                th.has-text-warning align="center" colspan="2" { "Battery export" }
+                                th.has-text-danger align="center" colspan="2" { "Grid import" }
+                                th.has-text-link align="center" colspan="2" { "Grid export" }
+                            }
+                            tr {
+                                th.has-text-right.has-text-success { "Cosine" }
+                                th.has-text-right.has-text-success { "Sine" }
+                                th.has-text-right.has-text-warning { "Cosine" }
+                                th.has-text-right.has-text-warning { "Sine" }
+                                th.has-text-right.has-text-danger { "Cosine" }
+                                th.has-text-right.has-text-danger { "Sine" }
+                                th.has-text-right.has-text-link { "Cosine" }
+                                th.has-text-right.has-text-link { "Sine" }
+                            }
+                        }
+                        tbody {
+                            @for (mode_index, harmonic) in (1..).zip(&energy_profile.balance.harmonics) {
+                                tr {
+                                    th.has-text-right { "#" (mode_index) }
+                                    td.has-text-right.has-text-success { (harmonic.0.cosine.battery.import) }
+                                    td.has-text-right.has-text-success { (harmonic.0.sine.battery.import) }
+                                    td.has-text-right.has-text-warning { (harmonic.0.cosine.battery.export) }
+                                    td.has-text-right.has-text-warning { (harmonic.0.sine.battery.export) }
+                                    td.has-text-right.has-text-danger { (harmonic.0.cosine.grid.import) }
+                                    td.has-text-right.has-text-danger { (harmonic.0.sine.grid.import) }
+                                    td.has-text-right.has-text-link { (harmonic.0.cosine.grid.export) }
+                                    td.has-text-right.has-text-link { (harmonic.0.sine.grid.export) }
                                 }
                             }
                         }

@@ -93,11 +93,18 @@ impl Engine {
             optimizer.solution_space().advance_to(now);
             optimizer.solution_space().len() != space_len
         });
-        let has_residual_charge_changed =
+        let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
-        if has_residual_charge_changed || has_solution_space_advanced {
-            // TODO: must also react on min-max SoC settings.
-            // TODO: should only update when `solution_space.duration() <= TimeDelta::hours(12)`.
+        // TODO: if has_solution_space_advanced and (solution_space.duration() <= TimeDelta::hours(12)):
+        //           # fetch the prices
+        //           # are_prices_updated = ...
+        //       else:
+        //           # are_prices_updated = False
+        // TODO: if are_prices_updated or has_allowed_energy_levels_changed or has_actual_capacity_changed:
+        //           # fully re-solve
+        //       elif has_solution_space_advanced or has_residual_energy_changed:
+        //           # re-optimize the state
+        if has_residual_energy_changed || has_solution_space_advanced {
             let energy_prices = self.args.energy_provider.get_future_prices(now).await?;
             let mut optimizer = Optimizer::new(
                 self.state.read().await.energy_profile.clone(),

@@ -9,6 +9,7 @@ use crate::{
 };
 
 /// Per-interval decision, one step of a [`super::Plan`].
+#[must_use]
 #[derive(Copy, Clone)]
 pub struct Step {
     /// Calculated time interval duration.

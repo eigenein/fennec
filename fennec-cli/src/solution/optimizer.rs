@@ -16,9 +16,10 @@ use crate::{
         time::Hours,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Plan, Solution, Space, Stage, Step},
+    solution::{Losses, Metrics, Solution, Space, Stage, Step},
 };
 
+#[must_use]
 pub struct Optimizer {
     battery_capacity: WattHours,
     max_battery_flow: energy::Flow<Watts>,
@@ -49,6 +50,20 @@ impl Optimizer {
             // TODO: this is better done by type state, but that would require forwarding the above args.
             solution_space: Schedule::new(),
         }
+    }
+
+    pub const fn solution_space(&self) -> &Space {
+        &self.solution_space
+    }
+
+    /// Validate the current instance against the real-time parameters.
+    pub fn matches(
+        &self,
+        battery_capacity: WattHours,
+        allowed_energy_levels: RangeInclusive<EnergyLevel>,
+    ) -> bool {
+        (self.battery_capacity == battery_capacity)
+            && (self.allowed_energy_levels == allowed_energy_levels)
     }
 
     /// Populate the solution space from scratch.
@@ -92,10 +107,6 @@ impl Optimizer {
         let previous_len = self.solution_space.len();
         self.solution_space.advance_to(timestamp);
         self.solution_space.len() != previous_len
-    }
-
-    pub fn backtrack(&self, initial_energy_level: EnergyLevel) -> Result<Plan> {
-        self.solution_space.backtrack(initial_energy_level)
     }
 
     /// Optimize the state and assign the solution.

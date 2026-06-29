@@ -88,11 +88,8 @@ impl Engine {
             "measurements",
         );
 
-        let has_solution_space_advanced = self.optimizer.as_mut().is_none_or(|optimizer| {
-            let space_len = optimizer.solution_space().len();
-            optimizer.solution_space().advance_to(now);
-            optimizer.solution_space().len() != space_len
-        });
+        let has_solution_space_advanced =
+            self.optimizer.as_mut().is_none_or(|optimizer| optimizer.advance_to(now));
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
         // TODO: if has_solution_space_advanced and (solution_space.duration() <= TimeDelta::hours(12)):
@@ -116,7 +113,7 @@ impl Engine {
             let plan = {
                 let initial_energy_level =
                     EnergyLevel::from(WattHours::from(battery_metrics.residual_energy()));
-                optimizer.solution_space().backtrack(initial_energy_level)?
+                optimizer.backtrack(initial_energy_level)?
             };
             self.optimizer = Some(optimizer);
             info!(

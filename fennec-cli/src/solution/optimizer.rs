@@ -1,5 +1,7 @@
 use std::{range::RangeInclusive, time::Instant};
 
+use chrono::{DateTime, Local};
+
 use crate::{
     Schedule,
     battery,
@@ -14,7 +16,7 @@ use crate::{
         time::Hours,
     },
     schedule::Slot,
-    solution::{Losses, Metrics, Solution, Space, Stage, Step},
+    solution::{Losses, Metrics, Plan, Solution, Space, Stage, Step},
 };
 
 pub struct Optimizer {
@@ -49,10 +51,6 @@ impl Optimizer {
         }
     }
 
-    pub const fn solution_space(&mut self) -> &mut Space {
-        &mut self.solution_space
-    }
-
     /// Populate the solution space from scratch.
     ///
     /// Works backwards from future to present, computing the minimum cost at each
@@ -84,6 +82,20 @@ impl Optimizer {
         }
 
         info!(elapsed = ?start_instant.elapsed(), "optimized");
+    }
+
+    /// Advance the optimizer solution space so that it would start at the specified timestamp.
+    ///
+    /// Returns [`true`] if and only if at least one interval got popped in the process.
+    #[must_use]
+    pub fn advance_to(&mut self, timestamp: DateTime<Local>) -> bool {
+        let previous_len = self.solution_space.len();
+        self.solution_space.advance_to(timestamp);
+        self.solution_space.len() != previous_len
+    }
+
+    pub fn backtrack(&self, initial_energy_level: EnergyLevel) -> Result<Plan> {
+        self.solution_space.backtrack(initial_energy_level)
     }
 
     /// Optimize the state and assign the solution.

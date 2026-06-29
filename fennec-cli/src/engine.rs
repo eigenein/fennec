@@ -1,7 +1,7 @@
 use std::{range::RangeInclusive, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeDelta};
 use tokio::{sync::RwLock, time::MissedTickBehavior, try_join};
 
 use crate::{
@@ -88,45 +88,90 @@ impl Engine {
             "measurements",
         );
 
-        let has_solution_space_advanced =
-            self.optimizer.as_mut().is_none_or(|optimizer| optimizer.advance_to(now));
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
-        // TODO: if has_solution_space_advanced and (solution_space.duration() <= TimeDelta::hours(12)):
-        //           # fetch the prices
-        //           # are_prices_updated = ...
-        //       else:
-        //           # are_prices_updated = False
-        // TODO: if are_prices_updated or has_allowed_energy_levels_changed or has_actual_capacity_changed:
-        //           # fully re-solve
-        //       elif has_solution_space_advanced or has_residual_energy_changed:
-        //           # re-optimize the state
-        if has_residual_energy_changed || has_solution_space_advanced {
-            let energy_prices = self.args.energy_provider.get_future_prices(now).await?;
-            let mut optimizer = Optimizer::new(
-                self.state.read().await.energy_profile.clone(),
-                &self.args.battery,
-                battery_metrics.actual_capacity(),
-                battery_metrics.allowed_energy_levels(),
-            );
-            optimizer.solve(&energy_prices);
-            let plan = {
-                let initial_energy_level =
-                    EnergyLevel::from(WattHours::from(battery_metrics.residual_energy()));
-                optimizer.backtrack(initial_energy_level)?
-            };
-            self.optimizer = Some(optimizer);
-            info!(
-                grid_loss = ?plan.metrics.losses.grid,
-                battery.loss = ?plan.metrics.losses.battery,
-                battery.charge = ?plan.metrics.internal_battery_flow.import,
-                battery.discharge = ?plan.metrics.internal_battery_flow.export,
-                "solution summary",
-            );
-            self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
-            self.state.write().await.plan = Some(plan);
+        let initial_energy_level =
+            EnergyLevel::from(WattHours::from(battery_metrics.residual_energy()));
+
+        let battery_capacity = battery_metrics.actual_capacity();
+        let allowed_energy_levels = battery_metrics.allowed_energy_levels();
+        if self
+            .optimizer
+            .take_if(|optimizer| !optimizer.matches(battery_capacity, allowed_energy_levels))
+            .is_some()
+        {
+            info!("optimizer is invalidated due to the battery parameters changed");
         }
 
+        let mut has_solution_space_advanced = false;
+
+        // Abandon hope, all ye who enter here.
+        // Okay, first we decide whether the optimizer survives this iteration:
+        // TODO: perhaps, this needs to be a function – but where?
+        let either = match self.optimizer.take() {
+            None => {
+                // Cold start:
+                let prices = self.args.energy_provider.get_future_prices(now).await?;
+                Either::Prices(prices)
+            }
+            Some(mut optimizer) => {
+                has_solution_space_advanced = optimizer.advance_to(now);
+                if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
+                    // The horizon is too short, try and check whether there are newer prices:
+                    let prices = self.args.energy_provider.get_future_prices(now).await?;
+                    if prices.end() > optimizer.solution_space().end() {
+                        // Yes, there are. That invalidates the optimizer:
+                        Either::Prices(prices)
+                    } else {
+                        // Nope, continue with the current optimizer:
+                        Either::Optimizer(optimizer)
+                    }
+                } else {
+                    // The horizon is long enough, just continue with the current optimizer:
+                    Either::Optimizer(optimizer)
+                }
+            }
+        };
+
+        // Now that we have the decision, we gotta execute it:
+        // TODO: should this live here, a function in `Engine`, or in `Either`?
+        let optimizer = match either {
+            Either::Prices(prices) => {
+                let energy_profile = self.state.read().await.energy_profile.clone();
+                let mut optimizer = Optimizer::new(
+                    energy_profile,
+                    &self.args.battery,
+                    battery_capacity,
+                    allowed_energy_levels,
+                );
+                optimizer.solve(&prices);
+                optimizer
+            }
+            Either::Optimizer(mut optimizer)
+                if has_solution_space_advanced || has_residual_energy_changed =>
+            {
+                // No need to fully solve, but partial solution has to be reconsidered:
+                optimizer.optimize_state(0, initial_energy_level);
+                optimizer
+            }
+            Either::Optimizer(optimizer) => {
+                self.optimizer = Some(optimizer);
+                return Ok(());
+            }
+        };
+
+        let plan = optimizer.solution_space().backtrack(initial_energy_level)?;
+        info!(
+            grid_loss = ?plan.metrics.losses.grid,
+            battery.loss = ?plan.metrics.losses.battery,
+            battery.charge = ?plan.metrics.internal_battery_flow.import,
+            battery.discharge = ?plan.metrics.internal_battery_flow.export,
+            "solution summary",
+        );
+        self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
+        self.state.write().await.plan = Some(plan);
+
+        self.optimizer = Some(optimizer);
         Ok(())
     }
 
@@ -198,4 +243,14 @@ impl Engine {
         }
         Ok(())
     }
+}
+
+/// Decision at each iteration of the [`Engine`] loop: survives either [`Optimizer`],
+/// or pricing schedule for full [`Optimizer`] reconstruction.
+///
+/// TODO: needs better naming.
+#[must_use]
+enum Either {
+    Optimizer(Optimizer),
+    Prices(Schedule<energy::Flow<KilowattHourPrice>>),
 }

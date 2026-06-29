@@ -6,6 +6,7 @@ use crate::{
 };
 
 /// Schedule of working mode decisions along with cumulative metrics.
+#[must_use]
 pub struct Plan {
     /// Cumulative metrics of the entire plan.
     pub metrics: Metrics,

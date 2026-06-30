@@ -11,7 +11,7 @@ mod math;
 mod ops;
 mod prelude;
 mod quantity;
-mod schedule;
+mod series;
 mod solution;
 mod web;
 
@@ -26,7 +26,7 @@ use tokio::{spawn, try_join};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-pub use self::schedule::Schedule;
+pub use self::series::{Schedule, Series};
 use crate::{cli::Args, engine::Engine, prelude::*};
 
 fn main() -> Result {

@@ -1,5 +1,7 @@
 //! Zero implementation for different underlying types.
 
+use chrono::TimeDelta;
+
 use crate::quantity::Quantity;
 
 pub trait Zero {
@@ -19,4 +21,8 @@ impl<const M: i8, const P: i8, const T: i8, const C: i8> Zero for Quantity<i64, 
 /// [`Zero`] for [`f64`].
 impl<const M: i8, const P: i8, const T: i8, const C: i8> Zero for Quantity<f64, M, P, T, C> {
     const ZERO: Self = Self(0.0);
+}
+
+impl Zero for TimeDelta {
+    const ZERO: Self = Self::zero();
 }

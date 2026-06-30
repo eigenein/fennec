@@ -71,36 +71,6 @@ impl<V, Index> Series<V, Index> {
         &mut self.0[index].value
     }
 
-    /// Returns [`true`], if any *matching* slot differs from the corresponding slot in the other schedule.
-    ///
-    /// Note: non-matched time slots make no difference, the schedules cover for each other.
-    pub fn differs_from_by(&self, other: &Self, mut differs: impl FnMut(&V, &V) -> bool) -> bool
-    where
-        Index: Copy + PartialOrd,
-    {
-        let mut this = self.iter().peekable();
-        let mut other = other.iter().peekable();
-        while let (Some(this_slot), Some(other_slot)) = (this.peek(), other.peek()) {
-            if this_slot.interval.is_earlier_than(other_slot.interval) {
-                this.next();
-            } else if other_slot.interval.is_earlier_than(this_slot.interval) {
-                other.next();
-            } else if !this_slot.interval.contains(other_slot.interval)
-                && !other_slot.interval.contains(this_slot.interval)
-            {
-                // Mutual partial overlap is a significant difference:
-                return true;
-            } else if differs(this_slot.value, other_slot.value) {
-                return true;
-            } else {
-                // Matched the values, advance:
-                this.next();
-                other.next();
-            }
-        }
-        false
-    }
-
     /// Construct new schedule by mapping the schedule values.
     pub fn map<T>(&self, mut mapper: impl FnMut(&V) -> T) -> Series<T, Index>
     where
@@ -227,49 +197,5 @@ mod tests {
         schedule.pop_before(second_interval.start());
         assert_eq!(schedule.len(), 1);
         assert_eq!(schedule.get(0), Slot { interval: second_interval, value: &2 });
-    }
-
-    #[test]
-    fn differs_from_by_value_true() {
-        let mut lhs = Series::new();
-        lhs.extend_from_iter([(Interval::new(1, 2), 12), (Interval::new(2, 3), 23)]).unwrap();
-
-        let mut rhs = Series::new();
-        rhs.extend_from_iter([(Interval::new(1, 2), 13), (Interval::new(2, 3), 23)]).unwrap();
-
-        assert!(lhs.differs_from_by(&rhs, |lhs, rhs| lhs != rhs));
-    }
-
-    #[test]
-    fn differs_from_by_overlap_true() {
-        let mut lhs = Series::new();
-        lhs.extend_from_iter([(Interval::new(1, 3), 13)]).unwrap();
-
-        let mut rhs = Series::new();
-        rhs.extend_from_iter([(Interval::new(2, 4), 24)]).unwrap();
-
-        assert!(lhs.differs_from_by(&rhs, |_, _| false));
-    }
-
-    #[test]
-    fn differs_from_by_unmatched_at_start_false() {
-        let mut lhs = Series::new();
-        lhs.extend_from_iter([(Interval::new(2, 3), 23)]).unwrap();
-
-        let mut rhs = Series::new();
-        rhs.extend_from_iter([(Interval::new(1, 2), 12), (Interval::new(2, 3), 23)]).unwrap();
-
-        assert!(!lhs.differs_from_by(&rhs, |lhs, rhs| lhs != rhs));
-    }
-
-    #[test]
-    fn differs_from_by_unmatched_at_end_false() {
-        let mut lhs = Series::new();
-        lhs.extend_from_iter([(Interval::new(1, 2), 12), (Interval::new(2, 3), 23)]).unwrap();
-
-        let mut rhs = Series::new();
-        rhs.extend_from_iter([(Interval::new(1, 2), 12)]).unwrap();
-
-        assert!(!lhs.differs_from_by(&rhs, |lhs, rhs| lhs != rhs));
     }
 }

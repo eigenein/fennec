@@ -170,7 +170,6 @@ impl Engine {
             .solution_space()
             .backtrack(initial_energy_level)
             .inspect(Plan::trace_summary)?;
-        // TODO: do not write if the plan has effectively not changed, address separately:
         self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
 
         // Commit the new state:

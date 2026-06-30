@@ -56,7 +56,7 @@ impl Optimizer {
         &self.solution_space
     }
 
-    /// Validate the current instance against the real-time parameters.
+    /// Check whether the current instance matches the real-time parameters.
     pub fn matches(
         &self,
         battery_capacity: WattHours,

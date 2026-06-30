@@ -99,7 +99,7 @@ impl Engine {
             .take_if(|optimizer| !optimizer.matches(battery_capacity, allowed_energy_levels))
             .is_some()
         {
-            info!("optimizer is invalidated due to the battery parameters changed");
+            info!("the optimizer is invalidated due to the changed battery parameters");
         }
 
         let mut has_solution_space_advanced = false;
@@ -107,20 +107,21 @@ impl Engine {
         // Abandon hope, all ye who enter here – each iteration, decide the optimizer's fate:
         let decision = match self.optimizer.take() {
             None => {
-                // Cold start:
+                // The battery parameters have changed or the cold start:
                 let prices = self.args.energy_provider.get_future_prices(now).await?;
                 Decision::Prices(prices)
             }
             Some(mut optimizer) => {
                 has_solution_space_advanced = optimizer.advance_to(now);
                 if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
-                    // The horizon is too short, try and check whether there are newer prices:
+                    // The horizon is too short; fetch prices to see if tomorrow's data has arrived:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
                     if prices.end() == optimizer.solution_space().end() {
                         // Nope, continue with the current optimizer:
                         Decision::Optimizer(optimizer)
                     } else {
                         // Yes, there are. That invalidates the optimizer:
+                        info!("the optimizer is invalidated due to the new prices coming in");
                         Decision::Prices(prices)
                     }
                 } else {
@@ -133,7 +134,7 @@ impl Engine {
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
 
-        // Now that we have the decision, we gotta execute it:
+        // Now that we have the decision, we have to execute it:
         let optimizer = match decision {
             Decision::Prices(prices) => {
                 let mut optimizer = Optimizer::new(
@@ -148,9 +149,9 @@ impl Engine {
             Decision::Optimizer(mut optimizer)
                 if has_solution_space_advanced || has_residual_energy_changed =>
             {
-                // No need to fully solve, but partial solution has to be reconsidered. Notes:
-                // - there is no need to optimize the other energy levels as we only follow from the initial level forward;
-                // - the energy profile intentionally stays stale, otherwise we would need the cold start.
+                // No need to fully solve: we only re-optimize interval 0 for the current energy level, since
+                // backtracking follows a single path forward and the energy profile is allowed to stay stale.
+                info!(?initial_energy_level, "optimizing the current state");
                 optimizer.optimize_state(0, initial_energy_level);
                 optimizer
             }
@@ -166,9 +167,10 @@ impl Engine {
             .solution_space()
             .backtrack(initial_energy_level)
             .inspect(Plan::trace_summary)?;
+        // TODO: do not write if the plan has effectively not changed, address separately:
         self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
 
-        // If succeeded, remember the current state:
+        // Commit the new state:
         self.state.write().await.plan = Some(plan);
         self.optimizer = Some(optimizer);
         Ok(())

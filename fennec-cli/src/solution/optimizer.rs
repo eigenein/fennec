@@ -56,7 +56,7 @@ impl Optimizer {
         &self.solution_space
     }
 
-    /// Check whether the current instance matches the real-time parameters.
+    /// Returns [`true`] if this optimizer was built with the given parameters.
     pub fn matches(
         &self,
         battery_capacity: WattHours,
@@ -99,7 +99,7 @@ impl Optimizer {
         info!(elapsed = ?start_instant.elapsed(), "optimized");
     }
 
-    /// Advance the optimizer solution space so that it would start at the specified timestamp.
+    /// Advance the optimizer solution space so that it starts at the specified timestamp.
     ///
     /// Returns [`true`] if and only if at least one interval got popped in the process.
     #[must_use]

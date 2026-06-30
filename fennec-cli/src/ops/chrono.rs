@@ -5,6 +5,7 @@ use crate::quantity::time::Hours;
 /// Half-open time interval.
 ///
 /// TODO: could become a wrapper around [`std::range::Range`].
+/// TODO: I could generalise index for simpler testing.
 #[must_use]
 #[derive(Copy, Clone, PartialEq, Eq, derive_more::Debug)]
 #[debug("{start:?}..{end:?}")]
@@ -33,6 +34,21 @@ impl Interval {
         Self: Copy,
     {
         self.end
+    }
+
+    /// Returns [`true`] if the interval ends earlier than the other interval starts.
+    #[must_use]
+    pub fn is_earlier_than(self, other: Self) -> bool
+    where
+        Self: Copy,
+    {
+        self.end <= other.start
+    }
+
+    /// Returns [`true`] if the interval fully contains the other interval.
+    #[must_use]
+    pub fn contains(self, other: Self) -> bool {
+        (self.start <= other.start) && (other.end <= self.end)
     }
 
     /// Restrict the interval start to the specified timestamp.

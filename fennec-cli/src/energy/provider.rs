@@ -3,14 +3,7 @@ use std::time::Duration;
 use backon::{ConstantBuilder, Retryable};
 use chrono::{DateTime, Days, Local, NaiveDate};
 
-use crate::{
-    Schedule,
-    api::frank_energie,
-    energy,
-    energy::Flow,
-    prelude::*,
-    quantity::price::KilowattHourPrice,
-};
+use crate::{Schedule, api::frank_energie, energy, prelude::*, quantity::price::KilowattHourPrice};
 
 #[derive(
     Copy, Clone, Hash, Eq, PartialEq, clap::ValueEnum, serde::Serialize, serde::Deserialize,
@@ -29,6 +22,8 @@ impl Provider {
     const BACKOFF: ConstantBuilder = ConstantBuilder::new().with_delay(Duration::from_secs(10));
 
     /// Fetch energy prices for up to 2 days since the specified timestamp.
+    ///
+    /// It fails if there are no prices for the specified day.
     #[instrument(skip_all, fields(now = ?now))]
     pub async fn get_future_prices(
         self,
@@ -52,7 +47,7 @@ impl Provider {
     }
 
     /// Fetch energy prices for a single day.
-    async fn get_prices(self, on: NaiveDate) -> Result<Schedule<Flow<KilowattHourPrice>>> {
+    async fn get_prices(self, on: NaiveDate) -> Result<Schedule<energy::Flow<KilowattHourPrice>>> {
         let resolution = match self {
             Self::FrankEnergieQuarterly => frank_energie::Resolution::Quarterly,
             Self::FrankEnergieHourly => frank_energie::Resolution::Hourly,

@@ -30,8 +30,8 @@ pub struct Stride<const BASE: u16, V>(
     PhantomData<V>,
 );
 
-impl<const BASE: u16, V> From<u16> for Stride<BASE, V> {
-    fn from(index: u16) -> Self {
+impl<const BASE: u16, V> Stride<BASE, V> {
+    pub const fn new(index: u16) -> Self {
         Self(index, PhantomData)
     }
 }

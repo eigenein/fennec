@@ -50,7 +50,7 @@ impl Address for BlockIndex {}
 
 impl Encode for BlockIndex {
     fn encode(&self, to: &mut impl BufMut) {
-        BlockStride::from(self.0).encode(to);
+        BlockStride::new(self.0).encode(to);
     }
 }
 

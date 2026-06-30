@@ -62,6 +62,14 @@ pub type ReadScheduleEntry =
 /// Read 12 schedule entries at a time.
 pub type ReadScheduleEntryBlock = ReadHoldingRegisters<schedule::BlockIndex, schedule::Block>;
 
+/// Write schedule entry.
+///
+/// This function accepts the slot index as the argument.
+///
+/// If you're writing the complete schedule, consider calling [`WriteScheduleEntryBlock`] instead.
+pub type WriteScheduleEntry =
+    WriteMultipleRegisters<address::Stride<48010, schedule::Entry>, schedule::Entry>;
+
 /// Write 12 schedule entries at a time.
 pub type WriteScheduleEntryBlock = WriteMultipleRegisters<schedule::BlockIndex, schedule::Block>;
 

@@ -171,8 +171,7 @@ impl Engine {
             .solution_space()
             .backtrack(initial_energy_level)
             .inspect(Plan::trace_summary)?;
-        // TODO: write to the state and render.
-        let _ = self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
+        self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
 
         // Commit the new state:
         self.state.write().await.plan = Some(plan);
@@ -227,23 +226,27 @@ impl Engine {
     async fn write_schedule(
         &self,
         schedule: &Schedule<(energy::Flow<KilowattHourPrice>, Step)>,
-        allowed_charge: RangeInclusive<Percentage>,
-    ) -> Result<contrib::mini_qube::schedule::Full> {
-        let schedule = mini_qube::schedule::build(
-            schedule.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
-            allowed_charge,
-            self.args.battery.power_limits,
-        );
+        allowed_soc: RangeInclusive<Percentage>,
+    ) -> Result {
         if self.args.dry_run {
             warn!("not writing the schedule to the battery, just scouting");
-        } else {
-            (async || self.connections.battery.write_schedule(&schedule).await)
+            return Ok(());
+        }
+        for slot in schedule.iter().take(contrib::mini_qube::schedule::Entry::N_TOTAL) {
+            let index = mini_qube::schedule::index_of(slot.interval);
+            let entry = mini_qube::schedule::make_entry(
+                index,
+                slot.value.1.working_mode,
+                allowed_soc,
+                self.args.battery.power_limits,
+            );
+            (async || self.connections.battery.write_schedule_entry(index.into(), entry).await)
                 .retry(Self::BACKOFF)
                 .notify(log_retried_error)
                 .await
                 .context("failed to push the schedule to the battery")?;
         }
-        Ok(schedule)
+        Ok(())
     }
 }
 

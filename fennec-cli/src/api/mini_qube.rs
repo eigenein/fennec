@@ -5,12 +5,10 @@
 mod metrics;
 pub mod schedule;
 
-use std::array::from_fn;
-
 use fennec_modbus::{
     contrib::{
         mini_qube,
-        mini_qube::{ReadScheduleEntryBlock, WriteScheduleEntryBlock},
+        mini_qube::{ReadScheduleEntry, WriteScheduleEntry},
     },
     protocol::{address, function::write_multiple},
     tcp::UnitId,
@@ -103,35 +101,24 @@ impl Client {
         })
     }
 
-    #[instrument(skip_all)]
-    pub async fn write_schedule(&self, schedule: &mini_qube::schedule::Full) -> Result {
-        let blocks: [[mini_qube::schedule::Entry; mini_qube::schedule::N_ENTRIES_PER_BLOCK];
-            mini_qube::schedule::N_BLOCKS] = from_fn(|block_index| {
-            from_fn(|entry_index| {
-                schedule[block_index * mini_qube::schedule::N_ENTRIES_PER_BLOCK + entry_index]
-            })
-        });
-
-        for (i, block) in (0u16..).zip(blocks) {
-            self.write_schedule_block(i, &block)
-                .await
-                .with_context(|| format!("failed to write schedule block #{i}"))?;
-        }
-
-        info!("finished");
-        Ok(())
-    }
-
     #[instrument(skip_all, fields(index = index))]
-    async fn write_schedule_block(&self, index: u16, block: &mini_qube::schedule::Block) -> Result {
-        let address = mini_qube::schedule::BlockIndex(index);
+    pub async fn write_schedule_entry(
+        &self,
+        index: u16,
+        entry: mini_qube::schedule::Entry,
+    ) -> Result {
+        let address = address::Stride::new(index);
+        if self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await? == entry {
+            // No change, skip writing.
+            // TODO: `ReadScheduleEntryBlock`, compare in-memory.
+            return Ok(());
+        }
+        info!(index, ?entry.start_time, ?entry.end_time, ?entry.working_mode, "updating schedule entry");
         self.0
-            .call::<WriteScheduleEntryBlock>(
-                Self::UNIT_ID,
-                write_multiple::Args::new(address, *block),
-            )
+            .call::<WriteScheduleEntry>(Self::UNIT_ID, write_multiple::Args::new(address, entry))
             .await?;
-        ensure!(&self.0.call::<ReadScheduleEntryBlock>(Self::UNIT_ID, address).await? == block);
+        let actual_entry = self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await?;
+        ensure!(actual_entry == entry);
         Ok(())
     }
 }

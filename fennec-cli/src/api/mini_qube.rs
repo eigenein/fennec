@@ -113,21 +113,25 @@ impl Client {
         });
 
         for (i, block) in (0u16..).zip(blocks) {
-            info!(i, "writing the schedule block…");
-            let address = mini_qube::schedule::BlockIndex(i);
-
-            self.0
-                .call::<WriteScheduleEntryBlock>(
-                    Self::UNIT_ID,
-                    write_multiple::Args::new(address, block),
-                )
-                .await?;
-
-            ensure!(self.0.call::<ReadScheduleEntryBlock>(Self::UNIT_ID, address).await? == block);
-            info!(i, "verified");
+            self.write_schedule_block(i, &block)
+                .await
+                .with_context(|| format!("failed to write schedule block #{i}"))?;
         }
 
         info!("finished");
+        Ok(())
+    }
+
+    #[instrument(skip_all, fields(index = index))]
+    async fn write_schedule_block(&self, index: u16, block: &mini_qube::schedule::Block) -> Result {
+        let address = mini_qube::schedule::BlockIndex(index);
+        self.0
+            .call::<WriteScheduleEntryBlock>(
+                Self::UNIT_ID,
+                write_multiple::Args::new(address, *block),
+            )
+            .await?;
+        ensure!(&self.0.call::<ReadScheduleEntryBlock>(Self::UNIT_ID, address).await? == block);
         Ok(())
     }
 }

@@ -59,7 +59,13 @@ impl<F: Function> Decode for Response<F> {
     fn decode(from: &mut impl Buf) -> Result<Self, Error> {
         match from.try_get_u8()? {
             function_code if function_code == F::CODE => Ok(Self::Ok(F::Output::decode(from)?)),
-            function_code if function_code == (F::CODE | 0x80) => {
+            function_code if function_code >= 0x80 => {
+                #[cfg(feature = "tracing")]
+                if function_code != (F::CODE | 0x80) {
+                    // Sometimes, device returns a non-matching error code:
+                    tracing::warn!("unexpected response function code ({function_code})");
+                }
+
                 Ok(Self::Exception(Exception::decode(from)?))
             }
             function_code => Err(Error::UnexpectedFunctionCode(function_code)),

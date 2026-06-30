@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-/// Address range and values for writing operations.
+/// Address range and value for writing operations.
 ///
 /// # Example
 ///

@@ -24,8 +24,8 @@ async fn main() -> Result {
 
     match args.command {
         Command::Read(device) => match device {
-            Device::Mq2200 => {
-                cli::mq2200::read(client, unit_id).await?;
+            Device::MiniQube => {
+                cli::mini_qube::read(client, unit_id).await?;
             }
         },
     }
@@ -69,6 +69,6 @@ enum Command {
 #[derive(Copy, Clone, clap::Subcommand)]
 enum Device {
     /// Fox ESS MQ2200 (Mini Qube), Solakon ONE, and Avocado 22 Pro.
-    #[clap(alias = "solakon-one", alias = "avocado-22-pro")]
-    Mq2200,
+    #[clap(alias = "solakon-one", alias = "avocado-22-pro", alias = "mq2200")]
+    MiniQube,
 }

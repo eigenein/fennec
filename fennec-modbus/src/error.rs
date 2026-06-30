@@ -12,7 +12,7 @@ pub enum Error {
     #[error("not enough bytes to read")]
     TryGetError(#[from] TryGetError),
 
-    #[error("unexpected function code ({0})")]
+    #[error("unexpected response function code ({0}, 0x{0:X})")]
     UnexpectedFunctionCode(u8),
 
     #[error("payload size exceeded ({0} bytes)")]

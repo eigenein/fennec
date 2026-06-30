@@ -9,7 +9,7 @@ use crate::{
     contrib::{DecawattHours, Percentage, Watts},
     protocol::{
         address,
-        function::{ReadHoldingRegisters, WriteMultipleRegisters},
+        function::{ReadHoldingRegisters, ReadWriteRegisters, WriteMultipleRegisters},
     },
 };
 
@@ -64,3 +64,13 @@ pub type ReadScheduleEntryBlock = ReadHoldingRegisters<schedule::BlockIndex, sch
 
 /// Write 12 schedule entries at a time.
 pub type WriteScheduleEntryBlock = WriteMultipleRegisters<schedule::BlockIndex, schedule::Block>;
+
+/// Write and read 12 schedule entries at a time.
+///
+/// Note: Fox ESS MQ2200 returns "illegal function" for this one.
+pub type ReadWriteScheduleEntryBlock = ReadWriteRegisters<
+    schedule::BlockIndex,
+    schedule::Block,
+    schedule::BlockIndex,
+    schedule::Block,
+>;

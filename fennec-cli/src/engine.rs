@@ -246,6 +246,7 @@ impl Engine {
                 .await
                 .context("failed to push the schedule to the battery")?;
         }
+        info!("done");
         Ok(())
     }
 }

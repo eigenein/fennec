@@ -71,7 +71,7 @@ impl<V, Index> Series<V, Index> {
         &mut self.0[index].value
     }
 
-    /// Returns [`true`], if any slot differs from the corresponding slot in the other schedule.
+    /// Returns [`true`], if any *matching* slot differs from the corresponding slot in the other schedule.
     ///
     /// Note: non-matched time slots make no difference, the schedules cover for each other.
     pub fn differs_from_by(&self, other: &Self, mut differs: impl FnMut(&V, &V) -> bool) -> bool
@@ -80,29 +80,25 @@ impl<V, Index> Series<V, Index> {
     {
         let mut this = self.iter().peekable();
         let mut other = other.iter().peekable();
-        loop {
-            let (Some(this_slot), Some(other_slot)) = (this.peek(), other.peek()) else {
-                break false;
-            };
+        while let (Some(this_slot), Some(other_slot)) = (this.peek(), other.peek()) {
             if this_slot.interval.is_earlier_than(other_slot.interval) {
                 this.next();
-                continue;
-            }
-            if other_slot.interval.is_earlier_than(this_slot.interval) {
+            } else if other_slot.interval.is_earlier_than(this_slot.interval) {
                 other.next();
-                continue;
-            }
-            if !this_slot.interval.contains(other_slot.interval)
+            } else if !this_slot.interval.contains(other_slot.interval)
                 && !other_slot.interval.contains(this_slot.interval)
             {
-                break true;
+                // Mutual partial overlap is a significant difference:
+                return true;
+            } else if differs(this_slot.value, other_slot.value) {
+                return true;
+            } else {
+                // Matched the values, advance:
+                this.next();
+                other.next();
             }
-            if differs(this_slot.value, other_slot.value) {
-                break true;
-            }
-            this.next();
-            other.next();
         }
+        false
     }
 
     /// Construct new schedule by mapping the schedule values.

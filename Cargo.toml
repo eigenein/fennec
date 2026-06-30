@@ -15,6 +15,10 @@ repository = "https://github.com/eigenein/fennec"
 rust-version = "1.95"
 version = "0.95.0-alpha.6"
 
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+invalid_codeblock_attributes = "deby"
+
 [workspace.lints.clippy]
 future_not_send = "allow"
 missing_errors_doc = "allow"

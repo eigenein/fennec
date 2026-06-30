@@ -108,35 +108,35 @@ impl Engine {
         // Abandon hope, all ye who enter here.
         // Okay, first we decide whether the optimizer survives this iteration:
         // TODO: perhaps, this needs to be a function – but where?
-        let either = match self.optimizer.take() {
+        let decision = match self.optimizer.take() {
             None => {
                 // Cold start:
                 let prices = self.args.energy_provider.get_future_prices(now).await?;
-                Either::Prices(prices)
+                Decision::Prices(prices)
             }
             Some(mut optimizer) => {
                 has_solution_space_advanced = optimizer.advance_to(now);
                 if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
                     // The horizon is too short, try and check whether there are newer prices:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
-                    if prices.end() > optimizer.solution_space().end() {
+                    if prices.end() != optimizer.solution_space().end() {
                         // Yes, there are. That invalidates the optimizer:
-                        Either::Prices(prices)
+                        Decision::Prices(prices)
                     } else {
                         // Nope, continue with the current optimizer:
-                        Either::Optimizer(optimizer)
+                        Decision::Optimizer(optimizer)
                     }
                 } else {
                     // The horizon is long enough, just continue with the current optimizer:
-                    Either::Optimizer(optimizer)
+                    Decision::Optimizer(optimizer)
                 }
             }
         };
 
         // Now that we have the decision, we gotta execute it:
-        // TODO: should this live here, a function in `Engine`, or in `Either`?
-        let optimizer = match either {
-            Either::Prices(prices) => {
+        // TODO: should this live here, a function in `Engine`, or in `Decision`?
+        let optimizer = match decision {
+            Decision::Prices(prices) => {
                 let energy_profile = self.state.read().await.energy_profile.clone();
                 let mut optimizer = Optimizer::new(
                     energy_profile,
@@ -147,14 +147,15 @@ impl Engine {
                 optimizer.solve(&prices);
                 optimizer
             }
-            Either::Optimizer(mut optimizer)
+            Decision::Optimizer(mut optimizer)
                 if has_solution_space_advanced || has_residual_energy_changed =>
             {
-                // No need to fully solve, but partial solution has to be reconsidered:
+                // No need to fully solve, but partial solution has to be reconsidered
+                // (note, there is no need to optimize the other energy levels):
                 optimizer.optimize_state(0, initial_energy_level);
                 optimizer
             }
-            Either::Optimizer(optimizer) => {
+            Decision::Optimizer(optimizer) => {
                 self.optimizer = Some(optimizer);
                 return Ok(());
             }
@@ -247,10 +248,11 @@ impl Engine {
 
 /// Decision at each iteration of the [`Engine`] loop: survives either [`Optimizer`],
 /// or pricing schedule for full [`Optimizer`] reconstruction.
-///
-/// TODO: needs better naming.
 #[must_use]
-enum Either {
+enum Decision {
+    /// Keep the current [`Optimizer`].
     Optimizer(Optimizer),
+
+    /// Drop the [`Optimizer`], construct a new one and optimize for the prices.
     Prices(Schedule<energy::Flow<KilowattHourPrice>>),
 }

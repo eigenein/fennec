@@ -23,7 +23,7 @@ impl Provider {
 
     /// Fetch energy prices for up to 2 days since the specified timestamp.
     ///
-    /// It fails if there are no prices for the specified day.
+    /// Returns an error if no prices are available for the current day.
     #[instrument(skip_all, fields(now = ?now))]
     pub async fn get_future_prices(
         self,

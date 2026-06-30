@@ -16,7 +16,7 @@ pub struct Plan {
 }
 
 impl Plan {
-    pub fn trace(&self) {
+    pub fn trace_summary(&self) {
         info!(
             grid_loss = ?self.metrics.losses.grid,
             battery.loss = ?self.metrics.losses.battery,

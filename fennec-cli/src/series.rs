@@ -74,9 +74,7 @@ impl<V, Index> Series<V, Index> {
     /// Returns [`true`], if any slot differs from the corresponding slot in the other schedule.
     ///
     /// Note: non-matched time slots make no difference, the schedules cover for each other.
-    ///
-    /// TODO: add tests.
-    pub fn differs_from_by(&self, other: &Self, differs: &impl Fn(&V, &V) -> bool) -> bool
+    pub fn differs_from_by(&self, other: &Self, mut differs: impl FnMut(&V, &V) -> bool) -> bool
     where
         Index: Copy + PartialOrd,
     {
@@ -102,6 +100,8 @@ impl<V, Index> Series<V, Index> {
             if differs(this_slot.value, other_slot.value) {
                 break true;
             }
+            this.next();
+            other.next();
         }
     }
 
@@ -221,7 +221,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schedule_pop_before() {
+    fn pop_before() {
         let first_interval = Interval::new(1, 2);
         let second_interval = Interval::new(first_interval.end(), 3);
 
@@ -231,5 +231,49 @@ mod tests {
         schedule.pop_before(second_interval.start());
         assert_eq!(schedule.len(), 1);
         assert_eq!(schedule.get(0), Slot { interval: second_interval, value: &2 });
+    }
+
+    #[test]
+    fn differs_from_by_value_true() {
+        let mut lhs = Series::new();
+        lhs.extend_from_iter([(Interval::new(1, 2), 12), (Interval::new(2, 3), 23)]).unwrap();
+
+        let mut rhs = Series::new();
+        rhs.extend_from_iter([(Interval::new(1, 2), 13), (Interval::new(2, 3), 23)]).unwrap();
+
+        assert!(lhs.differs_from_by(&rhs, |lhs, rhs| lhs != rhs));
+    }
+
+    #[test]
+    fn differs_from_by_overlap_true() {
+        let mut lhs = Series::new();
+        lhs.extend_from_iter([(Interval::new(1, 3), 13)]).unwrap();
+
+        let mut rhs = Series::new();
+        rhs.extend_from_iter([(Interval::new(2, 4), 24)]).unwrap();
+
+        assert!(lhs.differs_from_by(&rhs, |_, _| false));
+    }
+
+    #[test]
+    fn differs_from_by_unmatched_at_start_false() {
+        let mut lhs = Series::new();
+        lhs.extend_from_iter([(Interval::new(2, 3), 23)]).unwrap();
+
+        let mut rhs = Series::new();
+        rhs.extend_from_iter([(Interval::new(1, 2), 12), (Interval::new(2, 3), 23)]).unwrap();
+
+        assert!(!lhs.differs_from_by(&rhs, |lhs, rhs| lhs != rhs));
+    }
+
+    #[test]
+    fn differs_from_by_unmatched_at_end_false() {
+        let mut lhs = Series::new();
+        lhs.extend_from_iter([(Interval::new(1, 2), 12), (Interval::new(2, 3), 23)]).unwrap();
+
+        let mut rhs = Series::new();
+        rhs.extend_from_iter([(Interval::new(1, 2), 12)]).unwrap();
+
+        assert!(!lhs.differs_from_by(&rhs, |lhs, rhs| lhs != rhs));
     }
 }

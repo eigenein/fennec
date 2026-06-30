@@ -17,7 +17,7 @@ version = "0.95.0-alpha.6"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
-invalid_codeblock_attributes = "deby"
+invalid_codeblock_attributes = "deny"
 
 [workspace.lints.clippy]
 future_not_send = "allow"

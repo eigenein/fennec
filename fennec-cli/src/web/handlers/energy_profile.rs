@@ -11,7 +11,7 @@ use crate::{
     energy,
     energy::Balance,
     engine,
-    ops::chrono::Interval,
+    ops::interval::Interval,
     prelude::*,
     quantity::power::Watts,
     web::partials,

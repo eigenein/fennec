@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Schedule,
     energy::Flow,
-    ops::chrono::Interval,
+    ops::interval::Interval,
     prelude::*,
     quantity::{Quantity, price::KilowattHourPrice},
 };

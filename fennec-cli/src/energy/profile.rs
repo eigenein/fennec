@@ -10,7 +10,7 @@ use crate::{
     api::mini_qube,
     energy,
     math::smoothing::{Exponential, HalfLife},
-    ops::chrono::Interval,
+    ops::interval::Interval,
     prelude::*,
     quantity::{
         Quantity,
@@ -220,16 +220,16 @@ impl Balance {
             .fold(energy::Balance::ZERO, |sum, item| sum + item)
     }
 
-    pub fn mean_over(&self, interval: Interval) -> energy::Balance<Watts> {
+    pub fn mean_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
         let balance = self.mean.0 + self.mean_deviation_over(interval);
         energy::Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
     }
 
     /// Calculate the mean deviation of the balance over the interval.
-    fn mean_deviation_over(&self, interval: Interval) -> energy::Balance<Watts> {
+    fn mean_deviation_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
         assert!(interval.start() < interval.end());
 
-        let n_days = interval.duration().days();
+        let n_days = Hours::from(interval.duration()).days();
         let middle_phase: Radians = {
             let start =
                 f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0 * TAU;

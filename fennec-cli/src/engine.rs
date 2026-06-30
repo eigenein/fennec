@@ -2,6 +2,7 @@ use std::{range::RangeInclusive, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
 use chrono::{DateTime, Local, TimeDelta};
+use fennec_modbus::contrib;
 use tokio::{sync::RwLock, time::MissedTickBehavior, try_join};
 
 use crate::{
@@ -170,7 +171,8 @@ impl Engine {
             .solution_space()
             .backtrack(initial_energy_level)
             .inspect(Plan::trace_summary)?;
-        self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
+        // TODO: write to the state and render.
+        let _ = self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
 
         // Commit the new state:
         self.state.write().await.plan = Some(plan);
@@ -226,7 +228,7 @@ impl Engine {
         &self,
         schedule: &Schedule<(energy::Flow<KilowattHourPrice>, Step)>,
         allowed_charge: RangeInclusive<Percentage>,
-    ) -> Result {
+    ) -> Result<contrib::mini_qube::schedule::Full> {
         let schedule = mini_qube::schedule::build(
             schedule.iter().map(|slot| (slot.interval, slot.value.1.working_mode)),
             allowed_charge,
@@ -234,9 +236,6 @@ impl Engine {
         );
         if self.args.dry_run {
             warn!("not writing the schedule to the battery, just scouting");
-            for entry in schedule {
-                info!(?entry.start_time, ?entry.end_time, ?entry.working_mode);
-            }
         } else {
             (async || self.connections.battery.write_schedule(&schedule).await)
                 .retry(Self::BACKOFF)
@@ -244,7 +243,7 @@ impl Engine {
                 .await
                 .context("failed to push the schedule to the battery")?;
         }
-        Ok(())
+        Ok(schedule)
     }
 }
 

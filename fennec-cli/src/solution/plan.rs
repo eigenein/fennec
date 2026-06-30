@@ -16,6 +16,7 @@ pub struct Plan {
 }
 
 impl Plan {
+    /// /// Log the plan's headline metrics at `info` level.
     pub fn trace_summary(&self) {
         info!(
             grid_loss = ?self.metrics.losses.grid,

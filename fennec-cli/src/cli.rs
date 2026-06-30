@@ -55,7 +55,7 @@ pub struct EnergyProfileArgs {
     #[clap(
         long = "energy-balance-half-life",
         env = "ENERGY_BALANCE_HALF_LIFE",
-        default_value = "7d",
+        default_value = "14d",
         value_parser = |value: &str| value.parse::<humantime::Duration>().map(HalfLife::from),
     )]
     pub balance_half_life: HalfLife<Hours>,

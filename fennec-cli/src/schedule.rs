@@ -56,6 +56,37 @@ impl<V> Schedule<V> {
         &mut self.0[index].value
     }
 
+    /// Returns [`true`], if any slot differs from the corresponding slot in the other schedule.
+    ///
+    /// Note: non-matched time slots make no difference, the schedules cover for each other.
+    ///
+    /// TODO: generalise [`Interval`] and add tests.
+    pub fn differs_from_by(&self, other: &Self, differs: &impl Fn(&V, &V) -> bool) -> bool {
+        let mut this = self.iter().peekable();
+        let mut other = other.iter().peekable();
+        loop {
+            let (Some(this_slot), Some(other_slot)) = (this.peek(), other.peek()) else {
+                break false;
+            };
+            if this_slot.interval.is_earlier_than(other_slot.interval) {
+                this.next();
+                continue;
+            }
+            if other_slot.interval.is_earlier_than(this_slot.interval) {
+                other.next();
+                continue;
+            }
+            if !this_slot.interval.contains(other_slot.interval)
+                && !other_slot.interval.contains(this_slot.interval)
+            {
+                break true;
+            }
+            if differs(this_slot.value, other_slot.value) {
+                break true;
+            }
+        }
+    }
+
     /// Construct new schedule by mapping the schedule values.
     pub fn map<T>(&self, mut mapper: impl FnMut(&V) -> T) -> Schedule<T> {
         Schedule(self.0.iter().map(|slot| slot.map(&mut mapper)).collect())
@@ -147,6 +178,7 @@ mod tests {
 
     #[test]
     fn schedule_pop_before() {
+        // TODO: after [`Interval`] generalisation, use simpler type for the index:
         let first = Interval::new(
             Local.with_ymd_and_hms(2026, 5, 15, 16, 10, 0).unwrap(),
             Local.with_ymd_and_hms(2026, 5, 15, 16, 20, 0).unwrap(),

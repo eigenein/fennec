@@ -96,15 +96,19 @@ impl Engine {
         // Invalidate the optimizer if the critical parameters have changed:
         if self
             .optimizer
-            .take_if(|optimizer| !optimizer.matches(battery_capacity, allowed_energy_levels))
+            .take_if(|optimizer| optimizer.is_stale(battery_capacity, allowed_energy_levels))
             .is_some()
         {
-            info!("the optimizer is invalidated due to the changed battery parameters");
+            info!("optimizer invalidated: battery parameters changed");
         }
+
+        // Update the energy profile before we potentially fail to optimize:
+        let has_residual_energy_changed =
+            self.update_energy_profile(now, balance, &battery_metrics).await?;
 
         let mut has_solution_space_advanced = false;
 
-        // Abandon hope, all ye who enter here – each iteration, decide the optimizer's fate:
+        // Abandon hope, all ye who enter here – every tick, we decide the optimizer's fate:
         let decision = match self.optimizer.take() {
             None => {
                 // The battery parameters have changed or the cold start:
@@ -122,7 +126,7 @@ impl Engine {
                         Decision::Optimizer(optimizer)
                     } else {
                         // New prices arrived; the existing solution space is now too short. Rebuild:
-                        info!("the optimizer is invalidated due to the new prices coming in");
+                        info!("optimizer invalidated: new prices arrived");
                         Decision::Prices(prices)
                     }
                 } else {
@@ -131,9 +135,6 @@ impl Engine {
                 }
             }
         };
-
-        let has_residual_energy_changed =
-            self.update_energy_profile(now, balance, &battery_metrics).await?;
 
         // Now that we have the decision, we have to execute it:
         let optimizer = match decision {

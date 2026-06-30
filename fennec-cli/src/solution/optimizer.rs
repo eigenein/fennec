@@ -56,14 +56,14 @@ impl Optimizer {
         &self.solution_space
     }
 
-    /// Returns [`true`] if the optimizer's battery parameters still match – no rebuild needed.
-    pub fn matches(
+    /// Returns [`false`] if the optimizer's battery parameters still match – no rebuild needed.
+    pub fn is_stale(
         &self,
         battery_capacity: WattHours,
         allowed_energy_levels: RangeInclusive<EnergyLevel>,
     ) -> bool {
-        (self.battery_capacity == battery_capacity)
-            && (self.allowed_energy_levels == allowed_energy_levels)
+        (self.battery_capacity != battery_capacity)
+            || (self.allowed_energy_levels != allowed_energy_levels)
     }
 
     /// Populate the solution space from scratch.

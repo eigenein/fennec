@@ -2,3 +2,4 @@
 - The best code is code that never needs to be written.
 - Do not verify that the code compiles.
 - Do not verify that the tests pass.
+- Put suggested edits directly into the review comments.

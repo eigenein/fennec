@@ -104,7 +104,7 @@ impl Engine {
 
         let mut has_solution_space_advanced = false;
 
-        // Abandon hope, all ye who enter here. First, decide whether the optimizer survives this iteration:
+        // Abandon hope, all ye who enter here – each iteration, decide the optimizer's fate:
         let decision = match self.optimizer.take() {
             None => {
                 // Cold start:
@@ -149,7 +149,7 @@ impl Engine {
                 if has_solution_space_advanced || has_residual_energy_changed =>
             {
                 // No need to fully solve, but partial solution has to be reconsidered. Notes:
-                // - there is no need to optimize the other energy levels;
+                // - there is no need to optimize the other energy levels as we only follow from the initial level forward;
                 // - the energy profile intentionally stays stale, otherwise we would need the cold start.
                 optimizer.optimize_state(0, initial_energy_level);
                 optimizer
@@ -161,12 +161,14 @@ impl Engine {
             }
         };
 
-        // Done, extract and write the plan:
-        let plan = optimizer.solution_space().backtrack(initial_energy_level)?;
-        plan.trace_summary();
+        // Done, extract the plan and push it to the battery:
+        let plan = optimizer
+            .solution_space()
+            .backtrack(initial_energy_level)
+            .inspect(Plan::trace_summary)?;
         self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
 
-        // Finally, remember the current state:
+        // If succeeded, remember the current state:
         self.state.write().await.plan = Some(plan);
         self.optimizer = Some(optimizer);
         Ok(())

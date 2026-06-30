@@ -117,10 +117,11 @@ impl Engine {
                     // The horizon is too short; fetch prices to see if tomorrow's data has arrived:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
                     if prices.end() == optimizer.solution_space().end() {
-                        // Nope, continue with the current optimizer:
+                        // The end is the same and realistically the prices never change mid-period,
+                        // so continue with the current optimizer:
                         Decision::Optimizer(optimizer)
                     } else {
-                        // Yes, there are. That invalidates the optimizer:
+                        // New prices arrived; the existing solution space is now too short. Rebuild:
                         info!("the optimizer is invalidated due to the new prices coming in");
                         Decision::Prices(prices)
                     }
@@ -149,8 +150,9 @@ impl Engine {
             Decision::Optimizer(mut optimizer)
                 if has_solution_space_advanced || has_residual_energy_changed =>
             {
-                // No need to fully solve: we only re-optimize interval 0 for the current energy level, since
-                // backtracking follows a single path forward and the energy profile is allowed to stay stale.
+                // No need to fully solve: re-optimizing interval 0 adjusts for the current battery level while
+                // reusing the pre-computed future solutions. The energy profile can stay stale here – if it has
+                // changed significantly, the solution space will eventually be rebuilt when prices refresh.
                 info!(?initial_energy_level, "optimizing the current state");
                 optimizer.optimize_state(0, initial_energy_level);
                 optimizer

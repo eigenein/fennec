@@ -56,7 +56,7 @@ impl Optimizer {
         &self.solution_space
     }
 
-    /// Returns [`true`] if this optimizer was built with the given parameters.
+    /// Returns [`true`] if the optimizer's battery parameters still match – no rebuild needed.
     pub fn matches(
         &self,
         battery_capacity: WattHours,

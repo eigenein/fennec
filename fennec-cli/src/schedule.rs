@@ -35,7 +35,7 @@ impl<V> Schedule<V> {
         self.0.back().map(|slot| slot.interval.end())
     }
 
-    /// Get the schedule total duration.
+    /// Get the schedule total duration. Returns zero for empty schedule.
     #[must_use]
     pub fn duration(&self) -> TimeDelta {
         self.start().zip(self.end()).map_or(TimeDelta::zero(), |(start, end)| end - start)

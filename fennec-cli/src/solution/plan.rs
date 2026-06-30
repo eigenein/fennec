@@ -1,6 +1,7 @@
 use crate::{
     Schedule,
     energy,
+    prelude::*,
     quantity::price::KilowattHourPrice,
     solution::{Metrics, Step},
 };
@@ -12,4 +13,16 @@ pub struct Plan {
     pub metrics: Metrics,
 
     pub schedule: Schedule<(energy::Flow<KilowattHourPrice>, Step)>,
+}
+
+impl Plan {
+    pub fn trace(&self) {
+        info!(
+            grid_loss = ?self.metrics.losses.grid,
+            battery.loss = ?self.metrics.losses.battery,
+            battery.charge = ?self.metrics.internal_battery_flow.import,
+            battery.discharge = ?self.metrics.internal_battery_flow.export,
+            "plan summary",
+        );
+    }
 }

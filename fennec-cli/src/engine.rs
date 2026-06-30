@@ -88,13 +88,12 @@ impl Engine {
             "measurements",
         );
 
-        let has_residual_energy_changed =
-            self.update_energy_profile(now, balance, &battery_metrics).await?;
         let initial_energy_level =
             EnergyLevel::from(WattHours::from(battery_metrics.residual_energy()));
-
         let battery_capacity = battery_metrics.actual_capacity();
         let allowed_energy_levels = battery_metrics.allowed_energy_levels();
+
+        // Invalidate the optimizer if the critical parameters have changed:
         if self
             .optimizer
             .take_if(|optimizer| !optimizer.matches(battery_capacity, allowed_energy_levels))
@@ -107,7 +106,6 @@ impl Engine {
 
         // Abandon hope, all ye who enter here.
         // Okay, first we decide whether the optimizer survives this iteration:
-        // TODO: perhaps, this needs to be a function – but where?
         let decision = match self.optimizer.take() {
             None => {
                 // Cold start:
@@ -119,12 +117,12 @@ impl Engine {
                 if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
                     // The horizon is too short, try and check whether there are newer prices:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
-                    if prices.end() != optimizer.solution_space().end() {
-                        // Yes, there are. That invalidates the optimizer:
-                        Decision::Prices(prices)
-                    } else {
+                    if prices.end() == optimizer.solution_space().end() {
                         // Nope, continue with the current optimizer:
                         Decision::Optimizer(optimizer)
+                    } else {
+                        // Yes, there are. That invalidates the optimizer:
+                        Decision::Prices(prices)
                     }
                 } else {
                     // The horizon is long enough, just continue with the current optimizer:
@@ -133,13 +131,14 @@ impl Engine {
             }
         };
 
+        let has_residual_energy_changed =
+            self.update_energy_profile(now, balance, &battery_metrics).await?;
+
         // Now that we have the decision, we gotta execute it:
-        // TODO: should this live here, a function in `Engine`, or in `Decision`?
         let optimizer = match decision {
             Decision::Prices(prices) => {
-                let energy_profile = self.state.read().await.energy_profile.clone();
                 let mut optimizer = Optimizer::new(
-                    energy_profile,
+                    self.state.read().await.energy_profile.clone(),
                     &self.args.battery,
                     battery_capacity,
                     allowed_energy_levels,
@@ -156,22 +155,19 @@ impl Engine {
                 optimizer
             }
             Decision::Optimizer(optimizer) => {
+                // The most frequent case: both the optimizer and the plan stay.
                 self.optimizer = Some(optimizer);
                 return Ok(());
             }
         };
 
+        // Done, extract and write the plan:
         let plan = optimizer.solution_space().backtrack(initial_energy_level)?;
-        info!(
-            grid_loss = ?plan.metrics.losses.grid,
-            battery.loss = ?plan.metrics.losses.battery,
-            battery.charge = ?plan.metrics.internal_battery_flow.import,
-            battery.discharge = ?plan.metrics.internal_battery_flow.export,
-            "solution summary",
-        );
+        plan.trace();
         self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
-        self.state.write().await.plan = Some(plan);
 
+        // Finally, remember the current state:
+        self.state.write().await.plan = Some(plan);
         self.optimizer = Some(optimizer);
         Ok(())
     }

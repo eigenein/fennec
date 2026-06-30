@@ -1,16 +1,18 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Debug, ops::Sub};
 
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local};
 use derive_more::IntoIterator;
 use itertools::Itertools;
 
-use crate::{ops::interval::Interval, prelude::*};
+use crate::{ops::interval::Interval, prelude::*, quantity::Zero};
+
+pub type Schedule<V> = Series<V, DateTime<Local>>;
 
 #[must_use]
 #[derive(IntoIterator)]
-pub struct Schedule<V>(VecDeque<Slot<V>>);
+pub struct Series<V, Index>(VecDeque<Slot<V, Index>>);
 
-impl<V> Schedule<V> {
+impl<V, Index> Series<V, Index> {
     /// Create new empty schedule.
     #[expect(clippy::new_without_default)]
     pub const fn new() -> Self {
@@ -23,28 +25,41 @@ impl<V> Schedule<V> {
         self.0.len()
     }
 
-    /// Get the first slot starting timestamp.
+    /// Get the first slot starting index.
     #[must_use]
-    pub fn start(&self) -> Option<DateTime<Local>> {
+    pub fn start(&self) -> Option<Index>
+    where
+        Index: Copy,
+    {
         self.0.front().map(|slot| slot.interval.start())
     }
 
-    /// Get the last slot end timestamp, exclusive.
+    /// Get the last slot end index, exclusive.
     #[must_use]
-    pub fn end(&self) -> Option<DateTime<Local>> {
+    pub fn end(&self) -> Option<Index>
+    where
+        Index: Copy,
+    {
         self.0.back().map(|slot| slot.interval.end())
     }
 
     /// Get the schedule total duration. Returns zero for empty schedule.
     #[must_use]
-    pub fn duration(&self) -> TimeDelta {
-        self.start().zip(self.end()).map_or(TimeDelta::zero(), |(start, end)| end - start)
+    pub fn duration(&self) -> <Index as Sub>::Output
+    where
+        Index: Copy + Sub,
+        <Index as Sub>::Output: Zero,
+    {
+        self.start().zip(self.end()).map_or(Zero::ZERO, |(start, end)| end - start)
     }
 
     /// Retrieve the interval and value at the given index.
     ///
     /// Panics outside the bounds.
-    pub fn get(&self, index: usize) -> Slot<&V> {
+    pub fn get(&self, index: usize) -> Slot<&V, Index>
+    where
+        Index: Copy,
+    {
         self.0[index].as_ref()
     }
 
@@ -60,8 +75,11 @@ impl<V> Schedule<V> {
     ///
     /// Note: non-matched time slots make no difference, the schedules cover for each other.
     ///
-    /// TODO: generalise [`Interval`] and add tests.
-    pub fn differs_from_by(&self, other: &Self, differs: &impl Fn(&V, &V) -> bool) -> bool {
+    /// TODO: add tests.
+    pub fn differs_from_by(&self, other: &Self, differs: &impl Fn(&V, &V) -> bool) -> bool
+    where
+        Index: Copy + PartialOrd,
+    {
         let mut this = self.iter().peekable();
         let mut other = other.iter().peekable();
         loop {
@@ -88,21 +106,30 @@ impl<V> Schedule<V> {
     }
 
     /// Construct new schedule by mapping the schedule values.
-    pub fn map<T>(&self, mut mapper: impl FnMut(&V) -> T) -> Schedule<T> {
-        Schedule(self.0.iter().map(|slot| slot.map(&mut mapper)).collect())
+    pub fn map<T>(&self, mut mapper: impl FnMut(&V) -> T) -> Series<T, Index>
+    where
+        Index: Copy,
+    {
+        Series(self.0.iter().map(|slot| slot.map(&mut mapper)).collect())
     }
 
     /// Construct a new schedule by mapping the values, stopping at the first error.
-    pub fn try_map<T>(&self, mut mapper: impl FnMut(&V) -> Result<T>) -> Result<Schedule<T>> {
+    pub fn try_map<T>(&self, mut mapper: impl FnMut(&V) -> Result<T>) -> Result<Series<T, Index>>
+    where
+        Index: Copy,
+    {
         self.0
             .iter()
             .map(|slot| Ok(Slot { interval: slot.interval, value: mapper(&slot.value)? }))
             .collect::<Result<_>>()
-            .map(Schedule)
+            .map(Series)
     }
 
-    pub fn zip_eq<T>(self, iterable: impl IntoIterator<Item = T>) -> Schedule<(V, T)> {
-        Schedule(
+    pub fn zip_eq<T>(self, iterable: impl IntoIterator<Item = T>) -> Series<(V, T), Index>
+    where
+        Index: PartialEq,
+    {
+        Series(
             self.0
                 .into_iter()
                 .zip_eq(iterable)
@@ -111,11 +138,17 @@ impl<V> Schedule<V> {
         )
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Slot<&V>> {
+    pub fn iter(&self) -> impl Iterator<Item = Slot<&V, Index>>
+    where
+        Index: Copy,
+    {
         self.0.iter().map(Slot::as_ref)
     }
 
-    pub fn extend(&mut self, other: Self) -> Result {
+    pub fn extend(&mut self, other: Self) -> Result
+    where
+        Index: Copy + PartialEq,
+    {
         ensure!(
             self.end().zip(other.start()).is_none_or(|(end, start)| end == start),
             "the other schedule must start at this schedule end",
@@ -127,8 +160,11 @@ impl<V> Schedule<V> {
     /// Extend the schedule from an iterator over slots.
     pub fn extend_from_iter(
         &mut self,
-        other: impl IntoIterator<Item = (Interval<DateTime<Local>>, V)>,
-    ) -> Result {
+        other: impl IntoIterator<Item = (Interval<Index>, V)>,
+    ) -> Result
+    where
+        Index: Copy + Debug + PartialEq,
+    {
         for (interval, value) in other {
             let current_end = self.end();
             ensure!(
@@ -140,60 +176,60 @@ impl<V> Schedule<V> {
         Ok(())
     }
 
-    /// Remove intervals that ended before `now` and clamp the first remaining interval's start to `now`.
-    pub fn advance_to(&mut self, timestamp: DateTime<Local>) {
-        self.pop_before(timestamp);
+    /// Remove intervals that ended before the given index
+    /// and clamp the first remaining interval's start to that index.
+    pub fn advance_to(&mut self, index: Index)
+    where
+        Index: Copy + PartialOrd,
+    {
+        self.pop_before(index);
         if let Some(first) = self.0.front_mut() {
-            first.interval = first.interval.clamp_start_to(timestamp);
+            first.interval = first.interval.clamp_start_to(index);
         }
     }
 
-    /// Pop schedule slots that ended before the given timestamp.
-    fn pop_before(&mut self, timestamp: DateTime<Local>) {
-        while self.0.pop_front_if(|slot| slot.interval.end() <= timestamp).is_some() {}
+    /// Pop schedule slots that ended before the given index.
+    fn pop_before(&mut self, index: Index)
+    where
+        Index: Copy + PartialOrd,
+    {
+        while self.0.pop_front_if(|slot| slot.interval.end() <= index).is_some() {}
     }
 }
 
 #[must_use]
 #[derive(Debug, Eq, PartialEq)]
-pub struct Slot<V> {
-    pub interval: Interval<DateTime<Local>>,
+pub struct Slot<V, Index = DateTime<Local>> {
+    pub interval: Interval<Index>,
 
     /// Payload of this schedule slot.
     pub value: V,
 }
 
-impl<V> Slot<V> {
-    pub fn map<T>(&self, mapper: impl FnOnce(&V) -> T) -> Slot<T> {
+impl<V, Index: Copy> Slot<V, Index> {
+    pub fn map<T>(&self, mapper: impl FnOnce(&V) -> T) -> Slot<T, Index> {
         Slot { interval: self.interval, value: mapper(&self.value) }
     }
 
-    pub const fn as_ref(&self) -> Slot<&V> {
+    pub const fn as_ref(&self) -> Slot<&V, Index> {
         Slot { interval: self.interval, value: &self.value }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
-
     use super::*;
 
     #[test]
     fn schedule_pop_before() {
-        // TODO: after [`Interval`] generalisation, use simpler type for the index:
-        let first = Interval::new(
-            Local.with_ymd_and_hms(2026, 5, 15, 16, 10, 0).unwrap(),
-            Local.with_ymd_and_hms(2026, 5, 15, 16, 20, 0).unwrap(),
-        );
-        let second =
-            Interval::new(first.end(), Local.with_ymd_and_hms(2026, 5, 15, 16, 30, 0).unwrap());
+        let first_interval = Interval::new(1, 2);
+        let second_interval = Interval::new(first_interval.end(), 3);
 
-        let mut schedule = Schedule::new();
-        schedule.extend_from_iter([(first, 1), (second, 2)]).unwrap();
+        let mut schedule = Series::new();
+        schedule.extend_from_iter([(first_interval, 1), (second_interval, 2)]).unwrap();
 
-        schedule.pop_before(second.start());
+        schedule.pop_before(second_interval.start());
         assert_eq!(schedule.len(), 1);
-        assert_eq!(schedule.get(0), Slot { interval: second, value: &2 });
+        assert_eq!(schedule.get(0), Slot { interval: second_interval, value: &2 });
     }
 }

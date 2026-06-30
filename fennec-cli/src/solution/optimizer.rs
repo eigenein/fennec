@@ -4,6 +4,7 @@ use chrono::{DateTime, Local};
 
 use crate::{
     Schedule,
+    Series,
     battery,
     battery::WorkingMode,
     energy,
@@ -15,7 +16,7 @@ use crate::{
         price::KilowattHourPrice,
         time::Hours,
     },
-    schedule::Slot,
+    series::Slot,
     solution::{Losses, Metrics, Solution, Space, Stage, Step},
 };
 
@@ -48,7 +49,7 @@ impl Optimizer {
             working_modes: battery_args.working_modes.clone(),
 
             // TODO: this is better done by type state, but that would require forwarding the above args.
-            solution_space: Schedule::new(),
+            solution_space: Series::new(),
         }
     }
 

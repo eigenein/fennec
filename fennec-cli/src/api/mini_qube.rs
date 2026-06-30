@@ -113,7 +113,7 @@ impl Client {
             // TODO: `ReadScheduleEntryBlock`, compare in-memory.
             return Ok(());
         }
-        info!(index, ?entry.start_time, ?entry.end_time, ?entry.working_mode, "updating schedule entry");
+        info!(index, %entry.start_time, %entry.end_time, ?entry.working_mode, "updating schedule entry");
         self.0
             .call::<WriteScheduleEntry>(Self::UNIT_ID, write_multiple::Args::new(address, entry))
             .await?;

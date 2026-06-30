@@ -125,7 +125,7 @@ impl Optimizer {
             .filter_map(|working_mode| {
                 let step = self.simulate_step(
                     battery_simulator,
-                    interval.duration(),
+                    interval.duration().into(),
                     average_balance,
                     stage.price(),
                     working_mode,

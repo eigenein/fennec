@@ -4,7 +4,7 @@ use chrono::{DateTime, Local, TimeDelta};
 use derive_more::IntoIterator;
 use itertools::Itertools;
 
-use crate::{ops::chrono::Interval, prelude::*};
+use crate::{ops::interval::Interval, prelude::*};
 
 #[must_use]
 #[derive(IntoIterator)]
@@ -125,7 +125,10 @@ impl<V> Schedule<V> {
     }
 
     /// Extend the schedule from an iterator over slots.
-    pub fn extend_from_iter(&mut self, other: impl IntoIterator<Item = (Interval, V)>) -> Result {
+    pub fn extend_from_iter(
+        &mut self,
+        other: impl IntoIterator<Item = (Interval<DateTime<Local>>, V)>,
+    ) -> Result {
         for (interval, value) in other {
             let current_end = self.end();
             ensure!(
@@ -154,7 +157,7 @@ impl<V> Schedule<V> {
 #[must_use]
 #[derive(Debug, Eq, PartialEq)]
 pub struct Slot<V> {
-    pub interval: Interval,
+    pub interval: Interval<DateTime<Local>>,
 
     /// Payload of this schedule slot.
     pub value: V,

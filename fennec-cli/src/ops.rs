@@ -1,2 +1,2 @@
-pub mod chrono;
+pub mod interval;
 pub mod musli;

@@ -1,6 +1,6 @@
 use std::{iter::once, range::RangeInclusive};
 
-use chrono::Timelike;
+use chrono::{DateTime, Local, Timelike};
 use fennec_modbus::{
     contrib,
     contrib::mini_qube::{schedule, schedule::NaiveTime},
@@ -8,14 +8,14 @@ use fennec_modbus::{
 
 use crate::{
     battery,
-    ops::chrono::Interval,
+    ops::interval::Interval,
     prelude::*,
     quantity::{Zero, power::Watts, ratios::Percentage},
 };
 
 #[instrument(skip_all)]
 pub fn build(
-    schedule: impl IntoIterator<Item = (Interval, battery::WorkingMode)>,
+    schedule: impl IntoIterator<Item = (Interval<DateTime<Local>>, battery::WorkingMode)>,
     charge_limits: RangeInclusive<Percentage>,
     power_limits: battery::PowerLimits,
 ) -> schedule::Full {
@@ -94,7 +94,9 @@ pub fn build(
     schedule.try_into().expect("invalid schedule entry count")
 }
 
-fn into_time_slots(interval: Interval) -> impl Iterator<Item = Option<(NaiveTime, NaiveTime)>> {
+fn into_time_slots(
+    interval: Interval<DateTime<Local>>,
+) -> impl Iterator<Item = Option<(NaiveTime, NaiveTime)>> {
     let start_time = NaiveTime {
         hour: interval.start().hour().try_into().unwrap(),
         minute: interval.start().minute().try_into().unwrap(),

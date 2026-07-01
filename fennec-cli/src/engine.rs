@@ -98,7 +98,7 @@ impl Engine {
             self.update_energy_profile(now, balance, &battery_metrics).await?;
 
         // Decide what to do – nothing, re-optimize or fully rebuild:
-        let decision = match self.optimizer.take() {
+        let optimizer = match self.optimizer.take() {
             Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_energy_levels) => {
                 let has_solution_space_advanced = optimizer.advance_to(now);
                 if !has_solution_space_advanced && !has_residual_energy_changed {
@@ -107,47 +107,32 @@ impl Engine {
                     return Ok(());
                 }
 
-                let prices = if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
-                    // The price schedule is too short, try to fetch new future prices:
+                let new_prices = if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
+                    // Try to extend the price horizon if it's getting short:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
                     (prices.end() != optimizer.solution_space().end()).then_some(prices)
                 } else {
-                    // The price schedule is long enough and/or there are no new future prices:
                     None
                 };
 
-                prices.map_or(Decision::Reoptimize(optimizer), |prices| {
+                if let Some(prices) = new_prices {
                     info!("optimizer invalidated: new prices arrived");
-                    Decision::Rebuild(prices)
-                })
+                    self.rebuild_optimizer(&prices, battery_capacity, allowed_energy_levels).await
+                } else {
+                    info!(?initial_energy_level, "optimizing current state");
+                    optimizer.optimize_state(0, initial_energy_level);
+                    optimizer
+                }
             }
 
-            optimizer => {
-                if optimizer.is_some() {
+            stale_optimizer => {
+                if stale_optimizer.is_some() {
                     info!("optimizer invalidated: battery parameters changed");
                 } else {
-                    info!("optimizer cold start");
+                    info!("initializing optimizer: cold start");
                 }
-                Decision::Rebuild(self.args.energy_provider.get_future_prices(now).await?)
-            }
-        };
-
-        // Execute the decision:
-        let optimizer = match decision {
-            Decision::Rebuild(prices) => {
-                let mut optimizer = Optimizer::new(
-                    self.state.read().await.energy_profile.clone(),
-                    &self.args.battery,
-                    battery_capacity,
-                    allowed_energy_levels,
-                );
-                optimizer.solve(&prices);
-                optimizer
-            }
-            Decision::Reoptimize(mut optimizer) => {
-                info!(?initial_energy_level, "optimizing current state");
-                optimizer.optimize_state(0, initial_energy_level);
-                optimizer
+                let prices = self.args.energy_provider.get_future_prices(now).await?;
+                self.rebuild_optimizer(&prices, battery_capacity, allowed_energy_levels).await
             }
         };
 
@@ -205,6 +190,23 @@ impl Engine {
         Ok(is_residual_energy_changed)
     }
 
+    /// Rebuild [`Optimizer`] from scratch.
+    async fn rebuild_optimizer(
+        &self,
+        prices: &Schedule<energy::Flow<KilowattHourPrice>>,
+        battery_capacity: WattHours,
+        allowed_energy_levels: RangeInclusive<EnergyLevel>,
+    ) -> Optimizer {
+        let mut optimizer = Optimizer::new(
+            self.state.read().await.energy_profile.clone(),
+            &self.args.battery,
+            battery_capacity,
+            allowed_energy_levels,
+        );
+        optimizer.solve(prices);
+        optimizer
+    }
+
     /// Write the battery schedule.
     ///
     /// The function first reads the full schedule, so that only changed entries are written back.
@@ -241,18 +243,4 @@ impl Engine {
         info!("done");
         Ok(())
     }
-}
-
-/// Fully-determined action for each tick of the engine loop.
-#[must_use]
-enum Decision {
-    /// Full rebuild.
-    ///
-    /// Construct a new [`Optimizer`] and solve from scratch for the prices.
-    Rebuild(Schedule<energy::Flow<KilowattHourPrice>>),
-
-    /// Lightweight adjustment.
-    ///
-    /// Reoptimize interval 0 for the current battery level, reusing pre-computed future solutions.
-    Reoptimize(Optimizer),
 }

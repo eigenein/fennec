@@ -118,7 +118,9 @@ impl Engine {
             }
             Some(mut optimizer) => {
                 has_solution_space_advanced = optimizer.advance_to(now);
-                if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
+                if (has_solution_space_advanced || has_residual_energy_changed)
+                    && (optimizer.solution_space().duration() <= TimeDelta::hours(12))
+                {
                     // The horizon is too short; fetch prices to see if tomorrow's data has arrived:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
                     if prices.end() == optimizer.solution_space().end() {

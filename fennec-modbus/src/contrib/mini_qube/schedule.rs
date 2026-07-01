@@ -12,31 +12,31 @@ use crate::{
     },
 };
 
-/// Stride of schedule entry blocks.
+/// Stride of schedule slot blocks.
 ///
-/// There are [`Entry::N_TOTAL`] schedule entries starting from here.
+/// There are [`Slot::N_TOTAL`] schedule slots starting from here.
 pub type BlockStride = address::Stride<48010, Block>;
 
-/// Number of entries per schedule block.
+/// Number of slots per schedule block.
 ///
 /// There are [`N_BLOCKS`] such blocks.
-pub const N_ENTRIES_PER_BLOCK: usize = 12;
+pub const N_SLOTS_PER_BLOCK: usize = 12;
 
-/// Number of schedule blocks, each consisting of [`N_ENTRIES_PER_BLOCK`] entries.
+/// Number of schedule blocks, each consisting of [`N_SLOTS_PER_BLOCK`] slots.
 pub const N_BLOCKS: usize = 8;
 
-/// Type alias for a full schedule of [`Entry::N_TOTAL`] entries.
+/// Type alias for a full schedule of [`Slot::N_TOTAL`] slots.
 ///
 /// Note that this is not encodable nor decodable as it doesn't fit the Modbus payload size.
 /// The type alias is provided solely for convenience.
-pub type Full = [Entry; Entry::N_TOTAL];
+pub type Full = [Slot; Slot::N_TOTAL];
 
-/// Schedule block consisting of [`N_ENTRIES_PER_BLOCK`] entries.
-pub type Block = [Entry; N_ENTRIES_PER_BLOCK];
+/// Schedule block consisting of [`N_SLOTS_PER_BLOCK`] slots.
+pub type Block = [Slot; N_SLOTS_PER_BLOCK];
 
-/// Block index for batch-reading 12 schedule entries at a time.
+/// Block index for batch-reading [`N_SLOTS_PER_BLOCK`] schedule slots at a time.
 ///
-/// There are 8 blocks (indices 0–7), covering all 96 entries.
+/// There are [`N_BLOCKS`] blocks (indices 0–7), covering all [`Slot::N_TOTAL`] slots.
 #[must_use]
 #[derive(Copy, Clone)]
 pub struct BlockIndex(pub u16);
@@ -96,7 +96,7 @@ impl Decode for WorkingMode {
     }
 }
 
-/// Scheduler entry start or end time.
+/// Scheduler slot start or end time.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[must_use]
 pub struct NaiveTime {
@@ -133,10 +133,10 @@ impl Decode for NaiveTime {
     }
 }
 
-/// Single schedule entry.
+/// Single schedule slot.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[must_use]
-pub struct Entry {
+pub struct Slot {
     pub is_enabled: bool,
 
     /// Time slot start time, inclusive.
@@ -169,16 +169,16 @@ pub struct Entry {
     pub reserved_3: u16,
 }
 
-impl Entry {
-    /// Total number of schedule entries in the register space.
-    pub const N_TOTAL: usize = N_BLOCKS * N_ENTRIES_PER_BLOCK;
+impl Slot {
+    /// Total number of schedule slots in the register space.
+    pub const N_TOTAL: usize = N_BLOCKS * N_SLOTS_PER_BLOCK;
 }
 
-impl BitSize for Entry {
+impl BitSize for Slot {
     const N_BITS: u16 = 20 * 8;
 }
 
-impl Encode for Entry {
+impl Encode for Slot {
     fn encode(&self, to: &mut impl BufMut) {
         to.put_u16(u16::from(self.is_enabled));
         self.start_time.encode(to);
@@ -194,7 +194,7 @@ impl Encode for Entry {
     }
 }
 
-impl Decode for Entry {
+impl Decode for Slot {
     fn decode(from: &mut impl Buf) -> Result<Self, Error> {
         Ok(Self {
             is_enabled: from.try_get_u16()? != 0,

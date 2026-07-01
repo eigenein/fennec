@@ -97,38 +97,38 @@ impl Engine {
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
 
+        // Decide what to do – nothing, re-optimize or fully rebuild:
         let decision = match self.optimizer.take() {
-            Some(optimizer) if optimizer.is_stale(battery_capacity, allowed_energy_levels) => {
-                info!("optimizer invalidated: battery parameters changed");
-                Decision::Rebuild(self.args.energy_provider.get_future_prices(now).await?)
-            }
-
-            None => {
-                // Either the battery parameter has changed or a cold start:
-                Decision::Rebuild(self.args.energy_provider.get_future_prices(now).await?)
-            }
-
-            Some(mut optimizer) => {
+            Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_energy_levels) => {
                 let has_solution_space_advanced = optimizer.advance_to(now);
-
                 if !has_solution_space_advanced && !has_residual_energy_changed {
-                    // Nothing happened: do nothing and keep the optimizer.
+                    // Nothing happened: just keep the optimizer.
                     self.optimizer = Some(optimizer);
                     return Ok(());
                 }
 
-                if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
-                    // The prices horizon is too short, attempt to refresh the prices:
+                let prices = if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
+                    // The price schedule is too short, try to fetch new future prices:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
-                    if prices.end() == optimizer.solution_space().end() {
-                        Decision::Reoptimize(optimizer)
-                    } else {
-                        info!("optimizer invalidated: new prices arrived");
-                        Decision::Rebuild(prices)
-                    }
+                    (prices.end() != optimizer.solution_space().end()).then_some(prices)
                 } else {
-                    Decision::Reoptimize(optimizer)
+                    // The price schedule is long enough and/or there are no new future prices:
+                    None
+                };
+
+                prices.map_or(Decision::Reoptimize(optimizer), |prices| {
+                    info!("optimizer invalidated: new prices arrived");
+                    Decision::Rebuild(prices)
+                })
+            }
+
+            optimizer => {
+                if optimizer.is_some() {
+                    info!("optimizer invalidated: battery parameters changed");
+                } else {
+                    info!("optimizer cold start");
                 }
+                Decision::Rebuild(self.args.energy_provider.get_future_prices(now).await?)
             }
         };
 

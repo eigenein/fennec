@@ -112,13 +112,13 @@ impl Client {
     pub async fn write_schedule_slot(&self, index: u8, slot: mini_qube::schedule::Slot) -> Result {
         let address = address::Stride::new(index.into());
         let current_slot = self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await?;
-        info!(
-            start_time = %slot.start_time,
-            end_time = %slot.end_time,
-            to = ?slot.working_mode,
-            from = ?current_slot.working_mode,
-        );
         if current_slot != slot {
+            info!(
+                start_time = %slot.start_time,
+                end_time = %slot.end_time,
+                to = ?slot.working_mode,
+                from = ?current_slot.working_mode,
+            );
             self.0
                 .call::<WriteScheduleEntry>(Self::UNIT_ID, write_multiple::Args::new(address, slot))
                 .await?;

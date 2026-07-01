@@ -110,7 +110,6 @@ impl Battery {
         }
 
         let residual_energy_change = WattHours::from(residual_energy_change).abs();
-        info!(?residual_energy_change, "changed");
         let grid_flow = current_metrics.total_grid_flow - tracker.total_grid_flow;
 
         match (grid_flow.import == Zero::ZERO, grid_flow.export == Zero::ZERO) {
@@ -147,7 +146,7 @@ impl Battery {
                 );
             }
             (false, false) | (true, true) => {
-                debug!("idle and mixed regimes are ignored");
+                info!("ignoring idle or mixed regime");
             }
         }
 

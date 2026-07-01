@@ -94,7 +94,7 @@ pub struct BindArgs {
 pub struct ConnectionArgs {
     /// Heartbeat URL.
     #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
-    pub heartbeat_url: heartbeat::Url,
+    pub heartbeat_url: Option<reqwest::Url>,
 
     /// P1 meter measurement URL.
     #[clap(long = "grid-measurement-url", env = "GRID_MEASUREMENT_URL")]
@@ -108,7 +108,7 @@ pub struct ConnectionArgs {
 impl ConnectionArgs {
     pub fn connect(self) -> Result<Connections> {
         Ok(Connections {
-            heartbeat: self.heartbeat_url.client()?,
+            heartbeat: heartbeat::Client::new(self.heartbeat_url)?,
             grid_measurement: self.grid_measurement_url.client()?,
             battery: Arc::new(mini_qube::Client::new(self.battery_address)),
         })

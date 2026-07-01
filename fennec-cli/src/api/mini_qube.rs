@@ -110,10 +110,15 @@ impl Client {
         let address = address::Stride::new(index);
         if self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await? == entry {
             // No change, skip writing.
-            // TODO: `ReadScheduleEntryBlock`, compare in-memory.
             return Ok(());
         }
-        info!(index, %entry.start_time, %entry.end_time, ?entry.working_mode, "updating schedule entry");
+        info!(
+            index,
+            start_time = %entry.start_time,
+            end_time = %entry.end_time,
+            working_mode = ?entry.working_mode,
+            "updating schedule entry",
+        );
         self.0
             .call::<WriteScheduleEntry>(Self::UNIT_ID, write_multiple::Args::new(address, entry))
             .await?;

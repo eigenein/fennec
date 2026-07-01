@@ -240,6 +240,7 @@ impl Engine {
                 allowed_soc,
                 self.args.battery.power_limits,
             );
+            // TODO: `ReadScheduleEntryBlock`, compare in-memory.
             (async || self.connections.battery.write_schedule_entry(index.into(), entry).await)
                 .retry(Self::BACKOFF)
                 .notify(log_retried_error)

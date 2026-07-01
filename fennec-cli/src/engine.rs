@@ -222,7 +222,7 @@ impl Engine {
 
     /// Write the battery schedule.
     ///
-    /// The functions first reads the full schedule, so that only changed entries are written back.
+    /// The function first reads the full schedule, so that only changed entries are written back.
     async fn write_schedule(
         &self,
         schedule: &Schedule<(energy::Flow<KilowattHourPrice>, Step)>,

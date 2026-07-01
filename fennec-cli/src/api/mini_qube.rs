@@ -119,7 +119,7 @@ impl Client {
 
     /// Write the schedule entry and verify it.
     ///
-    /// Note, that MQ2200 specifically doesn't support "read/write multiple registers",
+    /// Note that MQ2200 specifically doesn't support "read/write multiple registers",
     /// so this function performs two operations non-atomically.
     #[instrument(skip_all, fields(index = index))]
     pub async fn write_schedule_entry(

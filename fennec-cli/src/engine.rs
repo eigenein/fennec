@@ -63,6 +63,7 @@ impl Engine {
         loop {
             interval.tick().await;
             self.run_once().await?;
+            self.connections.heartbeat.send().await;
         }
     }
 

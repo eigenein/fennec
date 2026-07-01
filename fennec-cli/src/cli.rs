@@ -1,7 +1,7 @@
 use std::{net::IpAddr, sync::Arc, time::Duration};
 
 use crate::{
-    api::{Connections, homewizard, mini_qube},
+    api::{Connections, heartbeat, homewizard, mini_qube},
     battery,
     energy,
     math::smoothing::HalfLife,
@@ -92,6 +92,10 @@ pub struct BindArgs {
 
 #[derive(clap::Args)]
 pub struct ConnectionArgs {
+    /// Heartbeat URL.
+    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
+    pub heartbeat_url: heartbeat::Url,
+
     /// P1 meter measurement URL.
     #[clap(long = "grid-measurement-url", env = "GRID_MEASUREMENT_URL")]
     pub grid_measurement_url: homewizard::Url,
@@ -104,6 +108,7 @@ pub struct ConnectionArgs {
 impl ConnectionArgs {
     pub fn connect(self) -> Result<Connections> {
         Ok(Connections {
+            heartbeat: self.heartbeat_url.client()?,
             grid_measurement: self.grid_measurement_url.client()?,
             battery: Arc::new(mini_qube::Client::new(self.battery_address)),
         })

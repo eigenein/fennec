@@ -107,41 +107,39 @@ impl Engine {
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
 
-        let mut has_solution_space_advanced = false;
-
         // Abandon hope, all ye who enter here – every tick, we decide the optimizer's fate:
         let decision = match self.optimizer.take() {
             None => {
-                // The battery parameters have changed or the cold start:
-                let prices = self.args.energy_provider.get_future_prices(now).await?;
-                Decision::Prices(prices)
+                // Either the battery parameters have changed or a cold start:
+                Decision::Rebuild(self.args.energy_provider.get_future_prices(now).await?)
             }
+
             Some(mut optimizer) => {
-                has_solution_space_advanced = optimizer.advance_to(now);
-                if (has_solution_space_advanced || has_residual_energy_changed)
+                let has_solution_space_advanced = optimizer.advance_to(now);
+                let needs_reoptimization =
+                    has_solution_space_advanced || has_residual_energy_changed;
+
+                if needs_reoptimization
                     && (optimizer.solution_space().duration() <= TimeDelta::hours(12))
                 {
-                    // The horizon is too short; fetch prices to see if tomorrow's data has arrived:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
                     if prices.end() == optimizer.solution_space().end() {
-                        // The end is the same and realistically the prices never change mid-period,
-                        // so continue with the current optimizer:
-                        Decision::Optimizer(optimizer)
+                        Decision::Reoptimize(optimizer)
                     } else {
-                        // New prices arrived; the existing solution space is now too short. Rebuild:
                         info!("optimizer invalidated: new prices arrived");
-                        Decision::Prices(prices)
+                        Decision::Rebuild(prices)
                     }
+                } else if needs_reoptimization {
+                    Decision::Reoptimize(optimizer)
                 } else {
-                    // The horizon is long enough, just continue with the current optimizer:
-                    Decision::Optimizer(optimizer)
+                    Decision::Keep(optimizer)
                 }
             }
         };
 
-        // Now that we have the decision, we have to execute it:
+        // Execute the decision:
         let optimizer = match decision {
-            Decision::Prices(prices) => {
+            Decision::Rebuild(prices) => {
                 let mut optimizer = Optimizer::new(
                     self.state.read().await.energy_profile.clone(),
                     &self.args.battery,
@@ -151,24 +149,18 @@ impl Engine {
                 optimizer.solve(&prices);
                 optimizer
             }
-            Decision::Optimizer(mut optimizer)
-                if has_solution_space_advanced || has_residual_energy_changed =>
-            {
-                // No need to fully solve: re-optimizing interval 0 adjusts for the current battery level while
-                // reusing the pre-computed future solutions. The energy profile can stay stale here – if it has
-                // changed significantly, the solution space will eventually be rebuilt when prices refresh.
+            Decision::Reoptimize(mut optimizer) => {
                 info!(?initial_energy_level, "optimizing current state");
                 optimizer.optimize_state(0, initial_energy_level);
                 optimizer
             }
-            Decision::Optimizer(optimizer) => {
-                // The most frequent case: both the optimizer and the plan stay.
+            Decision::Keep(optimizer) => {
                 self.optimizer = Some(optimizer);
                 return Ok(());
             }
         };
 
-        // Done, extract the plan and push it to the battery:
+        // Extract the plan and push it to the battery:
         let plan = optimizer
             .solution_space()
             .backtrack(initial_energy_level)
@@ -260,13 +252,16 @@ impl Engine {
     }
 }
 
-/// Decision at each iteration of the [`Engine`] loop: survives either [`Optimizer`],
-/// or pricing schedule for full [`Optimizer`] reconstruction.
+/// Fully-determined action for each tick of the engine loop.
 #[must_use]
 enum Decision {
-    /// Keep the current [`Optimizer`].
-    Optimizer(Optimizer),
+    /// Full rebuild: construct a new [`Optimizer`] and solve from scratch.
+    Rebuild(Schedule<energy::Flow<KilowattHourPrice>>),
 
-    /// Drop the [`Optimizer`], construct a new one and optimize for the prices.
-    Prices(Schedule<energy::Flow<KilowattHourPrice>>),
+    /// Lightweight adjustment: reoptimize interval 0 for the current battery level,
+    /// reusing pre-computed future solutions.
+    Reoptimize(Optimizer),
+
+    /// Nothing changed: keep the optimizer and plan as-is.
+    Keep(Optimizer),
 }

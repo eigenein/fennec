@@ -222,7 +222,7 @@ impl Engine {
 
     /// Write the battery schedule.
     ///
-    /// On dry run, print out the schedule without pushing it to the battery.
+    /// The functions first reads the full schedule, so that only changed entries are written back.
     async fn write_schedule(
         &self,
         schedule: &Schedule<(energy::Flow<KilowattHourPrice>, Step)>,
@@ -232,6 +232,11 @@ impl Engine {
             warn!("not writing the schedule to the battery, just scouting");
             return Ok(());
         }
+        let current_schedule = (|| self.connections.battery.read_schedule())
+            .retry(Self::BACKOFF)
+            .notify(log_retried_error)
+            .await
+            .context("failed to read the current schedule")?;
         for slot in schedule.iter().take(contrib::mini_qube::schedule::Entry::N_TOTAL) {
             let index = mini_qube::schedule::index_of(slot.interval);
             let entry = mini_qube::schedule::make_entry(
@@ -240,12 +245,13 @@ impl Engine {
                 allowed_soc,
                 self.args.battery.power_limits,
             );
-            // TODO: `ReadScheduleEntryBlock`, compare in-memory.
-            (async || self.connections.battery.write_schedule_entry(index.into(), entry).await)
-                .retry(Self::BACKOFF)
-                .notify(log_retried_error)
-                .await
-                .context("failed to push the schedule to the battery")?;
+            if entry != current_schedule[usize::from(index)] {
+                (async || self.connections.battery.write_schedule_entry(index.into(), entry).await)
+                    .retry(Self::BACKOFF)
+                    .notify(log_retried_error)
+                    .await
+                    .context("failed to push the schedule to the battery")?;
+            }
         }
         info!("done");
         Ok(())

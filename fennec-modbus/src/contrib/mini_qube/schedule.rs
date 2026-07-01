@@ -42,8 +42,9 @@ pub type Block = [Entry; N_ENTRIES_PER_BLOCK];
 pub struct BlockIndex(pub u16);
 
 impl BlockIndex {
+    /// Last valid schedule block index.
     #[expect(clippy::cast_possible_truncation)]
-    pub const MAX: u16 = (N_BLOCKS - 1) as u16;
+    pub const LAST: u16 = (N_BLOCKS - 1) as u16;
 }
 
 impl Address for BlockIndex {}

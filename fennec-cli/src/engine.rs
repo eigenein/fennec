@@ -94,45 +94,40 @@ impl Engine {
         let battery_capacity = battery_metrics.actual_capacity();
         let allowed_energy_levels = battery_metrics.allowed_energy_levels();
 
-        // Invalidate the optimizer if the critical parameters have changed:
-        if self
-            .optimizer
-            .take_if(|optimizer| optimizer.is_stale(battery_capacity, allowed_energy_levels))
-            .is_some()
-        {
-            info!("optimizer invalidated: battery parameters changed");
-        }
-
-        // Update the energy profile before we potentially fail to optimize:
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
 
-        // Abandon hope, all ye who enter here – every tick, we decide the optimizer's fate:
         let decision = match self.optimizer.take() {
+            Some(optimizer) if optimizer.is_stale(battery_capacity, allowed_energy_levels) => {
+                info!("optimizer invalidated: battery parameters changed");
+                Decision::Rebuild(self.args.energy_provider.get_future_prices(now).await?)
+            }
+
             None => {
-                // Either the battery parameters have changed or a cold start:
+                // Either the battery parameter has changed or a cold start:
                 Decision::Rebuild(self.args.energy_provider.get_future_prices(now).await?)
             }
 
             Some(mut optimizer) => {
                 let has_solution_space_advanced = optimizer.advance_to(now);
-                let needs_reoptimization =
-                    has_solution_space_advanced || has_residual_energy_changed;
 
-                if needs_reoptimization
-                    && (optimizer.solution_space().duration() <= TimeDelta::hours(12))
-                {
+                if !has_solution_space_advanced && !has_residual_energy_changed {
+                    // Nothing happened: do nothing and keep the optimizer.
+                    self.optimizer = Some(optimizer);
+                    return Ok(());
+                }
+
+                if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
+                    // The prices horizon is too short, attempt to refresh the prices:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
-                    if prices.end() == optimizer.solution_space().end() {
-                        Decision::Reoptimize(optimizer)
-                    } else {
+                    if prices.end() != optimizer.solution_space().end() {
                         info!("optimizer invalidated: new prices arrived");
                         Decision::Rebuild(prices)
+                    } else {
+                        Decision::Reoptimize(optimizer)
                     }
-                } else if needs_reoptimization {
-                    Decision::Reoptimize(optimizer)
                 } else {
-                    Decision::Keep(optimizer)
+                    Decision::Reoptimize(optimizer)
                 }
             }
         };
@@ -153,10 +148,6 @@ impl Engine {
                 info!(?initial_energy_level, "optimizing current state");
                 optimizer.optimize_state(0, initial_energy_level);
                 optimizer
-            }
-            Decision::Keep(optimizer) => {
-                self.optimizer = Some(optimizer);
-                return Ok(());
             }
         };
 
@@ -255,13 +246,13 @@ impl Engine {
 /// Fully-determined action for each tick of the engine loop.
 #[must_use]
 enum Decision {
-    /// Full rebuild: construct a new [`Optimizer`] and solve from scratch.
+    /// Full rebuild.
+    ///
+    /// Construct a new [`Optimizer`] and solve from scratch for the prices.
     Rebuild(Schedule<energy::Flow<KilowattHourPrice>>),
 
-    /// Lightweight adjustment: reoptimize interval 0 for the current battery level,
-    /// reusing pre-computed future solutions.
+    /// Lightweight adjustment.
+    ///
+    /// Reoptimize interval 0 for the current battery level, reusing pre-computed future solutions.
     Reoptimize(Optimizer),
-
-    /// Nothing changed: keep the optimizer and plan as-is.
-    Keep(Optimizer),
 }

@@ -18,10 +18,6 @@ impl<V> Format for WattHours<V> {
     const SUFFIX: &str = "Wh";
 }
 
-impl WattHours {
-    pub const ONE: Self = Self(1.0);
-}
-
 /// TODO: generic implementation for any [`Quantity`]:
 impl From<EnergyLevel> for WattHours<f64> {
     fn from(energy_level: EnergyLevel) -> Self {

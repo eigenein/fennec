@@ -72,8 +72,6 @@ impl Client {
             .await
             .context("failed to read the EPS active power")?
             .into();
-
-        // TODO: these two are only needed when optimizing:
         let min_soc = self
             .0
             .call::<mini_qube::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
@@ -113,7 +111,6 @@ impl Client {
             return Ok(());
         }
         info!(
-            index,
             start_time = %entry.start_time,
             end_time = %entry.end_time,
             working_mode = ?entry.working_mode,

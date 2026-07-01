@@ -155,7 +155,7 @@ impl Engine {
                 // No need to fully solve: re-optimizing interval 0 adjusts for the current battery level while
                 // reusing the pre-computed future solutions. The energy profile can stay stale here – if it has
                 // changed significantly, the solution space will eventually be rebuilt when prices refresh.
-                info!(?initial_energy_level, "optimizing the current state");
+                info!(?initial_energy_level, "optimizing current state");
                 optimizer.optimize_state(0, initial_energy_level);
                 optimizer
             }

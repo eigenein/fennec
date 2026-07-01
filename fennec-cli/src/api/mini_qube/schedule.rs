@@ -21,7 +21,7 @@ pub fn index_of(interval: Interval<DateTime<Local>>) -> u8 {
 
 pub fn slot_interval(index: u8) -> (NaiveTime, NaiveTime) {
     let start = NaiveTime { hour: index / 4, minute: (index % 4) * 15 };
-    let end = if usize::from(index) == schedule::Entry::N_TOTAL - 1 {
+    let end = if usize::from(index) == schedule::Slot::N_TOTAL - 1 {
         // Fox ESS intervals are half-open, but they won't accept 00:00 as end time 🤦:
         NaiveTime::MAX
     } else {
@@ -31,12 +31,12 @@ pub fn slot_interval(index: u8) -> (NaiveTime, NaiveTime) {
 }
 
 /// Make the battery schedule entry according the working mode and schedule limits.
-pub fn make_entry(
+pub fn make_slot(
     slot_index: u8,
     working_mode: battery::WorkingMode,
     allowed_soc: RangeInclusive<Percentage>,
     power_limits: battery::PowerLimits,
-) -> schedule::Entry {
+) -> schedule::Slot {
     let (start_time, end_time) = slot_interval(slot_index);
     let (working_mode, target_charge, feed_power) = match working_mode {
         battery::WorkingMode::Idle => {
@@ -61,7 +61,7 @@ pub fn make_entry(
 
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
-    schedule::Entry {
+    schedule::Slot {
         is_enabled: true,
         start_time,
         end_time,

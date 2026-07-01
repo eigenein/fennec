@@ -99,45 +99,31 @@ impl Client {
         })
     }
 
-    /// Read the entire battery schedule.
-    #[instrument(skip_all)]
-    pub async fn read_schedule(&self) -> Result<mini_qube::schedule::Full> {
-        let mut entries = Vec::with_capacity(mini_qube::schedule::Entry::N_TOTAL);
-        for index in 0..=mini_qube::schedule::BlockIndex::LAST {
-            entries.extend(
-                self.0
-                    .call::<mini_qube::ReadScheduleEntryBlock>(
-                        Self::UNIT_ID,
-                        mini_qube::schedule::BlockIndex(index),
-                    )
-                    .await
-                    .with_context(|| format!("failed to read schedule block #{index}"))?,
-            );
-        }
-        Ok(entries.try_into().unwrap())
-    }
-
-    /// Write the schedule entry and verify it.
+    /// Write the schedule slot to the battery and verify it.
     ///
-    /// Note that MQ2200 specifically doesn't support "read/write multiple registers",
-    /// so this function performs two operations non-atomically.
+    /// Note that MQ2200 does not support the "read/write multiple registers" operation,
+    /// so this function actually performs three steps non-atomically:
+    ///
+    /// 1. Read the current slot.
+    /// 2. If the current slot differs from the expected slot:
+    ///     1. Write the expected slot.
+    ///     2. Read the slot back and verify it matches the expected slot.
     #[instrument(skip_all, fields(index = index))]
-    pub async fn write_schedule_entry(
-        &self,
-        index: u16,
-        entry: mini_qube::schedule::Entry,
-    ) -> Result {
-        let address = address::Stride::new(index);
-        info!(
-            start_time = %entry.start_time,
-            end_time = %entry.end_time,
-            working_mode = ?entry.working_mode,
-        );
-        self.0
-            .call::<WriteScheduleEntry>(Self::UNIT_ID, write_multiple::Args::new(address, entry))
-            .await?;
-        let actual_entry = self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await?;
-        ensure!(actual_entry == entry);
+    pub async fn write_schedule_slot(&self, index: u8, slot: mini_qube::schedule::Slot) -> Result {
+        let address = address::Stride::new(index.into());
+        let current_slot = self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await?;
+        if current_slot != slot {
+            info!(
+                start_time = %slot.start_time,
+                end_time = %slot.end_time,
+                to = ?slot.working_mode,
+                from = ?current_slot.working_mode,
+            );
+            self.0
+                .call::<WriteScheduleEntry>(Self::UNIT_ID, write_multiple::Args::new(address, slot))
+                .await?;
+            ensure!(self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await? == slot);
+        }
         Ok(())
     }
 }

@@ -2,7 +2,6 @@ use std::{range::RangeInclusive, sync::Arc, time::Duration};
 
 use backon::{ConstantBuilder, Retryable};
 use chrono::{DateTime, Local, TimeDelta};
-use fennec_modbus::contrib;
 use tokio::{sync::RwLock, time::MissedTickBehavior, try_join};
 
 use crate::{
@@ -17,6 +16,7 @@ use crate::{
         price::KilowattHourPrice,
         ratios::Percentage,
     },
+    series::Slot,
     solution::{Optimizer, Plan, Step},
 };
 
@@ -66,6 +66,14 @@ impl Engine {
         }
     }
 
+    /// Run a single engine iteration.
+    ///
+    /// Note that we *only write at most the upcoming battery slot* to the battery. Motivation:
+    ///
+    /// - Potential Flash/EEPROM wear on the battery when writing all the changed slots every time.
+    /// - Finite horizon problem: e.g. writing tomorrow afternoon barely makes sense
+    ///   before the future prices become known.
+    /// - Flaky future slots due to small oscillations in the Fourier decomposition.
     pub async fn run_once(&mut self) -> Result {
         let now = Local::now();
         let (battery_metrics, grid_metrics) = (async || self.read_metrics().await)
@@ -97,7 +105,6 @@ impl Engine {
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
 
-        // Decide what to do – nothing, re-optimize or fully rebuild:
         let optimizer = match self.optimizer.take() {
             Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_energy_levels) => {
                 let has_solution_space_advanced = optimizer.advance_to(now);
@@ -136,12 +143,12 @@ impl Engine {
             }
         };
 
-        // Extract the plan and push it to the battery:
         let plan = optimizer
             .solution_space()
             .backtrack(initial_energy_level)
             .inspect(Plan::trace_summary)?;
-        self.write_schedule(&plan.schedule, battery_metrics.allowed_soc).await?;
+        // TODO: potential improvement – make the number of written slots configurable:
+        self.write_schedule_slot(plan.schedule.get(0), battery_metrics.allowed_soc).await?;
 
         // Commit the new state:
         self.state.write().await.plan = Some(plan);
@@ -207,43 +214,32 @@ impl Engine {
         optimizer
     }
 
-    /// Write the battery schedule.
-    ///
-    /// The function first reads the full schedule, so that only changed entries are written back.
-    async fn write_schedule(
+    /// Write the schedule slot to the battery, if not dry run.
+    async fn write_schedule_slot(
         &self,
-        schedule: &Schedule<(energy::Flow<KilowattHourPrice>, Step)>,
+        slot: Slot<&(energy::Flow<KilowattHourPrice>, Step)>,
         allowed_soc: RangeInclusive<Percentage>,
     ) -> Result {
         if self.args.dry_run {
             warn!("not writing the schedule to the battery, just scouting");
             return Ok(());
         }
-        let current_schedule = (|| self.connections.battery.read_schedule())
+
+        let index = mini_qube::schedule::index_of(slot.interval);
+        let slot = mini_qube::schedule::make_slot(
+            index,
+            slot.value.1.working_mode,
+            allowed_soc,
+            self.args.battery.power_limits,
+        );
+        (|| async { self.connections.battery.write_schedule_slot(index, slot).await })
             .retry(Self::BACKOFF)
             .notify(log_retried_error)
             .await
-            .context("failed to read the current schedule")?;
-        for slot in schedule.iter().take(contrib::mini_qube::schedule::Entry::N_TOTAL) {
-            let index = mini_qube::schedule::index_of(slot.interval);
-            let current_entry = current_schedule[usize::from(index)];
-            let actual_entry = mini_qube::schedule::make_entry(
-                index,
-                slot.value.1.working_mode,
-                allowed_soc,
-                self.args.battery.power_limits,
-            );
-            if actual_entry != current_entry {
-                (async || {
-                    self.connections.battery.write_schedule_entry(index.into(), actual_entry).await
-                })
-                .retry(Self::BACKOFF)
-                .notify(log_retried_error)
-                .await
-                .context("failed to push the schedule to the battery")?;
-            }
-        }
-        info!("done");
+            .with_context(|| {
+                format!("failed to write the schedule slot #{index} to the battery")
+            })?;
+
         Ok(())
     }
 }

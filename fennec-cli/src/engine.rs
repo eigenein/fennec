@@ -226,18 +226,22 @@ impl Engine {
             .context("failed to read the current schedule")?;
         for slot in schedule.iter().take(contrib::mini_qube::schedule::Entry::N_TOTAL) {
             let index = mini_qube::schedule::index_of(slot.interval);
-            let entry = mini_qube::schedule::make_entry(
+            let current_entry = current_schedule[usize::from(index)];
+            let actual_entry = mini_qube::schedule::make_entry(
                 index,
                 slot.value.1.working_mode,
                 allowed_soc,
                 self.args.battery.power_limits,
             );
-            if entry != current_schedule[usize::from(index)] {
-                (async || self.connections.battery.write_schedule_entry(index.into(), entry).await)
-                    .retry(Self::BACKOFF)
-                    .notify(log_retried_error)
-                    .await
-                    .context("failed to push the schedule to the battery")?;
+            if actual_entry != current_entry {
+                info!(index, from = ?current_entry.working_mode, to = ?actual_entry.working_mode, "updating");
+                (async || {
+                    self.connections.battery.write_schedule_entry(index.into(), actual_entry).await
+                })
+                .retry(Self::BACKOFF)
+                .notify(log_retried_error)
+                .await
+                .context("failed to push the schedule to the battery")?;
             }
         }
         info!("done");

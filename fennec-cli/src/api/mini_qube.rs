@@ -132,7 +132,6 @@ impl Client {
             start_time = %entry.start_time,
             end_time = %entry.end_time,
             working_mode = ?entry.working_mode,
-            "updating schedule entry",
         );
         self.0
             .call::<WriteScheduleEntry>(Self::UNIT_ID, write_multiple::Args::new(address, entry))

@@ -120,11 +120,11 @@ impl Engine {
                 if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
                     // The prices horizon is too short, attempt to refresh the prices:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
-                    if prices.end() != optimizer.solution_space().end() {
+                    if prices.end() == optimizer.solution_space().end() {
+                        Decision::Reoptimize(optimizer)
+                    } else {
                         info!("optimizer invalidated: new prices arrived");
                         Decision::Rebuild(prices)
-                    } else {
-                        Decision::Reoptimize(optimizer)
                     }
                 } else {
                     Decision::Reoptimize(optimizer)

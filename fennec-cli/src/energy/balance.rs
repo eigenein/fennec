@@ -86,13 +86,13 @@ impl<T> Balance<T> {
         self
     }
 
-    /// The invariant represents the quantity that stays constant under any re-balancing.
+    /// The net total import (net grid import plus net battery export) stays invariant under rebalancing.
     #[cfg(test)]
     fn invariant(self) -> T
     where
         T: Add<Output = T> + Sub<Output = T>,
     {
-        self.grid.import - self.grid.export + self.battery.export - self.battery.import
+        self.grid.invariant() - self.battery.invariant()
     }
 }
 

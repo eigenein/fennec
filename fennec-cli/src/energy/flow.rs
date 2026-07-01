@@ -3,7 +3,13 @@ use std::ops::{Div, Mul, SubAssign};
 use derive_more::{Add, AddAssign, Sub};
 use musli::{Decode, Encode};
 
-use crate::quantity::{Zero, currency::Mills, energy::WattHours, price::KilowattHourPrice};
+use crate::quantity::{
+    Zero,
+    currency::Mills,
+    energy::WattHours,
+    power::Watts,
+    price::KilowattHourPrice,
+};
 
 /// Generic bidirectional energy flow.
 #[must_use]
@@ -37,6 +43,7 @@ impl<T> Flow<T> {
         Self { import: self.export, export: self.import }
     }
 
+    /// TODO: test and verify the invariant.
     pub fn normalized(mut self) -> Self
     where
         T: Zero + PartialOrd + SubAssign,
@@ -50,6 +57,15 @@ impl<T> Flow<T> {
             self.export = T::ZERO;
         }
         self
+    }
+
+    /// The net import stays invariant under rebalancing.
+    #[cfg(test)]
+    pub fn invariant(self) -> T
+    where
+        T: std::ops::Sub<Output = T>,
+    {
+        self.import - self.export
     }
 }
 
@@ -80,5 +96,20 @@ impl Flow<KilowattHourPrice> {
     /// Calculate the grid consumption loss minus production revenue.
     pub fn loss(self, energy: Flow<WattHours>) -> Mills {
         energy.import * self.import - energy.export * self.export
+    }
+}
+
+impl Flow<Watts> {
+    /// Bring down to zero any value under the threshold.
+    ///
+    /// Note that this does *not* preserve the invariant so use the lowest possible threshold.
+    pub fn denoised(mut self, threshold: Watts) -> Self {
+        if self.import < threshold {
+            self.import = Watts::ZERO;
+        }
+        if self.export < threshold {
+            self.export = Watts::ZERO;
+        }
+        self
     }
 }

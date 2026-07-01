@@ -221,8 +221,18 @@ impl Balance {
     }
 
     pub fn mean_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
+        /// Noise threshold for the resulting balance.
+        ///
+        /// The Fourier decomposition produces small oscillations like tiny PV charge at night.
+        /// That caused certain schedule slots to become unstable under re-optimization
+        /// (for example, frequent switching between "self-use" and "feed-in priority" modes).
+        const NOISE_THRESHOLD: Watts = Watts::TEN;
+
         let balance = self.mean.0 + self.mean_deviation_over(interval);
-        energy::Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
+        energy::Balance {
+            grid: balance.grid.normalized().denoised(NOISE_THRESHOLD),
+            battery: balance.battery.normalized().denoised(NOISE_THRESHOLD),
+        }
     }
 
     /// Calculate the mean deviation of the balance over the interval.

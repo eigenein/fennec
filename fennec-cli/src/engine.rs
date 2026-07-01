@@ -234,7 +234,6 @@ impl Engine {
                 self.args.battery.power_limits,
             );
             if actual_entry != current_entry {
-                info!(index, from = ?current_entry.working_mode, to = ?actual_entry.working_mode, "updating");
                 (async || {
                     self.connections.battery.write_schedule_entry(index.into(), actual_entry).await
                 })

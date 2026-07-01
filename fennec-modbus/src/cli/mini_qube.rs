@@ -37,7 +37,7 @@ pub async fn read(client: Client<String>, unit_id: UnitId) -> anyhow::Result<()>
         "Minimum SoC on grid: {:?}",
         client.call::<mini_qube::ReadMinimumStateOfChargeOnGrid>(unit_id, address::Const).await?
     );
-    for i in 0..mini_qube::schedule::BlockIndex::MAX {
+    for i in 0..=mini_qube::schedule::BlockIndex::LAST {
         let schedule_block = client
             .call::<mini_qube::ReadScheduleEntryBlock>(unit_id, mini_qube::schedule::BlockIndex(i))
             .await?;

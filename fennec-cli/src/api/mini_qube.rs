@@ -99,6 +99,28 @@ impl Client {
         })
     }
 
+    /// Read the entire battery schedule.
+    #[instrument(skip_all)]
+    pub async fn read_schedule(&self) -> Result<mini_qube::schedule::Full> {
+        let mut entries = Vec::with_capacity(mini_qube::schedule::Entry::N_TOTAL);
+        for index in 0..=mini_qube::schedule::BlockIndex::LAST {
+            entries.extend(
+                self.0
+                    .call::<mini_qube::ReadScheduleEntryBlock>(
+                        Self::UNIT_ID,
+                        mini_qube::schedule::BlockIndex(index),
+                    )
+                    .await
+                    .with_context(|| format!("failed to read schedule block #{index}"))?,
+            );
+        }
+        Ok(entries.try_into().unwrap())
+    }
+
+    /// Write the schedule entry and verify it.
+    ///
+    /// Note, that MQ2200 specifically doesn't support "read/write multiple registers",
+    /// so this function performs two operations non-atomically.
     #[instrument(skip_all, fields(index = index))]
     pub async fn write_schedule_entry(
         &self,
@@ -106,10 +128,6 @@ impl Client {
         entry: mini_qube::schedule::Entry,
     ) -> Result {
         let address = address::Stride::new(index);
-        if self.0.call::<ReadScheduleEntry>(Self::UNIT_ID, address).await? == entry {
-            // No change, skip writing.
-            return Ok(());
-        }
         info!(
             start_time = %entry.start_time,
             end_time = %entry.end_time,

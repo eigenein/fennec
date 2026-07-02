@@ -149,8 +149,8 @@ pub struct Slot {
     pub end_time: NaiveTime,
 
     pub working_mode: WorkingMode,
-    pub maximum_state_of_charge: Percentage<u8>,
-    pub minimum_state_of_charge: Percentage<u8>,
+    pub max_state_of_charge: Percentage<u8>,
+    pub min_state_of_charge: Percentage<u8>,
 
     /// This is called "feed SoC" or "fdSoC", but in reality, it is a target SoC
     /// for charging or discharging.
@@ -184,8 +184,8 @@ impl Encode for Slot {
         self.start_time.encode_to(buf);
         self.end_time.encode_to(buf);
         self.working_mode.encode_to(buf);
-        buf.put_u8(self.maximum_state_of_charge.0);
-        buf.put_u8(self.minimum_state_of_charge.0);
+        buf.put_u8(self.max_state_of_charge.0);
+        buf.put_u8(self.min_state_of_charge.0);
         self.target_state_of_charge.encode_to(buf);
         self.power.encode_to(buf);
         self.reserved_1.encode_to(buf);
@@ -201,8 +201,8 @@ impl Decode for Slot {
             start_time: NaiveTime::decode_from(buf)?,
             end_time: NaiveTime::decode_from(buf)?,
             working_mode: WorkingMode::decode_from(buf)?,
-            maximum_state_of_charge: Percentage(buf.try_get_u8()?),
-            minimum_state_of_charge: Percentage(buf.try_get_u8()?),
+            max_state_of_charge: Percentage(buf.try_get_u8()?),
+            min_state_of_charge: Percentage(buf.try_get_u8()?),
             target_state_of_charge: Percentage::decode_from(buf)?,
             power: Watts::decode_from(buf)?,
             reserved_1: u16::decode_from(buf)?,

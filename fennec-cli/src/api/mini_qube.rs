@@ -5,6 +5,8 @@
 mod metrics;
 pub mod schedule;
 
+use std::range::RangeInclusive;
+
 use fennec_modbus::{
     contrib::{mini_qube, mini_qube::functions},
     protocol::{address, function::write_multiple},
@@ -69,18 +71,12 @@ impl Client {
             .await
             .context("failed to read the EPS active power")?
             .into();
-        let min_soc = self
+        // TODO: this wastes "minimum system SoC", introduce a custom type with just the two registers?
+        let state_of_charge_settings = self
             .0
-            .call::<functions::ReadMinimumStateOfChargeOnGrid>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadStateOfChargeSettings>(Self::UNIT_ID, address::Const)
             .await
-            .context("failed to read the min SoC")?
-            .try_into()?;
-        let max_soc = self
-            .0
-            .call::<functions::ReadMaximumStateOfCharge>(Self::UNIT_ID, address::Const)
-            .await
-            .context("failed to read the max SoC")?
-            .try_into()?;
+            .context("failed to read the state-of-charge settings")?;
 
         Ok(Metrics {
             state_of_charge,
@@ -90,7 +86,10 @@ impl Client {
                 import: total_grid_import_energy,
                 export: total_grid_export_energy,
             },
-            allowed_soc: (min_soc..=max_soc).into(),
+            allowed_soc: RangeInclusive {
+                start: state_of_charge_settings.min_on_grid.try_into()?,
+                last: state_of_charge_settings.max.try_into()?,
+            },
             active_power,
             eps_active_power,
         })

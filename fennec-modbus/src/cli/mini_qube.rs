@@ -50,8 +50,8 @@ pub async fn read(client: Client<String>, unit_id: UnitId) -> anyhow::Result<()>
                 entry.working_mode,
                 entry.target_state_of_charge.0,
                 entry.power.0,
-                entry.minimum_state_of_charge.0,
-                entry.maximum_state_of_charge.0
+                entry.min_state_of_charge.0,
+                entry.max_state_of_charge.0
             );
         }
     }

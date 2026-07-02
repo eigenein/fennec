@@ -1,8 +1,6 @@
+use super::{schedule, types};
 use crate::{
-    contrib::{
-        mini_qube::schedule,
-        types::{DecawattHours, Percentage, Watts},
-    },
+    contrib::types::{DecawattHours, Percentage, Watts},
     protocol::{
         address,
         function::{ReadHoldingRegisters, ReadWriteRegisters, WriteMultipleRegisters},
@@ -31,6 +29,13 @@ pub type ReadTotalGridExportEnergy =
 /// Read the battery total energy imported from grid.
 pub type ReadTotalGridImportEnergy =
     ReadHoldingRegisters<address::Const<39625>, DecawattHours<u32>>;
+
+/// Read the state-of-charge settings in a single transaction.
+///
+/// Reading three registers in one transaction reduces network latency and ensures atomic consistency
+/// compared to three separate read operations.
+pub type ReadStateOfChargeSettings =
+    ReadHoldingRegisters<address::Const<46609>, types::StateOfChargeSettings>;
 
 /// Read the system minimum allowed state-of-charge.
 ///

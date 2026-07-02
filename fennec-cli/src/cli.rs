@@ -1,7 +1,7 @@
 use std::{net::IpAddr, sync::Arc, time::Duration};
 
 use crate::{
-    api::{Connections, heartbeat, homewizard, mini_qube},
+    api::{Connections, heartbeat, home_assistant, homewizard, mini_qube},
     battery,
     energy,
     math::smoothing::HalfLife,
@@ -92,10 +92,6 @@ pub struct BindArgs {
 
 #[derive(clap::Args)]
 pub struct ConnectionArgs {
-    /// Heartbeat URL.
-    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
-    pub heartbeat_url: Option<reqwest::Url>,
-
     /// P1 meter measurement URL.
     #[clap(long = "grid-measurement-url", env = "GRID_MEASUREMENT_URL")]
     pub grid_measurement_url: homewizard::Url,
@@ -103,14 +99,28 @@ pub struct ConnectionArgs {
     /// Battery Modbus address. Only Fox ESS MiniQube is supported.
     #[clap(long = "battery-address", env = "BATTERY_ADDRESS")]
     pub battery_address: String,
+
+    /// Heartbeat URL.
+    #[clap(long = "heartbeat-url", env = "HEARTBEAT_URL")]
+    pub heartbeat_url: Option<reqwest::Url>,
+
+    /// Home Assistant REST API entity state URL.
+    ///
+    /// The URL must have the fragment set to the bearer token.
+    /// Example: `https://homeassistant.local/api/states/sensor.custom_fennec_working_mode#0123...6789`.
+    #[clap(long, env = "HOME_ASSISTANT_WORKING_MODE_URL")]
+    pub home_assistant_working_mode_url: Option<reqwest::Url>,
 }
 
 impl ConnectionArgs {
     pub fn connect(self) -> Result<Connections> {
         Ok(Connections {
-            heartbeat: heartbeat::Client::new(self.heartbeat_url)?,
             grid_measurement: self.grid_measurement_url.client()?,
             battery: Arc::new(mini_qube::Client::new(self.battery_address)),
+            heartbeat: heartbeat::Client::new(self.heartbeat_url)?,
+            home_assistant_working_mode: home_assistant::StateClient::new(
+                self.home_assistant_working_mode_url,
+            )?,
         })
     }
 }

@@ -149,11 +149,19 @@ impl Engine {
             .backtrack(initial_energy_level)
             .inspect(Plan::trace_summary)?;
         // TODO: potential improvement – make the number of written slots configurable:
-        self.write_schedule_slot(plan.schedule.get(0), battery_metrics.allowed_soc).await?;
+        let slot = plan.schedule.get(0);
+        let working_mode = slot.value.1.working_mode;
+        if self.args.dry_run {
+            warn!("not writing the schedule to the battery, just scouting");
+        } else {
+            self.write_schedule_slot(slot, battery_metrics.allowed_soc).await?;
+            self.connections.home_assistant_working_mode.post(&format!("{working_mode:?}")).await;
+        }
 
         // Commit the new state:
         self.state.write().await.plan = Some(plan);
         self.optimizer = Some(optimizer);
+
         Ok(())
     }
 
@@ -221,11 +229,6 @@ impl Engine {
         slot: Slot<&(energy::Flow<KilowattHourPrice>, Step)>,
         allowed_soc: RangeInclusive<Percentage>,
     ) -> Result {
-        if self.args.dry_run {
-            warn!("not writing the schedule to the battery, just scouting");
-            return Ok(());
-        }
-
         let index = mini_qube::schedule::index_of(slot.interval);
         let slot = mini_qube::schedule::make_slot(
             index,

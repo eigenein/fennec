@@ -1,3 +1,25 @@
+//! Shortcuts for MiniQube functions.
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use anyhow::Result;
+//! use fennec_modbus::{
+//!     contrib::mini_qube::functions,
+//!     protocol::address,
+//!     tcp::{UnitId, tokio::Client},
+//! };
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<()> {
+//!     let unit_id = UnitId::Significant(1);
+//!     let state_of_charge = Client::new("battery.iot.home.arpa:502")
+//!         .call::<functions::ReadStateOfCharge>(unit_id, address::Const)
+//!         .await?;
+//!     Ok(())
+//! }
+//! ```
+
 use super::{schedule, types};
 use crate::{
     contrib::types::{DecawattHours, Percentage, Watts},

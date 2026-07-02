@@ -50,8 +50,8 @@ impl BlockIndex {
 impl Address for BlockIndex {}
 
 impl Encode for BlockIndex {
-    fn encode(&self, to: &mut impl BufMut) {
-        BlockStride::new(self.0).encode(to);
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        BlockStride::new(self.0).encode_to(buf);
     }
 }
 
@@ -69,8 +69,8 @@ pub enum WorkingMode {
 }
 
 impl Encode for WorkingMode {
-    fn encode(&self, to: &mut impl BufMut) {
-        to.put_u16(match self {
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        buf.put_u16(match self {
             Self::SelfUse => 1,
             Self::FeedInPriority => 2,
             Self::BackUp => 3,
@@ -83,8 +83,8 @@ impl Encode for WorkingMode {
 }
 
 impl Decode for WorkingMode {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-        Ok(match from.try_get_u16()? {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        Ok(match buf.try_get_u16()? {
             1 => Self::SelfUse,
             2 => Self::FeedInPriority,
             3 => Self::BackUp,
@@ -121,15 +121,15 @@ impl NaiveTime {
 }
 
 impl Encode for NaiveTime {
-    fn encode(&self, to: &mut impl BufMut) {
-        to.put_u8(self.hour);
-        to.put_u8(self.minute);
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        buf.put_u8(self.hour);
+        buf.put_u8(self.minute);
     }
 }
 
 impl Decode for NaiveTime {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-        Ok(Self { hour: from.try_get_u8()?, minute: from.try_get_u8()? })
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        Ok(Self { hour: buf.try_get_u8()?, minute: buf.try_get_u8()? })
     }
 }
 
@@ -179,35 +179,35 @@ impl BitSize for Slot {
 }
 
 impl Encode for Slot {
-    fn encode(&self, to: &mut impl BufMut) {
-        to.put_u16(u16::from(self.is_enabled));
-        self.start_time.encode(to);
-        self.end_time.encode(to);
-        self.working_mode.encode(to);
-        to.put_u8(self.maximum_state_of_charge.0);
-        to.put_u8(self.minimum_state_of_charge.0);
-        self.target_state_of_charge.encode(to);
-        self.power.encode(to);
-        self.reserved_1.encode(to);
-        self.reserved_2.encode(to);
-        self.reserved_3.encode(to);
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        buf.put_u16(u16::from(self.is_enabled));
+        self.start_time.encode_to(buf);
+        self.end_time.encode_to(buf);
+        self.working_mode.encode_to(buf);
+        buf.put_u8(self.maximum_state_of_charge.0);
+        buf.put_u8(self.minimum_state_of_charge.0);
+        self.target_state_of_charge.encode_to(buf);
+        self.power.encode_to(buf);
+        self.reserved_1.encode_to(buf);
+        self.reserved_2.encode_to(buf);
+        self.reserved_3.encode_to(buf);
     }
 }
 
 impl Decode for Slot {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
         Ok(Self {
-            is_enabled: from.try_get_u16()? != 0,
-            start_time: NaiveTime::decode(from)?,
-            end_time: NaiveTime::decode(from)?,
-            working_mode: WorkingMode::decode(from)?,
-            maximum_state_of_charge: Percentage(from.try_get_u8()?),
-            minimum_state_of_charge: Percentage(from.try_get_u8()?),
-            target_state_of_charge: Percentage::decode(from)?,
-            power: Watts::decode(from)?,
-            reserved_1: u16::decode(from)?,
-            reserved_2: u16::decode(from)?,
-            reserved_3: u16::decode(from)?,
+            is_enabled: buf.try_get_u16()? != 0,
+            start_time: NaiveTime::decode_from(buf)?,
+            end_time: NaiveTime::decode_from(buf)?,
+            working_mode: WorkingMode::decode_from(buf)?,
+            maximum_state_of_charge: Percentage(buf.try_get_u8()?),
+            minimum_state_of_charge: Percentage(buf.try_get_u8()?),
+            target_state_of_charge: Percentage::decode_from(buf)?,
+            power: Watts::decode_from(buf)?,
+            reserved_1: u16::decode_from(buf)?,
+            reserved_2: u16::decode_from(buf)?,
+            reserved_3: u16::decode_from(buf)?,
         })
     }
 }

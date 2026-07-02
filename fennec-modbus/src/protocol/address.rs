@@ -15,8 +15,8 @@ pub struct Const<const A: u16>;
 impl<const A: u16> Address for Const<A> {}
 
 impl<const A: u16> Encode for Const<A> {
-    fn encode(&self, to: &mut impl BufMut) {
-        to.put_u16(A);
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        buf.put_u16(A);
     }
 }
 
@@ -39,7 +39,7 @@ impl<const BASE: u16, V> Stride<BASE, V> {
 impl<const BASE: u16, V: BitSize> Address for Stride<BASE, V> {}
 
 impl<const BASE: u16, V: BitSize> Encode for Stride<BASE, V> {
-    fn encode(&self, to: &mut impl BufMut) {
-        to.put_u16(BASE + self.0 * V::N_WORDS);
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        buf.put_u16(BASE + self.0 * V::N_WORDS);
     }
 }

@@ -5,15 +5,15 @@ use bytes::Buf;
 use crate::Error;
 
 pub trait Decode: Sized {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error>;
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error>;
 }
 
 impl<T: Decode, const N: usize> Decode for [T; N] {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
         // Fix when `array::try_from_fn` becomes stable.
         let mut vec = Vec::with_capacity(N);
         for _ in 0..N {
-            vec.push(T::decode(from)?);
+            vec.push(T::decode_from(buf)?);
         }
         Ok(vec.try_into().unwrap_or_else(|_| unreachable!()))
     }
@@ -22,8 +22,8 @@ impl<T: Decode, const N: usize> Decode for [T; N] {
 macro_rules! impl_be {
     ($type:ty => $decode:ident) => {
         impl Decode for $type {
-            fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-                Ok(from.$decode()?)
+            fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+                Ok(buf.$decode()?)
             }
         }
     };

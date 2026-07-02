@@ -39,9 +39,9 @@ impl<A> Request<A> {
 }
 
 impl<A: Encode> Encode for Request<A> {
-    fn encode(&self, to: &mut impl BufMut) {
-        to.put_u8(self.function_code);
-        self.args.encode(to);
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        buf.put_u8(self.function_code);
+        self.args.encode_to(buf);
     }
 }
 
@@ -56,9 +56,9 @@ pub enum Response<F: Function> {
 }
 
 impl<F: Function> Decode for Response<F> {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-        match from.try_get_u8()? {
-            function_code if function_code == F::CODE => Ok(Self::Ok(F::Output::decode(from)?)),
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        match buf.try_get_u8()? {
+            function_code if function_code == F::CODE => Ok(Self::Ok(F::Output::decode_from(buf)?)),
             function_code if function_code >= 0x80 => {
                 #[cfg(feature = "tracing")]
                 if function_code != (F::CODE | 0x80) {
@@ -66,7 +66,7 @@ impl<F: Function> Decode for Response<F> {
                     tracing::warn!("unexpected response function code ({function_code})");
                 }
 
-                Ok(Self::Exception(Exception::decode(from)?))
+                Ok(Self::Exception(Exception::decode_from(buf)?))
             }
             function_code => Err(Error::UnexpectedFunctionCode(function_code)),
         }
@@ -146,8 +146,8 @@ pub enum Exception {
 }
 
 impl Decode for Exception {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-        match from.try_get_u8()? {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        match buf.try_get_u8()? {
             0x01 => Ok(Self::IllegalFunction),
             0x02 => Ok(Self::IllegalDataAddress),
             0x03 => Ok(Self::IllegalDataValue),

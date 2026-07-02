@@ -17,14 +17,14 @@ macro_rules! impl_new_type {
         }
 
         impl Decode for $target<$inner> {
-            fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-                <$inner>::decode(from).map(Self)
+            fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+                <$inner>::decode_from(buf).map(Self)
             }
         }
 
         impl Encode for $target<$inner> {
-            fn encode(&self, to: &mut impl BufMut) {
-                self.0.encode(to);
+            fn encode_to(&self, buf: &mut impl BufMut) {
+                self.0.encode_to(buf);
             }
         }
     };

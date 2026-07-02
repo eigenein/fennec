@@ -29,10 +29,10 @@ impl codec::Encode for Header {
     ///     protocol_id: 0,
     /// };
     /// let mut bytes = Vec::new();
-    /// header.encode(&mut bytes);
+    /// header.encode_to(&mut bytes);
     /// assert_eq!(bytes, EXPECTED);
     /// ```
-    fn encode(&self, buf: &mut impl BufMut) {
+    fn encode_to(&self, buf: &mut impl BufMut) {
         buf.put_u16(self.transaction_id);
         buf.put_u16(self.protocol_id);
         buf.put_u16(self.length);
@@ -57,13 +57,13 @@ impl codec::Decode for Header {
     ///     0x00, 0x06, // length
     ///     0xFF, // unit ID
     /// ];
-    /// let header = Header::decode(&mut bytes).unwrap();
+    /// let header = Header::decode_from(&mut bytes).unwrap();
     ///
     /// assert_eq!(header.transaction_id, 0x1501);
     /// assert_eq!(header.protocol_id, 0);
     /// assert_eq!(header.unit_id, UnitId::NonSignificant);
     /// ```
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
+    fn decode_from(from: &mut impl Buf) -> Result<Self, Error> {
         Ok(Self {
             transaction_id: from.try_get_u16()?,
             protocol_id: from.try_get_u16()?,

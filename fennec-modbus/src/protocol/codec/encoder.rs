@@ -3,19 +3,19 @@ use alloc::vec::Vec;
 use bytes::BufMut;
 
 pub trait Encode {
-    fn encode(&self, to: &mut impl BufMut);
+    fn encode_to(&self, buf: &mut impl BufMut);
 
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
-        self.encode(&mut bytes);
+        self.encode_to(&mut bytes);
         bytes
     }
 }
 
 impl<T: Encode, const N: usize> Encode for [T; N] {
-    fn encode(&self, to: &mut impl BufMut) {
+    fn encode_to(&self, buf: &mut impl BufMut) {
         for item in self {
-            item.encode(to);
+            item.encode_to(buf);
         }
     }
 }
@@ -23,8 +23,8 @@ impl<T: Encode, const N: usize> Encode for [T; N] {
 macro_rules! impl_be {
     ($type:ty => $encode:ident) => {
         impl Encode for $type {
-            fn encode(&self, to: &mut impl BufMut) {
-                to.$encode(*self);
+            fn encode_to(&self, buf: &mut impl BufMut) {
+                buf.$encode(*self);
             }
         }
     };

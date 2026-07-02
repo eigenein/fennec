@@ -50,12 +50,12 @@ impl<A, V, S> Args<A, V, S> {
 }
 
 impl<A: Address, V: BitSize + Encode, S: SizeArgument> Encode for Args<A, V, S> {
-    fn encode(&self, to: &mut impl BufMut) {
+    fn encode_to(&self, buf: &mut impl BufMut) {
         S::assert_valid_size::<V, 246>();
-        self.0.encode(to);
-        to.put_u16(S::quantity_for::<V>());
-        to.put_u8(V::N_BYTES);
-        self.1.encode(to);
+        self.0.encode_to(buf);
+        buf.put_u16(S::quantity_for::<V>());
+        buf.put_u8(V::N_BYTES);
+        self.1.encode_to(buf);
     }
 }
 
@@ -67,7 +67,7 @@ impl<A: Address, V: BitSize + Encode, S: SizeArgument> Encode for Args<A, V, S> 
 /// use fennec_modbus::protocol::{codec::Decode, function::write_multiple::Output};
 ///
 /// let mut bytes: &[u8] = &[0x00, 0x01, 0x00, 0x02];
-/// let output = Output::decode(&mut bytes).unwrap();
+/// let output = Output::decode_from(&mut bytes).unwrap();
 /// assert_eq!(output.starting_address, 1);
 /// assert_eq!(output.count, 2);
 /// ```
@@ -88,7 +88,7 @@ impl IntoValue for Output {
 }
 
 impl Decode for Output {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-        Ok(Self { starting_address: u16::decode(from)?, count: u16::decode(from)? })
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        Ok(Self { starting_address: u16::decode_from(buf)?, count: u16::decode_from(buf)? })
     }
 }

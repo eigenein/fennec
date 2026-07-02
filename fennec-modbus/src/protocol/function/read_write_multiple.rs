@@ -58,9 +58,9 @@ where
     WriteAddress: Address,
     WriteValue: BitSize + Encode,
 {
-    fn encode(&self, to: &mut impl BufMut) {
+    fn encode_to(&self, buf: &mut impl BufMut) {
         size_argument::Words::assert_valid_size::<WriteValue, 242>();
-        self.read.encode(to);
-        self.write.encode(to);
+        self.read.encode_to(buf);
+        self.write.encode_to(buf);
     }
 }

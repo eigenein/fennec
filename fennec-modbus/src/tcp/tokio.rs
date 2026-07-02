@@ -159,7 +159,7 @@ where
                 let header = {
                     let mut header_bytes = [0; tcp::Header::N_BYTES];
                     connection.get_mut().read_exact(&mut header_bytes).await?;
-                    Header::decode(&mut header_bytes.as_slice())?
+                    Header::decode_from(&mut header_bytes.as_slice())?
                 };
 
                 #[cfg(feature = "tracing")]
@@ -196,7 +196,7 @@ where
 
                 connection.invalidate();
             })?;
-        Ok(Response::<F>::decode(&mut payload_bytes.as_slice())?.into_result()?.into_value())
+        Ok(Response::<F>::decode_from(&mut payload_bytes.as_slice())?.into_result()?.into_value())
     }
 }
 

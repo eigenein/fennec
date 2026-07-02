@@ -59,10 +59,10 @@ impl Encoder {
         &self,
         unit_id: UnitId,
         payload: &P,
-        to: &mut impl BufMut,
+        buf: &mut impl BufMut,
     ) -> Result<u16, Error> {
         let mut request_bytes = Vec::new();
-        payload.encode(&mut request_bytes);
+        payload.encode_to(&mut request_bytes);
 
         let transaction_id = self.0.fetch_add(1, Ordering::Relaxed);
         let header = {
@@ -70,8 +70,8 @@ impl Encoder {
                 .map_err(|_| Error::PayloadSizeExceeded(request_bytes.len()))?;
             Header { unit_id, transaction_id, length, protocol_id: Header::PROTOCOL_ID }
         };
-        header.encode(to);
-        to.put(&*request_bytes);
+        header.encode_to(buf);
+        buf.put(&*request_bytes);
 
         Ok(transaction_id)
     }

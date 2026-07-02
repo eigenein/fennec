@@ -59,10 +59,10 @@ impl<A, V: BitSize, S> Args<A, V, S> {
 
 impl<A: Address, V: BitSize, S: SizeArgument> Encode for Args<A, V, S> {
     /// Encode the address and number of bits to read.
-    fn encode(&self, to: &mut impl BufMut) {
+    fn encode_to(&self, buf: &mut impl BufMut) {
         S::assert_valid_size::<V, 250>();
-        self.0.encode(to);
-        to.put_u16(S::quantity_for::<V>());
+        self.0.encode_to(buf);
+        buf.put_u16(S::quantity_for::<V>());
     }
 }
 
@@ -83,16 +83,16 @@ impl<A: Address, V: BitSize, S: SizeArgument> Encode for Args<A, V, S> {
 /// ];
 ///
 /// #[expect(const_item_mutation)]
-/// let value = Output::<u32>::decode(&mut BYTES).unwrap().into_value();
+/// let value = Output::<u32>::decode_from(&mut BYTES).unwrap().into_value();
 /// assert_eq!(value, 0x022B0000);
 /// ```
 pub struct Output<V>(V);
 
 impl<V: Decode> Decode for Output<V> {
-    fn decode(from: &mut impl Buf) -> Result<Self, Error> {
-        let n_bytes = from.try_get_u8()?;
-        let mut from = DropRemaining(from).take(usize::from(n_bytes));
-        V::decode(&mut from).map(Self)
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        let n_bytes = buf.try_get_u8()?;
+        let mut from = DropRemaining(buf).take(usize::from(n_bytes));
+        V::decode_from(&mut from).map(Self)
     }
 }
 

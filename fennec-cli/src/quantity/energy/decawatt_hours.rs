@@ -1,5 +1,7 @@
 use std::ops::Mul;
 
+use fennec_modbus::contrib;
+
 use crate::quantity::{Format, Quantity, energy::MilliwattHours, ratios::BasisPoints};
 
 pub type DecawattHours<V = u32> = Quantity<V, 1, 1, 1, 0>;
@@ -8,14 +10,14 @@ impl<V> Format for DecawattHours<V> {
     const SUFFIX: &str = "daWh";
 }
 
-impl From<fennec_modbus::contrib::DecawattHours<u16>> for DecawattHours {
-    fn from(value: fennec_modbus::contrib::DecawattHours<u16>) -> Self {
+impl From<contrib::types::DecawattHours<u16>> for DecawattHours {
+    fn from(value: contrib::types::DecawattHours<u16>) -> Self {
         Self(value.0.into())
     }
 }
 
-impl From<fennec_modbus::contrib::DecawattHours<u32>> for DecawattHours {
-    fn from(value: fennec_modbus::contrib::DecawattHours<u32>) -> Self {
+impl From<contrib::types::DecawattHours<u32>> for DecawattHours {
+    fn from(value: contrib::types::DecawattHours<u32>) -> Self {
         Self(value.0)
     }
 }

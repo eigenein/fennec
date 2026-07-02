@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut};
 
 use crate::{
     Error,
-    contrib::{Percentage, Watts},
+    contrib::types::{Percentage, Watts},
     protocol::{
         Address,
         address,

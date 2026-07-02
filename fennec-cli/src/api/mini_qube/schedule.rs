@@ -1,9 +1,9 @@
 use std::range::RangeInclusive;
 
 use chrono::{DateTime, Local, Timelike};
-use fennec_modbus::{
-    contrib,
-    contrib::mini_qube::{schedule, schedule::NaiveTime},
+use fennec_modbus::contrib::{
+    mini_qube::{schedule, schedule::NaiveTime},
+    types,
 };
 
 use crate::{
@@ -69,7 +69,7 @@ pub fn make_slot(
         maximum_state_of_charge: allowed_soc.last.into(),
         minimum_state_of_charge: allowed_soc.start.into(),
         target_state_of_charge: target_charge.into(),
-        power: contrib::Watts(feed_power.0 as u16),
+        power: types::Watts(feed_power.0 as u16),
         reserved_1: 0,
         reserved_2: 0,
         reserved_3: 0,

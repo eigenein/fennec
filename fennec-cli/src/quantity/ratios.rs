@@ -1,3 +1,5 @@
+use fennec_modbus::contrib;
+
 use crate::{
     prelude::*,
     quantity::{Format, Quantity},
@@ -15,22 +17,22 @@ impl<V> Format for BasisPoints<V> {
     const SUFFIX: &str = "‱";
 }
 
-impl From<Percentage> for fennec_modbus::contrib::Percentage<u8> {
+impl From<Percentage> for contrib::types::Percentage<u8> {
     fn from(percentage: Percentage) -> Self {
         Self(percentage.0)
     }
 }
 
-impl From<Percentage> for fennec_modbus::contrib::Percentage<u16> {
+impl From<Percentage> for contrib::types::Percentage<u16> {
     fn from(percentage: Percentage) -> Self {
         Self(percentage.0.into())
     }
 }
 
-impl TryFrom<fennec_modbus::contrib::Percentage<u16>> for Percentage {
+impl TryFrom<contrib::types::Percentage<u16>> for Percentage {
     type Error = Error;
 
-    fn try_from(value: fennec_modbus::contrib::Percentage<u16>) -> Result<Self> {
+    fn try_from(value: contrib::types::Percentage<u16>) -> Result<Self> {
         Ok(Self(value.0.try_into()?))
     }
 }

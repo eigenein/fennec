@@ -19,9 +19,14 @@ impl Client {
     #[instrument(skip_all)]
     pub async fn send(&self) {
         if let Some((url, client)) = &self.0
-            && let Err(error) = client.post(url.clone()).send().await
+            && let Err(error) = Self::inner_send(url, client).await
         {
             warn!("failed heartbeat: {error:#}");
         }
+    }
+
+    async fn inner_send(url: &reqwest::Url, client: &reqwest::Client) -> Result {
+        client.post(url.clone()).send().await?.error_for_status()?;
+        Ok(())
     }
 }

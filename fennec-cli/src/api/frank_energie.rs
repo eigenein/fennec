@@ -37,6 +37,7 @@ impl Api {
             .json(&Request::new(on, self.resolution))
             .send()
             .await?
+            .error_for_status()?
             .json::<Response>()
             .await?
             .data

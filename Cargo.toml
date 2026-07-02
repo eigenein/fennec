@@ -20,6 +20,7 @@ broken_intra_doc_links = "deny"
 invalid_codeblock_attributes = "deny"
 
 [workspace.lints.clippy]
+doc_markdown = "allow"
 future_not_send = "allow"
 missing_errors_doc = "allow"
 

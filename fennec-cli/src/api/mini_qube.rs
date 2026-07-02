@@ -10,7 +10,6 @@ use std::range::RangeInclusive;
 use fennec_modbus::{
     contrib::{mini_qube, mini_qube::functions},
     protocol::{address, function::write_multiple},
-    tcp::UnitId,
 };
 
 pub use self::metrics::Metrics;
@@ -21,8 +20,6 @@ use crate::{energy::Flow, prelude::*};
 pub struct Client(fennec_modbus::tcp::tokio::Client<String>);
 
 impl Client {
-    const UNIT_ID: UnitId = UnitId::Significant(1);
-
     pub fn new(address: String) -> Self {
         Self(fennec_modbus::tcp::tokio::Client::new(address))
     }
@@ -31,50 +28,50 @@ impl Client {
     pub async fn read_metrics(&self) -> Result<Metrics> {
         let design_capacity = self
             .0
-            .call::<functions::ReadDesignCapacity>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadDesignCapacity>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the design capacity")?
             .into();
         let state_of_health = self
             .0
-            .call::<functions::ReadStateOfHealth>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadStateOfHealth>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoH")?
             .try_into()?;
         let state_of_charge = self
             .0
-            .call::<functions::ReadStateOfCharge>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadStateOfCharge>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoC")?
             .try_into()?;
         let total_grid_export_energy = self
             .0
-            .call::<functions::ReadTotalGridExportEnergy>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadTotalGridExportEnergy>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the total exported energy")?
             .into();
         let total_grid_import_energy = self
             .0
-            .call::<functions::ReadTotalGridImportEnergy>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadTotalGridImportEnergy>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the total exported energy")?
             .into();
         let active_power = self
             .0
-            .call::<functions::ReadTotalActivePower>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadTotalActivePower>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the active power")?
             .into();
         let eps_active_power = self
             .0
-            .call::<functions::ReadEpsActivePower>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadEpsActivePower>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the EPS active power")?
             .into();
         // TODO: this wastes "minimum system SoC", introduce a custom type with just the two registers?
         let state_of_charge_settings = self
             .0
-            .call::<functions::ReadStateOfChargeSettings>(Self::UNIT_ID, address::Const)
+            .call::<functions::ReadStateOfChargeSettings>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the state-of-charge settings")?;
 
@@ -108,7 +105,7 @@ impl Client {
     pub async fn write_schedule_slot(&self, index: u8, slot: mini_qube::schedule::Slot) -> Result {
         let address = address::Stride::new(index.into());
         let current_slot =
-            self.0.call::<functions::ReadScheduleEntry>(Self::UNIT_ID, address).await?;
+            self.0.call::<functions::ReadScheduleEntry>(mini_qube::UNIT_ID, address).await?;
         if current_slot != slot {
             info!(
                 start_time = %slot.start_time,
@@ -118,12 +115,13 @@ impl Client {
             );
             self.0
                 .call::<functions::WriteScheduleEntry>(
-                    Self::UNIT_ID,
+                    mini_qube::UNIT_ID,
                     write_multiple::Args::new(address, slot),
                 )
                 .await?;
             ensure!(
-                self.0.call::<functions::ReadScheduleEntry>(Self::UNIT_ID, address).await? == slot
+                self.0.call::<functions::ReadScheduleEntry>(mini_qube::UNIT_ID, address).await?
+                    == slot
             );
         }
         Ok(())

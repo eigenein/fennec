@@ -5,16 +5,15 @@
 //! ```rust,no_run
 //! use anyhow::Result;
 //! use fennec_modbus::{
-//!     contrib::mini_qube::functions,
+//!     contrib::mini_qube,
 //!     protocol::address,
 //!     tcp::{UnitId, tokio::Client},
 //! };
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<()> {
-//!     let unit_id = UnitId::Significant(1);
 //!     let state_of_charge = Client::new("battery.iot.home.arpa:502")
-//!         .call::<functions::ReadStateOfCharge>(unit_id, address::Const)
+//!         .call::<mini_qube::functions::ReadStateOfCharge>(mini_qube::UNIT_ID, address::Const)
 //!         .await?;
 //!     Ok(())
 //! }

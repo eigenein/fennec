@@ -68,8 +68,7 @@ jobs:
 
       - name: "📝 Docs"
         run: |
-          cargo +nightly rustdoc -p fennec-modbus --lib --all-features -- -Z unstable-options --check
-          cargo +nightly rustdoc -p fennec-modbus --bin fennec-modbus --all-features -- -Z unstable-options --check
+          cargo +nightly rustdoc -p fennec-modbus --all-features -- -Z unstable-options --check
           cargo +nightly rustdoc -p fennec-cli --all-targets --all-features -- -Z unstable-options --check
 
       - name: "📤 Upload coverage"

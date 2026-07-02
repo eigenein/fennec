@@ -799,12 +799,10 @@ version = "0.95.0-beta.11"
 dependencies = [
  "anyhow",
  "bytes",
- "clap",
  "socket2 0.6.4",
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

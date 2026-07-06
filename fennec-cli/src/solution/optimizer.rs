@@ -1,4 +1,4 @@
-use std::{range::RangeInclusive, time::Instant};
+use std::{cmp::Ordering, range::RangeInclusive, time::Instant};
 
 use chrono::{DateTime, Local};
 
@@ -13,7 +13,7 @@ use crate::{
         Quantity,
         energy::{EnergyLevel, WattHours},
         power::Watts,
-        price::KilowattHourPrice,
+        price::{KilowattHourPrice, MillsPerHour},
         time::Hours,
     },
     series::Slot,
@@ -93,7 +93,7 @@ impl Optimizer {
         for interval_index in (0..self.solution_space.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in (0..=capacity_level.0).map(Quantity) {
-                self.optimize_state(interval_index, energy_level);
+                self.optimize_state(interval_index, energy_level, None);
             }
         }
 
@@ -111,8 +111,17 @@ impl Optimizer {
     }
 
     /// Optimize the state and assign the solution.
-    pub fn optimize_state(&mut self, interval_index: usize, initial_energy_level: EnergyLevel) {
+    ///
+    /// If a preferred mode is specified, it wins over the optimal working mode when
+    /// the gain is negligible.
+    pub fn optimize_state(
+        &mut self,
+        interval_index: usize,
+        initial_energy_level: EnergyLevel,
+        preferred_working_mode: Option<WorkingMode>,
+    ) {
         let Slot { interval, value: stage } = self.solution_space.get(interval_index);
+        let duration = interval.duration().into();
         let average_balance = self.energy_profile.balance.mean_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
@@ -126,7 +135,7 @@ impl Optimizer {
             .filter_map(|working_mode| {
                 let step = self.simulate_step(
                     battery_simulator,
-                    interval.duration().into(),
+                    duration,
                     average_balance,
                     stage.price(),
                     working_mode,
@@ -157,7 +166,23 @@ impl Optimizer {
 
                 Some(Solution { metrics, step })
             })
-            .min_by(Solution::compare_loss_to);
+            .min_by(|lhs, rhs| {
+                if let Some(preferred_working_mode) = preferred_working_mode {
+                    // If the solutions are very similar cost-wise, pick the preferred working mode:
+                    let loss_diff_rate = ((lhs.total_loss() - rhs.total_loss()) / duration).abs();
+                    if loss_diff_rate < MillsPerHour::CENT_PER_HOUR {
+                        if lhs.step.working_mode == preferred_working_mode {
+                            info!(preferred = ?preferred_working_mode, over = ?rhs.step.working_mode, ?loss_diff_rate, "picking");
+                            return Ordering::Less;
+                        }
+                        if rhs.step.working_mode == preferred_working_mode {
+                            info!(preferred = ?preferred_working_mode, over = ?lhs.step.working_mode, ?loss_diff_rate, "picking");
+                            return Ordering::Greater;
+                        }
+                    }
+                }
+                lhs.compare_loss_to(rhs)
+            });
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions.

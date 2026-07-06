@@ -17,6 +17,7 @@ pub use self::{
     stage::Stage,
     step::Step,
 };
+use crate::quantity::currency::Mills;
 
 /// Solution for a particular energy level at a particular [`Stage`].
 #[must_use]
@@ -30,12 +31,12 @@ pub struct Solution {
 }
 
 impl Solution {
+    pub fn total_loss(&self) -> Mills {
+        self.metrics.losses.total()
+    }
+
     /// Compare this solution total loss to the other solution total loss.
     fn compare_loss_to(&self, other: &Self) -> Ordering {
-        self.metrics
-            .losses
-            .total()
-            .partial_cmp(&other.metrics.losses.total())
-            .unwrap_or(Ordering::Equal)
+        self.total_loss().partial_cmp(&other.total_loss()).unwrap_or(Ordering::Equal)
     }
 }

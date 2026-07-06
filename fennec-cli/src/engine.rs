@@ -127,8 +127,12 @@ impl Engine {
                     info!("optimizer invalidated: new prices arrived");
                     self.rebuild_optimizer(&prices, battery_capacity, allowed_energy_levels).await
                 } else {
+                    let preferred_working_mode = optimizer.solution_space().get(0).value
+                        [initial_energy_level]
+                        .as_ref()
+                        .map(|solution| solution.step.working_mode);
                     info!(?initial_energy_level, "optimizing current state");
-                    optimizer.optimize_state(0, initial_energy_level);
+                    optimizer.optimize_state(0, initial_energy_level, preferred_working_mode);
                     optimizer
                 }
             }

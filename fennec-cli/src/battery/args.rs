@@ -1,4 +1,8 @@
-use crate::{battery, battery::WorkingMode, quantity::price::KilowattHourPrice};
+use crate::{
+    battery,
+    battery::WorkingMode,
+    quantity::price::{KilowattHourPrice, MillsPerHour},
+};
 
 #[derive(clap::Args)]
 #[group(id = "battery")]
@@ -22,4 +26,12 @@ pub struct Args {
         default_value = "0.03"
     )]
     pub degradation_cost: KilowattHourPrice,
+
+    /// Threshold in ₥/h for the re-optimizer to justify changing of the previously planned working mode.
+    #[clap(
+        long = "battery-preferred-mode-bias",
+        env = "BATTERY_PREFERRED_MODE_BIAS",
+        default_value = "5"
+    )]
+    pub preferred_mode_bias: MillsPerHour,
 }

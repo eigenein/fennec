@@ -26,6 +26,7 @@ pub struct Optimizer {
     max_battery_flow: energy::Flow<Watts>,
     allowed_energy_levels: RangeInclusive<WattHours<usize>>,
     battery_degradation_cost: KilowattHourPrice,
+    preferred_mode_bias: MillsPerHour,
     working_modes: Vec<WorkingMode>,
     energy_profile: energy::Profile,
     solution_space: Space,
@@ -46,6 +47,7 @@ impl Optimizer {
             energy_profile,
             allowed_energy_levels,
             battery_degradation_cost: battery_args.degradation_cost,
+            preferred_mode_bias: battery_args.preferred_mode_bias,
             working_modes: battery_args.working_modes.clone(),
 
             // TODO: this is better done by type state, but that would require forwarding the above args.
@@ -170,7 +172,7 @@ impl Optimizer {
                 if let Some(preferred_working_mode) = preferred_working_mode {
                     // If the solutions are very similar cost-wise, pick the preferred working mode:
                     let loss_diff_rate = ((lhs.total_loss() - rhs.total_loss()) / duration).abs();
-                    if loss_diff_rate < MillsPerHour::CENT_PER_HOUR {
+                    if loss_diff_rate < self.preferred_mode_bias {
                         if lhs.step.working_mode == preferred_working_mode {
                             info!(preferred = ?preferred_working_mode, over = ?rhs.step.working_mode, ?loss_diff_rate, "picking");
                             return Ordering::Less;

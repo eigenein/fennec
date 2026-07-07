@@ -169,21 +169,35 @@ impl Optimizer {
                 Some(Solution { metrics, step })
             })
             .min_by(|lhs, rhs| {
-                if let Some(preferred_working_mode) = preferred_working_mode {
-                    // If the solutions are very similar cost-wise, pick the preferred working mode:
-                    let loss_diff_rate = ((lhs.total_loss() - rhs.total_loss()) / duration).abs();
-                    if loss_diff_rate < self.preferred_mode_bias {
-                        if lhs.step.working_mode == preferred_working_mode {
-                            info!(preferred = ?preferred_working_mode, over = ?rhs.step.working_mode, ?loss_diff_rate, "picking");
-                            return Ordering::Less;
-                        }
-                        if rhs.step.working_mode == preferred_working_mode {
-                            info!(preferred = ?preferred_working_mode, over = ?lhs.step.working_mode, ?loss_diff_rate, "picking");
-                            return Ordering::Greater;
-                        }
-                    }
+                // This is the true loss comparison:
+                let loss_ordering = lhs.compare_loss_to(rhs);
+
+                let Some(preferred_mode) = preferred_working_mode else {
+                    // No preferred working mode, return the true comparison:
+                    return loss_ordering;
+                };
+
+                let loss_diff_rate = ((lhs.total_loss() - rhs.total_loss()) / duration).abs();
+                if loss_diff_rate >= self.preferred_mode_bias {
+                    // The loss change is significant enough to justify the true comparison:
+                    return loss_ordering;
                 }
-                lhs.compare_loss_to(rhs)
+
+                let (preferred_ordering, discarded_mode) =
+                    if lhs.step.working_mode == preferred_mode {
+                        (Ordering::Less, rhs.step.working_mode)
+                    } else if rhs.step.working_mode == preferred_mode {
+                        (Ordering::Greater, lhs.step.working_mode)
+                    } else {
+                        // None of the modes we compare is preferred:
+                        return loss_ordering;
+                    };
+
+                if preferred_ordering == loss_ordering.reverse() {
+                    info!(?preferred_mode, ?discarded_mode, ?loss_diff_rate, "picking");
+                }
+
+                preferred_ordering
             });
     }
 

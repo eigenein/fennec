@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, range::RangeInclusive, time::Instant};
+use std::{range::RangeInclusive, time::Instant};
 
 use chrono::{DateTime, Local};
 
@@ -13,7 +13,7 @@ use crate::{
         Quantity,
         energy::{EnergyLevel, WattHours},
         power::Watts,
-        price::{KilowattHourPrice, MillsPerHour},
+        price::KilowattHourPrice,
         time::Hours,
     },
     series::Slot,
@@ -26,7 +26,6 @@ pub struct Optimizer {
     max_battery_flow: energy::Flow<Watts>,
     allowed_energy_levels: RangeInclusive<WattHours<usize>>,
     battery_degradation_cost: KilowattHourPrice,
-    preferred_mode_bias: MillsPerHour,
     working_modes: Vec<WorkingMode>,
     energy_profile: energy::Profile,
     solution_space: Space,
@@ -47,7 +46,6 @@ impl Optimizer {
             energy_profile,
             allowed_energy_levels,
             battery_degradation_cost: battery_args.degradation_cost,
-            preferred_mode_bias: battery_args.preferred_mode_bias,
             working_modes: battery_args.working_modes.clone(),
 
             // TODO: this is better done by type state, but that would require forwarding the above args.
@@ -95,7 +93,7 @@ impl Optimizer {
         for interval_index in (0..self.solution_space.len()).rev() {
             // Calculate partial solutions for the current time interval:
             for energy_level in (0..=capacity_level.0).map(Quantity) {
-                self.optimize_state(interval_index, energy_level, None);
+                self.optimize_state(interval_index, energy_level);
             }
         }
 
@@ -116,12 +114,7 @@ impl Optimizer {
     ///
     /// If a preferred mode is specified, it wins over the optimal working mode when
     /// the gain is negligible.
-    pub fn optimize_state(
-        &mut self,
-        interval_index: usize,
-        initial_energy_level: EnergyLevel,
-        preferred_working_mode: Option<WorkingMode>,
-    ) {
+    pub fn optimize_state(&mut self, interval_index: usize, initial_energy_level: EnergyLevel) {
         let Slot { interval, value: stage } = self.solution_space.get(interval_index);
         let duration = interval.duration().into();
         let average_balance = self.energy_profile.balance.mean_over(interval);
@@ -168,37 +161,7 @@ impl Optimizer {
 
                 Some(Solution { metrics, step })
             })
-            .min_by(|lhs, rhs| {
-                // This is the true loss comparison:
-                let loss_ordering = lhs.compare_loss_to(rhs);
-
-                let Some(preferred_mode) = preferred_working_mode else {
-                    // No preferred working mode, return the true comparison:
-                    return loss_ordering;
-                };
-
-                let loss_diff_rate = ((lhs.total_loss() - rhs.total_loss()) / duration).abs();
-                if loss_diff_rate >= self.preferred_mode_bias {
-                    // The loss change is significant enough to justify the true comparison:
-                    return loss_ordering;
-                }
-
-                let (preferred_ordering, discarded_mode) =
-                    if lhs.step.working_mode == preferred_mode {
-                        (Ordering::Less, rhs.step.working_mode)
-                    } else if rhs.step.working_mode == preferred_mode {
-                        (Ordering::Greater, lhs.step.working_mode)
-                    } else {
-                        // None of the modes we compare is preferred:
-                        return loss_ordering;
-                    };
-
-                if preferred_ordering == loss_ordering.reverse() {
-                    info!(?preferred_mode, ?discarded_mode, ?loss_diff_rate, "picking");
-                }
-
-                preferred_ordering
-            });
+            .min_by(Solution::compare_loss_to);
     }
 
     /// Simulate the battery working in the specified mode given the initial conditions.

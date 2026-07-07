@@ -8,6 +8,7 @@ use crate::{
     battery,
     battery::WorkingMode,
     energy,
+    ops::interval::Interval,
     prelude::*,
     quantity::{
         Quantity,
@@ -102,12 +103,18 @@ impl Optimizer {
 
     /// Advance the optimizer solution space so that it starts at the specified timestamp.
     ///
-    /// Returns [`true`] if and only if at least one interval got popped in the process.
+    /// Returns:
+    ///
+    /// - [`true`] if and only if at least one interval got popped in the process;
+    /// - updated first interval, or [`None`] if the solution space became empty.
     #[must_use]
-    pub fn advance_to(&mut self, timestamp: DateTime<Local>) -> bool {
+    pub fn advance_to(
+        &mut self,
+        timestamp: DateTime<Local>,
+    ) -> (bool, Option<Interval<DateTime<Local>>>) {
         let previous_len = self.solution_space.len();
-        self.solution_space.advance_to(timestamp);
-        self.solution_space.len() != previous_len
+        let first_interval = self.solution_space.advance_to(timestamp);
+        (self.solution_space.len() != previous_len, first_interval)
     }
 
     /// Optimize the state and assign the solution.

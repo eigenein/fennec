@@ -144,13 +144,18 @@ impl<V, Index> Series<V, Index> {
 
     /// Remove intervals that ended before the given index
     /// and clamp the first remaining interval's start to that index.
-    pub fn advance_to(&mut self, index: Index)
+    ///
+    /// Returns the new updated first interval or [`None`] when the series was or became empty.
+    pub fn advance_to(&mut self, index: Index) -> Option<Interval<Index>>
     where
         Index: Copy + PartialOrd,
     {
         self.pop_before(index);
         if let Some(first) = self.0.front_mut() {
             first.interval = first.interval.clamp_start_to(index);
+            Some(first.interval)
+        } else {
+            None
         }
     }
 

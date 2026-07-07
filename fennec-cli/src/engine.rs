@@ -108,7 +108,7 @@ impl Engine {
 
         let optimizer = match self.optimizer.take() {
             Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_energy_levels) => {
-                let has_solution_space_advanced = optimizer.advance_to(now);
+                let (has_solution_space_advanced, first_interval) = optimizer.advance_to(now);
                 if !has_solution_space_advanced && !has_residual_energy_changed {
                     // Nothing happened: just keep the optimizer.
                     self.optimizer = Some(optimizer);
@@ -126,6 +126,11 @@ impl Engine {
                 if let Some(prices) = new_prices {
                     info!("optimizer invalidated: new prices arrived");
                     self.rebuild_optimizer(&prices, battery_capacity, allowed_energy_levels).await
+                } else if first_interval.unwrap().duration() < TimeDelta::minutes(1) {
+                    // FIXME: `unwrap`.
+                    // TODO: make the deadline configurable.
+                    info!("optimizing skipped: the interval is getting too short");
+                    return Ok(());
                 } else {
                     info!(?initial_energy_level, "optimizing current state");
                     optimizer.optimize_state(0, initial_energy_level);

@@ -1,4 +1,4 @@
-use std::ops::{Div, Mul, SubAssign};
+use std::ops::{Add, Div, Mul, SubAssign};
 
 use derive_more::{Add, AddAssign, Sub};
 use musli::{Decode, Encode};
@@ -50,6 +50,13 @@ impl<T> Flow<T> {
             self.export = T::ZERO;
         }
         self
+    }
+
+    pub fn total_throughput(self) -> <T as Add>::Output
+    where
+        T: Add,
+    {
+        self.import + self.export
     }
 }
 

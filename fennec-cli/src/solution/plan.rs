@@ -2,7 +2,7 @@ use crate::{
     Schedule,
     energy,
     prelude::*,
-    quantity::price::KilowattHourPrice,
+    quantity::{energy::DecawattHours, price::KilowattHourPrice},
     solution::{Metrics, Step},
 };
 
@@ -17,12 +17,16 @@ pub struct Plan {
 
 impl Plan {
     /// /// Log the plan's headline metrics at `info` level.
-    pub fn trace_summary(&self) {
+    pub fn trace_summary(&self, battery_design_capacity: DecawattHours) {
+        let n_cycles = self.metrics.internal_battery_flow.total_throughput()
+            / battery_design_capacity.rescale()
+            / 2.0;
         info!(
             grid_loss = ?self.metrics.losses.grid,
             battery.loss = ?self.metrics.losses.battery,
             battery.charge = ?self.metrics.internal_battery_flow.import,
             battery.discharge = ?self.metrics.internal_battery_flow.export,
+            n_cycles,
             "plan summary",
         );
     }

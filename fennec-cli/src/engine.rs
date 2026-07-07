@@ -152,7 +152,7 @@ impl Engine {
         let plan = optimizer
             .solution_space()
             .backtrack(initial_energy_level)
-            .inspect(Plan::trace_summary)?;
+            .inspect(|plan| plan.trace_summary(battery_metrics.design_capacity))?;
         // TODO: potential improvement – make the number of written slots configurable:
         let slot = plan.schedule.get(0);
         let working_mode = slot.value.1.working_mode;

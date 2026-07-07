@@ -31,7 +31,7 @@ pub struct Args {
     #[clap(
         long = "battery-preferred-mode-bias",
         env = "BATTERY_PREFERRED_MODE_BIAS",
-        default_value = "5"
+        default_value = "1"
     )]
     pub preferred_mode_bias: MillsPerHour,
 }

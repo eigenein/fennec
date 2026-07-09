@@ -1,4 +1,7 @@
-use core::fmt::{Display, Formatter};
+use core::{
+    fmt::{Display, Formatter},
+    ops::RangeInclusive,
+};
 
 use bytes::{Buf, BufMut};
 
@@ -84,6 +87,12 @@ pub enum WorkingMode {
     Unknown(u16),
 }
 
+impl BitSize for WorkingMode {
+    const N_BITS: u16 = u16::N_BITS;
+    const N_BYTES: u8 = u16::N_BYTES;
+    const N_WORDS: u16 = u16::N_WORDS;
+}
+
 impl Encode for WorkingMode {
     fn encode_to(&self, buf: &mut impl BufMut) {
         buf.put_u16(match self {
@@ -136,6 +145,12 @@ impl NaiveTime {
     pub const MAX: Self = Self { hour: 23, minute: 59 };
 }
 
+impl BitSize for NaiveTime {
+    const N_BITS: u16 = u8::N_BITS * 2;
+    const N_BYTES: u8 = u8::N_BYTES * 2;
+    const N_WORDS: u16 = 1;
+}
+
 impl Encode for NaiveTime {
     fn encode_to(&self, buf: &mut impl BufMut) {
         buf.put_u8(self.hour);
@@ -146,6 +161,41 @@ impl Encode for NaiveTime {
 impl Decode for NaiveTime {
     fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
         Ok(Self { hour: buf.try_get_u8()?, minute: buf.try_get_u8()? })
+    }
+}
+
+/// Range of allowed state-of-charge values.
+///
+/// The minimum and maximum bounds are both inclusive.
+#[must_use]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct StateOfChargeRange {
+    pub min: Percentage<u8>,
+    pub max: Percentage<u8>,
+}
+
+impl From<RangeInclusive<Percentage<u8>>> for StateOfChargeRange {
+    fn from(value: RangeInclusive<Percentage<u8>>) -> Self {
+        Self { min: *value.start(), max: *value.end() }
+    }
+}
+
+impl BitSize for StateOfChargeRange {
+    const N_BITS: u16 = u8::N_BITS * 2;
+    const N_BYTES: u8 = u8::N_BYTES * 2;
+    const N_WORDS: u16 = 1;
+}
+
+impl Encode for StateOfChargeRange {
+    fn encode_to(&self, buf: &mut impl BufMut) {
+        buf.put_u8(self.max.0);
+        buf.put_u8(self.min.0);
+    }
+}
+
+impl Decode for StateOfChargeRange {
+    fn decode_from(buf: &mut impl Buf) -> Result<Self, Error> {
+        Ok(Self { max: Percentage(buf.try_get_u8()?), min: Percentage(buf.try_get_u8()?) })
     }
 }
 
@@ -165,8 +215,8 @@ pub struct Slot {
     pub end_time: NaiveTime,
 
     pub working_mode: WorkingMode,
-    pub max_state_of_charge: Percentage<u8>,
-    pub min_state_of_charge: Percentage<u8>,
+
+    pub state_of_charge_range: StateOfChargeRange,
 
     /// This is called "feed SoC" or "fdSoC", but in reality, it is a target SoC
     /// for charging or discharging.
@@ -200,8 +250,7 @@ impl Encode for Slot {
         self.start_time.encode_to(buf);
         self.end_time.encode_to(buf);
         self.working_mode.encode_to(buf);
-        buf.put_u8(self.max_state_of_charge.0);
-        buf.put_u8(self.min_state_of_charge.0);
+        self.state_of_charge_range.encode_to(buf);
         self.target_state_of_charge.encode_to(buf);
         self.power.encode_to(buf);
         self.reserved_1.encode_to(buf);
@@ -217,8 +266,7 @@ impl Decode for Slot {
             start_time: NaiveTime::decode_from(buf)?,
             end_time: NaiveTime::decode_from(buf)?,
             working_mode: WorkingMode::decode_from(buf)?,
-            max_state_of_charge: Percentage(buf.try_get_u8()?),
-            min_state_of_charge: Percentage(buf.try_get_u8()?),
+            state_of_charge_range: StateOfChargeRange::decode_from(buf)?,
             target_state_of_charge: Percentage::decode_from(buf)?,
             power: Watts::decode_from(buf)?,
             reserved_1: u16::decode_from(buf)?,

@@ -13,11 +13,6 @@ use crate::{
     },
 };
 
-/// Stride of schedule slot blocks.
-///
-/// There are [`Slot::N_TOTAL`] schedule slots starting from here.
-pub type BlockStride = address::Stride<48010, N_BLOCKS, Block>;
-
 /// Number of slots per schedule block.
 ///
 /// There are [`N_BLOCKS`] such blocks.
@@ -34,6 +29,14 @@ pub type Full = [Slot; Slot::N_TOTAL as usize];
 
 /// Schedule block consisting of [`N_SLOTS_PER_BLOCK`] slots.
 pub type Block = [Slot; N_SLOTS_PER_BLOCK as usize];
+
+/// Starting address for the schedule slots.
+pub const START_ADDRESS: u16 = 48010;
+
+/// Stride of schedule slot blocks.
+///
+/// There are [`Slot::N_TOTAL`] schedule slots starting from here.
+pub type BlockStride = address::Stride<START_ADDRESS, N_BLOCKS, Block>;
 
 /// Block index for batch-reading [`N_SLOTS_PER_BLOCK`] schedule slots at a time.
 ///
@@ -230,7 +233,8 @@ impl Decode for Slot {
 /// This function accepts the slot index as the argument.
 ///
 /// If you're reading the complete schedule, consider calling [`ReadBlock`] instead.
-pub type ReadSlot = ReadHoldingRegisters<address::Stride<48010, { Slot::N_TOTAL }, Slot>, Slot>;
+pub type ReadSlot =
+    ReadHoldingRegisters<address::Stride<START_ADDRESS, { Slot::N_TOTAL }, Slot>, Slot>;
 
 /// Read 12 schedule slots at a time.
 pub type ReadBlock = ReadHoldingRegisters<BlockIndex, Block>;
@@ -240,7 +244,8 @@ pub type ReadBlock = ReadHoldingRegisters<BlockIndex, Block>;
 /// This function accepts the slot index as the argument.
 ///
 /// If you're writing the complete schedule, consider calling [`WriteBlock`] instead.
-pub type WriteSlot = WriteMultipleRegisters<address::Stride<48010, { Slot::N_TOTAL }, Slot>, Slot>;
+pub type WriteSlot =
+    WriteMultipleRegisters<address::Stride<START_ADDRESS, { Slot::N_TOTAL }, Slot>, Slot>;
 
 /// Write 12 schedule slots at a time.
 pub type WriteBlock = WriteMultipleRegisters<BlockIndex, Block>;

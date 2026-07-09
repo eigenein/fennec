@@ -12,7 +12,7 @@ edition = "2024"
 keywords = ["foxess", "frank-energie", "home-battery"]
 license = "MIT"
 repository = "https://github.com/eigenein/fennec"
-rust-version = "1.96"
+rust-version = "1.97"
 version = "0.95.0-rc.1"
 
 [workspace.lints.rustdoc]

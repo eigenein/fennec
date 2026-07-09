@@ -78,8 +78,10 @@ pub type ReadMinimumStateOfChargeOnGrid =
 /// This function accepts the slot index as the argument.
 ///
 /// If you're reading the complete schedule, consider calling [`ReadScheduleEntryBlock`] instead.
-pub type ReadScheduleEntry =
-    ReadHoldingRegisters<address::Stride<48010, schedule::Slot>, schedule::Slot>;
+pub type ReadScheduleEntry = ReadHoldingRegisters<
+    address::Stride<48010, { schedule::Slot::N_TOTAL }, schedule::Slot>,
+    schedule::Slot,
+>;
 
 /// Read 12 schedule entries at a time.
 pub type ReadScheduleEntryBlock = ReadHoldingRegisters<schedule::BlockIndex, schedule::Block>;
@@ -89,8 +91,10 @@ pub type ReadScheduleEntryBlock = ReadHoldingRegisters<schedule::BlockIndex, sch
 /// This function accepts the slot index as the argument.
 ///
 /// If you're writing the complete schedule, consider calling [`WriteScheduleEntryBlock`] instead.
-pub type WriteScheduleEntry =
-    WriteMultipleRegisters<address::Stride<48010, schedule::Slot>, schedule::Slot>;
+pub type WriteScheduleEntry = WriteMultipleRegisters<
+    address::Stride<48010, { schedule::Slot::N_TOTAL }, schedule::Slot>,
+    schedule::Slot,
+>;
 
 /// Write 12 schedule entries at a time.
 pub type WriteScheduleEntryBlock = WriteMultipleRegisters<schedule::BlockIndex, schedule::Block>;

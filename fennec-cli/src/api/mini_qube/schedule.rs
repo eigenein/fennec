@@ -21,7 +21,7 @@ pub fn index_of(interval: Interval<DateTime<Local>>) -> u8 {
 
 pub fn slot_interval(index: u8) -> (NaiveTime, NaiveTime) {
     let start = NaiveTime { hour: index / 4, minute: (index % 4) * 15 };
-    let end = if usize::from(index) == schedule::Slot::N_TOTAL - 1 {
+    let end = if u16::from(index) == schedule::Slot::N_TOTAL - 1 {
         // Fox ESS intervals are half-open, but they won't accept 00:00 as end time 🤦:
         NaiveTime::MAX
     } else {

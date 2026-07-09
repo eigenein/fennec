@@ -15,24 +15,24 @@ use crate::{
 /// Stride of schedule slot blocks.
 ///
 /// There are [`Slot::N_TOTAL`] schedule slots starting from here.
-pub type BlockStride = address::Stride<48010, Block>;
+pub type BlockStride = address::Stride<48010, N_BLOCKS, Block>;
 
 /// Number of slots per schedule block.
 ///
 /// There are [`N_BLOCKS`] such blocks.
-pub const N_SLOTS_PER_BLOCK: usize = 12;
+pub const N_SLOTS_PER_BLOCK: u16 = 12;
 
 /// Number of schedule blocks, each consisting of [`N_SLOTS_PER_BLOCK`] slots.
-pub const N_BLOCKS: usize = 8;
+pub const N_BLOCKS: u16 = 8;
 
 /// Type alias for a full schedule of [`Slot::N_TOTAL`] slots.
 ///
 /// Note that this is not encodable nor decodable as it doesn't fit the Modbus payload size.
 /// The type alias is provided solely for convenience.
-pub type Full = [Slot; Slot::N_TOTAL];
+pub type Full = [Slot; Slot::N_TOTAL as usize];
 
 /// Schedule block consisting of [`N_SLOTS_PER_BLOCK`] slots.
-pub type Block = [Slot; N_SLOTS_PER_BLOCK];
+pub type Block = [Slot; N_SLOTS_PER_BLOCK as usize];
 
 /// Block index for batch-reading [`N_SLOTS_PER_BLOCK`] schedule slots at a time.
 ///
@@ -43,8 +43,7 @@ pub struct BlockIndex(pub u16);
 
 impl BlockIndex {
     /// Last valid schedule block index.
-    #[expect(clippy::cast_possible_truncation)]
-    pub const LAST: u16 = (N_BLOCKS - 1) as u16;
+    pub const LAST: u16 = (N_BLOCKS - 1);
 }
 
 impl Address for BlockIndex {}
@@ -171,7 +170,7 @@ pub struct Slot {
 
 impl Slot {
     /// Total number of schedule slots in the register space.
-    pub const N_TOTAL: usize = N_BLOCKS * N_SLOTS_PER_BLOCK;
+    pub const N_TOTAL: u16 = N_BLOCKS * N_SLOTS_PER_BLOCK;
 }
 
 impl BitSize for Slot {

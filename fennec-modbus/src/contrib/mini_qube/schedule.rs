@@ -9,6 +9,7 @@ use crate::{
         Address,
         address,
         codec::{BitSize, Decode, Encode},
+        function::{ReadHoldingRegisters, ReadWriteRegisters, WriteMultipleRegisters},
     },
 };
 
@@ -60,7 +61,7 @@ impl Encode for BlockIndex {
 pub enum WorkingMode {
     /// Charge on PV excess, discharge on deficit.
     ///
-    /// This is basically a combination of [`Self::FeedInPriority`] and [`Self::Backup`].
+    /// This is basically a combination of [`Self::FeedInPriority`] and [`Self::BackUp`].
     SelfUse = 1_u16,
 
     /// Discharge on PV deficit.
@@ -223,3 +224,28 @@ impl Decode for Slot {
         })
     }
 }
+
+/// Read a single schedule slot.
+///
+/// This function accepts the slot index as the argument.
+///
+/// If you're reading the complete schedule, consider calling [`ReadBlock`] instead.
+pub type ReadSlot = ReadHoldingRegisters<address::Stride<48010, { Slot::N_TOTAL }, Slot>, Slot>;
+
+/// Read 12 schedule slots at a time.
+pub type ReadBlock = ReadHoldingRegisters<BlockIndex, Block>;
+
+/// Write a single schedule slot.
+///
+/// This function accepts the slot index as the argument.
+///
+/// If you're writing the complete schedule, consider calling [`WriteBlock`] instead.
+pub type WriteSlot = WriteMultipleRegisters<address::Stride<48010, { Slot::N_TOTAL }, Slot>, Slot>;
+
+/// Write 12 schedule slots at a time.
+pub type WriteBlock = WriteMultipleRegisters<BlockIndex, Block>;
+
+/// Write and read 12 schedule slots at a time.
+///
+/// Note: Fox ESS MQ2200 returns "illegal function" with incorrect function code for this one.
+pub type ReadWriteBlock = ReadWriteRegisters<BlockIndex, Block, BlockIndex, Block>;

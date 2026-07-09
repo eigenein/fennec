@@ -20,7 +20,7 @@ impl<T: Encode, const N: usize> Encode for [T; N] {
     }
 }
 
-macro_rules! impl_be {
+macro_rules! impl_encode {
     ($type:ty => $encode:ident) => {
         impl Encode for $type {
             fn encode_to(&self, buf: &mut impl BufMut) {
@@ -30,11 +30,11 @@ macro_rules! impl_be {
     };
 }
 
-impl_be!(u16 => put_u16);
-impl_be!(i16 => put_i16);
-impl_be!(u32 => put_u32);
-impl_be!(i32 => put_i32);
-impl_be!(u64 => put_u64);
-impl_be!(i64 => put_i64);
-impl_be!(u128 => put_u128);
-impl_be!(i128 => put_i128);
+impl_encode!(u16 => put_u16);
+impl_encode!(i16 => put_i16);
+impl_encode!(u32 => put_u32);
+impl_encode!(i32 => put_i32);
+impl_encode!(u64 => put_u64);
+impl_encode!(i64 => put_i64);
+impl_encode!(u128 => put_u128);
+impl_encode!(i128 => put_i128);

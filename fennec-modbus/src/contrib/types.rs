@@ -10,6 +10,8 @@ macro_rules! impl_new_type {
     ($target:ident => $inner:ty) => {
         impl BitSize for $target<$inner> {
             const N_BITS: u16 = <$inner as BitSize>::N_BITS;
+            const N_BYTES: u8 = <$inner as BitSize>::N_BYTES;
+            const N_WORDS: u16 = <$inner as BitSize>::N_WORDS;
         }
 
         impl Decode for $target<$inner> {

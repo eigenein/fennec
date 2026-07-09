@@ -58,12 +58,25 @@ impl Encode for BlockIndex {
 #[repr(u16)]
 #[must_use]
 pub enum WorkingMode {
+    /// Charge on PV excess, discharge on deficit.
+    ///
+    /// This is basically a combination of [`Self::FeedInPriority`] and [`Self::Backup`].
     SelfUse = 1_u16,
+
+    /// Discharge on PV deficit.
     FeedInPriority = 2_u16,
+
+    /// Charge in PV excess.
     BackUp = 3_u16,
+
     PeakShaving = 4_u16,
+
+    /// Forcibly charge, no power meter needed.
     ForceCharge = 6_u16,
+
+    /// Forcibly discharge, no power meter needed.
     ForceDischarge = 7_u16,
+
     Unknown(u16),
 }
 

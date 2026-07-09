@@ -28,50 +28,50 @@ impl Client {
     pub async fn read_metrics(&self) -> Result<Metrics> {
         let design_capacity = self
             .0
-            .call::<functions::ReadDesignCapacity>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadDesignCapacity>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the design capacity")?
             .into();
         let state_of_health = self
             .0
-            .call::<functions::ReadStateOfHealth>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadStateOfHealth>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoH")?
             .try_into()?;
         let state_of_charge = self
             .0
-            .call::<functions::ReadStateOfCharge>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadStateOfCharge>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the SoC")?
             .try_into()?;
         let total_grid_export_energy = self
             .0
-            .call::<functions::ReadTotalGridExportEnergy>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadTotalGridExportEnergy>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the total exported energy")?
             .into();
         let total_grid_import_energy = self
             .0
-            .call::<functions::ReadTotalGridImportEnergy>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadTotalGridImportEnergy>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the total exported energy")?
             .into();
         let active_power = self
             .0
-            .call::<functions::ReadTotalActivePower>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadTotalActivePower>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the active power")?
             .into();
         let eps_active_power = self
             .0
-            .call::<functions::ReadEpsActivePower>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadEpsActivePower>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the EPS active power")?
             .into();
         // TODO: this wastes "minimum system SoC", introduce a custom type with just the two registers?
         let state_of_charge_settings = self
             .0
-            .call::<functions::ReadStateOfChargeSettings>(mini_qube::UNIT_ID, address::Const)
+            .call::<mini_qube::ReadStateOfChargeSettings>(mini_qube::UNIT_ID, address::Const)
             .await
             .context("failed to read the state-of-charge settings")?;
 
@@ -114,7 +114,7 @@ impl Client {
                 from = ?current_slot.working_mode,
             );
             self.0
-                .call::<functions::WriteScheduleEntry>(
+                .call::<functions::WriteScheduleSlot>(
                     mini_qube::UNIT_ID,
                     write_multiple::Args::new(address, slot),
                 )

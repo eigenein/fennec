@@ -116,7 +116,7 @@ impl Engine {
                     // The interval is getting too short to re-optimize the state:
                     // FIXME: `unwrap`.
                     // TODO: make the deadline configurable.
-                    first_interval.unwrap().duration() < TimeDelta::minutes(1)
+                    first_interval.unwrap().duration() < TimeDelta::minutes(5)
                 ) {
                     self.optimizer = Some(optimizer);
                     return Ok(());

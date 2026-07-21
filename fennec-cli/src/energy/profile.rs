@@ -1,7 +1,4 @@
-use std::{
-    f64::consts::{PI, TAU},
-    path::Path,
-};
+use std::{f64::consts::TAU, path::Path};
 
 use chrono::{DateTime, Local, NaiveTime, Timelike};
 use musli::{Decode, Encode, wire};
@@ -9,7 +6,10 @@ use musli::{Decode, Encode, wire};
 use crate::{
     api::mini_qube,
     energy,
-    math::smoothing::{Exponential, HalfLife},
+    math::{
+        sinc,
+        smoothing::{Exponential, HalfLife},
+    },
     ops::interval::Interval,
     prelude::*,
     quantity::{
@@ -239,21 +239,10 @@ impl Balance {
             .map(f64::from)
             .zip(self.harmonics.iter())
             .map(|(mode_index, harmonic)| {
-                // (1/Δt) ∫ cos(2πk·t) dt = cos(2πk·middle_phase) · sinc(k·Δt)
-                let weight = Self::sinc(mode_index * n_days);
+                let weight = sinc(mode_index * n_days);
                 harmonic.0.dot(Harmonic::from_phase(middle_phase * mode_index)) * weight
             })
             .fold(energy::Balance::ZERO, |sum, item| sum + item)
-    }
-
-    /// Normalized [sinc function](https://en.wikipedia.org/wiki/Sinc_function): sin(πx)÷(πx).
-    fn sinc(x: f64) -> f64 {
-        if x == 0.0 {
-            1.0
-        } else {
-            let pi_x = PI * x;
-            pi_x.sin() / pi_x
-        }
     }
 
     #[instrument(skip_all)]

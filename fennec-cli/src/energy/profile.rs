@@ -7,7 +7,7 @@ use crate::{
     api::mini_qube,
     energy,
     math::{
-        sinc,
+        normalized_sinc,
         smoothing::{Exponential, HalfLife},
     },
     ops::interval::Interval,
@@ -208,13 +208,13 @@ impl Balance {
 
     /// Calculate the balance deviation from the average at concrete moment in time.
     pub fn deviation_at(&self, naive_time: NaiveTime) -> energy::Balance<Watts> {
-        let day_phase: Radians =
+        let base_phase: Radians =
             Quantity(f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU);
         (1..)
             .map(f64::from)
             .zip(self.harmonics.iter())
             .map(|(mode_index, harmonic)| {
-                harmonic.0.dot(Harmonic::from_phase(day_phase * mode_index))
+                harmonic.0.dot(Harmonic::from_phase(base_phase * mode_index))
             })
             .fold(energy::Balance::ZERO, |sum, item| sum + item)
     }
@@ -239,7 +239,7 @@ impl Balance {
             .map(f64::from)
             .zip(self.harmonics.iter())
             .map(|(mode_index, harmonic)| {
-                let weight = sinc(mode_index * n_days);
+                let weight = normalized_sinc(mode_index * n_days);
                 harmonic.0.dot(Harmonic::from_phase(middle_phase * mode_index)) * weight
             })
             .fold(energy::Balance::ZERO, |sum, item| sum + item)

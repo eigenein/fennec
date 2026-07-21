@@ -114,7 +114,7 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                                 }
                             }
                             span.tag {
-                                (energy_profile.balance.eps_active_power.0)
+                                (energy_profile.energy.eps_active_power.0)
                             }
                         }
                     }

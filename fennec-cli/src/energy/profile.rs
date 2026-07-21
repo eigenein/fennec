@@ -7,7 +7,7 @@ use crate::{
     api::mini_qube,
     energy,
     math::{
-        normalized_sinc,
+        fourier::ExponentialMovingDecomposition,
         smoothing::{Exponential, HalfLife},
     },
     ops::interval::Interval,
@@ -32,7 +32,7 @@ pub struct Profile {
 
     #[musli(Binary, name = 14)]
     #[musli(default)]
-    pub balance: Balance,
+    pub energy: Energy,
 }
 
 impl Profile {
@@ -45,10 +45,10 @@ impl Profile {
             let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
             let mut this: Self =
                 wire::decode(bytes.as_slice()).context("failed to decode the file")?;
-            this.balance.resize(n_balance_harmonics);
+            this.energy.resize(n_balance_harmonics);
             this
         } else {
-            Self { battery: Battery::default(), balance: Balance::new(n_balance_harmonics) }
+            Self { battery: Battery::default(), energy: Energy::new(n_balance_harmonics) }
         })
     }
 
@@ -165,7 +165,7 @@ pub struct BatteryTracker {
 }
 
 #[derive(Clone, Encode, Decode)]
-pub struct Balance {
+pub struct Energy {
     /// Timestamp of the last update to the parameters.
     #[musli(Binary, name = 1)]
     #[musli(with = crate::ops::musli::chrono)]
@@ -177,20 +177,25 @@ pub struct Balance {
 
     /// Global average energy balance (constant term of the Fourier decomposition).
     #[musli(Binary, name = 3)]
-    pub mean: Exponential<energy::Balance<Watts>>,
+    mean: Exponential<energy::Balance<Watts>>,
 
     /// Energy balance harmonics (c₁ and so on).
     #[musli(Binary, name = 4)]
-    pub harmonics: Vec<Exponential<Harmonic<energy::Balance<Watts>>>>,
+    harmonics: Vec<Exponential<Harmonic<energy::Balance<Watts>>>>,
+
+    /// TODO: drop `default` after migration.
+    #[musli(Binary, name = 5)]
+    #[musli(default)]
+    pub balance: ExponentialMovingDecomposition<energy::Balance<Watts>>,
 }
 
-impl Default for Balance {
+impl Default for Energy {
     fn default() -> Self {
         Self::new(0)
     }
 }
 
-impl Balance {
+impl Energy {
     const DEFAULT_HARMONIC: Exponential<Harmonic<energy::Balance<Watts>>> = Exponential(Zero::ZERO);
 
     fn new(n_balance_harmonics: usize) -> Self {
@@ -199,50 +204,35 @@ impl Balance {
             eps_active_power: Exponential(Watts::ZERO),
             mean: Exponential(Zero::ZERO),
             harmonics: vec![Self::DEFAULT_HARMONIC; n_balance_harmonics],
+            balance: ExponentialMovingDecomposition::new(n_balance_harmonics),
         }
     }
 
     fn resize(&mut self, n_balance_harmonics: usize) {
         self.harmonics.resize(n_balance_harmonics, Self::DEFAULT_HARMONIC);
+        self.balance.resize(n_balance_harmonics);
     }
 
     /// Calculate the balance deviation from the average at concrete moment in time.
     pub fn deviation_at(&self, naive_time: NaiveTime) -> energy::Balance<Watts> {
         let base_phase: Radians =
             Quantity(f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU);
-        (1..)
-            .map(f64::from)
-            .zip(self.harmonics.iter())
-            .map(|(mode_index, harmonic)| {
-                harmonic.0.dot(Harmonic::from_phase(base_phase * mode_index))
-            })
-            .fold(energy::Balance::ZERO, |sum, item| sum + item)
+        self.balance.deviation_at(base_phase)
     }
 
     pub fn mean_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
-        let balance = self.mean.0 + self.mean_deviation_over(interval);
+        let balance = self.balance.mean() + self.mean_deviation_over(interval);
         energy::Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
     }
 
     /// Calculate the mean deviation of the balance over the interval.
     fn mean_deviation_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
-        assert!(interval.start() < interval.end());
-
-        let n_days = Hours::from(interval.duration()).days();
-        let middle_phase: Radians = {
-            let start =
-                f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0 * TAU;
-            Quantity((n_days / 2.0).mul_add(TAU, start))
-        };
-
-        (1..)
-            .map(f64::from)
-            .zip(self.harmonics.iter())
-            .map(|(mode_index, harmonic)| {
-                let weight = normalized_sinc(mode_index * n_days);
-                harmonic.0.dot(Harmonic::from_phase(middle_phase * mode_index)) * weight
-            })
-            .fold(energy::Balance::ZERO, |sum, item| sum + item)
+        // FIXME: strictly speaking this is not correct for CET-CEST transitions:
+        let start = Radians::new(
+            f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0 * TAU,
+        );
+        let end = start + Radians::new(Hours::from(interval.duration()).days() * TAU);
+        self.balance.mean_deviation_over((start..end).into())
     }
 
     #[instrument(skip_all)]
@@ -287,5 +277,9 @@ impl Balance {
             };
             harmonic.update(target, harmonic_smoothing_factor);
         }
+
+        // TODO: switch to `self.balance.update(…)`.
+        self.balance.mean = self.mean.clone();
+        self.balance.harmonics = self.harmonics.clone();
     }
 }

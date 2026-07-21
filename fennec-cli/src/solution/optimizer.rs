@@ -43,7 +43,7 @@ impl Optimizer {
             battery_capacity,
             max_battery_flow: battery_args
                 .power_limits
-                .max_effective_flow(energy_profile.balance.eps_active_power.0),
+                .max_effective_flow(energy_profile.energy.eps_active_power.0),
             energy_profile,
             allowed_energy_levels,
             battery_degradation_cost: battery_args.degradation_cost,
@@ -124,7 +124,7 @@ impl Optimizer {
     pub fn optimize_state(&mut self, interval_index: usize, initial_energy_level: EnergyLevel) {
         let Slot { interval, value: stage } = self.solution_space.get(interval_index);
         let duration = interval.duration().into();
-        let average_balance = self.energy_profile.balance.mean_over(interval);
+        let average_balance = self.energy_profile.energy.mean_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,

@@ -200,7 +200,7 @@ impl Engine {
         battery_metrics: &mini_qube::Metrics,
     ) -> Result<bool> {
         let energy_profile = &mut self.state.write().await.energy_profile;
-        energy_profile.balance.update(
+        energy_profile.energy.update(
             balance,
             battery_metrics.eps_active_power,
             now,

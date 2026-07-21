@@ -24,7 +24,7 @@ fn head(title: &str) -> Markup {
             title { (title) }
             link
                 rel="icon"
-                href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='1em' font-size='90'>🦊</text></svg>";
+                href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='0.1em' y='1em' font-size='90'>🦊</text></svg>";
             link
                 rel="stylesheet"
                 href="https://cdnjs.cloudflare.com/ajax/libs/bulma/1.0.4/css/bulma.min.css"

@@ -1,5 +1,4 @@
 use std::{
-    iter::Sum,
     ops::{Add, AddAssign, Mul, Sub},
     range::Range,
 };
@@ -18,13 +17,17 @@ use crate::{
 #[must_use]
 #[derive(Clone, Encode, Decode)]
 pub struct ExponentialMovingDecomposition<V> {
-    /// Global average energy balance (constant term of the Fourier decomposition).
+    /// Global average (constant term of the Fourier decomposition).
+    ///
+    /// TODO: make private.
     #[musli(Binary, name = 1)]
-    mean: Exponential<V>,
+    pub mean: Exponential<V>,
 
-    /// Energy balance harmonics (c₁ and so on).
+    /// Decomposition harmonics (c₁ and so on).
+    ///
+    /// TODO: make private.
     #[musli(Binary, name = 2)]
-    harmonics: Vec<Exponential<Harmonic<V>>>,
+    pub harmonics: Vec<Exponential<Harmonic<V>>>,
 }
 
 impl<V: Clone + Zero> Default for ExponentialMovingDecomposition<V> {
@@ -53,6 +56,13 @@ impl<V> ExponentialMovingDecomposition<V> {
         self.mean.0
     }
 
+    pub fn iter_harmonics(&self) -> impl Iterator<Item = Harmonic<V>>
+    where
+        V: Copy,
+    {
+        self.harmonics.iter().map(|smoother| smoother.0)
+    }
+
     /// Adjust the number of harmonics.
     ///
     /// New harmonics are initialized with zeroes, extra harmonics get removed.
@@ -69,7 +79,7 @@ impl<V> ExponentialMovingDecomposition<V> {
     #[must_use]
     pub fn deviation_at(&self, base_phase: Radians) -> V
     where
-        V: Copy + Add<Output = V> + Mul<f64, Output = V> + Sum + Zero,
+        V: Copy + Add<Output = V> + Mul<f64, Output = V> + Zero,
     {
         (1..)
             .map(f64::from)

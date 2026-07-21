@@ -3,7 +3,6 @@ use std::{
     ops::{Add, Div, Mul, Sub, SubAssign},
 };
 
-use derive_more::{Add, AddAssign, Sub};
 use musli::{Decode, Encode};
 
 use super::Flow;
@@ -14,7 +13,17 @@ use crate::{
 };
 
 #[must_use]
-#[derive(Copy, Clone, Debug, PartialEq, Add, AddAssign, Sub, Encode, Decode)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    derive_more::AddAssign,
+    derive_more::Sub,
+    derive_more::Add,
+    Encode,
+    Decode,
+)]
 pub struct Balance<T> {
     /// How much of energy we must import from and export to the grid on average.
     #[musli(Binary, name = 1)]
@@ -29,6 +38,7 @@ impl<T: Zero> Zero for Balance<T> {
     const ZERO: Self = Self { grid: Flow::ZERO, battery: Flow::ZERO };
 }
 
+/// FIXME: prefer a named method for this:
 impl<T> IntoIterator for Balance<T> {
     type Item = T;
     type IntoIter = std::array::IntoIter<T, 4>;

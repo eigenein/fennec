@@ -95,11 +95,13 @@ impl<V> ExponentialMovingDecomposition<V> {
     /// Note that the interval must be unwrapped.
     /// For example, 23:00-01:00 in daily cycle should be represented as 23π/12..25π/12.
     #[must_use]
-    pub fn mean_deviation_over(&self, interval: Range<Radians>) -> V
+    pub fn mean_deviation_over(&self, interval: impl Into<Range<Radians>>) -> V
     where
         V: Copy + Zero + Add<Output = V> + Mul<f64, Output = V>,
     {
+        let interval = interval.into();
         assert!(interval.start < interval.end);
+
         let phase_radius = (interval.end - interval.start) / 2.0;
         let middle_phase = interval.start + phase_radius;
         (1..)

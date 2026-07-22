@@ -215,9 +215,7 @@ impl Energy {
 
     /// Calculate the balance deviation from the average at concrete moment in time.
     pub fn deviation_at(&self, naive_time: NaiveTime) -> energy::Balance<Watts> {
-        let base_phase: Radians =
-            Quantity(f64::from(naive_time.num_seconds_from_midnight()) / 86400.0 * TAU);
-        self.balance.deviation_at(base_phase)
+        self.balance.deviation_at(Radians::daily_phase_at(naive_time))
     }
 
     pub fn mean_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
@@ -227,12 +225,10 @@ impl Energy {
 
     /// Calculate the mean deviation of the balance over the interval.
     fn mean_deviation_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
-        // FIXME: strictly speaking this is not correct for CET-CEST transitions:
-        let start = Radians::new(
-            f64::from(interval.start().time().num_seconds_from_midnight()) / 86400.0 * TAU,
-        );
-        let end = start + Radians::new(Hours::from(interval.duration()).days() * TAU);
-        self.balance.mean_deviation_over((start..end).into())
+        let start_phase = Radians::daily_phase_at(interval.start().time());
+        // FIXME: strictly speaking this is not correct for DST transitions:
+        let end_phase = start_phase + Radians::daily_phase_shift_of(interval.duration());
+        self.balance.mean_deviation_over(start_phase..end_phase)
     }
 
     #[instrument(skip_all)]

@@ -1,6 +1,6 @@
-use std::{f64::consts::TAU, path::Path};
+use std::path::Path;
 
-use chrono::{DateTime, Local, NaiveTime, Timelike};
+use chrono::{DateTime, Local, NaiveTime};
 use musli::{Decode, Encode, wire};
 
 use crate::{
@@ -13,7 +13,6 @@ use crate::{
     ops::interval::Interval,
     prelude::*,
     quantity::{
-        Quantity,
         Zero,
         angle::{Harmonic, Radians},
         energy::{DecawattHours, MilliwattHours, WattHours},
@@ -45,7 +44,7 @@ impl Profile {
             let bytes = tokio::fs::read(path).await.context("failed to read the file")?;
             let mut this: Self =
                 wire::decode(bytes.as_slice()).context("failed to decode the file")?;
-            this.energy.resize(n_balance_harmonics);
+            this.energy.balance.resize(n_balance_harmonics);
             this
         } else {
             Self { battery: Battery::default(), energy: Energy::new(n_balance_harmonics) }
@@ -176,10 +175,12 @@ pub struct Energy {
     pub eps_active_power: Exponential<Watts>,
 
     /// Global average energy balance (constant term of the Fourier decomposition).
+    #[deprecated]
     #[musli(Binary, name = 3)]
     mean: Exponential<energy::Balance<Watts>>,
 
     /// Energy balance harmonics (c₁ and so on).
+    #[deprecated]
     #[musli(Binary, name = 4)]
     harmonics: Vec<Exponential<Harmonic<energy::Balance<Watts>>>>,
 
@@ -202,33 +203,34 @@ impl Energy {
         Self {
             updated_at: Local::now(),
             eps_active_power: Exponential(Watts::ZERO),
+
+            #[expect(deprecated)]
             mean: Exponential(Zero::ZERO),
+
+            #[expect(deprecated)]
             harmonics: vec![Self::DEFAULT_HARMONIC; n_balance_harmonics],
+
             balance: ExponentialMovingDecomposition::new(n_balance_harmonics),
         }
     }
 
-    fn resize(&mut self, n_balance_harmonics: usize) {
-        self.harmonics.resize(n_balance_harmonics, Self::DEFAULT_HARMONIC);
-        self.balance.resize(n_balance_harmonics);
-    }
-
-    /// Calculate the balance deviation from the average at concrete moment in time.
+    /// Calculate the balance deviation from the average at the given moment in time.
     pub fn deviation_at(&self, naive_time: NaiveTime) -> energy::Balance<Watts> {
         self.balance.deviation_at(Radians::daily_phase_at(naive_time))
     }
 
-    pub fn mean_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
-        let balance = self.balance.mean() + self.mean_deviation_over(interval);
+    pub fn normalized_mean_over(
+        &self,
+        interval: Interval<DateTime<Local>>,
+    ) -> energy::Balance<Watts> {
+        let mean_deviation = {
+            let start_phase = Radians::daily_phase_at(interval.start().time());
+            // FIXME: strictly speaking this is not correct for DST transitions:
+            let end_phase = start_phase + Radians::daily_phase_shift_of(interval.duration());
+            self.balance.mean_deviation_over(start_phase..end_phase)
+        };
+        let balance = self.balance.mean() + mean_deviation;
         energy::Balance { grid: balance.grid.normalized(), battery: balance.battery.normalized() }
-    }
-
-    /// Calculate the mean deviation of the balance over the interval.
-    fn mean_deviation_over(&self, interval: Interval<DateTime<Local>>) -> energy::Balance<Watts> {
-        let start_phase = Radians::daily_phase_at(interval.start().time());
-        // FIXME: strictly speaking this is not correct for DST transitions:
-        let end_phase = start_phase + Radians::daily_phase_shift_of(interval.duration());
-        self.balance.mean_deviation_over(start_phase..end_phase)
     }
 
     #[instrument(skip_all)]
@@ -246,36 +248,6 @@ impl Energy {
         };
 
         self.eps_active_power.update(eps_active_power, mean_smoothing_factor);
-
-        // Calculate the deviation before the mean update eats the signal:
-        let deviation = balance - self.mean.0;
-
-        self.mean.update(balance, mean_smoothing_factor);
-
-        // Capture daily periodicity, hence one full day is τ radians:
-        let base_phase: Radians =
-            Quantity(f64::from(at.time().num_seconds_from_midnight()) / 86400.0 * TAU);
-
-        // After long gaps, the smoothing factor jumps through the roof, and
-        // each harmonic would then pick up the full signal – effectively amplifying it by N.
-        // The following ensures that α × 2N ≤ 1 and the spike is constrained:
-        #[expect(clippy::cast_precision_loss)]
-        let harmonic_smoothing_factor =
-            mean_smoothing_factor.min(0.5 / self.harmonics.len() as f64);
-
-        for (mode_index, harmonic) in (1..).map(f64::from).zip(self.harmonics.iter_mut()) {
-            let basis = Harmonic::from_phase(base_phase * mode_index);
-            let target = Harmonic {
-                // Multiplication by 2 comes from the scale factor:
-                // <https://en.wikipedia.org/wiki/Fourier_series#Analysis>.
-                cosine: deviation * (2.0 * basis.cosine),
-                sine: deviation * (2.0 * basis.sine),
-            };
-            harmonic.update(target, harmonic_smoothing_factor);
-        }
-
-        // TODO: switch to `self.balance.update(…)`.
-        self.balance.mean = self.mean.clone();
-        self.balance.harmonics = self.harmonics.clone();
+        self.balance.update(balance, Radians::daily_phase_at(at.time()), mean_smoothing_factor);
     }
 }

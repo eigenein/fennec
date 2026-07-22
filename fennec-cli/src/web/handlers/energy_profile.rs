@@ -218,7 +218,7 @@ fn interval_balance_chart(energy_profile: &energy::Profile) -> Markup {
             .map(|hour| {
                 let start = Local.with_ymd_and_hms(2026, 1, 1, hour, 0, 0).unwrap();
                 let interval = Interval::new(start, start + TimeDelta::hours(1));
-                (f64::from(hour) + 0.5, energy_profile.energy.mean_over(interval))
+                (f64::from(hour) + 0.5, energy_profile.energy.normalized_mean_over(interval))
             })
             .collect_vec()
     };

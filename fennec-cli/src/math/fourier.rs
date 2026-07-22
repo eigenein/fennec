@@ -116,14 +116,21 @@ impl<V> ExponentialMovingDecomposition<V> {
 
     /// Update the decomposition with an online value at the given phase.
     #[instrument(skip_all)]
-    pub fn update(&mut self, value: V, base_phase: Radians, smoothing_factor: f64)
+    pub fn update(&mut self, value: V, base_phase: Radians, mean_smoothing_factor: f64)
     where
         V: Copy + AddAssign + Sub<Output = V> + Mul<f64, Output = V>,
     {
         // Calculate the deviation before the mean update eats the signal:
         let deviation = value - self.mean.0;
 
-        self.mean.update(value, smoothing_factor);
+        self.mean.update(value, mean_smoothing_factor);
+
+        // After long gaps, the smoothing factor jumps through the roof, and
+        // each harmonic would then pick up the full signal – effectively amplifying it by N.
+        // The following ensures that α × 2N ≤ 1 and the spike is constrained:
+        #[expect(clippy::cast_precision_loss)]
+        let harmonic_smoothing_factor =
+            mean_smoothing_factor.min(0.5 / self.harmonics.len() as f64);
 
         for (mode_index, harmonic) in (1..).map(f64::from).zip(self.harmonics.iter_mut()) {
             let basis = Harmonic::from_phase(base_phase * mode_index);
@@ -133,7 +140,7 @@ impl<V> ExponentialMovingDecomposition<V> {
                 cosine: deviation * (2.0 * basis.cosine),
                 sine: deviation * (2.0 * basis.sine),
             };
-            harmonic.update(target, smoothing_factor);
+            harmonic.update(target, harmonic_smoothing_factor);
         }
     }
 }

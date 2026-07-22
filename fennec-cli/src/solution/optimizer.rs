@@ -124,7 +124,7 @@ impl Optimizer {
     pub fn optimize_state(&mut self, interval_index: usize, initial_energy_level: EnergyLevel) {
         let Slot { interval, value: stage } = self.solution_space.get(interval_index);
         let duration = interval.duration().into();
-        let average_balance = self.energy_profile.energy.mean_over(interval);
+        let average_balance = self.energy_profile.energy.normalized_mean_over(interval);
         let battery_simulator = battery::Simulator {
             residual_energy: initial_energy_level.into(),
             capacity: self.battery_capacity,

@@ -212,6 +212,7 @@ impl Engine {
             &self.args.battery,
             battery_capacity,
             allowed_residual_energy,
+            self.args.min_final_residual_energy,
         );
         optimizer.solve(prices);
         optimizer

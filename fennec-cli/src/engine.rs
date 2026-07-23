@@ -108,16 +108,8 @@ impl Engine {
 
         let optimizer = match self.optimizer.take() {
             Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_energy_levels) => {
-                let (has_solution_space_advanced, first_interval) = optimizer.advance_to(now);
-                if (
-                    // Nothing happened in the meantime:
-                    !has_solution_space_advanced && !has_residual_energy_changed
-                ) || (
-                    // The interval is getting too short to re-optimize the state:
-                    // FIXME: `unwrap`.
-                    // TODO: make the deadline configurable.
-                    first_interval.unwrap().duration() < TimeDelta::minutes(5)
-                ) {
+                let has_solution_space_advanced = optimizer.advance_to(now);
+                if !has_solution_space_advanced && !has_residual_energy_changed {
                     self.optimizer = Some(optimizer);
                     return Ok(());
                 }
@@ -125,7 +117,7 @@ impl Engine {
                 let new_prices = if optimizer.solution_space().duration() <= TimeDelta::hours(12) {
                     // Try to extend the price horizon if it's getting short:
                     let prices = self.args.energy_provider.get_future_prices(now).await?;
-                    (prices.end() != optimizer.solution_space().end()).then_some(prices)
+                    (prices.end_index() != optimizer.solution_space().end_index()).then_some(prices)
                 } else {
                     None
                 };

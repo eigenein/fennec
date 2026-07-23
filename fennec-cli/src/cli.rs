@@ -6,7 +6,7 @@ use crate::{
     energy,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::time::Hours,
+    quantity::{energy::WattHours, time::Hours},
 };
 
 /// Root CLI arguments.
@@ -40,6 +40,13 @@ pub struct EngineArgs {
 
     #[clap(flatten)]
     pub energy_profile: EnergyProfileArgs,
+
+    #[clap(
+        long = "min-final-residual-energy-watt-hours",
+        env = "MIN_FINAL_RESIDUAL_ENERGY_WATT_HOURS",
+        default_value = "0"
+    )]
+    pub min_final_residual_energy: WattHours<usize>,
 
     /// Do not push schedule to the device, dry run.
     #[clap(long, alias = "scout", env = "DRY_RUN")]

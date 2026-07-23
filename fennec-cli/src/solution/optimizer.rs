@@ -25,6 +25,9 @@ pub struct Optimizer {
     /// Allowed residual energy levels per the battery settings.
     allowed_residual_energy: RangeInclusive<WattHours<usize>>,
 
+    /// Minimal residual energy required by the end of the prices' horizon.
+    min_final_residual_energy: WattHours<usize>,
+
     /// Incurred costs per energy flow to and from the battery.
     battery_degradation_cost: KilowattHourPrice,
 
@@ -44,6 +47,7 @@ impl Optimizer {
         battery_args: &battery::Args,
         battery_capacity: WattHours,
         allowed_residual_energy: RangeInclusive<WattHours<usize>>,
+        min_final_residual_energy: WattHours<usize>,
     ) -> Self {
         Self {
             battery_capacity,
@@ -52,6 +56,7 @@ impl Optimizer {
                 .max_effective_flow(energy_profile.energy.eps_active_power.0),
             energy_profile,
             allowed_residual_energy,
+            min_final_residual_energy,
             battery_degradation_cost: battery_args.degradation_cost,
             working_modes: battery_args.working_modes.clone(),
             solution_space: Series::new(),
@@ -161,6 +166,9 @@ impl Optimizer {
                         [step.residual_energy_after]
                         .as_ref()?
                         .metrics;
+                } else if step.residual_energy_after < self.min_final_residual_energy {
+                    // Enforce the final residual energy:
+                    return None;
                 }
 
                 Some(Solution { metrics, step })

@@ -101,13 +101,13 @@ impl Engine {
         let initial_energy_level =
             EnergyLevel::from(WattHours::from(battery_metrics.residual_energy()));
         let battery_capacity = battery_metrics.actual_capacity();
-        let allowed_energy_levels = battery_metrics.allowed_energy_levels();
+        let allowed_residual_energy = battery_metrics.allowed_residual_energy();
 
         let has_residual_energy_changed =
             self.update_energy_profile(now, balance, &battery_metrics).await?;
 
         let optimizer = match self.optimizer.take() {
-            Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_energy_levels) => {
+            Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_residual_energy) => {
                 let has_solution_space_advanced = optimizer.advance_to(now);
                 if !has_solution_space_advanced && !has_residual_energy_changed {
                     self.optimizer = Some(optimizer);
@@ -124,7 +124,7 @@ impl Engine {
 
                 if let Some(prices) = new_prices {
                     info!("optimizer invalidated: new prices arrived");
-                    self.rebuild_optimizer(&prices, battery_capacity, allowed_energy_levels).await
+                    self.rebuild_optimizer(&prices, battery_capacity, allowed_residual_energy).await
                 } else {
                     info!(?initial_energy_level, "optimizing current state");
                     optimizer.optimize_state(0, initial_energy_level);
@@ -139,7 +139,7 @@ impl Engine {
                     info!("initializing optimizer: cold start");
                 }
                 let prices = self.args.energy_provider.get_future_prices(now).await?;
-                self.rebuild_optimizer(&prices, battery_capacity, allowed_energy_levels).await
+                self.rebuild_optimizer(&prices, battery_capacity, allowed_residual_energy).await
             }
         };
 
@@ -210,13 +210,13 @@ impl Engine {
         &self,
         prices: &Schedule<energy::Flow<KilowattHourPrice>>,
         battery_capacity: WattHours,
-        allowed_energy_levels: RangeInclusive<EnergyLevel>,
+        allowed_residual_energy: RangeInclusive<EnergyLevel>,
     ) -> Optimizer {
         let mut optimizer = Optimizer::new(
             self.state.read().await.energy_profile.clone(),
             &self.args.battery,
             battery_capacity,
-            allowed_energy_levels,
+            allowed_residual_energy,
         );
         optimizer.solve(prices);
         optimizer

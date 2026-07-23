@@ -44,7 +44,7 @@ impl Metrics {
         self.design_capacity * (self.state_of_health * self.state_of_charge)
     }
 
-    pub fn allowed_energy_levels(&self) -> RangeInclusive<EnergyLevel> {
+    pub fn allowed_residual_energy(&self) -> RangeInclusive<EnergyLevel> {
         let actual_capacity = self.actual_capacity();
         let start_energy_level = EnergyLevel::from(actual_capacity * self.allowed_soc.start);
         let last_energy_level = EnergyLevel::from(actual_capacity * self.allowed_soc.last);

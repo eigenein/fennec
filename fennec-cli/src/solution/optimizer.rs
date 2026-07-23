@@ -22,12 +22,26 @@ use crate::{
 
 #[must_use]
 pub struct Optimizer {
+    /// Actual battery capacity.
     battery_capacity: WattHours,
+
+    /// Maximum allowed battery flow.
     max_battery_flow: energy::Flow<Watts>,
-    allowed_energy_levels: RangeInclusive<WattHours<usize>>,
+
+    /// Allowed residual energy levels per the battery settings.
+    allowed_residual_energy: RangeInclusive<WattHours<usize>>,
+
+    // reserved_residual_energy: WattHours<usize>,
+    /// Incurred costs per energy flow to and from the battery.
     battery_degradation_cost: KilowattHourPrice,
+
+    /// Allowed working modes.
     working_modes: Vec<WorkingMode>,
+
+    /// Learned energy profile to make battery usage prognoses.
     energy_profile: energy::Profile,
+
+    /// Maintained solution space – this is what we are for.
     solution_space: Space,
 }
 
@@ -36,7 +50,7 @@ impl Optimizer {
         energy_profile: energy::Profile,
         battery_args: &battery::Args,
         battery_capacity: WattHours,
-        allowed_energy_levels: RangeInclusive<EnergyLevel>,
+        allowed_residual_energy: RangeInclusive<EnergyLevel>,
     ) -> Self {
         Self {
             battery_capacity,
@@ -44,7 +58,7 @@ impl Optimizer {
                 .power_limits
                 .max_effective_flow(energy_profile.energy.eps_active_power.0),
             energy_profile,
-            allowed_energy_levels,
+            allowed_residual_energy,
             battery_degradation_cost: battery_args.degradation_cost,
             working_modes: battery_args.working_modes.clone(),
 
@@ -64,7 +78,7 @@ impl Optimizer {
         allowed_energy_levels: RangeInclusive<EnergyLevel>,
     ) -> bool {
         (self.battery_capacity == battery_capacity)
-            && (self.allowed_energy_levels == allowed_energy_levels)
+            && (self.allowed_residual_energy == allowed_energy_levels)
     }
 
     /// Populate the solution space from scratch.
@@ -84,7 +98,7 @@ impl Optimizer {
     pub fn solve(&mut self, energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>) {
         let start_instant = Instant::now();
 
-        info!(?self.allowed_energy_levels, n_intervals = energy_prices.len(), "optimizing…");
+        info!(?self.allowed_residual_energy, n_intervals = energy_prices.len(), "optimizing…");
 
         let capacity_level = EnergyLevel::from(self.battery_capacity);
         self.solution_space = energy_prices.map(|price| Stage::new(*price, capacity_level));
@@ -131,13 +145,13 @@ impl Optimizer {
                     working_mode,
                 );
                 if (step.energy_level_after < initial_energy_level)
-                    && (initial_energy_level <= self.allowed_energy_levels.start)
+                    && (initial_energy_level <= self.allowed_residual_energy.start)
                 {
                     // At or under the minimum allowed energy level, forbid going lower:
                     return None;
                 }
                 if (step.energy_level_after > initial_energy_level)
-                    && (initial_energy_level >= self.allowed_energy_levels.last)
+                    && (initial_energy_level >= self.allowed_residual_energy.last)
                 {
                     // At or above the maximum allowed energy level, forbid going higher:
                     return None;

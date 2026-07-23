@@ -10,12 +10,7 @@ use crate::{
     cli::EngineArgs,
     energy,
     prelude::*,
-    quantity::{
-        energy::{EnergyLevel, WattHours},
-        power::Watts,
-        price::KilowattHourPrice,
-        ratios::Percentage,
-    },
+    quantity::{energy::WattHours, power::Watts, price::KilowattHourPrice, ratios::Percentage},
     series::Slot,
     solution::{Optimizer, Plan, Step},
 };
@@ -98,8 +93,8 @@ impl Engine {
             "measurements",
         );
 
-        let initial_energy_level =
-            EnergyLevel::from(WattHours::from(battery_metrics.residual_energy()));
+        let initial_residual_energy: WattHours<usize> =
+            (WattHours::from(battery_metrics.residual_energy())).into();
         let battery_capacity = battery_metrics.actual_capacity();
         let allowed_residual_energy = battery_metrics.allowed_residual_energy();
 
@@ -126,8 +121,8 @@ impl Engine {
                     info!("optimizer invalidated: new prices arrived");
                     self.rebuild_optimizer(&prices, battery_capacity, allowed_residual_energy).await
                 } else {
-                    info!(?initial_energy_level, "optimizing current state");
-                    optimizer.optimize_state(0, initial_energy_level);
+                    info!(?initial_residual_energy, "optimizing current state");
+                    optimizer.optimize_state(0, initial_residual_energy);
                     optimizer
                 }
             }
@@ -145,7 +140,7 @@ impl Engine {
 
         let plan = optimizer
             .solution_space()
-            .backtrack(initial_energy_level)
+            .backtrack(initial_residual_energy)
             .inspect(|plan| plan.trace_summary(battery_metrics.design_capacity))?;
         // TODO: potential improvement – make the number of written slots configurable:
         let slot = plan.schedule.get(0);
@@ -210,7 +205,7 @@ impl Engine {
         &self,
         prices: &Schedule<energy::Flow<KilowattHourPrice>>,
         battery_capacity: WattHours,
-        allowed_residual_energy: RangeInclusive<EnergyLevel>,
+        allowed_residual_energy: RangeInclusive<WattHours<usize>>,
     ) -> Optimizer {
         let mut optimizer = Optimizer::new(
             self.state.read().await.energy_profile.clone(),

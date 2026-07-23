@@ -9,13 +9,7 @@ use crate::{
     battery::WorkingMode,
     energy,
     prelude::*,
-    quantity::{
-        Quantity,
-        energy::{EnergyLevel, WattHours},
-        power::Watts,
-        price::KilowattHourPrice,
-        time::Hours,
-    },
+    quantity::{Quantity, energy::WattHours, power::Watts, price::KilowattHourPrice, time::Hours},
     series::Slot,
     solution::{Losses, Metrics, Solution, Space, Stage, Step},
 };
@@ -31,7 +25,6 @@ pub struct Optimizer {
     /// Allowed residual energy levels per the battery settings.
     allowed_residual_energy: RangeInclusive<WattHours<usize>>,
 
-    // reserved_residual_energy: WattHours<usize>,
     /// Incurred costs per energy flow to and from the battery.
     battery_degradation_cost: KilowattHourPrice,
 
@@ -50,7 +43,7 @@ impl Optimizer {
         energy_profile: energy::Profile,
         battery_args: &battery::Args,
         battery_capacity: WattHours,
-        allowed_residual_energy: RangeInclusive<EnergyLevel>,
+        allowed_residual_energy: RangeInclusive<WattHours<usize>>,
     ) -> Self {
         Self {
             battery_capacity,
@@ -61,8 +54,6 @@ impl Optimizer {
             allowed_residual_energy,
             battery_degradation_cost: battery_args.degradation_cost,
             working_modes: battery_args.working_modes.clone(),
-
-            // TODO: this is better done by type state, but that would require forwarding the above args.
             solution_space: Series::new(),
         }
     }
@@ -75,10 +66,10 @@ impl Optimizer {
     pub fn matches(
         &self,
         battery_capacity: WattHours,
-        allowed_energy_levels: RangeInclusive<EnergyLevel>,
+        allowed_residual_enenrgy: RangeInclusive<WattHours<usize>>,
     ) -> bool {
         (self.battery_capacity == battery_capacity)
-            && (self.allowed_residual_energy == allowed_energy_levels)
+            && (self.allowed_residual_energy == allowed_residual_enenrgy)
     }
 
     /// Populate the solution space from scratch.
@@ -100,13 +91,13 @@ impl Optimizer {
 
         info!(?self.allowed_residual_energy, n_intervals = energy_prices.len(), "optimizing…");
 
-        let capacity_level = EnergyLevel::from(self.battery_capacity);
-        self.solution_space = energy_prices.map(|price| Stage::new(*price, capacity_level));
+        let battery_capacity: WattHours<usize> = self.battery_capacity.into();
+        self.solution_space = energy_prices.map(|price| Stage::new(*price, battery_capacity));
 
         // Going backwards:
         for interval_index in (0..self.solution_space.len()).rev() {
             // Calculate partial solutions for the current time interval:
-            for energy_level in (0..=capacity_level.0).map(Quantity) {
+            for energy_level in (0..=battery_capacity.0).map(Quantity) {
                 self.optimize_state(interval_index, energy_level);
             }
         }
@@ -123,16 +114,20 @@ impl Optimizer {
     }
 
     /// Optimize the state and assign the solution.
-    pub fn optimize_state(&mut self, interval_index: usize, initial_energy_level: EnergyLevel) {
+    pub fn optimize_state(
+        &mut self,
+        interval_index: usize,
+        initial_residual_energy: WattHours<usize>,
+    ) {
         let Slot { interval, value: stage } = self.solution_space.get(interval_index);
         let duration = interval.duration().into();
         let average_balance = self.energy_profile.energy.normalized_mean_over(interval);
         let battery_simulator = battery::Simulator {
-            residual_energy: initial_energy_level.into(),
+            residual_energy: initial_residual_energy.into(),
             capacity: self.battery_capacity,
             efficiency: self.energy_profile.battery.efficiency,
         };
-        self.solution_space.get_mut(interval_index)[initial_energy_level] = self
+        self.solution_space.get_mut(interval_index)[initial_residual_energy] = self
             .working_modes
             .iter()
             .copied()
@@ -144,14 +139,14 @@ impl Optimizer {
                     stage.price(),
                     working_mode,
                 );
-                if (step.energy_level_after < initial_energy_level)
-                    && (initial_energy_level <= self.allowed_residual_energy.start)
+                if (step.residual_energy_after < initial_residual_energy)
+                    && (initial_residual_energy <= self.allowed_residual_energy.start)
                 {
                     // At or under the minimum allowed energy level, forbid going lower:
                     return None;
                 }
-                if (step.energy_level_after > initial_energy_level)
-                    && (initial_energy_level >= self.allowed_residual_energy.last)
+                if (step.residual_energy_after > initial_residual_energy)
+                    && (initial_residual_energy >= self.allowed_residual_energy.last)
                 {
                     // At or above the maximum allowed energy level, forbid going higher:
                     return None;
@@ -163,7 +158,7 @@ impl Optimizer {
                 if next_interval_index < self.solution_space.len() {
                     // For non-boundary solutions, accumulate the target optimization metrics:
                     metrics += self.solution_space.get(next_interval_index).value
-                        [step.energy_level_after]
+                        [step.residual_energy_after]
                         .as_ref()?
                         .metrics;
                 }
@@ -198,7 +193,7 @@ impl Optimizer {
                 grid: grid_flow.normalized(), // Normalize rare tiny negative values.
                 battery: battery_flows.external,
             },
-            energy_level_after: battery.residual_energy.into(),
+            residual_energy_after: battery.residual_energy.into(),
             metrics: Metrics {
                 internal_battery_flow: battery_flows.internal,
                 losses: Losses {

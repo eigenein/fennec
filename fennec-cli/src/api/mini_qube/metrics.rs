@@ -3,7 +3,7 @@ use std::range::RangeInclusive;
 use crate::{
     energy::Flow,
     quantity::{
-        energy::{DecawattHours, EnergyLevel, MilliwattHours, WattHours},
+        energy::{DecawattHours, MilliwattHours, WattHours},
         power::Watts,
         ratios::Percentage,
     },
@@ -44,10 +44,11 @@ impl Metrics {
         self.design_capacity * (self.state_of_health * self.state_of_charge)
     }
 
-    pub fn allowed_residual_energy(&self) -> RangeInclusive<EnergyLevel> {
+    pub fn allowed_residual_energy(&self) -> RangeInclusive<WattHours<usize>> {
         let actual_capacity = self.actual_capacity();
-        let start_energy_level = EnergyLevel::from(actual_capacity * self.allowed_soc.start);
-        let last_energy_level = EnergyLevel::from(actual_capacity * self.allowed_soc.last);
+        let start_energy_level: WattHours<usize> =
+            (actual_capacity * self.allowed_soc.start).into();
+        let last_energy_level: WattHours<usize> = (actual_capacity * self.allowed_soc.last).into();
         (start_energy_level..=last_energy_level).into()
     }
 }

@@ -11,16 +11,13 @@ use crate::quantity::{
 
 pub type WattHours<V = f64> = Quantity<V, 0, 1, 1, 0>;
 
-/// Thin wrapper around watt-hours as [`usize`] that can be used as index in dynamic programming.
-pub type EnergyLevel = WattHours<usize>;
-
 impl<V> Format for WattHours<V> {
     const SUFFIX: &str = "Wh";
 }
 
 /// TODO: generic implementation for any [`Quantity`]:
-impl From<EnergyLevel> for WattHours<f64> {
-    fn from(energy_level: EnergyLevel) -> Self {
+impl From<WattHours<usize>> for WattHours<f64> {
+    fn from(energy_level: WattHours<usize>) -> Self {
         // `+ 0.5` gives the mid-point:
         #[expect(clippy::cast_precision_loss)]
         Self(energy_level.0 as f64 + 0.5)
@@ -28,7 +25,7 @@ impl From<EnergyLevel> for WattHours<f64> {
 }
 
 /// TODO: generic implementation for any [`Quantity`]:
-impl From<WattHours<f64>> for EnergyLevel {
+impl From<WattHours<f64>> for WattHours<usize> {
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     fn from(value: WattHours) -> Self {

@@ -7,5 +7,5 @@ pub use self::{
     decawatt_hours::DecawattHours,
     kilowatt_hours::KilowattHours,
     milliwatt_hours::MilliwattHours,
-    watt_hours::{EnergyLevel, WattHours},
+    watt_hours::WattHours,
 };

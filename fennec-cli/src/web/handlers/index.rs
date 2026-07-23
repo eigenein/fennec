@@ -169,7 +169,7 @@ pub async fn get(State(state): State<Arc<RwLock<engine::State>>>) -> Markup {
                                             }
                                         }
                                         td.has-text-right {
-                                            (slot.value.1.energy_level_after)
+                                            (slot.value.1.residual_energy_after)
                                         }
                                         td.has-text-right.has-text-weight-medium[slot.value.1.metrics.losses.grid >= Mills::TEN] {
                                             (slot.value.1.metrics.losses.grid)

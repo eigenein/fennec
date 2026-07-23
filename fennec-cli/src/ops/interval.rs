@@ -12,6 +12,12 @@ pub struct Interval<Index> {
     end: Index,
 }
 
+impl<Index> From<core::ops::Range<Index>> for Interval<Index> {
+    fn from(range: core::ops::Range<Index>) -> Self {
+        Self { start: range.start, end: range.end }
+    }
+}
+
 impl<Index> Interval<Index> {
     pub fn new(start: Index, end: Index) -> Self
     where

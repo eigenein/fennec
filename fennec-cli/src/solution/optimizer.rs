@@ -97,8 +97,8 @@ impl Optimizer {
         // Going backwards:
         for interval_index in (0..self.solution_space.len()).rev() {
             // Calculate partial solutions for the current time interval:
-            for energy_level in (0..=battery_capacity.0).map(Quantity) {
-                self.optimize_state(interval_index, energy_level);
+            for residual_energy in (0..=battery_capacity.0).map(Quantity) {
+                self.optimize_state(interval_index, residual_energy);
             }
         }
 

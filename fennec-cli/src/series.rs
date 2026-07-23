@@ -27,7 +27,7 @@ impl<V, Index> Series<V, Index> {
 
     /// Get the first slot starting index.
     #[must_use]
-    pub fn start(&self) -> Option<Index>
+    pub fn start_index(&self) -> Option<Index>
     where
         Index: Copy,
     {
@@ -36,7 +36,7 @@ impl<V, Index> Series<V, Index> {
 
     /// Get the last slot end index, exclusive.
     #[must_use]
-    pub fn end(&self) -> Option<Index>
+    pub fn end_index(&self) -> Option<Index>
     where
         Index: Copy,
     {
@@ -50,7 +50,7 @@ impl<V, Index> Series<V, Index> {
         Index: Copy + Sub,
         <Index as Sub>::Output: Zero,
     {
-        self.start().zip(self.end()).map_or(Zero::ZERO, |(start, end)| end - start)
+        self.start_index().zip(self.end_index()).map_or(Zero::ZERO, |(start, end)| end - start)
     }
 
     /// Retrieve the interval and value at the given index.
@@ -116,7 +116,7 @@ impl<V, Index> Series<V, Index> {
         Index: Copy + PartialEq,
     {
         ensure!(
-            self.end().zip(other.start()).is_none_or(|(end, start)| end == start),
+            self.end_index().zip(other.start_index()).is_none_or(|(end, start)| end == start),
             "the other schedule must start at this schedule end",
         );
         self.0.extend(other.0);
@@ -132,7 +132,7 @@ impl<V, Index> Series<V, Index> {
         Index: Copy + Debug + PartialEq,
     {
         for (interval, value) in other {
-            let current_end = self.end();
+            let current_end = self.end_index();
             ensure!(
                 current_end.is_none_or(|current_end| current_end == interval.start()),
                 "trying to push `{interval:?}` on top of `{current_end:?}`",
@@ -142,29 +142,29 @@ impl<V, Index> Series<V, Index> {
         Ok(())
     }
 
-    /// Remove intervals that ended before the given index
+    /// Remove slots that ended at or before the given index
     /// and clamp the first remaining interval's start to that index.
     ///
-    /// Returns the new updated first interval or [`None`] when the series was or became empty.
-    pub fn advance_to(&mut self, index: Index) -> Option<Interval<Index>>
+    /// Returns number of removed slots.
+    pub fn advance_to(&mut self, index: Index) -> usize
     where
         Index: Copy + PartialOrd,
     {
-        self.pop_before(index);
-        if let Some(first) = self.0.front_mut() {
-            first.interval = first.interval.clamp_start_to(index);
-            Some(first.interval)
-        } else {
-            None
+        let n_removed = self.remove_before(index);
+        if let Some(first_slot) = self.0.front_mut() {
+            first_slot.interval = first_slot.interval.clamp_start_to(index);
         }
+        n_removed
     }
 
-    /// Pop schedule slots that ended before the given index.
-    fn pop_before(&mut self, index: Index)
+    /// Remove schedule slots that ended at or before the given index.
+    ///
+    /// Returns the number of removed slots.
+    fn remove_before(&mut self, index: Index) -> usize
     where
         Index: Copy + PartialOrd,
     {
-        while self.0.pop_front_if(|slot| slot.interval.end() <= index).is_some() {}
+        std::iter::from_fn(|| self.0.pop_front_if(|slot| slot.interval.end() <= index)).count()
     }
 }
 
@@ -192,14 +192,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pop_before() {
+    fn remove_before() {
         let first_interval = Interval::new(1, 2);
         let second_interval = Interval::new(first_interval.end(), 3);
 
         let mut schedule = Series::new();
         schedule.extend_from_iter([(first_interval, 1), (second_interval, 2)]).unwrap();
 
-        schedule.pop_before(second_interval.start());
+        schedule.remove_before(second_interval.start());
         assert_eq!(schedule.len(), 1);
         assert_eq!(schedule.get(0), Slot { interval: second_interval, value: &2 });
     }

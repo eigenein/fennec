@@ -109,9 +109,6 @@ impl Optimizer {
     }
 
     /// Optimize the state and assign the solution.
-    ///
-    /// If a preferred mode is specified, it wins over the optimal working mode when
-    /// the gain is negligible.
     pub fn optimize_state(&mut self, interval_index: usize, initial_energy_level: EnergyLevel) {
         let Slot { interval, value: stage } = self.solution_space.get(interval_index);
         let duration = interval.duration().into();

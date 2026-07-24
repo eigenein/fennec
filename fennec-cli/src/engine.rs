@@ -207,12 +207,14 @@ impl Engine {
         battery_capacity: WattHours,
         allowed_residual_energy: RangeInclusive<WattHours<usize>>,
     ) -> Optimizer {
+        let min_final_residual_energy: WattHours<usize> =
+            (battery_capacity * self.args.min_final_soc).into();
         let mut optimizer = Optimizer::new(
             self.state.read().await.energy_profile.clone(),
             &self.args.battery,
             battery_capacity,
             allowed_residual_energy,
-            self.args.min_final_residual_energy,
+            min_final_residual_energy.min(allowed_residual_energy.last),
         );
         optimizer.solve(prices);
         optimizer

@@ -6,7 +6,7 @@ use crate::{
     energy,
     math::smoothing::HalfLife,
     prelude::*,
-    quantity::{energy::WattHours, time::Hours},
+    quantity::{Zero, ratios::Percentage, time::Hours},
 };
 
 /// Root CLI arguments.
@@ -41,12 +41,13 @@ pub struct EngineArgs {
     #[clap(flatten)]
     pub energy_profile: EnergyProfileArgs,
 
+    /// Minimal state-of-charge required by the end of the price horizon, percentage.
     #[clap(
-        long = "min-final-residual-energy-watt-hours",
-        env = "MIN_FINAL_RESIDUAL_ENERGY_WATT_HOURS",
-        default_value = "0"
+        long = "min-final-soc",
+        env = "MIN_FINAL_SOC",
+        default_value_t = Percentage::ZERO,
     )]
-    pub min_final_residual_energy: WattHours<usize>,
+    pub min_final_soc: Percentage,
 
     /// Do not push schedule to the device, dry run.
     #[clap(long, alias = "scout", env = "DRY_RUN")]

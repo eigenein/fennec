@@ -44,6 +44,7 @@ impl Metrics {
         self.design_capacity * (self.state_of_health * self.state_of_charge)
     }
 
+    /// Allowed residual energy range per the battery settings.
     pub fn allowed_residual_energy(&self) -> RangeInclusive<WattHours<usize>> {
         let actual_capacity = self.actual_capacity();
         let start_energy_level: WattHours<usize> =

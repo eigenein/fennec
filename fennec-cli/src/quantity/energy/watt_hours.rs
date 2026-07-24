@@ -3,6 +3,7 @@ use std::ops::{Div, Mul};
 use crate::quantity::{
     Format,
     Quantity,
+    Zero,
     energy::MilliwattHours,
     power::Watts,
     ratios::Percentage,
@@ -18,9 +19,8 @@ impl<V> Format for WattHours<V> {
 /// TODO: generic implementation for any [`Quantity`]:
 impl From<WattHours<usize>> for WattHours<f64> {
     fn from(energy_level: WattHours<usize>) -> Self {
-        // `+ 0.5` gives the mid-point:
         #[expect(clippy::cast_precision_loss)]
-        Self(energy_level.0 as f64 + 0.5)
+        Self(energy_level.0 as f64)
     }
 }
 
@@ -29,7 +29,9 @@ impl From<WattHours<f64>> for WattHours<usize> {
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     fn from(value: WattHours) -> Self {
-        Self(value.0.round() as usize)
+        assert!(value >= WattHours::ZERO);
+        // Truncating since rounding could potentially violate the capacity:
+        Self(value.0 as usize)
     }
 }
 

@@ -25,7 +25,7 @@ pub struct Optimizer {
     /// Allowed residual energy levels per the battery settings.
     allowed_residual_energy: RangeInclusive<WattHours<usize>>,
 
-    /// Minimal residual energy required by the end of the prices' horizon.
+    /// Minimal residual energy required by the end of the price horizon.
     min_final_residual_energy: WattHours<usize>,
 
     /// Incurred costs per energy flow to and from the battery.
@@ -71,10 +71,10 @@ impl Optimizer {
     pub fn matches(
         &self,
         battery_capacity: WattHours,
-        allowed_residual_enenrgy: RangeInclusive<WattHours<usize>>,
+        allowed_residual_energy: RangeInclusive<WattHours<usize>>,
     ) -> bool {
-        (self.battery_capacity == battery_capacity)
-            && (self.allowed_residual_energy == allowed_residual_enenrgy)
+        (self.battery_capacity == battery_capacity) // FIXME: `f64` exact comparison.
+            && (self.allowed_residual_energy == allowed_residual_energy)
     }
 
     /// Populate the solution space from scratch.
@@ -94,7 +94,7 @@ impl Optimizer {
     pub fn solve(&mut self, energy_prices: &Schedule<energy::Flow<KilowattHourPrice>>) {
         let start_instant = Instant::now();
 
-        info!(?self.allowed_residual_energy, n_intervals = energy_prices.len(), "optimizing…");
+        info!(?self.allowed_residual_energy, ?self.min_final_residual_energy, n_intervals = energy_prices.len(), "optimizing…");
 
         let battery_capacity: WattHours<usize> = self.battery_capacity.into();
         self.solution_space = energy_prices.map(|price| Stage::new(*price, battery_capacity));

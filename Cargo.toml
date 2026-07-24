@@ -13,7 +13,7 @@ keywords = ["foxess", "frank-energie", "home-battery"]
 license = "MIT"
 repository = "https://github.com/eigenein/fennec"
 rust-version = "1.97"
-version = "0.95.2"
+version = "0.95.3"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"

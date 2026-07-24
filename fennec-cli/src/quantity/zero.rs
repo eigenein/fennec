@@ -13,6 +13,11 @@ impl<const M: i8, const P: i8, const T: i8, const C: i8> Zero for Quantity<usize
     const ZERO: Self = Self(0);
 }
 
+/// [`Zero`] for [`u8`].
+impl<const M: i8, const P: i8, const T: i8, const C: i8> Zero for Quantity<u8, M, P, T, C> {
+    const ZERO: Self = Self(0);
+}
+
 /// [`Zero`] for [`u32`].
 impl<const M: i8, const P: i8, const T: i8, const C: i8> Zero for Quantity<u32, M, P, T, C> {
     const ZERO: Self = Self(0);

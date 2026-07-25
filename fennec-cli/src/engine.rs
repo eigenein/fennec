@@ -180,6 +180,8 @@ impl Engine {
     }
 
     /// Track the balance and battery metrics and update the persistent energy profile.
+    ///
+    /// Returns [`true`] if and only if the battery residual energy has changed.
     async fn update_energy_profile(
         &self,
         now: DateTime<Local>,

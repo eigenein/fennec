@@ -98,13 +98,11 @@ impl Engine {
         let battery_capacity = battery_metrics.actual_capacity();
         let allowed_residual_energy = battery_metrics.allowed_residual_energy();
 
-        let has_residual_energy_changed =
-            self.update_energy_profile(now, balance, &battery_metrics).await?;
+        self.update_energy_profile(now, balance, &battery_metrics).await?;
 
         let optimizer = match self.optimizer.take() {
             Some(mut optimizer) if optimizer.matches(battery_capacity, allowed_residual_energy) => {
-                let has_solution_space_advanced = optimizer.advance_to(now);
-                if !has_solution_space_advanced && !has_residual_energy_changed {
+                if !optimizer.advance_to(now) {
                     self.optimizer = Some(optimizer);
                     return Ok(());
                 }
@@ -180,14 +178,12 @@ impl Engine {
     }
 
     /// Track the balance and battery metrics and update the persistent energy profile.
-    ///
-    /// Returns [`true`] if and only if the battery residual energy has changed.
     async fn update_energy_profile(
         &self,
         now: DateTime<Local>,
         balance: energy::Balance<Watts>,
         battery_metrics: &mini_qube::Metrics,
-    ) -> Result<bool> {
+    ) -> Result {
         let energy_profile = &mut self.state.write().await.energy_profile;
         energy_profile.energy.update(
             balance,
@@ -195,11 +191,11 @@ impl Engine {
             now,
             self.args.energy_profile.balance_half_life,
         );
-        let is_residual_energy_changed = energy_profile
+        energy_profile
             .battery
             .track(battery_metrics, self.args.energy_profile.battery_efficiency_half_life_factor);
         energy_profile.write_to_file().await.context("failed to write the energy profile")?;
-        Ok(is_residual_energy_changed)
+        Ok(())
     }
 
     /// Rebuild [`Optimizer`] from scratch.

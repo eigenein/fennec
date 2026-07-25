@@ -87,10 +87,8 @@ impl Battery {
     ///
     /// # Returns
     ///
-    /// - [`true`], if the battery residual energy has changed since the last call;
-    /// - [`false`], otherwise.
+    /// [`true`] if and only if the battery residual energy has changed since the last call.
     #[instrument(skip_all)]
-    #[must_use]
     pub fn track(&mut self, current_metrics: &mini_qube::Metrics, half_life_factor: f64) -> bool {
         let current_tracker = BatteryTracker {
             total_grid_flow: current_metrics.total_grid_flow,

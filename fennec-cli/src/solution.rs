@@ -17,7 +17,7 @@ pub use self::{
     stage::Stage,
     step::Step,
 };
-use crate::quantity::{Zero, currency::Mills};
+use crate::quantity::currency::Mills;
 
 /// Solution for a particular energy level at a particular [`Stage`].
 #[must_use]
@@ -37,12 +37,6 @@ impl Solution {
 
     /// Compare this solution total loss to the other solution total loss.
     fn compare_loss_to(&self, other: &Self) -> Ordering {
-        let difference = self.metrics.losses.total() - other.metrics.losses.total();
-        if difference.abs() >= Mills::ONE {
-            difference.partial_cmp(&Mills::ZERO).unwrap_or(Ordering::Equal)
-        } else {
-            // Within noise floor – compare actions and prefer lower-action mode:
-            self.step.working_mode.cmp(&other.step.working_mode)
-        }
+        self.total_loss().partial_cmp(&other.total_loss()).unwrap_or(Ordering::Equal)
     }
 }

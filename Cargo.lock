@@ -787,7 +787,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "fennec-cli"
-version = "0.95.3"
+version = "0.95.4"
 dependencies = [
  "anyhow",
  "axum",
@@ -815,7 +815,7 @@ dependencies = [
 
 [[package]]
 name = "fennec-modbus"
-version = "0.95.3"
+version = "0.95.4"
 dependencies = [
  "anyhow",
  "bytes",

@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="EMPTY_MODULE" version="4">
-  <component name="FacetManager">
-    <facet type="Python" name="Python facet">
-      <configuration sdkName="Python 3.14" />
-    </facet>
-  </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
@@ -13,10 +8,10 @@
       <sourceFolder url="file://$MODULE_DIR$/fennec-modbus-proxy/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fennec-quantities/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fennec-modbus/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Python 3.14 interpreter library" level="application" />
   </component>
 </module>

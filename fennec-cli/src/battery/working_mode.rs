@@ -1,8 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-/// Ordered by priority: least battery action first.
-/// It matters when the corresponding solution losses are similar.
-#[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, clap::ValueEnum)]
+#[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, clap::ValueEnum)]
 pub enum WorkingMode {
     /// Do not do anything.
     Idle,

@@ -56,7 +56,7 @@ jobs:
           cache-on-failure: true
 
       - name: "⚡️ Shared Compilation Cache"
-        uses: "mozilla-actions/sccache-action@v0.0.10"
+        uses: "mozilla-actions/sccache-action@v0.0.11"
 
       - name: "🧪 Install coverage tools"
         uses: "taiki-e/install-action@cargo-llvm-cov"

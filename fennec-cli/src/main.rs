@@ -15,8 +15,6 @@ mod series;
 mod solution;
 mod web;
 
-use std::borrow::Cow;
-
 use clap::{Parser as _, crate_name, crate_version};
 use sentry::{
     SessionMode,
@@ -64,17 +62,15 @@ fn init_tracing() -> Result {
 }
 
 fn init_sentry(dsn: Option<&str>) -> sentry::ClientInitGuard {
-    let options = sentry::ClientOptions {
-        traces_sample_rate: 1.0,
-        sample_rate: 1.0,
-        send_default_pii: true,
-        attach_stacktrace: true,
-        in_app_include: vec![crate_name!()],
-        release: Some(Cow::Borrowed(crate_version!())),
-        auto_session_tracking: true,
-        session_mode: SessionMode::Application,
-        ..Default::default()
-    };
+    let options = sentry::ClientOptions::new()
+        .traces_sample_rate(1.0)
+        .sample_rate(1.0)
+        .send_default_pii(true)
+        .attach_stacktrace(true)
+        .in_app_include([crate_name!()])
+        .release(crate_version!())
+        .auto_session_tracking(true)
+        .session_mode(SessionMode::Application);
     let guard = sentry::init((dsn, options));
     if !guard.is_enabled() {
         warn!("Sentry is disabled");

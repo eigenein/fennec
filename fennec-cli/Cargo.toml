@@ -33,7 +33,7 @@ http = "1.4.0"
 itertools = "0.15.0"
 humantime = "2.3.0"
 maud = { version = "0.27.0", features = ["axum"] }
-musli = { version = "0.0.149", features = ["wire", "serde"] }
+musli = { version = "0.1.8", features = ["wire", "serde"] }
 plotters = { version = "0.3.7", default-features = false, features = ["svg_backend", "line_series", "full_palette"]}
 reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "deflate", "brotli", "gzip", "http2"] }
 sentry = { version = "0.48.0", default-features = false, features = ["rustls", "tracing", "backtrace", "contexts", "panic", "reqwest", "anyhow", "release-health"] }

@@ -60,7 +60,7 @@ jobs:
         with:
           tool: "cargo-zigbuild"
 
-      - uses: "sigstore/cosign-installer@v4.1.3"
+      - uses: "sigstore/cosign-installer@v4.1.4"
         name: "✏️ Set up Cosign"
 
       - name: "🐬 Set up QEMU"
